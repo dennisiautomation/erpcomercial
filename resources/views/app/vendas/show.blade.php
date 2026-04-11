@@ -30,6 +30,9 @@
                 </button>
             </form>
         @endif
+        <button type="button" class="btn btn-outline-dark" onclick="imprimirRecibo()">
+            <i class="bi bi-receipt me-1"></i> Recibo
+        </button>
         <button type="button" class="btn btn-outline-secondary" onclick="window.print()">
             <i class="bi bi-printer me-1"></i> Imprimir
         </button>
@@ -380,4 +383,54 @@
         </div>
     @endif
 </div>
+<!-- Iframe para impressão de recibo -->
+<iframe id="reciboFrame" style="display:none"></iframe>
+
 @endsection
+
+@push('scripts')
+<script>
+function imprimirRecibo() {
+    const frame = document.getElementById('reciboFrame');
+    const venda = @json($venda->load(['itens.produto', 'cliente', 'unidade.empresa']));
+
+    let itensHtml = '';
+    (venda.itens || []).forEach((item, i) => {
+        itensHtml += `<tr><td>${i+1}</td><td>${item.descricao}</td><td style="text-align:right">${parseFloat(item.quantidade).toFixed(2)}</td><td style="text-align:right">R$ ${parseFloat(item.preco_unitario).toFixed(2)}</td><td style="text-align:right">R$ ${parseFloat(item.total).toFixed(2)}</td></tr>`;
+    });
+
+    const empresa = venda.unidade?.empresa || {};
+    const html = `<!DOCTYPE html><html><head><style>
+        body{font-family:monospace;font-size:12px;width:80mm;margin:0 auto;padding:8px}
+        h3{text-align:center;margin:4px 0}
+        .center{text-align:center}
+        .line{border-top:1px dashed #000;margin:6px 0}
+        table{width:100%;border-collapse:collapse}
+        td{padding:2px 0;font-size:11px}
+        .total{font-size:16px;font-weight:bold;text-align:center;margin:8px 0}
+        .footer{text-align:center;font-size:10px;margin-top:10px}
+    </style></head><body>
+        <h3>${empresa.nome_fantasia || empresa.razao_social || 'ERP Comercial'}</h3>
+        <div class="center" style="font-size:10px">${empresa.logradouro || ''}, ${empresa.numero || ''} - ${empresa.cidade || ''}/${empresa.uf || ''}<br>CNPJ: ${empresa.cnpj || ''} | Tel: ${empresa.telefone || ''}</div>
+        <div class="line"></div>
+        <div class="center"><strong>COMPROVANTE DE VENDA</strong></div>
+        <div style="font-size:10px">Venda: #${venda.numero} | Data: ${new Date(venda.created_at).toLocaleString('pt-BR')}<br>
+        Cliente: ${venda.cliente?.nome_razao_social || 'Consumidor'}<br>
+        Operador: ${venda.vendedor?.name || '-'}</div>
+        <div class="line"></div>
+        <table><tr><th>#</th><th>Descrição</th><th style="text-align:right">Qtd</th><th style="text-align:right">Unit</th><th style="text-align:right">Total</th></tr>${itensHtml}</table>
+        <div class="line"></div>
+        <div>Subtotal: R$ ${parseFloat(venda.subtotal).toFixed(2)}</div>
+        ${parseFloat(venda.desconto_valor) > 0 ? '<div>Desconto: -R$ ' + parseFloat(venda.desconto_valor).toFixed(2) + '</div>' : ''}
+        <div class="total">TOTAL: R$ ${parseFloat(venda.total).toFixed(2)}</div>
+        <div>Pagamento: ${venda.forma_pagamento || '-'}</div>
+        ${parseFloat(venda.troco) > 0 ? '<div>Troco: R$ ' + parseFloat(venda.troco).toFixed(2) + '</div>' : ''}
+        <div class="line"></div>
+        <div class="footer">Este comprovante nao possui valor fiscal<br>${new Date().toLocaleString('pt-BR')}</div>
+    </body></html>`;
+
+    frame.srcdoc = html;
+    frame.onload = () => frame.contentWindow.print();
+}
+</script>
+@endpush

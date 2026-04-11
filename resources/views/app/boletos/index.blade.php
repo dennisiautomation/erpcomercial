@@ -119,16 +119,7 @@
                     <td>R$ {{ number_format($boleto->valor, 2, ',', '.') }}</td>
                     <td>{{ $boleto->vencimento?->format('d/m/Y') }}</td>
                     <td>
-                        @php
-                            $badgeClass = match($boleto->status) {
-                                'pago' => 'paga',
-                                'pendente' => 'pendente',
-                                'vencido' => 'vencida',
-                                'cancelado' => 'cancelado',
-                                default => 'inativo',
-                            };
-                        @endphp
-                        <span class="badge-status {{ $badgeClass }}">{{ ucfirst($boleto->status) }}</span>
+                        <span class="badge-status {{ $boleto->status }}">{{ ucfirst($boleto->status) }}</span>
                     </td>
                     <td>
                         <div class="action-btns">

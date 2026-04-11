@@ -68,7 +68,6 @@ class ContaPagarController extends Controller
     public function create()
     {
         $fornecedores = Fornecedor::where('empresa_id', auth()->user()->empresa_id)
-            ->where('status', 'ativo')
             ->orderBy('razao_social')
             ->get(['id', 'razao_social']);
 
