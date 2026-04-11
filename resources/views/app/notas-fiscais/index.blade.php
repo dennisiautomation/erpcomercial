@@ -6,10 +6,10 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h4 class="mb-0"><i class="bi bi-file-earmark-text me-2"></i>Notas Fiscais</h4>
     <div class="d-flex gap-2">
-        <a href="{{ route('app.notas-fiscais.emitir-nfse') }}" class="btn btn-primary">
+        <a href="{{ route('app.notas-fiscais.emitir-nfse') }}" class="btn btn-primary btn-sm">
             <i class="bi bi-plus-lg me-1"></i> Emitir NFS-e
         </a>
-        <a href="{{ route('app.notas-fiscais.inutilizar') }}" class="btn btn-outline-secondary">
+        <a href="{{ route('app.notas-fiscais.inutilizar') }}" class="btn btn-outline-secondary btn-sm">
             <i class="bi bi-slash-circle me-1"></i> Inutilizar
         </a>
     </div>
@@ -18,42 +18,66 @@
 {{-- Summary Cards --}}
 <div class="row g-3 mb-4">
     <div class="col-md-4">
-        <div class="card border-0 bg-primary bg-opacity-10">
-            <div class="card-body text-center">
-                <div class="fs-3 fw-bold text-primary">{{ $totalEmitidas }}</div>
-                <div class="text-muted small">Emitidas no Mes</div>
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <p class="text-muted small mb-1">Emitidas no Mes</p>
+                        <h3 class="fw-bold mb-0">{{ $totalEmitidas }}</h3>
+                    </div>
+                    <div class="rounded-3 bg-primary bg-opacity-10 p-2">
+                        <i class="bi bi-file-earmark-text fs-4 text-primary"></i>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
     <div class="col-md-4">
-        <div class="card border-0 bg-success bg-opacity-10">
-            <div class="card-body text-center">
-                <div class="fs-3 fw-bold text-success">{{ $totalAutorizadas }}</div>
-                <div class="text-muted small">Autorizadas no Mes</div>
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <p class="text-muted small mb-1">Autorizadas no Mes</p>
+                        <h3 class="fw-bold mb-0 text-success">{{ $totalAutorizadas }}</h3>
+                    </div>
+                    <div class="rounded-3 bg-success bg-opacity-10 p-2">
+                        <i class="bi bi-check-circle fs-4 text-success"></i>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
     <div class="col-md-4">
-        <div class="card border-0 bg-danger bg-opacity-10">
-            <div class="card-body text-center">
-                <div class="fs-3 fw-bold text-danger">{{ $totalCanceladas }}</div>
-                <div class="text-muted small">Canceladas no Mes</div>
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <p class="text-muted small mb-1">Canceladas no Mes</p>
+                        <h3 class="fw-bold mb-0 text-danger">{{ $totalCanceladas }}</h3>
+                    </div>
+                    <div class="rounded-3 bg-danger bg-opacity-10 p-2">
+                        <i class="bi bi-x-circle fs-4 text-danger"></i>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 </div>
 
 {{-- Filters --}}
-<div class="card mb-4">
-    <div class="card-body">
-        <form method="GET" class="row g-3 align-items-end">
-            <div class="col-md-2">
-                <label class="form-label">Buscar</label>
-                <input type="text" name="busca" class="form-control" placeholder="Numero, chave, cliente..." value="{{ request('busca') }}">
+<div class="card shadow-sm mb-4">
+    <div class="card-body py-3">
+        <form method="GET" class="row g-2 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label small fw-semibold">Buscar</label>
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                    <input type="text" name="busca" class="form-control" placeholder="Numero, chave, cliente..." value="{{ request('busca') }}">
+                </div>
             </div>
             <div class="col-md-2">
-                <label class="form-label">Tipo</label>
-                <select name="tipo" class="form-select">
+                <label class="form-label small fw-semibold">Tipo</label>
+                <select name="tipo" class="form-select form-select-sm">
                     <option value="">Todos</option>
                     @foreach(\App\Enums\TipoNotaFiscal::cases() as $tipo)
                         <option value="{{ $tipo->value }}" {{ request('tipo') === $tipo->value ? 'selected' : '' }}>
@@ -63,8 +87,8 @@
                 </select>
             </div>
             <div class="col-md-2">
-                <label class="form-label">Status</label>
-                <select name="status" class="form-select">
+                <label class="form-label small fw-semibold">Status</label>
+                <select name="status" class="form-select form-select-sm">
                     <option value="">Todos</option>
                     @foreach(\App\Enums\StatusNotaFiscal::cases() as $status)
                         <option value="{{ $status->value }}" {{ request('status') === $status->value ? 'selected' : '' }}>
@@ -74,20 +98,18 @@
                 </select>
             </div>
             <div class="col-md-2">
-                <label class="form-label">Data Inicio</label>
-                <input type="date" name="data_inicio" class="form-control" value="{{ request('data_inicio') }}">
+                <label class="form-label small fw-semibold">De</label>
+                <input type="date" name="data_inicio" class="form-control form-control-sm" value="{{ request('data_inicio') }}">
             </div>
             <div class="col-md-2">
-                <label class="form-label">Data Fim</label>
-                <input type="date" name="data_fim" class="form-control" value="{{ request('data_fim') }}">
+                <label class="form-label small fw-semibold">Ate</label>
+                <input type="date" name="data_fim" class="form-control form-control-sm" value="{{ request('data_fim') }}">
             </div>
-            <div class="col-md-1">
-                <button type="submit" class="btn btn-outline-primary w-100">
+            <div class="col-md-1 d-flex gap-1">
+                <button type="submit" class="btn btn-primary btn-sm flex-grow-1" title="Filtrar">
                     <i class="bi bi-search"></i>
                 </button>
-            </div>
-            <div class="col-md-1">
-                <a href="{{ route('app.notas-fiscais.index') }}" class="btn btn-outline-secondary w-100" title="Limpar filtros">
+                <a href="{{ route('app.notas-fiscais.index') }}" class="btn btn-outline-secondary btn-sm" title="Limpar">
                     <i class="bi bi-x-lg"></i>
                 </a>
             </div>
@@ -96,27 +118,30 @@
 </div>
 
 {{-- Table --}}
-<div class="card">
+<div class="card shadow-sm">
     <div class="table-responsive">
-        <table class="table table-hover mb-0">
+        <table class="table table-hover align-middle mb-0">
             <thead class="table-light">
                 <tr>
                     <th>Numero</th>
-                    <th>Serie</th>
                     <th class="text-center">Tipo</th>
-                    <th>Chave de Acesso</th>
                     <th>Cliente</th>
+                    <th>Chave de Acesso</th>
                     <th class="text-end">Valor (R$)</th>
                     <th class="text-center">Status</th>
-                    <th>Data</th>
-                    <th class="text-center">Acoes</th>
+                    <th>Emissao</th>
+                    <th class="text-center" style="width: 140px;">Acoes</th>
                 </tr>
             </thead>
             <tbody>
                 @forelse($notasFiscais as $nf)
                     <tr>
-                        <td><strong>#{{ $nf->numero ?? '-' }}</strong></td>
-                        <td>{{ $nf->serie ?? '-' }}</td>
+                        <td>
+                            <strong>#{{ $nf->numero ?? '-' }}</strong>
+                            @if($nf->serie)
+                                <small class="text-muted d-block">Serie {{ $nf->serie }}</small>
+                            @endif
+                        </td>
                         <td class="text-center">
                             @php
                                 $tipoBg = match($nf->tipo) {
@@ -129,23 +154,28 @@
                             <span class="badge bg-{{ $tipoBg }}">{{ strtoupper($nf->tipo->value) }}</span>
                         </td>
                         <td>
+                            {{ $nf->cliente->nome_razao_social ?? 'Consumidor Final' }}
+                            @if($nf->cliente?->cpf_cnpj)
+                                <small class="text-muted d-block">{{ $nf->cliente->cpf_cnpj }}</small>
+                            @endif
+                        </td>
+                        <td>
                             @if($nf->chave_acesso)
-                                <small class="text-muted" title="{{ $nf->chave_acesso }}">
-                                    {{ substr($nf->chave_acesso, 0, 20) }}...
-                                </small>
+                                <span class="font-monospace small text-muted" title="{{ $nf->chave_acesso }}" style="cursor: help;">
+                                    {{ substr($nf->chave_acesso, 0, 25) }}...
+                                </span>
                             @else
                                 <span class="text-muted">-</span>
                             @endif
                         </td>
-                        <td>{{ $nf->cliente->nome_razao_social ?? 'Consumidor Final' }}</td>
                         <td class="text-end fw-semibold">{{ number_format($nf->valor_total, 2, ',', '.') }}</td>
                         <td class="text-center">
                             <span class="badge bg-{{ $nf->status->color() }}">{{ $nf->status->label() }}</span>
                         </td>
-                        <td>{{ $nf->emitida_em?->format('d/m/Y H:i') ?? $nf->created_at->format('d/m/Y H:i') }}</td>
+                        <td class="text-nowrap small">{{ $nf->emitida_em?->format('d/m/Y H:i') ?? $nf->created_at->format('d/m/Y H:i') }}</td>
                         <td class="text-center">
                             <div class="btn-group btn-group-sm">
-                                <a href="{{ route('app.notas-fiscais.show', $nf) }}" class="btn btn-outline-primary" title="Ver detalhes">
+                                <a href="{{ route('app.notas-fiscais.show', $nf) }}" class="btn btn-outline-primary" title="Detalhes">
                                     <i class="bi bi-eye"></i>
                                 </a>
                                 @if($nf->status === \App\Enums\StatusNotaFiscal::Pendente)
@@ -154,12 +184,12 @@
                                     </button>
                                 @endif
                                 @if($nf->xml_url)
-                                    <a href="{{ route('app.notas-fiscais.xml', $nf) }}" class="btn btn-outline-success" title="Download XML" target="_blank">
+                                    <a href="{{ route('app.notas-fiscais.xml', $nf) }}" class="btn btn-outline-success" title="XML" target="_blank">
                                         <i class="bi bi-file-code"></i>
                                     </a>
                                 @endif
                                 @if($nf->danfe_url || $nf->pdf_url)
-                                    <a href="{{ route('app.notas-fiscais.danfe', $nf) }}" class="btn btn-outline-danger" title="Download DANFE/PDF" target="_blank">
+                                    <a href="{{ route('app.notas-fiscais.danfe', $nf) }}" class="btn btn-outline-danger" title="DANFE/PDF" target="_blank">
                                         <i class="bi bi-file-pdf"></i>
                                     </a>
                                 @endif
@@ -168,14 +198,17 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="9" class="text-center text-muted py-4">Nenhuma nota fiscal encontrada.</td>
+                        <td colspan="8" class="text-center text-muted py-5">
+                            <i class="bi bi-file-earmark-x fs-1 d-block mb-2 opacity-50"></i>
+                            Nenhuma nota fiscal encontrada.
+                        </td>
                     </tr>
                 @endforelse
             </tbody>
         </table>
     </div>
     @if($notasFiscais->hasPages())
-        <div class="card-footer">
+        <div class="card-footer bg-white">
             {{ $notasFiscais->links() }}
         </div>
     @endif
@@ -188,7 +221,9 @@ document.querySelectorAll('.btn-consultar').forEach(btn => {
     btn.addEventListener('click', function () {
         const url = this.dataset.url;
         const icon = this.querySelector('i');
-        icon.classList.add('spin');
+        const originalClass = icon.className;
+        this.disabled = true;
+        icon.className = 'bi bi-arrow-repeat spin';
 
         fetch(url, {
             headers: {
@@ -198,23 +233,24 @@ document.querySelectorAll('.btn-consultar').forEach(btn => {
         })
         .then(r => r.json())
         .then(data => {
-            icon.classList.remove('spin');
+            this.disabled = false;
+            icon.className = originalClass;
             if (data.success) {
-                alert('Status: ' + data.label + (data.message ? '\n' + data.message : ''));
                 location.reload();
             } else {
                 alert('Erro: ' + data.message);
             }
         })
         .catch(() => {
-            icon.classList.remove('spin');
+            this.disabled = false;
+            icon.className = originalClass;
             alert('Erro ao consultar status.');
         });
     });
 });
 </script>
 <style>
-.spin { animation: spin 1s linear infinite; }
+.spin { animation: spin 1s linear infinite; display: inline-block; }
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 </style>
 @endpush

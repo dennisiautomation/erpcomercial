@@ -18,7 +18,8 @@ class ClienteController extends Controller
             $query->where(function ($q) use ($busca) {
                 $q->where('nome_razao_social', 'like', "%{$busca}%")
                   ->orWhere('cpf_cnpj', 'like', "%{$busca}%")
-                  ->orWhere('nome_fantasia', 'like', "%{$busca}%");
+                  ->orWhere('nome_fantasia', 'like', "%{$busca}%")
+                  ->orWhere('email', 'like', "%{$busca}%");
             });
         }
 
@@ -26,9 +27,29 @@ class ClienteController extends Controller
             $query->where('status', $request->status);
         }
 
+        if ($request->filled('tipo_pessoa')) {
+            $query->where('tipo_pessoa', $request->tipo_pessoa);
+        }
+
+        if ($request->filled('cidade')) {
+            $query->where('cidade', 'like', "%{$request->cidade}%");
+        }
+
         $clientes = $query->orderBy('nome_razao_social')->paginate(15)->withQueryString();
 
-        return view('app.clientes.index', compact('clientes'));
+        // Contadores para badges
+        $totalAtivos = Cliente::where('status', 'ativo')->count();
+        $totalInativos = Cliente::where('status', 'inativo')->count();
+        $totalBloqueados = Cliente::where('status', 'bloqueado')->count();
+        $totalGeral = $totalAtivos + $totalInativos + $totalBloqueados;
+
+        return view('app.clientes.index', compact(
+            'clientes',
+            'totalAtivos',
+            'totalInativos',
+            'totalBloqueados',
+            'totalGeral',
+        ));
     }
 
     public function create()
@@ -81,7 +102,19 @@ class ClienteController extends Controller
             $q->latest('vencimento');
         }]);
 
-        return view('app.clientes.show', compact('cliente'));
+        // Estatisticas do cliente
+        $totalCompras = $cliente->vendas->where('status', 'finalizada')->count();
+        $valorTotalCompras = $cliente->vendas->where('status', 'finalizada')->sum('total');
+        $ultimaCompra = $cliente->vendas->where('status', 'finalizada')->first();
+        $saldoDevedor = $cliente->contasReceber->where('status', 'pendente')->sum('valor');
+
+        return view('app.clientes.show', compact(
+            'cliente',
+            'totalCompras',
+            'valorTotalCompras',
+            'ultimaCompra',
+            'saldoDevedor',
+        ));
     }
 
     public function edit(Cliente $cliente)
@@ -115,7 +148,7 @@ class ClienteController extends Controller
             'whatsapp'          => 'nullable|string|max:20',
             'email'             => 'nullable|email|max:255',
             'limite_credito'    => 'nullable|numeric|min:0',
-            'status'            => 'required|in:ativo,inativo',
+            'status'            => 'required|in:ativo,inativo,bloqueado',
             'observacoes'       => 'nullable|string',
         ]);
 
@@ -130,6 +163,6 @@ class ClienteController extends Controller
         $cliente->delete();
 
         return redirect()->route('app.clientes.index')
-            ->with('success', 'Cliente excluído com sucesso!');
+            ->with('success', 'Cliente excluido com sucesso!');
     }
 }

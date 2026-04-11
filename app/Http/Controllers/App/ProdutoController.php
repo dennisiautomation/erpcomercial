@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Categoria;
 use App\Models\Produto;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class ProdutoController extends Controller
 {
@@ -47,27 +48,28 @@ class ProdutoController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'codigo_barras'     => 'nullable|string|max:50',
-            'sku'               => 'nullable|string|max:50',
-            'descricao'         => 'required|string|max:255',
-            'descricao_detalhada' => 'nullable|string',
-            'unidade_medida'    => 'required|string|max:10',
-            'categoria_id'      => 'nullable|exists:categorias,id',
-            'ncm'               => 'nullable|string|max:10',
-            'cest'              => 'nullable|string|max:10',
-            'origem'            => 'nullable|string|max:1',
-            'preco_custo'       => 'nullable|numeric|min:0',
-            'markup'            => 'nullable|numeric|min:0',
-            'preco_venda'       => 'required|numeric|min:0',
-            'estoque_minimo'    => 'nullable|numeric|min:0',
-            'peso_bruto'        => 'nullable|numeric|min:0',
-            'peso_liquido'      => 'nullable|numeric|min:0',
-            'cfop'              => 'nullable|string|max:10',
-            'cst_csosn'         => 'nullable|string|max:10',
-            'icms_aliquota'     => 'nullable|numeric|min:0|max:100',
-            'pis_aliquota'      => 'nullable|numeric|min:0|max:100',
-            'cofins_aliquota'   => 'nullable|numeric|min:0|max:100',
-            'ipi_aliquota'      => 'nullable|numeric|min:0|max:100',
+            'codigo_barras'      => 'nullable|string|max:50',
+            'sku'                => 'nullable|string|max:50',
+            'descricao'          => 'required|string|max:255',
+            'descricao_detalhada'=> 'nullable|string',
+            'unidade_medida'     => 'required|in:UN,KG,CX,PCT,LT,MT,M2,M3,PAR,JG',
+            'categoria_id'       => 'nullable|exists:categorias,id',
+            'ncm'                => 'nullable|string|max:10',
+            'cest'               => 'nullable|string|max:10',
+            'origem'             => 'nullable|string|max:1',
+            'preco_custo'        => 'nullable|numeric|min:0',
+            'markup'             => 'nullable|numeric|min:0',
+            'preco_venda'        => 'required|numeric|min:0',
+            'estoque_minimo'     => 'nullable|numeric|min:0',
+            'foto'               => 'nullable|image|max:2048',
+            'peso_bruto'         => 'nullable|numeric|min:0',
+            'peso_liquido'       => 'nullable|numeric|min:0',
+            'cfop'               => 'nullable|string|max:10',
+            'cst_csosn'          => 'nullable|string|max:10',
+            'icms_aliquota'      => 'nullable|numeric|min:0|max:100',
+            'pis_aliquota'       => 'nullable|numeric|min:0|max:100',
+            'cofins_aliquota'    => 'nullable|numeric|min:0|max:100',
+            'ipi_aliquota'       => 'nullable|numeric|min:0|max:100',
         ]);
 
         // Auto-generate codigo_interno
@@ -78,6 +80,11 @@ class ProdutoController extends Controller
         $proximo = $ultimo ? intval($ultimo) + 1 : 1;
         $validated['codigo_interno'] = str_pad($proximo, 6, '0', STR_PAD_LEFT);
         $validated['status'] = 'ativo';
+
+        // Handle foto upload
+        if ($request->hasFile('foto')) {
+            $validated['foto'] = $request->file('foto')->store('produtos', 'public');
+        }
 
         Produto::create($validated);
 
@@ -104,29 +111,39 @@ class ProdutoController extends Controller
     public function update(Request $request, Produto $produto)
     {
         $validated = $request->validate([
-            'codigo_barras'     => 'nullable|string|max:50',
-            'sku'               => 'nullable|string|max:50',
-            'descricao'         => 'required|string|max:255',
-            'descricao_detalhada' => 'nullable|string',
-            'unidade_medida'    => 'required|string|max:10',
-            'categoria_id'      => 'nullable|exists:categorias,id',
-            'ncm'               => 'nullable|string|max:10',
-            'cest'              => 'nullable|string|max:10',
-            'origem'            => 'nullable|string|max:1',
-            'preco_custo'       => 'nullable|numeric|min:0',
-            'markup'            => 'nullable|numeric|min:0',
-            'preco_venda'       => 'required|numeric|min:0',
-            'estoque_minimo'    => 'nullable|numeric|min:0',
-            'peso_bruto'        => 'nullable|numeric|min:0',
-            'peso_liquido'      => 'nullable|numeric|min:0',
-            'cfop'              => 'nullable|string|max:10',
-            'cst_csosn'         => 'nullable|string|max:10',
-            'icms_aliquota'     => 'nullable|numeric|min:0|max:100',
-            'pis_aliquota'      => 'nullable|numeric|min:0|max:100',
-            'cofins_aliquota'   => 'nullable|numeric|min:0|max:100',
-            'ipi_aliquota'      => 'nullable|numeric|min:0|max:100',
-            'status'            => 'required|in:ativo,inativo',
+            'codigo_barras'      => 'nullable|string|max:50',
+            'sku'                => 'nullable|string|max:50',
+            'descricao'          => 'required|string|max:255',
+            'descricao_detalhada'=> 'nullable|string',
+            'unidade_medida'     => 'required|in:UN,KG,CX,PCT,LT,MT,M2,M3,PAR,JG',
+            'categoria_id'       => 'nullable|exists:categorias,id',
+            'ncm'                => 'nullable|string|max:10',
+            'cest'               => 'nullable|string|max:10',
+            'origem'             => 'nullable|string|max:1',
+            'preco_custo'        => 'nullable|numeric|min:0',
+            'markup'             => 'nullable|numeric|min:0',
+            'preco_venda'        => 'required|numeric|min:0',
+            'estoque_minimo'     => 'nullable|numeric|min:0',
+            'foto'               => 'nullable|image|max:2048',
+            'peso_bruto'         => 'nullable|numeric|min:0',
+            'peso_liquido'       => 'nullable|numeric|min:0',
+            'cfop'               => 'nullable|string|max:10',
+            'cst_csosn'          => 'nullable|string|max:10',
+            'icms_aliquota'      => 'nullable|numeric|min:0|max:100',
+            'pis_aliquota'       => 'nullable|numeric|min:0|max:100',
+            'cofins_aliquota'    => 'nullable|numeric|min:0|max:100',
+            'ipi_aliquota'       => 'nullable|numeric|min:0|max:100',
+            'status'             => 'required|in:ativo,inativo',
         ]);
+
+        // Handle foto upload
+        if ($request->hasFile('foto')) {
+            // Delete old foto if exists
+            if ($produto->foto) {
+                Storage::disk('public')->delete($produto->foto);
+            }
+            $validated['foto'] = $request->file('foto')->store('produtos', 'public');
+        }
 
         $produto->update($validated);
 
@@ -136,9 +153,13 @@ class ProdutoController extends Controller
 
     public function destroy(Produto $produto)
     {
+        if ($produto->foto) {
+            Storage::disk('public')->delete($produto->foto);
+        }
+
         $produto->delete();
 
         return redirect()->route('app.produtos.index')
-            ->with('success', 'Produto excluído com sucesso!');
+            ->with('success', 'Produto excluido com sucesso!');
     }
 }

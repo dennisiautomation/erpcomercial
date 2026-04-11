@@ -40,6 +40,7 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
     Route::resource('empresas', Admin\EmpresaController::class);
     Route::resource('empresas.unidades', Admin\UnidadeController::class)->shallow();
     Route::resource('usuarios', Admin\UsuarioController::class);
+    Route::resource('planos', Admin\PlanoController::class);
 });
 
 /* ------------------------------------------------------------------ */
@@ -49,6 +50,19 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
 Route::middleware(['auth', 'unidade'])->prefix('app')->name('app.')->group(function () {
 
     Route::get('/dashboard', [App\DashboardController::class, 'index'])->name('dashboard');
+
+    /* ------ Plano / Assinatura ------ */
+    Route::get('/plano', [App\PlanoController::class, 'index'])->name('plano.index');
+    Route::get('/plano/expirado', [App\PlanoController::class, 'expirado'])->name('plano-expirado');
+    Route::get('/plano/comparar', [App\PlanoController::class, 'comparar'])->name('plano.comparar');
+
+    /* ------ Importação CSV ------ */
+    Route::prefix('import')->name('import.')->group(function () {
+        Route::post('/clientes', [App\ImportController::class, 'clientes'])->name('clientes');
+        Route::post('/produtos', [App\ImportController::class, 'produtos'])->name('produtos');
+        Route::post('/fornecedores', [App\ImportController::class, 'fornecedores'])->name('fornecedores');
+        Route::get('/template/{tipo}', [App\ImportController::class, 'template'])->name('template');
+    });
 
     /* ------ Cadastros ------ */
     Route::resource('clientes', App\ClienteController::class)->middleware('permission:clientes');
@@ -64,6 +78,12 @@ Route::middleware(['auth', 'unidade'])->prefix('app')->name('app.')->group(funct
         ->name('orcamentos.converter')
         ->middleware('permission:orcamentos');
     Route::resource('pedidos', App\PedidoController::class)->middleware('permission:pedidos');
+    Route::post('pedidos/{pedido}/status', [App\PedidoController::class, 'updateStatus'])
+        ->name('pedidos.update-status')
+        ->middleware('permission:pedidos');
+    Route::post('orcamentos/{orcamento}/status', [App\OrcamentoController::class, 'updateStatus'])
+        ->name('orcamentos.update-status')
+        ->middleware('permission:orcamentos');
     Route::resource('vendas', App\VendaController::class)->middleware('permission:vendas');
 
     /* ------ PDV ------ */
@@ -76,10 +96,13 @@ Route::middleware(['auth', 'unidade'])->prefix('app')->name('app.')->group(funct
     Route::get('/pdv/produto/{codigo}', [App\PdvController::class, 'buscarProduto'])
         ->name('pdv.buscar-produto')
         ->middleware('permission:vendas,criar');
+    Route::get('/pdv/cliente/{termo}', [App\PdvController::class, 'buscarCliente'])
+        ->name('pdv.buscar-cliente')
+        ->middleware('permission:vendas,criar');
 
     /* ------ Caixa ------ */
-    Route::post('/caixa/abrir', [App\CaixaController::class, 'abrir'])->name('caixa.abrir');
-    Route::post('/caixa/fechar', [App\CaixaController::class, 'fechar'])->name('caixa.fechar');
+    Route::match(['get', 'post'], '/caixa/abrir', [App\CaixaController::class, 'abrir'])->name('caixa.abrir');
+    Route::match(['get', 'post'], '/caixa/fechar', [App\CaixaController::class, 'fechar'])->name('caixa.fechar');
     Route::post('/caixa/sangria', [App\CaixaController::class, 'sangria'])->name('caixa.sangria');
     Route::post('/caixa/suprimento', [App\CaixaController::class, 'suprimento'])->name('caixa.suprimento');
 
@@ -87,6 +110,12 @@ Route::middleware(['auth', 'unidade'])->prefix('app')->name('app.')->group(funct
     Route::resource('estoque/movimentacoes', App\EstoqueMovimentacaoController::class)
         ->middleware('permission:estoque');
     Route::resource('estoque/transferencias', App\TransferenciaEstoqueController::class)
+        ->middleware('permission:estoque');
+    Route::patch('estoque/transferencias/{transferencia}/aprovar', [App\TransferenciaEstoqueController::class, 'aprovar'])
+        ->name('transferencias.aprovar')
+        ->middleware('permission:estoque');
+    Route::patch('estoque/transferencias/{transferencia}/cancelar', [App\TransferenciaEstoqueController::class, 'cancelar'])
+        ->name('transferencias.cancelar')
         ->middleware('permission:estoque');
 
     /* ------ Financeiro ------ */
@@ -105,13 +134,13 @@ Route::middleware(['auth', 'unidade'])->prefix('app')->name('app.')->group(funct
         ->middleware('permission:financeiro');
 
     /* ------ Contratos / Cobranças Recorrentes ------ */
-    Route::resource('contratos', App\ContratoController::class)->middleware('permission:financeiro');
+    Route::resource('contratos', App\ContratoController::class)->middleware(['permission:financeiro', 'plano:contratos']);
     Route::post('contratos/{contrato}/faturar', [App\ContratoController::class, 'faturar'])
         ->name('contratos.faturar')
-        ->middleware('permission:financeiro');
+        ->middleware(['permission:financeiro', 'plano:contratos']);
 
     /* ------ Boletos ------ */
-    Route::prefix('boletos')->name('boletos.')->middleware('permission:financeiro')->group(function () {
+    Route::prefix('boletos')->name('boletos.')->middleware(['permission:financeiro', 'plano:boletos'])->group(function () {
         Route::get('/', [App\BoletoController::class, 'index'])->name('index');
         Route::get('/{boleto}', [App\BoletoController::class, 'show'])->name('show');
         Route::post('/gerar', [App\BoletoController::class, 'gerar'])->name('gerar');
@@ -127,7 +156,7 @@ Route::middleware(['auth', 'unidade'])->prefix('app')->name('app.')->group(funct
     Route::resource('centros-custo', App\CentroCustoController::class)->middleware('permission:financeiro');
 
     /* ------ DRE ------ */
-    Route::prefix('dre')->name('dre.')->middleware('permission:financeiro')->group(function () {
+    Route::prefix('dre')->name('dre.')->middleware(['permission:financeiro', 'plano:dre'])->group(function () {
         Route::get('/', [App\DreController::class, 'index'])->name('index');
         Route::get('/por-unidade', [App\DreController::class, 'porUnidade'])->name('por-unidade');
         Route::get('/exportar', [App\DreController::class, 'exportar'])->name('exportar');
@@ -143,7 +172,7 @@ Route::middleware(['auth', 'unidade'])->prefix('app')->name('app.')->group(funct
     });
 
     /* ------ Conciliação Bancária ------ */
-    Route::prefix('conciliacao')->name('conciliacao.')->middleware('permission:financeiro')->group(function () {
+    Route::prefix('conciliacao')->name('conciliacao.')->middleware(['permission:financeiro', 'plano:conciliacao'])->group(function () {
         Route::get('/', [App\ConciliacaoBancariaController::class, 'index'])->name('index');
         Route::get('/create', [App\ConciliacaoBancariaController::class, 'create'])->name('create');
         Route::post('/', [App\ConciliacaoBancariaController::class, 'store'])->name('store');
@@ -154,7 +183,7 @@ Route::middleware(['auth', 'unidade'])->prefix('app')->name('app.')->group(funct
     });
 
     /* ------ Notas Fiscais ------ */
-    Route::prefix('notas-fiscais')->name('notas-fiscais.')->middleware('permission:notas_fiscais')->group(function () {
+    Route::prefix('notas-fiscais')->name('notas-fiscais.')->middleware(['permission:notas_fiscais', 'plano:fiscal'])->group(function () {
         Route::get('/', [App\NotaFiscalController::class, 'index'])->name('index');
         Route::get('/emitir-nfse', [App\NotaFiscalController::class, 'emitirNFSeForm'])->name('emitir-nfse');
         Route::post('/emitir-nfse', [App\NotaFiscalController::class, 'emitirNFSe'])->name('emitir-nfse.store');
@@ -171,7 +200,7 @@ Route::middleware(['auth', 'unidade'])->prefix('app')->name('app.')->group(funct
     });
 
     /* ------ Configuração Fiscal ------ */
-    Route::prefix('configuracao-fiscal')->name('configuracao-fiscal.')->middleware('permission:configuracoes')->group(function () {
+    Route::prefix('configuracao-fiscal')->name('configuracao-fiscal.')->middleware(['permission:configuracoes', 'plano:fiscal'])->group(function () {
         Route::get('/', [App\ConfiguracaoFiscalController::class, 'edit'])->name('edit');
         Route::put('/', [App\ConfiguracaoFiscalController::class, 'update'])->name('update');
         Route::post('/testar', [App\ConfiguracaoFiscalController::class, 'testarConexao'])->name('testar');
@@ -185,19 +214,19 @@ Route::middleware(['auth', 'unidade'])->prefix('app')->name('app.')->group(funct
     });
 
     /* ------ Multilojas (Dono/Admin only) ------ */
-    Route::prefix('multilojas')->name('multilojas.')->group(function () {
+    Route::prefix('multilojas')->name('multilojas.')->middleware('plano:multilojas')->group(function () {
         Route::get('/', [App\MultilojaController::class, 'index'])->name('index');
         Route::get('/comparar', [App\MultilojaController::class, 'comparar'])->name('comparar');
     });
 
     /* ------ Ordens de Servico ------ */
-    Route::resource('ordens-servico', App\OrdemServicoController::class)->middleware('permission:vendas');
+    Route::resource('ordens-servico', App\OrdemServicoController::class)->middleware(['permission:vendas', 'plano:os']);
     Route::post('ordens-servico/{ordemServico}/status', [App\OrdemServicoController::class, 'updateStatus'])
         ->name('ordens-servico.update-status')
-        ->middleware('permission:vendas');
+        ->middleware(['permission:vendas', 'plano:os']);
     Route::post('ordens-servico/{ordemServico}/converter-venda', [App\OrdemServicoController::class, 'converterEmVenda'])
         ->name('ordens-servico.converter-venda')
-        ->middleware('permission:vendas');
+        ->middleware(['permission:vendas', 'plano:os']);
 });
 
 /* ------------------------------------------------------------------ */

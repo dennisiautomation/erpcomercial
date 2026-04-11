@@ -10,7 +10,7 @@ class ServicoController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Servico::query();
+        $query = Servico::where('empresa_id', session('empresa_id'));
 
         if ($request->filled('busca')) {
             $busca = $request->busca;
@@ -24,9 +24,12 @@ class ServicoController extends Controller
             $query->where('status', $request->status);
         }
 
-        $servicos = $query->orderBy('descricao')->paginate(15)->withQueryString();
+        $servicos = $query->orderBy('descricao')->paginate(20)->withQueryString();
 
-        return view('app.servicos.index', compact('servicos'));
+        $totalAtivos = Servico::where('empresa_id', session('empresa_id'))->where('status', 'ativo')->count();
+        $totalInativos = Servico::where('empresa_id', session('empresa_id'))->where('status', 'inativo')->count();
+
+        return view('app.servicos.index', compact('servicos', 'totalAtivos', 'totalInativos'));
     }
 
     public function create()
@@ -45,6 +48,7 @@ class ServicoController extends Controller
             'iss_aliquota'              => 'nullable|numeric|min:0|max:100',
         ]);
 
+        $validated['empresa_id'] = session('empresa_id');
         $validated['status'] = 'ativo';
 
         Servico::create($validated);

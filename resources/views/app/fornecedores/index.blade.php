@@ -4,12 +4,16 @@
 
 @section('content')
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h4 class="mb-0"><i class="bi bi-truck me-2"></i>Fornecedores</h4>
+    <div>
+        <h4 class="mb-0"><i class="bi bi-truck me-2"></i>Fornecedores</h4>
+        <small class="text-muted">Gerencie seus fornecedores e parceiros comerciais</small>
+    </div>
     <a href="{{ route('app.fornecedores.create') }}" class="btn btn-primary">
         <i class="bi bi-plus-lg me-1"></i> Novo Fornecedor
     </a>
 </div>
 
+{{-- Filtros --}}
 <div class="card shadow-sm mb-4">
     <div class="card-body">
         <form method="GET" action="{{ route('app.fornecedores.index') }}" class="row g-3 align-items-end">
@@ -17,15 +21,16 @@
                 <label class="form-label">Buscar</label>
                 <div class="input-group">
                     <span class="input-group-text"><i class="bi bi-search"></i></span>
-                    <input type="text" name="busca" class="form-control" placeholder="Nome, CPF/CNPJ ou Nome Fantasia..." value="{{ request('busca') }}">
+                    <input type="text" name="busca" class="form-control" placeholder="Razao social, nome fantasia, CPF/CNPJ ou e-mail..." value="{{ request('busca') }}">
                 </div>
             </div>
             <div class="col-md-3">
-                <label class="form-label">Status</label>
-                <select name="status" class="form-select">
+                <label class="form-label">UF</label>
+                <select name="uf" class="form-select">
                     <option value="">Todos</option>
-                    <option value="ativo" {{ request('status') === 'ativo' ? 'selected' : '' }}>Ativo</option>
-                    <option value="inativo" {{ request('status') === 'inativo' ? 'selected' : '' }}>Inativo</option>
+                    @foreach(['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'] as $sigla)
+                        <option value="{{ $sigla }}" {{ request('uf') === $sigla ? 'selected' : '' }}>{{ $sigla }}</option>
+                    @endforeach
                 </select>
             </div>
             <div class="col-md-4 d-flex gap-2">
@@ -40,6 +45,7 @@
     </div>
 </div>
 
+{{-- Tabela --}}
 <div class="card shadow-sm">
     <div class="card-body p-0">
         <div class="table-responsive">
@@ -47,30 +53,34 @@
                 <thead class="table-light">
                     <tr>
                         <th>CPF/CNPJ</th>
-                        <th>Nome / Razão Social</th>
+                        <th>Razao Social / Nome Fantasia</th>
                         <th>Cidade/UF</th>
                         <th>Telefone</th>
-                        <th class="text-center">Status</th>
-                        <th class="text-center" style="width: 150px;">Ações</th>
+                        <th>E-mail</th>
+                        <th class="text-center" style="width: 150px;">Acoes</th>
                     </tr>
                 </thead>
                 <tbody>
                     @forelse($fornecedores as $fornecedor)
                         <tr>
-                            <td>{{ $fornecedor->cpf_cnpj }}</td>
+                            <td class="text-nowrap">
+                                <code>{{ $fornecedor->cpf_cnpj }}</code>
+                            </td>
                             <td>
-                                <strong>{{ $fornecedor->nome_razao_social }}</strong>
+                                <strong>{{ $fornecedor->razao_social }}</strong>
                                 @if($fornecedor->nome_fantasia)
                                     <br><small class="text-muted">{{ $fornecedor->nome_fantasia }}</small>
                                 @endif
                             </td>
-                            <td>{{ $fornecedor->cidade }}{{ $fornecedor->uf ? '/' . $fornecedor->uf : '' }}</td>
-                            <td>{{ $fornecedor->telefone ?: $fornecedor->whatsapp ?: '-' }}</td>
-                            <td class="text-center">
-                                <span class="badge bg-{{ $fornecedor->status === 'ativo' ? 'success' : 'secondary' }}">
-                                    {{ ucfirst($fornecedor->status) }}
-                                </span>
+                            <td class="text-nowrap">
+                                @if($fornecedor->cidade)
+                                    {{ $fornecedor->cidade }}{{ $fornecedor->uf ? '/' . $fornecedor->uf : '' }}
+                                @else
+                                    <span class="text-muted">-</span>
+                                @endif
                             </td>
+                            <td class="text-nowrap">{{ $fornecedor->telefone ?: '-' }}</td>
+                            <td>{{ $fornecedor->email ?: '-' }}</td>
                             <td class="text-center">
                                 <div class="btn-group btn-group-sm">
                                     <a href="{{ route('app.fornecedores.show', $fornecedor) }}" class="btn btn-outline-info" title="Visualizar">

@@ -44,14 +44,39 @@ class VendaController extends Controller
             $query->whereDate('created_at', '<=', $request->data_fim);
         }
 
+        if ($request->filled('forma_pagamento')) {
+            $query->where('forma_pagamento', $request->forma_pagamento);
+        }
+
         $vendas = $query->latest()->paginate(20)->withQueryString();
 
-        return view('app.vendas.index', compact('vendas'));
+        // Summary stats
+        $empresaId = session('empresa_id');
+        $unidadeId = session('unidade_id');
+        $baseQuery = Venda::where('empresa_id', $empresaId)->where('unidade_id', $unidadeId);
+
+        // Apply same date filters for stats
+        $statsQuery = clone $baseQuery;
+        if ($request->filled('data_inicio')) {
+            $statsQuery->whereDate('created_at', '>=', $request->data_inicio);
+        }
+        if ($request->filled('data_fim')) {
+            $statsQuery->whereDate('created_at', '<=', $request->data_fim);
+        }
+
+        $stats = [
+            'total_concluidas' => (clone $statsQuery)->where('status', StatusVenda::Concluida)->sum('total'),
+            'count_concluidas' => (clone $statsQuery)->where('status', StatusVenda::Concluida)->count(),
+            'count_canceladas' => (clone $statsQuery)->where('status', StatusVenda::Cancelada)->count(),
+            'total_hoje' => (clone $baseQuery)->where('status', StatusVenda::Concluida)->whereDate('created_at', today())->sum('total'),
+        ];
+
+        return view('app.vendas.index', compact('vendas', 'stats'));
     }
 
     public function show(Venda $venda)
     {
-        $venda->load(['cliente', 'vendedor', 'itens.produto', 'caixa', 'pedido', 'notasFiscais', 'contasReceber']);
+        $venda->load(['cliente', 'vendedor', 'itens.produto', 'itens.servico', 'caixa', 'pedido', 'notasFiscais', 'contasReceber']);
 
         return view('app.vendas.show', compact('venda'));
     }

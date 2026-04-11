@@ -12,10 +12,8 @@ class Transportadora extends Model
 
     protected $fillable = [
         'empresa_id',
-        'cpf_cnpj',
-        'nome_razao_social',
-        'nome_fantasia',
-        'ie',
+        'cnpj',
+        'razao_social',
         'cep',
         'logradouro',
         'numero',
@@ -23,9 +21,7 @@ class Transportadora extends Model
         'bairro',
         'cidade',
         'uf',
-        'telefone',
-        'email',
-        'status',
-        'observacoes',
+        'contato',
+        'modalidade_frete',
     ];
 }

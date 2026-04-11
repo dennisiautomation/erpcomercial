@@ -64,8 +64,8 @@ class OrdemServicoController extends Controller
         $clientes = Cliente::where('empresa_id', session('empresa_id'))->orderBy('nome_razao_social')->get();
         $vendedores = User::where('empresa_id', session('empresa_id'))->orderBy('name')->get();
         $tecnicos = User::where('empresa_id', session('empresa_id'))->orderBy('name')->get();
-        $produtos = Produto::where('empresa_id', session('empresa_id'))->where('ativo', true)->orderBy('nome')->get();
-        $servicos = Servico::where('empresa_id', session('empresa_id'))->where('ativo', true)->orderBy('nome')->get();
+        $produtos = Produto::where('empresa_id', session('empresa_id'))->where('status', 'ativo')->orderBy('descricao')->get();
+        $servicos = Servico::where('empresa_id', session('empresa_id'))->where('status', 'ativo')->orderBy('descricao')->get();
 
         return view('app.ordens-servico.create', compact('clientes', 'vendedores', 'tecnicos', 'produtos', 'servicos'));
     }
@@ -170,8 +170,8 @@ class OrdemServicoController extends Controller
         $clientes = Cliente::where('empresa_id', session('empresa_id'))->orderBy('nome_razao_social')->get();
         $vendedores = User::where('empresa_id', session('empresa_id'))->orderBy('name')->get();
         $tecnicos = User::where('empresa_id', session('empresa_id'))->orderBy('name')->get();
-        $produtos = Produto::where('empresa_id', session('empresa_id'))->where('ativo', true)->orderBy('nome')->get();
-        $servicos = Servico::where('empresa_id', session('empresa_id'))->where('ativo', true)->orderBy('nome')->get();
+        $produtos = Produto::where('empresa_id', session('empresa_id'))->where('status', 'ativo')->orderBy('descricao')->get();
+        $servicos = Servico::where('empresa_id', session('empresa_id'))->where('status', 'ativo')->orderBy('descricao')->get();
 
         return view('app.ordens-servico.edit', compact('ordemServico', 'clientes', 'vendedores', 'tecnicos', 'produtos', 'servicos'));
     }

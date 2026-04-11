@@ -53,7 +53,7 @@ class UnidadeController extends Controller
             'uf'          => ['nullable', 'string', 'size:2'],
             'telefone'    => ['nullable', 'string', 'max:20'],
             'gerente_id'  => ['nullable', 'exists:users,id'],
-            'status'      => ['required', 'string'],
+            'status'      => ['required', 'in:ativa,inativa,em_implantacao'],
         ]);
 
         $validated['empresa_id'] = $empresa->id;
@@ -106,7 +106,7 @@ class UnidadeController extends Controller
             'uf'          => ['nullable', 'string', 'size:2'],
             'telefone'    => ['nullable', 'string', 'max:20'],
             'gerente_id'  => ['nullable', 'exists:users,id'],
-            'status'      => ['required', 'string'],
+            'status'      => ['required', 'in:ativa,inativa,em_implantacao'],
         ]);
 
         $unidade->update($validated);

@@ -1,0 +1,332 @@
+/* ============================================================
+   ERP COMERCIAL — DESIGN SYSTEM
+   Todas as telas DEVEM usar estas classes e variáveis.
+   ============================================================ */
+
+:root {
+    /* Cores principais */
+    --primary: #4f46e5;
+    --primary-hover: #4338ca;
+    --primary-light: #eef2ff;
+    --success: #059669;
+    --success-light: #ecfdf5;
+    --warning: #d97706;
+    --warning-light: #fffbeb;
+    --danger: #dc2626;
+    --danger-light: #fef2f2;
+    --info: #0891b2;
+    --info-light: #ecfeff;
+
+    /* Superfícies */
+    --bg-page: #f1f5f9;
+    --bg-card: #ffffff;
+    --bg-sidebar: #0f172a;
+    --bg-sidebar-hover: #1e293b;
+    --bg-sidebar-active: rgba(99, 102, 241, 0.15);
+
+    /* Texto */
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --text-muted: #94a3b8;
+    --text-sidebar: #cbd5e1;
+    --text-sidebar-active: #ffffff;
+
+    /* Bordas */
+    --border: #e2e8f0;
+    --border-light: #f1f5f9;
+
+    /* Sombras */
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+    --shadow: 0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.06);
+    --shadow-md: 0 4px 6px rgba(0,0,0,0.07), 0 2px 4px rgba(0,0,0,0.06);
+    --shadow-lg: 0 10px 15px rgba(0,0,0,0.1), 0 4px 6px rgba(0,0,0,0.05);
+
+    /* Raios */
+    --radius: 0.5rem;
+    --radius-lg: 0.75rem;
+    --radius-xl: 1rem;
+}
+
+body { background: var(--bg-page); color: var(--text-primary); }
+
+/* ─── Page Header ─────────────────────────────────────────── */
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+.page-header h4, .page-header h3 {
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0;
+    font-size: 1.35rem;
+}
+.page-header .subtitle {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    margin-top: 0.15rem;
+}
+
+/* ─── Stat Cards ──────────────────────────────────────────── */
+.stat-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 1.25rem;
+    box-shadow: var(--shadow-sm);
+    transition: all 0.2s ease;
+    position: relative;
+    overflow: hidden;
+}
+.stat-card:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-1px);
+}
+.stat-card .stat-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: var(--radius);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    flex-shrink: 0;
+}
+.stat-card .stat-icon.primary { background: var(--primary-light); color: var(--primary); }
+.stat-card .stat-icon.success { background: var(--success-light); color: var(--success); }
+.stat-card .stat-icon.warning { background: var(--warning-light); color: var(--warning); }
+.stat-card .stat-icon.danger { background: var(--danger-light); color: var(--danger); }
+.stat-card .stat-icon.info { background: var(--info-light); color: var(--info); }
+.stat-card .stat-value {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: var(--text-primary);
+    line-height: 1.2;
+}
+.stat-card .stat-label {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    font-weight: 600;
+}
+.stat-card .stat-trend {
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+.stat-card .stat-trend.up { color: var(--success); }
+.stat-card .stat-trend.down { color: var(--danger); }
+
+/* ─── Cards (genérico) ────────────────────────────────────── */
+.erp-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+}
+.erp-card .card-header {
+    background: var(--bg-card);
+    border-bottom: 1px solid var(--border);
+    padding: 1rem 1.25rem;
+    font-weight: 600;
+    font-size: 0.95rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+.erp-card .card-body { padding: 1.25rem; }
+
+/* ─── Tables ──────────────────────────────────────────────── */
+.erp-table {
+    width: 100%;
+    margin: 0;
+    font-size: 0.875rem;
+}
+.erp-table thead th {
+    background: #f8fafc;
+    border-bottom: 2px solid var(--border);
+    padding: 0.75rem 1rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+}
+.erp-table tbody td {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--border-light);
+    vertical-align: middle;
+}
+.erp-table tbody tr:hover { background: #f8fafc; }
+.erp-table tbody tr:last-child td { border-bottom: none; }
+
+/* ─── Badges ──────────────────────────────────────────────── */
+.badge-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.3rem 0.65rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1;
+}
+.badge-status::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+.badge-status.ativo, .badge-status.ativa, .badge-status.concluida, .badge-status.autorizada, .badge-status.paga {
+    background: var(--success-light); color: var(--success);
+}
+.badge-status.ativo::before, .badge-status.ativa::before, .badge-status.concluida::before, .badge-status.autorizada::before, .badge-status.paga::before {
+    background: var(--success);
+}
+.badge-status.pendente, .badge-status.em_aberto, .badge-status.rascunho, .badge-status.em_implantacao, .badge-status.aberto {
+    background: var(--warning-light); color: var(--warning);
+}
+.badge-status.pendente::before, .badge-status.em_aberto::before, .badge-status.rascunho::before, .badge-status.em_implantacao::before, .badge-status.aberto::before {
+    background: var(--warning);
+}
+.badge-status.cancelado, .badge-status.cancelada, .badge-status.rejeitada, .badge-status.bloqueado, .badge-status.vencida {
+    background: var(--danger-light); color: var(--danger);
+}
+.badge-status.cancelado::before, .badge-status.cancelada::before, .badge-status.rejeitada::before, .badge-status.bloqueado::before, .badge-status.vencida::before {
+    background: var(--danger);
+}
+.badge-status.inativo, .badge-status.inativa, .badge-status.fechado, .badge-status.suspenso {
+    background: #f1f5f9; color: var(--text-muted);
+}
+.badge-status.inativo::before, .badge-status.inativa::before, .badge-status.fechado::before, .badge-status.suspenso::before {
+    background: var(--text-muted);
+}
+.badge-status.confirmado, .badge-status.aprovado, .badge-status.faturado, .badge-status.convertido {
+    background: var(--info-light); color: var(--info);
+}
+.badge-status.confirmado::before, .badge-status.aprovado::before, .badge-status.faturado::before, .badge-status.convertido::before {
+    background: var(--info);
+}
+.badge-status.entregue {
+    background: var(--primary-light); color: var(--primary);
+}
+.badge-status.entregue::before { background: var(--primary); }
+
+/* ─── Buttons ─────────────────────────────────────────────── */
+.btn-erp {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-weight: 600;
+    font-size: 0.875rem;
+    padding: 0.5rem 1rem;
+    border-radius: var(--radius);
+    transition: all 0.15s ease;
+}
+.btn-erp-primary { background: var(--primary); color: #fff; border: none; }
+.btn-erp-primary:hover { background: var(--primary-hover); color: #fff; }
+.btn-erp-outline { background: var(--bg-card); color: var(--text-secondary); border: 1px solid var(--border); }
+.btn-erp-outline:hover { background: #f8fafc; border-color: #cbd5e1; color: var(--text-primary); }
+.btn-erp-danger { background: var(--danger); color: #fff; border: none; }
+.btn-erp-success { background: var(--success); color: #fff; border: none; }
+
+/* ─── Forms ───────────────────────────────────────────────── */
+.erp-form .form-label {
+    font-weight: 600;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    margin-bottom: 0.35rem;
+}
+.erp-form .form-control, .erp-form .form-select {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 0.6rem 0.85rem;
+    font-size: 0.9rem;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+.erp-form .form-control:focus, .erp-form .form-select:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+.erp-form .form-control.is-invalid {
+    border-color: var(--danger);
+}
+.erp-form .form-control.is-invalid:focus {
+    box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1);
+}
+.erp-form .form-text {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+}
+.erp-form .required::after {
+    content: ' *';
+    color: var(--danger);
+}
+
+/* ─── Filters bar ─────────────────────────────────────────── */
+.filter-bar {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 1rem 1.25rem;
+    margin-bottom: 1rem;
+    box-shadow: var(--shadow-sm);
+}
+
+/* ─── Empty state ─────────────────────────────────────────── */
+.empty-state {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: var(--text-muted);
+}
+.empty-state i {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    opacity: 0.4;
+}
+.empty-state h5 {
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: 0.5rem;
+}
+
+/* ─── Action buttons in tables ────────────────────────────── */
+.action-btns {
+    display: flex;
+    gap: 0.35rem;
+    justify-content: flex-end;
+}
+.action-btns .btn {
+    padding: 0.3rem 0.5rem;
+    font-size: 0.8rem;
+    border-radius: var(--radius);
+}
+
+/* ─── Section divider ─────────────────────────────────────── */
+.section-title {
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid var(--border-light);
+}
+
+/* ─── Animations ──────────────────────────────────────────── */
+@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+.fade-in { animation: fadeIn 0.3s ease-out; }
+
+/* ─── Responsive ──────────────────────────────────────────── */
+@media (max-width: 768px) {
+    .stat-card .stat-value { font-size: 1.25rem; }
+    .page-header { flex-direction: column; gap: 0.75rem; align-items: flex-start; }
+    .action-btns { flex-wrap: wrap; }
+}

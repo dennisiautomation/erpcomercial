@@ -4,13 +4,25 @@
 
 @section('content')
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h4 class="mb-0">
-        <i class="bi bi-bag-check me-2"></i>Venda #{{ $venda->numero }}
-        <span class="badge bg-{{ $venda->status->color() }} ms-2">{{ $venda->status->label() }}</span>
-    </h4>
-    <div class="d-flex gap-2">
+    <div>
+        <h4 class="mb-1">
+            <i class="bi bi-bag-check me-2"></i>Venda #{{ $venda->numero }}
+            <span class="badge rounded-pill bg-{{ $venda->status->color() }} ms-2">
+                {{ $venda->status->label() }}
+            </span>
+        </h4>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb mb-0 small">
+                <li class="breadcrumb-item"><a href="{{ route('app.dashboard') }}">Dashboard</a></li>
+                <li class="breadcrumb-item"><a href="{{ route('app.vendas.index') }}">Vendas</a></li>
+                <li class="breadcrumb-item active">#{{ $venda->numero }}</li>
+            </ol>
+        </nav>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
         @if($venda->status->value === 'concluida')
-            <form method="POST" action="{{ route('app.vendas.destroy', $venda) }}" onsubmit="return confirm('Cancelar esta venda?')">
+            <form method="POST" action="{{ route('app.vendas.destroy', $venda) }}"
+                  onsubmit="return confirm('Cancelar esta venda? O estoque sera revertido e as contas a receber serao canceladas.')">
                 @csrf
                 @method('DELETE')
                 <button type="submit" class="btn btn-danger">
@@ -27,161 +39,276 @@
     </div>
 </div>
 
+@if($venda->status->value === 'cancelada')
+    <div class="alert alert-danger d-flex align-items-center mb-4" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-2 fs-5"></i>
+        <div>
+            <strong>Venda Cancelada.</strong> Esta venda foi cancelada. O estoque foi revertido e as contas a receber foram canceladas.
+        </div>
+    </div>
+@endif
+
 <div class="row g-4">
-    {{-- Details --}}
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header"><i class="bi bi-info-circle me-1"></i> Informacoes da Venda</div>
+    {{-- Informacoes da Venda --}}
+    <div class="col-lg-6">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-transparent fw-semibold">
+                <i class="bi bi-info-circle me-1"></i> Informacoes da Venda
+            </div>
             <div class="card-body">
-                <table class="table table-borderless mb-0">
-                    <tr>
-                        <th class="text-muted" style="width:40%">Numero:</th>
-                        <td>#{{ $venda->numero }}</td>
-                    </tr>
-                    <tr>
-                        <th class="text-muted">Data/Hora:</th>
-                        <td>{{ $venda->created_at->format('d/m/Y H:i:s') }}</td>
-                    </tr>
-                    <tr>
-                        <th class="text-muted">Tipo:</th>
-                        <td><span class="badge bg-{{ $venda->tipo === 'pdv' ? 'info' : 'primary' }}">{{ strtoupper($venda->tipo ?? 'N/A') }}</span></td>
-                    </tr>
-                    <tr>
-                        <th class="text-muted">Status:</th>
-                        <td><span class="badge bg-{{ $venda->status->color() }}">{{ $venda->status->label() }}</span></td>
-                    </tr>
+                <div class="row g-3">
+                    <div class="col-6">
+                        <small class="text-muted d-block">Numero</small>
+                        <span class="fw-bold">#{{ $venda->numero }}</span>
+                    </div>
+                    <div class="col-6">
+                        <small class="text-muted d-block">Data/Hora</small>
+                        <span>{{ $venda->created_at->format('d/m/Y H:i:s') }}</span>
+                    </div>
+                    <div class="col-6">
+                        <small class="text-muted d-block">Tipo</small>
+                        @php
+                            $tipoColors = ['pdv' => 'info', 'balcao' => 'primary', 'online' => 'success'];
+                            $tipoBg = $tipoColors[$venda->tipo] ?? 'secondary';
+                        @endphp
+                        <span class="badge bg-{{ $tipoBg }}">{{ strtoupper($venda->tipo ?? 'N/A') }}</span>
+                    </div>
+                    <div class="col-6">
+                        <small class="text-muted d-block">Status</small>
+                        <span class="badge rounded-pill bg-{{ $venda->status->color() }}">{{ $venda->status->label() }}</span>
+                    </div>
                     @if($venda->caixa)
-                        <tr>
-                            <th class="text-muted">Caixa:</th>
-                            <td>#{{ $venda->caixa->numero_caixa }}</td>
-                        </tr>
+                        <div class="col-6">
+                            <small class="text-muted d-block">Caixa</small>
+                            <span><i class="bi bi-cash-stack me-1"></i>#{{ $venda->caixa->numero_caixa ?? $venda->caixa->id }}</span>
+                        </div>
                     @endif
                     @if($venda->pedido)
-                        <tr>
-                            <th class="text-muted">Pedido:</th>
-                            <td><a href="{{ route('app.pedidos.show', $venda->pedido) }}">#{{ $venda->pedido->numero }}</a></td>
-                        </tr>
+                        <div class="col-6">
+                            <small class="text-muted d-block">Pedido Origem</small>
+                            <a href="{{ route('app.pedidos.show', $venda->pedido) }}" class="fw-semibold text-decoration-none">
+                                <i class="bi bi-link-45deg me-1"></i>Pedido #{{ $venda->pedido->numero }}
+                            </a>
+                        </div>
                     @endif
-                </table>
+                </div>
             </div>
         </div>
     </div>
 
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header"><i class="bi bi-person me-1"></i> Cliente / Vendedor</div>
+    {{-- Cliente / Vendedor --}}
+    <div class="col-lg-6">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-transparent fw-semibold">
+                <i class="bi bi-person me-1"></i> Cliente / Vendedor
+            </div>
             <div class="card-body">
-                <table class="table table-borderless mb-0">
-                    <tr>
-                        <th class="text-muted" style="width:40%">Cliente:</th>
-                        <td>{{ $venda->cliente->nome_razao_social ?? 'Consumidor Final' }}</td>
-                    </tr>
+                <div class="row g-3">
+                    <div class="col-12">
+                        <small class="text-muted d-block">Cliente</small>
+                        <span class="fw-bold">{{ $venda->cliente->nome_razao_social ?? 'Consumidor Final' }}</span>
+                    </div>
                     @if($venda->cliente)
-                        <tr>
-                            <th class="text-muted">CPF/CNPJ:</th>
-                            <td>{{ $venda->cliente->cpf_cnpj ?? '-' }}</td>
-                        </tr>
+                        <div class="col-6">
+                            <small class="text-muted d-block">CPF/CNPJ</small>
+                            <span>{{ $venda->cliente->cpf_cnpj ?? '-' }}</span>
+                        </div>
+                        <div class="col-6">
+                            <small class="text-muted d-block">Telefone</small>
+                            <span>{{ $venda->cliente->telefone ?? '-' }}</span>
+                        </div>
                     @endif
-                    <tr>
-                        <th class="text-muted">Vendedor:</th>
-                        <td>{{ $venda->vendedor->name ?? '-' }}</td>
-                    </tr>
-                </table>
+                    <div class="col-6">
+                        <small class="text-muted d-block">Vendedor</small>
+                        <span>{{ $venda->vendedor->name ?? '-' }}</span>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
-    {{-- Items --}}
+    {{-- Items Table --}}
     <div class="col-12">
-        <div class="card">
-            <div class="card-header"><i class="bi bi-list-ul me-1"></i> Itens</div>
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-transparent fw-semibold">
+                <i class="bi bi-list-ul me-1"></i> Itens da Venda
+                <span class="badge bg-secondary ms-1">{{ $venda->itens->count() }}</span>
+            </div>
             <div class="table-responsive">
-                <table class="table table-bordered mb-0">
-                    <thead class="table-light">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="bg-light">
                         <tr>
-                            <th>#</th>
-                            <th>Produto</th>
-                            <th class="text-center">Qtd</th>
-                            <th class="text-end">Preco Unit.</th>
-                            <th class="text-end">Desc. R$</th>
-                            <th class="text-end">Total</th>
+                            <th class="ps-3" style="width:5%">#</th>
+                            <th>Descricao</th>
+                            <th class="text-center" style="width:10%">Qtd</th>
+                            <th class="text-end" style="width:12%">Preco Unit.</th>
+                            <th class="text-center" style="width:10%">Desc.</th>
+                            <th class="text-end" style="width:12%">Desc. R$</th>
+                            <th class="text-end pe-3" style="width:12%">Total</th>
                         </tr>
                     </thead>
                     <tbody>
                         @foreach($venda->itens as $i => $item)
                             <tr>
-                                <td>{{ $i + 1 }}</td>
-                                <td>{{ $item->descricao ?? $item->produto->descricao ?? '-' }}</td>
+                                <td class="ps-3 text-muted">{{ $i + 1 }}</td>
+                                <td>
+                                    <div class="fw-semibold">{{ $item->descricao ?? $item->produto->descricao ?? $item->servico->descricao ?? '-' }}</div>
+                                    @if($item->produto)
+                                        <small class="text-muted">Cod: {{ $item->produto->codigo_interno ?? '-' }}</small>
+                                    @elseif($item->servico)
+                                        <small class="text-info"><i class="bi bi-tools me-1"></i>Servico</small>
+                                    @endif
+                                </td>
                                 <td class="text-center">{{ number_format($item->quantidade, 3, ',', '.') }}</td>
-                                <td class="text-end">{{ number_format($item->preco_unitario, 2, ',', '.') }}</td>
-                                <td class="text-end">{{ number_format($item->desconto_valor, 2, ',', '.') }}</td>
-                                <td class="text-end fw-semibold">{{ number_format($item->total, 2, ',', '.') }}</td>
+                                <td class="text-end">R$ {{ number_format($item->preco_unitario, 2, ',', '.') }}</td>
+                                <td class="text-center">
+                                    @if($item->desconto_percentual > 0)
+                                        <span class="badge bg-warning text-dark">{{ number_format($item->desconto_percentual, 1, ',', '.') }}%</span>
+                                    @else
+                                        <span class="text-muted">-</span>
+                                    @endif
+                                </td>
+                                <td class="text-end">
+                                    @if($item->desconto_valor > 0)
+                                        <span class="text-danger">- R$ {{ number_format($item->desconto_valor, 2, ',', '.') }}</span>
+                                    @else
+                                        <span class="text-muted">-</span>
+                                    @endif
+                                </td>
+                                <td class="text-end pe-3 fw-bold">R$ {{ number_format($item->total, 2, ',', '.') }}</td>
                             </tr>
                         @endforeach
                     </tbody>
-                    <tfoot class="table-light">
-                        <tr>
-                            <td colspan="5" class="text-end"><strong>Subtotal:</strong></td>
-                            <td class="text-end"><strong>R$ {{ number_format($venda->subtotal, 2, ',', '.') }}</strong></td>
-                        </tr>
+                </table>
+            </div>
+            {{-- Totals Footer --}}
+            <div class="card-footer bg-transparent">
+                <div class="row justify-content-end">
+                    <div class="col-lg-4">
+                        <div class="d-flex justify-content-between py-1">
+                            <span class="text-muted">Subtotal:</span>
+                            <strong>R$ {{ number_format($venda->subtotal, 2, ',', '.') }}</strong>
+                        </div>
                         @if($venda->desconto_valor > 0)
-                            <tr>
-                                <td colspan="5" class="text-end text-danger"><strong>Desconto:</strong></td>
-                                <td class="text-end text-danger"><strong>- R$ {{ number_format($venda->desconto_valor, 2, ',', '.') }}</strong></td>
-                            </tr>
+                            <div class="d-flex justify-content-between py-1 text-danger">
+                                <span>
+                                    Desconto
+                                    @if($venda->desconto_percentual > 0)
+                                        ({{ number_format($venda->desconto_percentual, 1, ',', '.') }}%)
+                                    @endif
+                                    :
+                                </span>
+                                <strong>- R$ {{ number_format($venda->desconto_valor, 2, ',', '.') }}</strong>
+                            </div>
                         @endif
-                        <tr>
-                            <td colspan="5" class="text-end"><strong class="fs-5">TOTAL:</strong></td>
-                            <td class="text-end"><strong class="fs-5 text-success">R$ {{ number_format($venda->total, 2, ',', '.') }}</strong></td>
-                        </tr>
-                    </tfoot>
-                </table>
+                        <hr class="my-2">
+                        <div class="d-flex justify-content-between py-1">
+                            <span class="fs-5 fw-bold">TOTAL:</span>
+                            <span class="fs-5 fw-bold text-success">R$ {{ number_format($venda->total, 2, ',', '.') }}</span>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
-    {{-- Payment --}}
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header"><i class="bi bi-credit-card me-1"></i> Pagamento</div>
+    {{-- Payment Breakdown --}}
+    <div class="col-lg-6">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-transparent fw-semibold">
+                <i class="bi bi-credit-card me-1"></i> Detalhes do Pagamento
+            </div>
             <div class="card-body">
-                <table class="table table-borderless mb-0">
-                    <tr>
-                        <th class="text-muted" style="width:40%">Forma:</th>
-                        <td>{{ ucfirst(str_replace('_', ' ', $venda->forma_pagamento ?? '-')) }}</td>
-                    </tr>
-                    @if($venda->pagamento_detalhes && is_array($venda->pagamento_detalhes))
+                <div class="mb-3">
+                    <small class="text-muted d-block">Forma Principal</small>
+                    @php
+                        $formaIcons = [
+                            'dinheiro' => 'bi-cash-stack',
+                            'cartao_credito' => 'bi-credit-card',
+                            'cartao_debito' => 'bi-credit-card-2-front',
+                            'pix' => 'bi-qr-code',
+                            'boleto' => 'bi-upc',
+                            'split' => 'bi-diagram-2',
+                        ];
+                        $formaIcon = $formaIcons[$venda->forma_pagamento] ?? 'bi-wallet2';
+                    @endphp
+                    <span class="fs-5">
+                        <i class="bi {{ $formaIcon }} me-1"></i>
+                        {{ ucfirst(str_replace('_', ' ', $venda->forma_pagamento ?? '-')) }}
+                    </span>
+                </div>
+
+                @if($venda->pagamento_detalhes && is_array($venda->pagamento_detalhes))
+                    <div class="border-top pt-3 mt-2">
+                        <small class="text-muted d-block mb-2 fw-semibold">Composicao do Pagamento:</small>
                         @foreach($venda->pagamento_detalhes as $pgto)
-                            <tr>
-                                <th class="text-muted">{{ ucfirst($pgto['forma'] ?? '-') }}:</th>
-                                <td>R$ {{ number_format($pgto['valor'] ?? 0, 2, ',', '.') }}</td>
-                            </tr>
+                            <div class="d-flex justify-content-between align-items-center py-2 {{ !$loop->last ? 'border-bottom' : '' }}">
+                                <div>
+                                    @php $pgtoIcon = $formaIcons[$pgto['forma'] ?? ''] ?? 'bi-wallet2'; @endphp
+                                    <i class="bi {{ $pgtoIcon }} me-1 text-muted"></i>
+                                    <span>{{ ucfirst(str_replace('_', ' ', $pgto['forma'] ?? '-')) }}</span>
+                                </div>
+                                <strong>R$ {{ number_format($pgto['valor'] ?? 0, 2, ',', '.') }}</strong>
+                            </div>
                         @endforeach
-                    @endif
-                    @if($venda->troco > 0)
-                        <tr>
-                            <th class="text-muted">Troco:</th>
-                            <td class="text-info fw-bold">R$ {{ number_format($venda->troco, 2, ',', '.') }}</td>
-                        </tr>
-                    @endif
-                </table>
+                    </div>
+                @endif
+
+                @if($venda->troco > 0)
+                    <div class="border-top pt-3 mt-2">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span><i class="bi bi-cash-coin me-1"></i> Troco</span>
+                            <span class="fw-bold text-info fs-5">R$ {{ number_format($venda->troco, 2, ',', '.') }}</span>
+                        </div>
+                    </div>
+                @endif
             </div>
         </div>
     </div>
 
-    {{-- Nota Fiscal --}}
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header"><i class="bi bi-file-earmark-text me-1"></i> Notas Fiscais</div>
+    {{-- Notas Fiscais --}}
+    <div class="col-lg-6">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-transparent fw-semibold">
+                <i class="bi bi-file-earmark-text me-1"></i> Notas Fiscais
+            </div>
             <div class="card-body">
                 @if($venda->notasFiscais->count())
                     @foreach($venda->notasFiscais as $nf)
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <span>NF #{{ $nf->numero }} - {{ $nf->status }}</span>
+                        <div class="d-flex justify-content-between align-items-center py-2 {{ !$loop->last ? 'border-bottom' : '' }}">
+                            <div>
+                                <div class="fw-semibold">
+                                    <i class="bi bi-file-earmark-check me-1"></i>
+                                    {{ strtoupper($nf->tipo ?? 'NF') }} #{{ $nf->numero ?? '-' }}
+                                </div>
+                                @if($nf->chave_acesso)
+                                    <small class="text-muted font-monospace" style="font-size: 0.7rem;">{{ $nf->chave_acesso }}</small>
+                                @endif
+                            </div>
+                            <div class="text-end">
+                                @php
+                                    $nfStatusColors = [
+                                        'autorizada' => 'success',
+                                        'cancelada' => 'danger',
+                                        'processando' => 'warning',
+                                        'rejeitada' => 'danger',
+                                    ];
+                                    $nfColor = $nfStatusColors[$nf->status] ?? 'secondary';
+                                @endphp
+                                <span class="badge bg-{{ $nfColor }}">{{ ucfirst($nf->status ?? '-') }}</span>
+                                @if($nf->url_danfe)
+                                    <a href="{{ $nf->url_danfe }}" target="_blank" class="btn btn-sm btn-outline-primary ms-1" title="Abrir DANFE">
+                                        <i class="bi bi-file-pdf"></i>
+                                    </a>
+                                @endif
+                            </div>
                         </div>
                     @endforeach
                 @else
-                    <p class="text-muted mb-0">Nenhuma nota fiscal emitida.</p>
+                    <div class="text-center py-4 text-muted">
+                        <i class="bi bi-file-earmark-x fs-3 d-block mb-1"></i>
+                        Nenhuma nota fiscal emitida.
+                    </div>
                 @endif
             </div>
         </div>
@@ -190,28 +317,60 @@
     {{-- Contas a Receber --}}
     @if($venda->contasReceber->count())
         <div class="col-12">
-            <div class="card">
-                <div class="card-header"><i class="bi bi-cash-stack me-1"></i> Contas a Receber</div>
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-transparent fw-semibold">
+                    <i class="bi bi-cash-stack me-1"></i> Contas a Receber
+                    <span class="badge bg-secondary ms-1">{{ $venda->contasReceber->count() }}</span>
+                </div>
                 <div class="table-responsive">
-                    <table class="table table-bordered mb-0">
-                        <thead class="table-light">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="bg-light">
                             <tr>
-                                <th>Descricao</th>
-                                <th>Forma</th>
+                                <th class="ps-3">Descricao</th>
+                                <th>Forma Pgto</th>
+                                <th>Parcela</th>
                                 <th class="text-end">Valor</th>
                                 <th>Vencimento</th>
-                                <th class="text-center">Status</th>
+                                <th class="text-center pe-3">Status</th>
                             </tr>
                         </thead>
                         <tbody>
                             @foreach($venda->contasReceber as $cr)
                                 <tr>
-                                    <td>{{ $cr->descricao }}</td>
-                                    <td>{{ ucfirst(str_replace('_', ' ', $cr->forma_pagamento ?? '-')) }}</td>
-                                    <td class="text-end">R$ {{ number_format($cr->valor, 2, ',', '.') }}</td>
-                                    <td>{{ $cr->vencimento?->format('d/m/Y') }}</td>
-                                    <td class="text-center">
-                                        <span class="badge bg-{{ $cr->status === 'pago' ? 'success' : ($cr->status === 'cancelada' ? 'danger' : 'warning') }}">
+                                    <td class="ps-3">{{ $cr->descricao }}</td>
+                                    <td class="small">{{ ucfirst(str_replace('_', ' ', $cr->forma_pagamento ?? '-')) }}</td>
+                                    <td>
+                                        @if($cr->total_parcelas > 1)
+                                            <span class="badge bg-light text-dark">{{ $cr->parcela }}/{{ $cr->total_parcelas }}</span>
+                                        @else
+                                            <span class="text-muted small">Parcela unica</span>
+                                        @endif
+                                    </td>
+                                    <td class="text-end fw-semibold">R$ {{ number_format($cr->valor, 2, ',', '.') }}</td>
+                                    <td>
+                                        @if($cr->vencimento)
+                                            @if($cr->vencimento->isPast() && $cr->status === 'pendente')
+                                                <span class="text-danger fw-semibold">
+                                                    <i class="bi bi-exclamation-triangle me-1"></i>{{ $cr->vencimento->format('d/m/Y') }}
+                                                </span>
+                                            @else
+                                                {{ $cr->vencimento->format('d/m/Y') }}
+                                            @endif
+                                        @else
+                                            -
+                                        @endif
+                                    </td>
+                                    <td class="text-center pe-3">
+                                        @php
+                                            $crStatusColors = [
+                                                'pago' => 'success',
+                                                'pendente' => 'warning',
+                                                'cancelada' => 'danger',
+                                                'vencida' => 'danger',
+                                            ];
+                                            $crColor = $crStatusColors[$cr->status] ?? 'secondary';
+                                        @endphp
+                                        <span class="badge rounded-pill bg-{{ $crColor }}{{ $crColor === 'warning' ? ' text-dark' : '' }}">
                                             {{ ucfirst($cr->status) }}
                                         </span>
                                     </td>

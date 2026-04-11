@@ -18,22 +18,25 @@ class UnidadeSelecaoController extends Controller
 
         // Admin ve todas as unidades ativas
         if ($user->is_admin) {
-            $unidades = Unidade::where('status', 'ativo')
+            $unidades = Unidade::withoutGlobalScopes()
+                ->where('status', 'ativa')
                 ->with('empresa')
                 ->orderBy('nome')
                 ->get();
         }
         // Dono ve todas as unidades da empresa
         elseif ($user->isDono()) {
-            $unidades = Unidade::where('empresa_id', $user->empresa_id)
-                ->where('status', 'ativo')
+            $unidades = Unidade::withoutGlobalScopes()
+                ->where('empresa_id', $user->empresa_id)
+                ->where('status', 'ativa')
                 ->orderBy('nome')
                 ->get();
         }
         // Demais perfis veem apenas as unidades atribuidas
         else {
             $unidades = $user->unidades()
-                ->where('status', 'ativo')
+                ->wherePivot('user_id', $user->id)
+                ->where('unidades.status', 'ativa')
                 ->orderBy('nome')
                 ->get();
         }

@@ -13,6 +13,8 @@ class OrdemServico extends Model
 {
     use BelongsToEmpresa, BelongsToUnidade, SoftDeletes;
 
+    protected $table = 'ordens_servico';
+
     protected $fillable = [
         'empresa_id',
         'unidade_id',

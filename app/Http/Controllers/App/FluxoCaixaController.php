@@ -37,6 +37,18 @@ class FluxoCaixaController extends Controller
             ->orderBy('pago_em')
             ->get();
 
+        // Previstas a receber (pendentes no periodo)
+        $previstaReceber = ContaReceber::where('empresa_id', $empresaId)
+            ->where('status', 'pendente')
+            ->whereBetween('vencimento', [$dataInicio, $dataFim])
+            ->sum('valor');
+
+        // Previstas a pagar (pendentes no periodo)
+        $previstaPagar = ContaPagar::where('empresa_id', $empresaId)
+            ->where('status', 'pendente')
+            ->whereBetween('vencimento', [$dataInicio, $dataFim])
+            ->sum('valor');
+
         // Build daily flow
         $fluxoDiario = [];
         $period = CarbonPeriod::create($dataInicio, $dataFim);
@@ -79,9 +91,11 @@ class FluxoCaixaController extends Controller
 
         // Calculate running balance
         $saldoAcumulado = 0;
+        $chartSaldo = [];
         foreach ($fluxoDiario as &$dia) {
             $saldoAcumulado += $dia['entradas'] - $dia['saidas'];
             $dia['saldo'] = $saldoAcumulado;
+            $chartSaldo[] = $saldoAcumulado;
         }
         unset($dia);
 
@@ -96,7 +110,8 @@ class FluxoCaixaController extends Controller
 
         return view('app.financeiro.fluxo-caixa', compact(
             'fluxoDiario', 'totalEntradas', 'totalSaidas', 'saldoFinal',
-            'dataInicio', 'dataFim', 'chartLabels', 'chartEntradas', 'chartSaidas'
+            'dataInicio', 'dataFim', 'chartLabels', 'chartEntradas', 'chartSaidas',
+            'chartSaldo', 'previstaReceber', 'previstaPagar'
         ));
     }
 }

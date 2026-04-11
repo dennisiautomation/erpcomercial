@@ -4,7 +4,10 @@
 
 @section('content')
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h4 class="mb-0"><i class="bi bi-box-seam me-2"></i>Produtos</h4>
+    <div>
+        <h4 class="mb-0"><i class="bi bi-box-seam me-2"></i>Produtos</h4>
+        <small class="text-muted">Gerencie seu catalogo de produtos</small>
+    </div>
     <a href="{{ route('app.produtos.create') }}" class="btn btn-primary">
         <i class="bi bi-plus-lg me-1"></i> Novo Produto
     </a>
@@ -18,7 +21,7 @@
                 <label class="form-label">Buscar</label>
                 <div class="input-group">
                     <span class="input-group-text"><i class="bi bi-search"></i></span>
-                    <input type="text" name="busca" class="form-control" placeholder="Descrição, código de barras, SKU..." value="{{ request('busca') }}">
+                    <input type="text" name="busca" class="form-control" placeholder="Descricao, codigo de barras, SKU ou codigo interno..." value="{{ request('busca') }}">
                 </div>
             </div>
             <div class="col-md-3">
@@ -57,28 +60,35 @@
             <table class="table table-hover align-middle mb-0">
                 <thead class="table-light">
                     <tr>
-                        <th>Código</th>
-                        <th>Descrição</th>
+                        <th style="width: 100px;">Codigo</th>
+                        <th>Descricao</th>
                         <th>Categoria</th>
-                        <th class="text-end">Preço Venda</th>
-                        <th class="text-center">Estoque Mín.</th>
+                        <th class="text-center">Unidade</th>
+                        <th class="text-end">Preco Venda</th>
                         <th class="text-center">Status</th>
-                        <th class="text-center" style="width: 150px;">Ações</th>
+                        <th class="text-center" style="width: 150px;">Acoes</th>
                     </tr>
                 </thead>
                 <tbody>
                     @forelse($produtos as $produto)
                         <tr>
-                            <td><code>{{ $produto->codigo_interno }}</code></td>
+                            <td>
+                                <code class="fw-bold">{{ $produto->codigo_interno }}</code>
+                            </td>
                             <td>
                                 <strong>{{ $produto->descricao }}</strong>
                                 @if($produto->codigo_barras)
                                     <br><small class="text-muted"><i class="bi bi-upc me-1"></i>{{ $produto->codigo_barras }}</small>
                                 @endif
+                                @if($produto->sku)
+                                    <small class="text-muted ms-2"><i class="bi bi-tag me-1"></i>{{ $produto->sku }}</small>
+                                @endif
                             </td>
                             <td>{{ $produto->categoria->nome ?? '-' }}</td>
-                            <td class="text-end fw-bold">R$ {{ number_format($produto->preco_venda, 2, ',', '.') }}</td>
-                            <td class="text-center">{{ $produto->estoque_minimo ?? '-' }}</td>
+                            <td class="text-center">
+                                <span class="badge bg-light text-dark">{{ $produto->unidade_medida }}</span>
+                            </td>
+                            <td class="text-end fw-bold text-success">R$ {{ number_format($produto->preco_venda, 2, ',', '.') }}</td>
                             <td class="text-center">
                                 <span class="badge bg-{{ $produto->status === 'ativo' ? 'success' : 'secondary' }}">
                                     {{ ucfirst($produto->status) }}

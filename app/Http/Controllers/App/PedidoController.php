@@ -10,6 +10,7 @@ use App\Models\EstoqueMovimentacao;
 use App\Models\Pedido;
 use App\Models\PedidoItem;
 use App\Models\Produto;
+use App\Models\Servico;
 use App\Models\User;
 use App\Models\Venda;
 use App\Models\VendaItem;
@@ -36,16 +37,38 @@ class PedidoController extends Controller
             $query->where('status', $request->status);
         }
 
+        if ($request->filled('data_inicio')) {
+            $query->whereDate('created_at', '>=', $request->data_inicio);
+        }
+
+        if ($request->filled('data_fim')) {
+            $query->whereDate('created_at', '<=', $request->data_fim);
+        }
+
         $pedidos = $query->latest()->paginate(20)->withQueryString();
 
-        return view('app.pedidos.index', compact('pedidos'));
+        // Summary stats
+        $empresaId = session('empresa_id');
+        $unidadeId = session('unidade_id');
+        $stats = [
+            'total_pendente' => Pedido::where('empresa_id', $empresaId)->where('unidade_id', $unidadeId)
+                ->whereIn('status', [StatusPedido::Rascunho, StatusPedido::Confirmado])->sum('total'),
+            'count_rascunho' => Pedido::where('empresa_id', $empresaId)->where('unidade_id', $unidadeId)->where('status', StatusPedido::Rascunho)->count(),
+            'count_confirmado' => Pedido::where('empresa_id', $empresaId)->where('unidade_id', $unidadeId)->where('status', StatusPedido::Confirmado)->count(),
+            'count_faturado' => Pedido::where('empresa_id', $empresaId)->where('unidade_id', $unidadeId)->where('status', StatusPedido::Faturado)->count(),
+            'count_entregue' => Pedido::where('empresa_id', $empresaId)->where('unidade_id', $unidadeId)->where('status', StatusPedido::Entregue)->count(),
+        ];
+
+        return view('app.pedidos.index', compact('pedidos', 'stats'));
     }
 
     public function create()
     {
         $vendedores = User::where('empresa_id', session('empresa_id'))->orderBy('name')->get();
+        $produtos = Produto::where('empresa_id', session('empresa_id'))->where('status', 'ativo')->orderBy('descricao')->get();
+        $servicos = Servico::where('empresa_id', session('empresa_id'))->where('status', 'ativo')->orderBy('descricao')->get();
 
-        return view('app.pedidos.create', compact('vendedores'));
+        return view('app.pedidos.create', compact('vendedores', 'produtos', 'servicos'));
     }
 
     public function store(Request $request)
@@ -59,7 +82,9 @@ class PedidoController extends Controller
             'observacoes_internas'    => 'nullable|string|max:2000',
             'observacoes_externas'    => 'nullable|string|max:2000',
             'itens'                   => 'required|array|min:1',
-            'itens.*.produto_id'      => 'required|exists:produtos,id',
+            'itens.*.produto_id'      => 'nullable|exists:produtos,id',
+            'itens.*.servico_id'      => 'nullable|exists:servicos,id',
+            'itens.*.descricao'       => 'nullable|string|max:500',
             'itens.*.quantidade'      => 'required|numeric|min:0.001',
             'itens.*.preco_unitario'  => 'required|numeric|min:0',
             'itens.*.desconto_percentual' => 'nullable|numeric|min:0|max:100',
@@ -76,7 +101,15 @@ class PedidoController extends Controller
             $itensData = [];
 
             foreach ($request->itens as $item) {
-                $produto = Produto::find($item['produto_id']);
+                $descricao = $item['descricao'] ?? '';
+                if (!empty($item['produto_id'])) {
+                    $produto = Produto::find($item['produto_id']);
+                    $descricao = $descricao ?: $produto->descricao;
+                } elseif (!empty($item['servico_id'])) {
+                    $servico = Servico::find($item['servico_id']);
+                    $descricao = $descricao ?: $servico->descricao;
+                }
+
                 $descontoPerc = $item['desconto_percentual'] ?? 0;
                 $precoUnit = $item['preco_unitario'];
                 $qtd = $item['quantidade'];
@@ -84,8 +117,9 @@ class PedidoController extends Controller
                 $totalItem = round(($precoUnit * $qtd) - $descontoValor, 2);
 
                 $itensData[] = [
-                    'produto_id'         => $item['produto_id'],
-                    'descricao'          => $produto->descricao,
+                    'produto_id'         => $item['produto_id'] ?? null,
+                    'servico_id'         => $item['servico_id'] ?? null,
+                    'descricao'          => $descricao,
                     'quantidade'         => $qtd,
                     'preco_unitario'     => $precoUnit,
                     'desconto_percentual'=> $descontoPerc,
@@ -127,21 +161,32 @@ class PedidoController extends Controller
 
     public function show(Pedido $pedido)
     {
-        $pedido->load(['cliente', 'vendedor', 'itens.produto', 'orcamento', 'venda']);
+        $pedido->load(['cliente', 'vendedor', 'itens.produto', 'itens.servico', 'orcamento', 'venda']);
 
         return view('app.pedidos.show', compact('pedido'));
     }
 
     public function edit(Pedido $pedido)
     {
-        $pedido->load(['cliente', 'itens.produto']);
-        $vendedores = User::where('empresa_id', session('empresa_id'))->orderBy('name')->get();
+        if ($pedido->status !== StatusPedido::Rascunho) {
+            return redirect()->route('app.pedidos.show', $pedido)
+                ->with('error', 'Apenas pedidos em rascunho podem ser editados.');
+        }
 
-        return view('app.pedidos.edit', compact('pedido', 'vendedores'));
+        $pedido->load(['cliente', 'itens.produto', 'itens.servico']);
+        $vendedores = User::where('empresa_id', session('empresa_id'))->orderBy('name')->get();
+        $produtos = Produto::where('empresa_id', session('empresa_id'))->where('status', 'ativo')->orderBy('descricao')->get();
+        $servicos = Servico::where('empresa_id', session('empresa_id'))->where('status', 'ativo')->orderBy('descricao')->get();
+
+        return view('app.pedidos.edit', compact('pedido', 'vendedores', 'produtos', 'servicos'));
     }
 
     public function update(Request $request, Pedido $pedido)
     {
+        if ($pedido->status !== StatusPedido::Rascunho) {
+            return back()->with('error', 'Apenas pedidos em rascunho podem ser editados.');
+        }
+
         $request->validate([
             'cliente_id'              => 'required|exists:clientes,id',
             'vendedor_id'             => 'nullable|exists:users,id',
@@ -151,7 +196,9 @@ class PedidoController extends Controller
             'observacoes_internas'    => 'nullable|string|max:2000',
             'observacoes_externas'    => 'nullable|string|max:2000',
             'itens'                   => 'required|array|min:1',
-            'itens.*.produto_id'      => 'required|exists:produtos,id',
+            'itens.*.produto_id'      => 'nullable|exists:produtos,id',
+            'itens.*.servico_id'      => 'nullable|exists:servicos,id',
+            'itens.*.descricao'       => 'nullable|string|max:500',
             'itens.*.quantidade'      => 'required|numeric|min:0.001',
             'itens.*.preco_unitario'  => 'required|numeric|min:0',
             'itens.*.desconto_percentual' => 'nullable|numeric|min:0|max:100',
@@ -162,7 +209,15 @@ class PedidoController extends Controller
             $itensData = [];
 
             foreach ($request->itens as $item) {
-                $produto = Produto::find($item['produto_id']);
+                $descricao = $item['descricao'] ?? '';
+                if (!empty($item['produto_id'])) {
+                    $produto = Produto::find($item['produto_id']);
+                    $descricao = $descricao ?: $produto->descricao;
+                } elseif (!empty($item['servico_id'])) {
+                    $servico = Servico::find($item['servico_id']);
+                    $descricao = $descricao ?: $servico->descricao;
+                }
+
                 $descontoPerc = $item['desconto_percentual'] ?? 0;
                 $precoUnit = $item['preco_unitario'];
                 $qtd = $item['quantidade'];
@@ -170,8 +225,9 @@ class PedidoController extends Controller
                 $totalItem = round(($precoUnit * $qtd) - $descontoValor, 2);
 
                 $itensData[] = [
-                    'produto_id'         => $item['produto_id'],
-                    'descricao'          => $produto->descricao,
+                    'produto_id'         => $item['produto_id'] ?? null,
+                    'servico_id'         => $item['servico_id'] ?? null,
+                    'descricao'          => $descricao,
                     'quantidade'         => $qtd,
                     'preco_unitario'     => $precoUnit,
                     'desconto_percentual'=> $descontoPerc,
@@ -215,6 +271,20 @@ class PedidoController extends Controller
         ]);
 
         $novoStatus = StatusPedido::from($request->status);
+
+        // Validate transitions
+        $transicoes = [
+            'rascunho'   => ['confirmado', 'cancelado'],
+            'confirmado' => ['faturado', 'cancelado'],
+            'faturado'   => ['entregue', 'cancelado'],
+            'entregue'   => [],
+            'cancelado'  => [],
+        ];
+
+        $permitidas = $transicoes[$pedido->status->value] ?? [];
+        if (!in_array($novoStatus->value, $permitidas)) {
+            return back()->with('error', "Transicao de {$pedido->status->label()} para {$novoStatus->label()} nao permitida.");
+        }
 
         DB::transaction(function () use ($pedido, $novoStatus) {
             // When confirmed, create contas_receber
@@ -269,6 +339,11 @@ class PedidoController extends Controller
 
     public function destroy(Pedido $pedido)
     {
+        if (!in_array($pedido->status, [StatusPedido::Rascunho, StatusPedido::Cancelado])) {
+            return back()->with('error', 'Apenas pedidos em rascunho ou cancelados podem ser excluidos.');
+        }
+
+        $pedido->itens()->forceDelete();
         $pedido->delete();
 
         return redirect()->route('app.pedidos.index')

@@ -43,8 +43,9 @@
                 <div class="col-md-3">
                     <label for="status" class="form-label">Status <span class="text-danger">*</span></label>
                     <select class="form-select @error('status') is-invalid @enderror" id="status" name="status" required>
-                        <option value="ativo" {{ old('status') === 'ativo' ? 'selected' : '' }}>Ativo</option>
-                        <option value="inativo" {{ old('status') === 'inativo' ? 'selected' : '' }}>Inativo</option>
+                        <option value="ativa" {{ old('status') === 'ativa' ? 'selected' : '' }}>Ativa</option>
+                        <option value="inativa" {{ old('status') === 'inativa' ? 'selected' : '' }}>Inativa</option>
+                        <option value="em_implantacao" {{ old('status') === 'em_implantacao' ? 'selected' : '' }}>Em Implantacao</option>
                     </select>
                     @error('status')
                         <div class="invalid-feedback">{{ $message }}</div>

@@ -5,7 +5,7 @@
 @section('content')
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h4 class="mb-0"><i class="bi bi-wrench-adjustable me-2"></i>Nova Ordem de Servico</h4>
-    <a href="{{ route('app.ordens-servico.index') }}" class="btn btn-outline-secondary">
+    <a href="{{ route('app.ordens-servico.index') }}" class="btn btn-outline-secondary btn-sm">
         <i class="bi bi-arrow-left me-1"></i> Voltar
     </a>
 </div>
@@ -24,25 +24,29 @@
                 <div class="card-body">
                     <div class="row g-3">
                         <div class="col-md-12">
-                            <label class="form-label">Cliente <span class="text-danger">*</span></label>
-                            <select name="cliente_id" class="form-select" required>
+                            <label class="form-label fw-semibold">Cliente <span class="text-danger">*</span></label>
+                            <select name="cliente_id" class="form-select @error('cliente_id') is-invalid @enderror" required>
                                 <option value="">Selecione o cliente...</option>
                                 @foreach($clientes as $cliente)
                                     <option value="{{ $cliente->id }}" {{ old('cliente_id') == $cliente->id ? 'selected' : '' }}>
-                                        {{ $cliente->nome_razao_social }} - {{ $cliente->cpf_cnpj }}
+                                        {{ $cliente->nome_razao_social }}
+                                        @if($cliente->cpf_cnpj) - {{ $cliente->cpf_cnpj }} @endif
                                     </option>
                                 @endforeach
                             </select>
+                            @error('cliente_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
                         </div>
                         <div class="col-md-12">
-                            <label class="form-label">Equipamento <span class="text-danger">*</span></label>
-                            <input type="text" name="equipamento" class="form-control" required
-                                   value="{{ old('equipamento') }}" placeholder="Ex: Notebook Dell Inspiron 15">
+                            <label class="form-label fw-semibold">Equipamento <span class="text-danger">*</span></label>
+                            <input type="text" name="equipamento" class="form-control @error('equipamento') is-invalid @enderror" required
+                                   value="{{ old('equipamento') }}" placeholder="Ex: Notebook Dell Inspiron 15, Impressora HP LaserJet...">
+                            @error('equipamento') <div class="invalid-feedback">{{ $message }}</div> @enderror
                         </div>
                         <div class="col-md-12">
-                            <label class="form-label">Defeito Relatado <span class="text-danger">*</span></label>
-                            <textarea name="defeito_relatado" class="form-control" rows="3" required
+                            <label class="form-label fw-semibold">Defeito Relatado <span class="text-danger">*</span></label>
+                            <textarea name="defeito_relatado" class="form-control @error('defeito_relatado') is-invalid @enderror" rows="3" required
                                       placeholder="Descreva o defeito relatado pelo cliente...">{{ old('defeito_relatado') }}</textarea>
+                            @error('defeito_relatado') <div class="invalid-feedback">{{ $message }}</div> @enderror
                         </div>
                     </div>
                 </div>
@@ -52,48 +56,58 @@
             <div class="card shadow-sm mb-4">
                 <div class="card-header bg-white fw-semibold d-flex justify-content-between align-items-center">
                     <span><i class="bi bi-list-check me-1"></i> Itens (Produtos e Servicos)</span>
-                    <button type="button" class="btn btn-sm btn-success" onclick="adicionarItem()">
-                        <i class="bi bi-plus-lg me-1"></i> Adicionar Item
-                    </button>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="adicionarItem('produto')">
+                            <i class="bi bi-box me-1"></i> Produto
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-success" onclick="adicionarItem('servico')">
+                            <i class="bi bi-tools me-1"></i> Servico
+                        </button>
+                    </div>
                 </div>
                 <div class="card-body p-0">
                     <div class="table-responsive">
                         <table class="table table-sm align-middle mb-0" id="tabelaItens">
                             <thead class="table-light">
                                 <tr>
-                                    <th width="120">Tipo</th>
+                                    <th width="100">Tipo</th>
                                     <th>Item</th>
-                                    <th width="100">Qtd</th>
+                                    <th width="90">Qtd</th>
                                     <th width="130">Preco Unit.</th>
                                     <th width="130">Total</th>
-                                    <th width="50"></th>
+                                    <th width="45"></th>
                                 </tr>
                             </thead>
                             <tbody id="itensBody">
+                                {{-- Dynamic rows --}}
                             </tbody>
                         </table>
+                    </div>
+                    <div id="emptyState" class="text-center text-muted py-4">
+                        <i class="bi bi-plus-circle d-block fs-3 mb-1 opacity-50"></i>
+                        <small>Clique nos botoes acima para adicionar itens</small>
                     </div>
                 </div>
                 <div class="card-footer bg-white">
                     <div class="row">
-                        <div class="col-md-4 offset-md-8 text-end">
-                            <div class="d-flex justify-content-between mb-1">
-                                <span>Produtos:</span>
+                        <div class="col-md-5 offset-md-7">
+                            <div class="d-flex justify-content-between mb-2">
+                                <span class="text-muted">Produtos:</span>
                                 <strong id="totalProdutos">R$ 0,00</strong>
                             </div>
-                            <div class="d-flex justify-content-between mb-1">
-                                <span>Servicos:</span>
+                            <div class="d-flex justify-content-between mb-2">
+                                <span class="text-muted">Servicos:</span>
                                 <strong id="totalServicos">R$ 0,00</strong>
                             </div>
-                            <div class="d-flex justify-content-between mb-1">
-                                <span>Desconto:</span>
-                                <input type="number" name="desconto" class="form-control form-control-sm d-inline-block"
-                                       style="width: 120px;" step="0.01" min="0" value="{{ old('desconto', '0') }}" onchange="calcularTotais()">
+                            <div class="d-flex justify-content-between mb-2 align-items-center">
+                                <span class="text-muted">Desconto (R$):</span>
+                                <input type="number" name="desconto" class="form-control form-control-sm text-end"
+                                       style="width: 130px;" step="0.01" min="0" value="{{ old('desconto', '0') }}" onchange="calcularTotais()">
                             </div>
-                            <hr>
+                            <hr class="my-2">
                             <div class="d-flex justify-content-between">
-                                <strong>Total:</strong>
-                                <strong class="text-success fs-5" id="totalGeral">R$ 0,00</strong>
+                                <strong class="fs-5">Total:</strong>
+                                <strong class="fs-5 text-success" id="totalGeral">R$ 0,00</strong>
                             </div>
                         </div>
                     </div>
@@ -110,7 +124,7 @@
                 </div>
                 <div class="card-body">
                     <div class="mb-3">
-                        <label class="form-label">Vendedor</label>
+                        <label class="form-label fw-semibold">Vendedor</label>
                         <select name="vendedor_id" class="form-select">
                             <option value="">Selecione...</option>
                             @foreach($vendedores as $vendedor)
@@ -120,8 +134,8 @@
                             @endforeach
                         </select>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label">Tecnico</label>
+                    <div>
+                        <label class="form-label fw-semibold">Tecnico</label>
                         <select name="tecnico_id" class="form-select">
                             <option value="">Selecione...</option>
                             @foreach($tecnicos as $tecnico)
@@ -162,73 +176,56 @@
     const servicos = @json($servicos);
     let itemIndex = 0;
 
-    function adicionarItem() {
+    function adicionarItem(tipo) {
         const tbody = document.getElementById('itensBody');
+        const emptyState = document.getElementById('emptyState');
+        if (emptyState) emptyState.style.display = 'none';
+
         const tr = document.createElement('tr');
         tr.id = `item-${itemIndex}`;
+
+        let options = '';
+        if (tipo === 'produto') {
+            options = produtos.map(p => `<option value="${p.id}" data-preco="${p.preco_venda}" data-nome="${p.descricao}">${p.descricao}</option>`).join('');
+        } else {
+            options = servicos.map(s => `<option value="${s.id}" data-preco="${s.valor_padrao}" data-nome="${s.descricao}">${s.descricao}</option>`).join('');
+        }
+
+        const selectName = tipo === 'produto' ? 'produto_id' : 'servico_id';
+        const hiddenName = tipo === 'produto' ? 'servico_id' : 'produto_id';
+
         tr.innerHTML = `
             <td>
-                <select name="itens[${itemIndex}][tipo]" class="form-select form-select-sm" onchange="trocarTipo(${itemIndex})">
-                    <option value="produto">Produto</option>
-                    <option value="servico">Servico</option>
-                </select>
+                <span class="badge bg-${tipo === 'produto' ? 'primary' : 'success'} bg-opacity-75">${tipo === 'produto' ? 'Produto' : 'Servico'}</span>
+                <input type="hidden" name="itens[${itemIndex}][tipo]" value="${tipo}">
             </td>
             <td>
-                <select name="itens[${itemIndex}][produto_id]" class="form-select form-select-sm item-select" data-index="${itemIndex}" onchange="selecionarItem(${itemIndex})">
+                <select name="itens[${itemIndex}][${selectName}]" class="form-select form-select-sm item-select" data-index="${itemIndex}" onchange="selecionarItem(${itemIndex})">
                     <option value="">Selecione...</option>
-                    ${produtos.map(p => `<option value="${p.id}" data-preco="${p.preco_venda}" data-nome="${p.nome}">${p.nome}</option>`).join('')}
+                    ${options}
                 </select>
-                <input type="hidden" name="itens[${itemIndex}][servico_id]" value="">
+                <input type="hidden" name="itens[${itemIndex}][${hiddenName}]" value="">
                 <input type="hidden" name="itens[${itemIndex}][descricao]" value="" class="item-descricao">
             </td>
             <td>
-                <input type="number" name="itens[${itemIndex}][quantidade]" class="form-control form-control-sm item-qtd"
+                <input type="number" name="itens[${itemIndex}][quantidade]" class="form-control form-control-sm text-center item-qtd"
                        step="0.001" min="0.001" value="1" onchange="calcularLinhaTotal(${itemIndex})">
             </td>
             <td>
-                <input type="number" name="itens[${itemIndex}][preco_unitario]" class="form-control form-control-sm item-preco"
-                       step="0.01" min="0" value="0" onchange="calcularLinhaTotal(${itemIndex})">
+                <input type="number" name="itens[${itemIndex}][preco_unitario]" class="form-control form-control-sm text-end item-preco"
+                       step="0.01" min="0" value="0.00" onchange="calcularLinhaTotal(${itemIndex})">
             </td>
             <td>
-                <input type="text" class="form-control form-control-sm item-total" readonly value="R$ 0,00">
+                <input type="text" class="form-control form-control-sm text-end item-total fw-semibold" readonly value="R$ 0,00">
             </td>
             <td>
-                <button type="button" class="btn btn-sm btn-outline-danger" onclick="removerItem(${itemIndex})">
+                <button type="button" class="btn btn-sm btn-outline-danger" onclick="removerItem(${itemIndex})" title="Remover">
                     <i class="bi bi-trash"></i>
                 </button>
             </td>
         `;
         tbody.appendChild(tr);
         itemIndex++;
-    }
-
-    function trocarTipo(index) {
-        const row = document.getElementById(`item-${index}`);
-        const tipo = row.querySelector(`[name="itens[${index}][tipo]"]`).value;
-        const selectTd = row.querySelectorAll('td')[1];
-
-        let options = '';
-        if (tipo === 'produto') {
-            options = produtos.map(p => `<option value="${p.id}" data-preco="${p.preco_venda}" data-nome="${p.nome}">${p.nome}</option>`).join('');
-            selectTd.innerHTML = `
-                <select name="itens[${index}][produto_id]" class="form-select form-select-sm item-select" data-index="${index}" onchange="selecionarItem(${index})">
-                    <option value="">Selecione...</option>
-                    ${options}
-                </select>
-                <input type="hidden" name="itens[${index}][servico_id]" value="">
-                <input type="hidden" name="itens[${index}][descricao]" value="" class="item-descricao">
-            `;
-        } else {
-            options = servicos.map(s => `<option value="${s.id}" data-preco="${s.preco}" data-nome="${s.nome}">${s.nome}</option>`).join('');
-            selectTd.innerHTML = `
-                <select name="itens[${index}][servico_id]" class="form-select form-select-sm item-select" data-index="${index}" onchange="selecionarItem(${index})">
-                    <option value="">Selecione...</option>
-                    ${options}
-                </select>
-                <input type="hidden" name="itens[${index}][produto_id]" value="">
-                <input type="hidden" name="itens[${index}][descricao]" value="" class="item-descricao">
-            `;
-        }
     }
 
     function selecionarItem(index) {
@@ -245,17 +242,29 @@
 
     function calcularLinhaTotal(index) {
         const row = document.getElementById(`item-${index}`);
+        if (!row) return;
         const qtd = parseFloat(row.querySelector('.item-qtd').value) || 0;
         const preco = parseFloat(row.querySelector('.item-preco').value) || 0;
         const total = qtd * preco;
         row.querySelector('.item-total').value = 'R$ ' + total.toFixed(2).replace('.', ',');
-        row.querySelector('.item-descricao').value = row.querySelector('.item-descricao').value || row.querySelector('.item-select').options[row.querySelector('.item-select').selectedIndex]?.getAttribute('data-nome') || '';
+
+        // Auto-fill descricao if empty
+        const descInput = row.querySelector('.item-descricao');
+        if (!descInput.value) {
+            const select = row.querySelector('.item-select');
+            descInput.value = select.options[select.selectedIndex]?.getAttribute('data-nome') || '';
+        }
         calcularTotais();
     }
 
     function removerItem(index) {
         document.getElementById(`item-${index}`).remove();
         calcularTotais();
+        // Show empty state if no items
+        if (document.querySelectorAll('#itensBody tr').length === 0) {
+            const emptyState = document.getElementById('emptyState');
+            if (emptyState) emptyState.style.display = 'block';
+        }
     }
 
     function calcularTotais() {
@@ -273,7 +282,7 @@
         });
 
         const desconto = parseFloat(document.querySelector('[name="desconto"]').value) || 0;
-        const totalGeral = totalProdutos + totalServicos - desconto;
+        const totalGeral = Math.max(0, totalProdutos + totalServicos - desconto);
 
         document.getElementById('totalProdutos').textContent = 'R$ ' + totalProdutos.toFixed(2).replace('.', ',');
         document.getElementById('totalServicos').textContent = 'R$ ' + totalServicos.toFixed(2).replace('.', ',');

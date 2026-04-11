@@ -11,6 +11,7 @@ use App\Models\OrcamentoItem;
 use App\Models\Pedido;
 use App\Models\PedidoItem;
 use App\Models\Produto;
+use App\Models\Servico;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -35,16 +36,36 @@ class OrcamentoController extends Controller
             $query->where('status', $request->status);
         }
 
+        if ($request->filled('data_inicio')) {
+            $query->whereDate('created_at', '>=', $request->data_inicio);
+        }
+
+        if ($request->filled('data_fim')) {
+            $query->whereDate('created_at', '<=', $request->data_fim);
+        }
+
         $orcamentos = $query->latest()->paginate(20)->withQueryString();
 
-        return view('app.orcamentos.index', compact('orcamentos'));
+        // Summary stats
+        $empresaId = session('empresa_id');
+        $unidadeId = session('unidade_id');
+        $stats = [
+            'total_em_aberto' => Orcamento::where('empresa_id', $empresaId)->where('unidade_id', $unidadeId)->where('status', StatusOrcamento::EmAberto)->sum('total'),
+            'count_em_aberto' => Orcamento::where('empresa_id', $empresaId)->where('unidade_id', $unidadeId)->where('status', StatusOrcamento::EmAberto)->count(),
+            'count_aprovados' => Orcamento::where('empresa_id', $empresaId)->where('unidade_id', $unidadeId)->where('status', StatusOrcamento::Aprovado)->count(),
+            'count_convertidos' => Orcamento::where('empresa_id', $empresaId)->where('unidade_id', $unidadeId)->where('status', StatusOrcamento::Convertido)->count(),
+        ];
+
+        return view('app.orcamentos.index', compact('orcamentos', 'stats'));
     }
 
     public function create()
     {
         $vendedores = User::where('empresa_id', session('empresa_id'))->orderBy('name')->get();
+        $produtos = Produto::where('empresa_id', session('empresa_id'))->where('status', 'ativo')->orderBy('descricao')->get();
+        $servicos = Servico::where('empresa_id', session('empresa_id'))->where('status', 'ativo')->orderBy('descricao')->get();
 
-        return view('app.orcamentos.create', compact('vendedores'));
+        return view('app.orcamentos.create', compact('vendedores', 'produtos', 'servicos'));
     }
 
     public function store(Request $request)
@@ -58,7 +79,9 @@ class OrcamentoController extends Controller
             'observacoes_internas'    => 'nullable|string|max:2000',
             'observacoes_externas'    => 'nullable|string|max:2000',
             'itens'                   => 'required|array|min:1',
-            'itens.*.produto_id'      => 'required|exists:produtos,id',
+            'itens.*.produto_id'      => 'nullable|exists:produtos,id',
+            'itens.*.servico_id'      => 'nullable|exists:servicos,id',
+            'itens.*.descricao'       => 'nullable|string|max:500',
             'itens.*.quantidade'      => 'required|numeric|min:0.001',
             'itens.*.preco_unitario'  => 'required|numeric|min:0',
             'itens.*.desconto_percentual' => 'nullable|numeric|min:0|max:100',
@@ -68,7 +91,6 @@ class OrcamentoController extends Controller
             $empresaId  = session('empresa_id');
             $unidadeId  = session('unidade_id');
 
-            // Auto-generate numero
             $ultimoNumero = Orcamento::where('empresa_id', $empresaId)->max('numero');
             $numero = $ultimoNumero ? $ultimoNumero + 1 : 1;
 
@@ -76,7 +98,15 @@ class OrcamentoController extends Controller
             $itensData = [];
 
             foreach ($request->itens as $item) {
-                $produto = Produto::find($item['produto_id']);
+                $descricao = $item['descricao'] ?? '';
+                if (!empty($item['produto_id'])) {
+                    $produto = Produto::find($item['produto_id']);
+                    $descricao = $descricao ?: $produto->descricao;
+                } elseif (!empty($item['servico_id'])) {
+                    $servico = Servico::find($item['servico_id']);
+                    $descricao = $descricao ?: $servico->descricao;
+                }
+
                 $descontoPerc = $item['desconto_percentual'] ?? 0;
                 $precoUnit = $item['preco_unitario'];
                 $qtd = $item['quantidade'];
@@ -84,8 +114,9 @@ class OrcamentoController extends Controller
                 $totalItem = round(($precoUnit * $qtd) - $descontoValor, 2);
 
                 $itensData[] = [
-                    'produto_id'         => $item['produto_id'],
-                    'descricao'          => $produto->descricao,
+                    'produto_id'         => $item['produto_id'] ?? null,
+                    'servico_id'         => $item['servico_id'] ?? null,
+                    'descricao'          => $descricao,
                     'quantidade'         => $qtd,
                     'preco_unitario'     => $precoUnit,
                     'desconto_percentual'=> $descontoPerc,
@@ -127,21 +158,32 @@ class OrcamentoController extends Controller
 
     public function show(Orcamento $orcamento)
     {
-        $orcamento->load(['cliente', 'vendedor', 'itens.produto', 'pedido']);
+        $orcamento->load(['cliente', 'vendedor', 'itens.produto', 'itens.servico', 'pedido']);
 
         return view('app.orcamentos.show', compact('orcamento'));
     }
 
     public function edit(Orcamento $orcamento)
     {
-        $orcamento->load(['cliente', 'itens.produto']);
-        $vendedores = User::where('empresa_id', session('empresa_id'))->orderBy('name')->get();
+        if ($orcamento->status === StatusOrcamento::Convertido) {
+            return redirect()->route('app.orcamentos.show', $orcamento)
+                ->with('error', 'Orcamento convertido nao pode ser editado.');
+        }
 
-        return view('app.orcamentos.edit', compact('orcamento', 'vendedores'));
+        $orcamento->load(['cliente', 'itens.produto', 'itens.servico']);
+        $vendedores = User::where('empresa_id', session('empresa_id'))->orderBy('name')->get();
+        $produtos = Produto::where('empresa_id', session('empresa_id'))->where('status', 'ativo')->orderBy('descricao')->get();
+        $servicos = Servico::where('empresa_id', session('empresa_id'))->where('status', 'ativo')->orderBy('descricao')->get();
+
+        return view('app.orcamentos.edit', compact('orcamento', 'vendedores', 'produtos', 'servicos'));
     }
 
     public function update(Request $request, Orcamento $orcamento)
     {
+        if ($orcamento->status === StatusOrcamento::Convertido) {
+            return back()->with('error', 'Orcamento convertido nao pode ser editado.');
+        }
+
         $request->validate([
             'cliente_id'              => 'required|exists:clientes,id',
             'vendedor_id'             => 'nullable|exists:users,id',
@@ -151,7 +193,9 @@ class OrcamentoController extends Controller
             'observacoes_internas'    => 'nullable|string|max:2000',
             'observacoes_externas'    => 'nullable|string|max:2000',
             'itens'                   => 'required|array|min:1',
-            'itens.*.produto_id'      => 'required|exists:produtos,id',
+            'itens.*.produto_id'      => 'nullable|exists:produtos,id',
+            'itens.*.servico_id'      => 'nullable|exists:servicos,id',
+            'itens.*.descricao'       => 'nullable|string|max:500',
             'itens.*.quantidade'      => 'required|numeric|min:0.001',
             'itens.*.preco_unitario'  => 'required|numeric|min:0',
             'itens.*.desconto_percentual' => 'nullable|numeric|min:0|max:100',
@@ -162,7 +206,15 @@ class OrcamentoController extends Controller
             $itensData = [];
 
             foreach ($request->itens as $item) {
-                $produto = Produto::find($item['produto_id']);
+                $descricao = $item['descricao'] ?? '';
+                if (!empty($item['produto_id'])) {
+                    $produto = Produto::find($item['produto_id']);
+                    $descricao = $descricao ?: $produto->descricao;
+                } elseif (!empty($item['servico_id'])) {
+                    $servico = Servico::find($item['servico_id']);
+                    $descricao = $descricao ?: $servico->descricao;
+                }
+
                 $descontoPerc = $item['desconto_percentual'] ?? 0;
                 $precoUnit = $item['preco_unitario'];
                 $qtd = $item['quantidade'];
@@ -170,8 +222,9 @@ class OrcamentoController extends Controller
                 $totalItem = round(($precoUnit * $qtd) - $descontoValor, 2);
 
                 $itensData[] = [
-                    'produto_id'         => $item['produto_id'],
-                    'descricao'          => $produto->descricao,
+                    'produto_id'         => $item['produto_id'] ?? null,
+                    'servico_id'         => $item['servico_id'] ?? null,
+                    'descricao'          => $descricao,
                     'quantidade'         => $qtd,
                     'preco_unitario'     => $precoUnit,
                     'desconto_percentual'=> $descontoPerc,
@@ -198,7 +251,6 @@ class OrcamentoController extends Controller
                 'observacoes_externas'=> $request->observacoes_externas,
             ]);
 
-            // Remove old items and recreate
             $orcamento->itens()->delete();
             foreach ($itensData as $itemData) {
                 $orcamento->itens()->create($itemData);
@@ -207,6 +259,18 @@ class OrcamentoController extends Controller
 
         return redirect()->route('app.orcamentos.show', $orcamento)
             ->with('success', 'Orcamento atualizado com sucesso!');
+    }
+
+    public function updateStatus(Request $request, Orcamento $orcamento)
+    {
+        $request->validate([
+            'status' => 'required|string',
+        ]);
+
+        $novoStatus = StatusOrcamento::from($request->status);
+        $orcamento->update(['status' => $novoStatus]);
+
+        return back()->with('success', "Status do orcamento atualizado para {$novoStatus->label()}!");
     }
 
     public function converter(Orcamento $orcamento)
@@ -252,12 +316,17 @@ class OrcamentoController extends Controller
             $orcamento->update(['status' => StatusOrcamento::Convertido]);
         });
 
-        return redirect()->route('app.pedidos.show', $orcamento->pedido)
+        return redirect()->route('app.pedidos.show', $orcamento->fresh()->pedido)
             ->with('success', 'Orcamento convertido em pedido com sucesso!');
     }
 
     public function destroy(Orcamento $orcamento)
     {
+        if ($orcamento->status === StatusOrcamento::Convertido) {
+            return back()->with('error', 'Orcamento convertido nao pode ser excluido.');
+        }
+
+        $orcamento->itens()->delete();
         $orcamento->delete();
 
         return redirect()->route('app.orcamentos.index')

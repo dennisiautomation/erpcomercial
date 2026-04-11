@@ -28,13 +28,17 @@ class AuthController extends Controller
     {
         $credentials = $request->validate([
             'email'    => ['required', 'email'],
-            'password' => ['required'],
+            'password' => ['required', 'string'],
+        ], [
+            'email.required'    => 'Informe seu e-mail.',
+            'email.email'       => 'Formato de e-mail invalido.',
+            'password.required' => 'Informe sua senha.',
         ]);
 
         if (! Auth::attempt($credentials, $request->boolean('remember'))) {
             return back()
                 ->withInput($request->only('email', 'remember'))
-                ->withErrors(['email' => 'Credenciais invalidas.']);
+                ->withErrors(['email' => 'E-mail ou senha incorretos.']);
         }
 
         $request->session()->regenerate();
@@ -52,7 +56,8 @@ class AuthController extends Controller
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        return redirect()->route('login');
+        return redirect()->route('login')
+            ->with('success', 'Sessao encerrada com sucesso.');
     }
 
     /**

@@ -38,8 +38,8 @@
                         <td>{{ $unidade->cnpj ?? '-' }}</td>
                         <td>{{ $unidade->cidade ?? '-' }} / {{ $unidade->uf ?? '-' }}</td>
                         <td>
-                            <span class="badge bg-{{ $unidade->status === 'ativo' ? 'success' : 'secondary' }}">
-                                {{ ucfirst($unidade->status ?? 'ativo') }}
+                            <span class="badge bg-{{ $unidade->status === 'ativa' ? 'success' : 'secondary' }}">
+                                {{ ucfirst($unidade->status ?? 'ativa') }}
                             </span>
                         </td>
                         <td class="text-end text-nowrap">

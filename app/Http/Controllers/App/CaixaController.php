@@ -15,11 +15,23 @@ class CaixaController extends Controller
     public function abrir(Request $request)
     {
         if ($request->isMethod('get')) {
+            // Check if already has open caixa
+            $caixaAberto = Caixa::where('unidade_id', session('unidade_id'))
+                ->where('user_id', auth()->id())
+                ->where('status', StatusCaixa::Aberto)
+                ->first();
+
+            if ($caixaAberto) {
+                session(['caixa_id' => $caixaAberto->id]);
+                return redirect()->route('app.pdv.index')
+                    ->with('info', 'Voce ja possui um caixa aberto.');
+            }
+
             return view('app.caixa.abrir');
         }
 
         $request->validate([
-            'numero_caixa'  => 'required|integer|min:1',
+            'numero_caixa'   => 'required|integer|min:1',
             'valor_abertura' => 'required|numeric|min:0',
         ]);
 
@@ -30,18 +42,35 @@ class CaixaController extends Controller
             ->first();
 
         if ($caixaAberto) {
+            session(['caixa_id' => $caixaAberto->id]);
+            if ($request->expectsJson()) {
+                return response()->json(['error' => 'Voce ja possui um caixa aberto.'], 422);
+            }
             return back()->with('error', 'Voce ja possui um caixa aberto.');
+        }
+
+        // Check if the caixa number is already in use (open) at this unidade
+        $caixaNumeroEmUso = Caixa::where('unidade_id', session('unidade_id'))
+            ->where('numero_caixa', $request->numero_caixa)
+            ->where('status', StatusCaixa::Aberto)
+            ->exists();
+
+        if ($caixaNumeroEmUso) {
+            if ($request->expectsJson()) {
+                return response()->json(['error' => 'Este numero de caixa ja esta em uso.'], 422);
+            }
+            return back()->with('error', 'Este numero de caixa ja esta em uso por outro operador.');
         }
 
         $caixa = DB::transaction(function () use ($request) {
             $caixa = Caixa::create([
-                'empresa_id'    => session('empresa_id'),
-                'unidade_id'    => session('unidade_id'),
-                'user_id'       => auth()->id(),
-                'numero_caixa'  => $request->numero_caixa,
-                'valor_abertura'=> $request->valor_abertura,
-                'status'        => StatusCaixa::Aberto,
-                'aberto_em'     => now(),
+                'empresa_id'     => session('empresa_id'),
+                'unidade_id'     => session('unidade_id'),
+                'user_id'        => auth()->id(),
+                'numero_caixa'   => $request->numero_caixa,
+                'valor_abertura' => $request->valor_abertura,
+                'status'         => StatusCaixa::Aberto,
+                'aberto_em'      => now(),
             ]);
 
             MovimentacaoCaixa::create([
@@ -59,6 +88,14 @@ class CaixaController extends Controller
 
         session(['caixa_id' => $caixa->id]);
 
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Caixa aberto com sucesso!',
+                'caixa'   => $caixa,
+            ]);
+        }
+
         return redirect()->route('app.pdv.index')
             ->with('success', 'Caixa aberto com sucesso!');
     }
@@ -67,6 +104,9 @@ class CaixaController extends Controller
     {
         $caixaId = session('caixa_id');
         if (!$caixaId) {
+            if ($request->expectsJson()) {
+                return response()->json(['error' => 'Nenhum caixa aberto.'], 422);
+            }
             return redirect()->route('app.pdv.index')
                 ->with('error', 'Nenhum caixa aberto.');
         }
@@ -74,12 +114,14 @@ class CaixaController extends Controller
         $caixa = Caixa::with('movimentacoes')->find($caixaId);
         if (!$caixa) {
             session()->forget('caixa_id');
+            if ($request->expectsJson()) {
+                return response()->json(['error' => 'Caixa nao encontrado.'], 422);
+            }
             return redirect()->route('app.pdv.index')
                 ->with('error', 'Caixa nao encontrado.');
         }
 
         if ($request->isMethod('get')) {
-            // Calculate expected value
             $valorEsperado = $caixa->movimentacoes->reduce(function ($carry, $mov) {
                 return $carry + ($mov->valor * $mov->tipo->sinal());
             }, 0);
@@ -104,11 +146,11 @@ class CaixaController extends Controller
             }, 0);
 
             $caixa->update([
-                'status'          => StatusCaixa::Fechado,
-                'valor_fechamento'=> $request->valor_contado,
-                'valor_esperado'  => $valorEsperado,
-                'fechado_em'      => now(),
-                'observacoes'     => $request->observacoes,
+                'status'           => StatusCaixa::Fechado,
+                'valor_fechamento' => $request->valor_contado,
+                'valor_esperado'   => $valorEsperado,
+                'fechado_em'       => now(),
+                'observacoes'      => $request->observacoes,
             ]);
 
             MovimentacaoCaixa::create([
@@ -124,6 +166,13 @@ class CaixaController extends Controller
 
         session()->forget('caixa_id');
 
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Caixa fechado com sucesso!',
+            ]);
+        }
+
         return redirect()->route('app.pdv.index')
             ->with('success', 'Caixa fechado com sucesso!');
     }
@@ -138,6 +187,12 @@ class CaixaController extends Controller
         $caixaId = session('caixa_id');
         if (!$caixaId) {
             return response()->json(['error' => 'Nenhum caixa aberto.'], 422);
+        }
+
+        $caixa = Caixa::find($caixaId);
+        if (!$caixa || $caixa->status->value !== 'aberto') {
+            session()->forget('caixa_id');
+            return response()->json(['error' => 'Caixa nao esta aberto.'], 422);
         }
 
         MovimentacaoCaixa::create([
@@ -163,6 +218,12 @@ class CaixaController extends Controller
         $caixaId = session('caixa_id');
         if (!$caixaId) {
             return response()->json(['error' => 'Nenhum caixa aberto.'], 422);
+        }
+
+        $caixa = Caixa::find($caixaId);
+        if (!$caixa || $caixa->status->value !== 'aberto') {
+            session()->forget('caixa_id');
+            return response()->json(['error' => 'Caixa nao esta aberto.'], 422);
         }
 
         MovimentacaoCaixa::create([

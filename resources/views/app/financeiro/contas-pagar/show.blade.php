@@ -20,7 +20,7 @@
                 <div class="row mb-3">
                     <div class="col-md-6">
                         <strong>Fornecedor:</strong><br>
-                        {{ $contaPagar->fornecedor->nome_razao_social ?? '-' }}
+                        {{ $contaPagar->fornecedor->razao_social ?? '-' }}
                     </div>
                     <div class="col-md-6">
                         <strong>Descricao:</strong><br>

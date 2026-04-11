@@ -16,9 +16,11 @@ class TransferenciaEstoqueController extends Controller
 {
     public function index(Request $request)
     {
+        $empresaId = auth()->user()->empresa_id;
+
         $query = TransferenciaEstoque::with(['unidadeOrigem', 'unidadeDestino', 'solicitante'])
             ->withCount('itens')
-            ->where('empresa_id', auth()->user()->empresa_id);
+            ->where('empresa_id', $empresaId);
 
         if ($request->filled('status')) {
             $query->where('status', $request->status);
@@ -26,7 +28,19 @@ class TransferenciaEstoqueController extends Controller
 
         $transferencias = $query->orderByDesc('created_at')->paginate(20)->withQueryString();
 
-        return view('app.transferencias.index', compact('transferencias'));
+        // Summary counts
+        $totalSolicitadas = TransferenciaEstoque::where('empresa_id', $empresaId)
+            ->where('status', 'solicitada')->count();
+        $totalAprovadas = TransferenciaEstoque::where('empresa_id', $empresaId)
+            ->where('status', 'aprovada')->count();
+        $totalConcluidas = TransferenciaEstoque::where('empresa_id', $empresaId)
+            ->where('status', 'concluida')->count();
+        $totalCanceladas = TransferenciaEstoque::where('empresa_id', $empresaId)
+            ->where('status', 'cancelada')->count();
+
+        return view('app.estoque.transferencias.index', compact(
+            'transferencias', 'totalSolicitadas', 'totalAprovadas', 'totalConcluidas', 'totalCanceladas'
+        ));
     }
 
     public function create()
@@ -41,7 +55,7 @@ class TransferenciaEstoqueController extends Controller
             ->orderBy('descricao')
             ->get(['id', 'descricao']);
 
-        return view('app.transferencias.create', compact('unidades', 'produtos'));
+        return view('app.estoque.transferencias.create', compact('unidades', 'produtos'));
     }
 
     public function store(Request $request)
@@ -87,7 +101,7 @@ class TransferenciaEstoqueController extends Controller
             'itens.produto',
         ]);
 
-        return view('app.transferencias.show', compact('transferencia'));
+        return view('app.estoque.transferencias.show', compact('transferencia'));
     }
 
     public function aprovar(TransferenciaEstoque $transferencia)

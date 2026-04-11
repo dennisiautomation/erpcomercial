@@ -16,17 +16,18 @@ class FornecedorController extends Controller
         if ($request->filled('busca')) {
             $busca = $request->busca;
             $query->where(function ($q) use ($busca) {
-                $q->where('nome_razao_social', 'like', "%{$busca}%")
+                $q->where('razao_social', 'like', "%{$busca}%")
+                  ->orWhere('nome_fantasia', 'like', "%{$busca}%")
                   ->orWhere('cpf_cnpj', 'like', "%{$busca}%")
-                  ->orWhere('nome_fantasia', 'like', "%{$busca}%");
+                  ->orWhere('email', 'like', "%{$busca}%");
             });
         }
 
-        if ($request->filled('status')) {
-            $query->where('status', $request->status);
+        if ($request->filled('uf')) {
+            $query->where('uf', $request->uf);
         }
 
-        $fornecedores = $query->orderBy('nome_razao_social')->paginate(15)->withQueryString();
+        $fornecedores = $query->orderBy('razao_social')->paginate(15)->withQueryString();
 
         return view('app.fornecedores.index', compact('fornecedores'));
     }
@@ -41,30 +42,26 @@ class FornecedorController extends Controller
         $empresaId = auth()->user()->empresa_id;
 
         $validated = $request->validate([
-            'tipo_pessoa'       => 'required|in:PF,PJ',
-            'cpf_cnpj'          => [
+            'cpf_cnpj'             => [
                 'required',
                 'string',
                 'max:18',
                 Rule::unique('fornecedores')->where('empresa_id', $empresaId)->whereNull('deleted_at'),
             ],
-            'nome_razao_social' => 'required|string|max:255',
-            'nome_fantasia'     => 'nullable|string|max:255',
-            'ie'                => 'nullable|string|max:20',
-            'cep'               => 'nullable|string|max:9',
-            'logradouro'        => 'nullable|string|max:255',
-            'numero'            => 'nullable|string|max:20',
-            'complemento'       => 'nullable|string|max:255',
-            'bairro'            => 'nullable|string|max:255',
-            'cidade'            => 'nullable|string|max:255',
-            'uf'                => 'nullable|string|max:2',
-            'telefone'          => 'nullable|string|max:20',
-            'whatsapp'          => 'nullable|string|max:20',
-            'email'             => 'nullable|email|max:255',
-            'observacoes'       => 'nullable|string',
+            'razao_social'         => 'required|string|max:255',
+            'nome_fantasia'        => 'nullable|string|max:255',
+            'cep'                  => 'nullable|string|max:9',
+            'logradouro'           => 'nullable|string|max:255',
+            'numero'               => 'nullable|string|max:20',
+            'complemento'          => 'nullable|string|max:255',
+            'bairro'               => 'nullable|string|max:255',
+            'cidade'               => 'nullable|string|max:255',
+            'uf'                   => 'nullable|string|max:2',
+            'contato_representante'=> 'nullable|string|max:255',
+            'telefone'             => 'nullable|string|max:20',
+            'email'                => 'nullable|email|max:255',
+            'condicoes_comerciais' => 'nullable|string|max:1000',
         ]);
-
-        $validated['status'] = 'ativo';
 
         Fornecedor::create($validated);
 
@@ -91,28 +88,25 @@ class FornecedorController extends Controller
         $empresaId = auth()->user()->empresa_id;
 
         $validated = $request->validate([
-            'tipo_pessoa'       => 'required|in:PF,PJ',
-            'cpf_cnpj'          => [
+            'cpf_cnpj'             => [
                 'required',
                 'string',
                 'max:18',
                 Rule::unique('fornecedores')->where('empresa_id', $empresaId)->whereNull('deleted_at')->ignore($fornecedore->id),
             ],
-            'nome_razao_social' => 'required|string|max:255',
-            'nome_fantasia'     => 'nullable|string|max:255',
-            'ie'                => 'nullable|string|max:20',
-            'cep'               => 'nullable|string|max:9',
-            'logradouro'        => 'nullable|string|max:255',
-            'numero'            => 'nullable|string|max:20',
-            'complemento'       => 'nullable|string|max:255',
-            'bairro'            => 'nullable|string|max:255',
-            'cidade'            => 'nullable|string|max:255',
-            'uf'                => 'nullable|string|max:2',
-            'telefone'          => 'nullable|string|max:20',
-            'whatsapp'          => 'nullable|string|max:20',
-            'email'             => 'nullable|email|max:255',
-            'status'            => 'required|in:ativo,inativo',
-            'observacoes'       => 'nullable|string',
+            'razao_social'         => 'required|string|max:255',
+            'nome_fantasia'        => 'nullable|string|max:255',
+            'cep'                  => 'nullable|string|max:9',
+            'logradouro'           => 'nullable|string|max:255',
+            'numero'               => 'nullable|string|max:20',
+            'complemento'          => 'nullable|string|max:255',
+            'bairro'               => 'nullable|string|max:255',
+            'cidade'               => 'nullable|string|max:255',
+            'uf'                   => 'nullable|string|max:2',
+            'contato_representante'=> 'nullable|string|max:255',
+            'telefone'             => 'nullable|string|max:20',
+            'email'                => 'nullable|email|max:255',
+            'condicoes_comerciais' => 'nullable|string|max:1000',
         ]);
 
         $fornecedore->update($validated);
@@ -126,6 +120,6 @@ class FornecedorController extends Controller
         $fornecedore->delete();
 
         return redirect()->route('app.fornecedores.index')
-            ->with('success', 'Fornecedor excluído com sucesso!');
+            ->with('success', 'Fornecedor excluido com sucesso!');
     }
 }

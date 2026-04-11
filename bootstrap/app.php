@@ -14,6 +14,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'permission' => \App\Http\Middleware\CheckPermission::class,
             'unidade' => \App\Http\Middleware\EnsureUnidadeSelected::class,
+            'plano' => \App\Http\Middleware\CheckPlano::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

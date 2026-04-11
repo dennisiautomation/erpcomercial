@@ -6,6 +6,7 @@ use App\Enums\RegimeTributario;
 use App\Enums\StatusEmpresa;
 use App\Http\Controllers\Controller;
 use App\Models\Empresa;
+use App\Models\Plano;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -30,14 +31,19 @@ class EmpresaController extends Controller
             $query->where('status', $status);
         }
 
+        if ($plano = $request->input('plano')) {
+            $query->where('plano', $plano);
+        }
+
         $empresas = $query->withCount('unidades', 'users')
             ->orderBy('razao_social')
             ->paginate(15)
             ->withQueryString();
 
         $statusOptions = StatusEmpresa::cases();
+        $planos = Plano::ativo()->orderBy('ordem')->get();
 
-        return view('admin.empresas.index', compact('empresas', 'statusOptions'));
+        return view('admin.empresas.index', compact('empresas', 'statusOptions', 'planos'));
     }
 
     public function create(Request $request): View
@@ -46,8 +52,9 @@ class EmpresaController extends Controller
 
         $regimes = RegimeTributario::cases();
         $statusOptions = StatusEmpresa::cases();
+        $planos = Plano::ativo()->orderBy('ordem')->get();
 
-        return view('admin.empresas.create', compact('regimes', 'statusOptions'));
+        return view('admin.empresas.create', compact('regimes', 'statusOptions', 'planos'));
     }
 
     public function store(Request $request): RedirectResponse
@@ -97,8 +104,9 @@ class EmpresaController extends Controller
 
         $regimes = RegimeTributario::cases();
         $statusOptions = StatusEmpresa::cases();
+        $planos = Plano::ativo()->orderBy('ordem')->get();
 
-        return view('admin.empresas.edit', compact('empresa', 'regimes', 'statusOptions'));
+        return view('admin.empresas.edit', compact('empresa', 'regimes', 'statusOptions', 'planos'));
     }
 
     public function update(Request $request, Empresa $empresa): RedirectResponse

@@ -49,7 +49,7 @@ class RelatorioController extends Controller
         $topProdutos = VendaItem::select(
                 'produto_id',
                 DB::raw('SUM(quantidade) as qtd_vendida'),
-                DB::raw('SUM(subtotal) as faturamento')
+                DB::raw('SUM(total) as faturamento')
             )
             ->whereHas('venda', function ($q) use ($empresaId, $dataInicio, $dataFim) {
                 $q->where('empresa_id', $empresaId)
@@ -112,7 +112,7 @@ class RelatorioController extends Controller
         // Curva ABC
         $produtosComVendas = VendaItem::select(
                 'produto_id',
-                DB::raw('SUM(subtotal) as faturamento')
+                DB::raw('SUM(total) as faturamento')
             )
             ->whereHas('venda', function ($q) use ($empresaId) {
                 $q->where('empresa_id', $empresaId);

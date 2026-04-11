@@ -13,8 +13,10 @@ class EstoqueMovimentacaoController extends Controller
 {
     public function index(Request $request)
     {
+        $empresaId = auth()->user()->empresa_id;
+
         $query = EstoqueMovimentacao::with(['produto', 'user', 'unidade'])
-            ->where('empresa_id', auth()->user()->empresa_id);
+            ->where('empresa_id', $empresaId);
 
         if ($request->filled('produto_id')) {
             $query->where('produto_id', $request->produto_id);
@@ -34,11 +36,38 @@ class EstoqueMovimentacaoController extends Controller
 
         $movimentacoes = $query->orderByDesc('created_at')->paginate(20)->withQueryString();
 
-        $produtos = Produto::where('empresa_id', auth()->user()->empresa_id)
+        $produtos = Produto::where('empresa_id', $empresaId)
             ->orderBy('descricao')
             ->get(['id', 'descricao']);
 
-        return view('app.estoque.movimentacoes.index', compact('movimentacoes', 'produtos'));
+        // Summary cards
+        $totalEntradas = EstoqueMovimentacao::where('empresa_id', $empresaId)
+            ->whereIn('tipo', ['entrada', 'devolucao'])
+            ->whereMonth('created_at', now()->month)
+            ->whereYear('created_at', now()->year)
+            ->count();
+
+        $totalSaidas = EstoqueMovimentacao::where('empresa_id', $empresaId)
+            ->whereIn('tipo', ['saida', 'perda'])
+            ->whereMonth('created_at', now()->month)
+            ->whereYear('created_at', now()->year)
+            ->count();
+
+        $totalAjustes = EstoqueMovimentacao::where('empresa_id', $empresaId)
+            ->whereIn('tipo', ['ajuste', 'bonificacao'])
+            ->whereMonth('created_at', now()->month)
+            ->whereYear('created_at', now()->year)
+            ->count();
+
+        $totalTransferencias = EstoqueMovimentacao::where('empresa_id', $empresaId)
+            ->where('tipo', 'transferencia')
+            ->whereMonth('created_at', now()->month)
+            ->whereYear('created_at', now()->year)
+            ->count();
+
+        return view('app.estoque.movimentacoes.index', compact(
+            'movimentacoes', 'produtos', 'totalEntradas', 'totalSaidas', 'totalAjustes', 'totalTransferencias'
+        ));
     }
 
     public function create()
