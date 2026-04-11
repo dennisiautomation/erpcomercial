@@ -32,7 +32,7 @@ class DashboardController extends Controller
         $setupCompleto = [
             'produtos' => $temProdutos,
             'clientes' => $temClientes,
-            'fiscal' => ConfiguracaoFiscal::withoutGlobalScopes()->where('empresa_id', $empresaId)->where('emissao_fiscal_ativa', true)->exists(),
+            'fiscal' => ConfiguracaoFiscal::withoutGlobalScopes()->where('empresa_id', $empresaId)->exists(),
             'primeira_venda' => $temVendas,
         ];
         $setupPercentual = (int)(collect($setupCompleto)->filter()->count() / count($setupCompleto) * 100);
@@ -47,7 +47,7 @@ class DashboardController extends Controller
         // Faturamento do mes
         $faturamentoMes = Venda::where('unidade_id', $unidadeId)
             ->whereBetween('created_at', [$inicioMes, $fimMes])
-            ->where('status', 'finalizada')
+            ->where('status', 'concluida')
             ->sum('total');
 
         // Faturamento do mes anterior (para comparacao)
@@ -55,7 +55,7 @@ class DashboardController extends Controller
         $fimMesAnterior = Carbon::now()->subMonth()->endOfMonth();
         $faturamentoMesAnterior = Venda::where('unidade_id', $unidadeId)
             ->whereBetween('created_at', [$inicioMesAnterior, $fimMesAnterior])
-            ->where('status', 'finalizada')
+            ->where('status', 'concluida')
             ->sum('total');
 
         // Variacao percentual
@@ -66,12 +66,12 @@ class DashboardController extends Controller
         // Total de vendas no mes
         $totalVendasMes = Venda::where('unidade_id', $unidadeId)
             ->whereBetween('created_at', [$inicioMes, $fimMes])
-            ->where('status', 'finalizada')
+            ->where('status', 'concluida')
             ->count();
 
         $totalVendasMesAnterior = Venda::where('unidade_id', $unidadeId)
             ->whereBetween('created_at', [$inicioMesAnterior, $fimMesAnterior])
-            ->where('status', 'finalizada')
+            ->where('status', 'concluida')
             ->count();
 
         $variacaoVendas = $totalVendasMesAnterior > 0
@@ -100,7 +100,7 @@ class DashboardController extends Controller
         $topProdutos = VendaItem::whereHas('venda', function ($q) use ($unidadeId, $inicioMes, $fimMes) {
                 $q->where('unidade_id', $unidadeId)
                   ->whereBetween('created_at', [$inicioMes, $fimMes])
-                  ->where('status', 'finalizada');
+                  ->where('status', 'concluida');
             })
             ->whereNotNull('produto_id')
             ->selectRaw('produto_id, SUM(quantidade) as total_quantidade, SUM(total) as total_valor')
@@ -113,7 +113,7 @@ class DashboardController extends Controller
         // Vendas por dia do mes (para grafico)
         $vendasPorDia = Venda::where('unidade_id', $unidadeId)
             ->whereBetween('created_at', [$inicioMes, $fimMes])
-            ->where('status', 'finalizada')
+            ->where('status', 'concluida')
             ->selectRaw('DATE(created_at) as dia, SUM(total) as total_dia, COUNT(*) as qtd')
             ->groupBy('dia')
             ->orderBy('dia')
