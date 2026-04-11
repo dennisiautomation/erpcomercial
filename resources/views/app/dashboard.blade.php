@@ -216,125 +216,65 @@
 </div>
 
 @if($setupPercentual < 100 && !$wizardDismissed)
-{{-- ===== SETUP WIZARD (First time user) ===== --}}
+{{-- ===== SETUP WIZARD (7 etapas) ===== --}}
 <div class="row justify-content-center mb-4">
-    <div class="col-lg-8">
-        <div class="card setup-card position-relative">
+    <div class="col-lg-9">
+        <div class="card setup-card position-relative border-0 shadow-sm">
             <button type="button" class="btn-close position-absolute top-0 end-0 m-3" onclick="this.closest('.card').style.display='none'; fetch('/app/dismiss-wizard', {method:'POST', headers:{'X-CSRF-TOKEN':document.querySelector('meta[name=csrf-token]').content}})" aria-label="Fechar"></button>
             <div class="card-body p-4">
-                <div class="text-center mb-4">
-                    <i class="bi bi-rocket-takeoff fs-1 text-primary d-block mb-2"></i>
-                    <h4 class="fw-bold mb-1">Vamos configurar seu ERP</h4>
-                    <p class="text-muted mb-3">Complete os passos abaixo para comecar a usar o sistema</p>
-                    <div class="d-flex align-items-center justify-content-center gap-3 mb-2">
-                        <div class="setup-progress-bar" style="width: 200px;">
-                            <div class="setup-progress-fill" style="width: {{ $setupPercentual }}%"></div>
-                        </div>
-                        <span class="fw-bold text-primary">{{ $setupPercentual }}%</span>
+                <div class="d-flex align-items-center gap-3 mb-4">
+                    <div style="width:56px;height:56px;border-radius:14px;background:linear-gradient(135deg,#4f46e5,#7c3aed);display:flex;align-items:center;justify-content:center">
+                        <i class="bi bi-rocket-takeoff text-white fs-4"></i>
                     </div>
-                    <small class="text-muted">{{ collect($setupCompleto)->filter()->count() }} de {{ count($setupCompleto) }} etapas concluidas</small>
+                    <div class="flex-grow-1">
+                        <h4 class="fw-bold mb-0">Configure seu ERP</h4>
+                        <p class="text-muted mb-0 small">{{ $etapasConcluidas }} de {{ $totalEtapas }} etapas concluidas</p>
+                    </div>
+                    <div class="text-end">
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="setup-progress-bar" style="width:120px">
+                                <div class="setup-progress-fill" style="width:{{ $setupPercentual }}%"></div>
+                            </div>
+                            <span class="fw-bold" style="color:var(--primary)">{{ $setupPercentual }}%</span>
+                        </div>
+                    </div>
                 </div>
 
-                <div class="border rounded-3 overflow-hidden">
-                    {{-- Produtos --}}
-                    <div class="setup-item">
-                        <div class="setup-check {{ $setupCompleto['produtos'] ? 'done' : 'pending' }}">
-                            <i class="bi {{ $setupCompleto['produtos'] ? 'bi-check-lg' : 'bi-box-seam' }}"></i>
-                        </div>
-                        <div class="setup-item-content">
-                            <div class="setup-item-title {{ $setupCompleto['produtos'] ? 'text-success' : '' }}">
-                                Cadastrar produtos
+                <div class="row g-3">
+                    @foreach($setupCompleto as $key => $step)
+                    <div class="col-md-6">
+                        <div class="d-flex align-items-start gap-3 p-3 rounded-3 {{ $step['done'] ? 'bg-success bg-opacity-10' : 'bg-light' }}" style="min-height:80px">
+                            <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0" style="width:40px;height:40px;{{ $step['done'] ? 'background:#059669;color:#fff' : 'background:#e2e8f0;color:#64748b' }}">
+                                <i class="bi {{ $step['done'] ? 'bi-check-lg' : 'bi-'.$step['icon'] }}"></i>
                             </div>
-                            <div class="setup-item-desc">Cadastre seus produtos ou importe via CSV</div>
-                        </div>
-                        @if(!$setupCompleto['produtos'])
-                            <div class="d-flex gap-2">
-                                <a href="{{ route('app.produtos.create') }}" class="btn btn-sm btn-primary rounded-pill px-3">
-                                    <i class="bi bi-plus-lg me-1"></i> Criar
-                                </a>
-                                <a href="{{ route('app.produtos.index') }}" class="btn btn-sm btn-outline-primary rounded-pill px-3">
-                                    <i class="bi bi-upload me-1"></i> Importar CSV
-                                </a>
+                            <div class="flex-grow-1">
+                                <div class="fw-semibold {{ $step['done'] ? 'text-success' : '' }}">
+                                    {{ $step['label'] }}
+                                    @if(!empty($step['optional']))<small class="text-muted">(opcional)</small>@endif
+                                    @if(!empty($step['count']))<small class="text-muted">({{ $step['count'] }})</small>@endif
+                                </div>
+                                <div class="text-muted small">{{ $step['desc'] }}</div>
+                                @if(!$step['done'])
+                                <div class="mt-2 d-flex gap-2 flex-wrap">
+                                    <a href="{{ $step['action'] }}" class="btn btn-sm btn-primary rounded-pill px-3">
+                                        <i class="bi bi-plus-lg me-1"></i> {{ $step['action_label'] }}
+                                    </a>
+                                    @if(!empty($step['import']))
+                                    <button data-import="{{ $step['import'] }}" class="btn btn-sm btn-outline-primary rounded-pill px-3">
+                                        <i class="bi bi-upload me-1"></i> Importar
+                                    </button>
+                                    @endif
+                                    @if(!empty($step['action2']))
+                                    <a href="{{ $step['action2'] }}" class="btn btn-sm btn-outline-secondary rounded-pill px-3">
+                                        {{ $step['action2_label'] }}
+                                    </a>
+                                    @endif
+                                </div>
+                                @endif
                             </div>
-                        @else
-                            <span class="badge bg-success bg-opacity-10 text-success px-3 py-2 rounded-pill">
-                                <i class="bi bi-check-circle me-1"></i> Concluido
-                            </span>
-                        @endif
+                        </div>
                     </div>
-
-                    {{-- Clientes --}}
-                    <div class="setup-item">
-                        <div class="setup-check {{ $setupCompleto['clientes'] ? 'done' : 'pending' }}">
-                            <i class="bi {{ $setupCompleto['clientes'] ? 'bi-check-lg' : 'bi-people' }}"></i>
-                        </div>
-                        <div class="setup-item-content">
-                            <div class="setup-item-title {{ $setupCompleto['clientes'] ? 'text-success' : '' }}">
-                                Cadastrar clientes
-                            </div>
-                            <div class="setup-item-desc">Cadastre seus clientes ou importe via CSV</div>
-                        </div>
-                        @if(!$setupCompleto['clientes'])
-                            <div class="d-flex gap-2">
-                                <a href="{{ route('app.clientes.create') }}" class="btn btn-sm btn-primary rounded-pill px-3">
-                                    <i class="bi bi-plus-lg me-1"></i> Criar
-                                </a>
-                                <a href="{{ route('app.clientes.index') }}" class="btn btn-sm btn-outline-primary rounded-pill px-3">
-                                    <i class="bi bi-upload me-1"></i> Importar CSV
-                                </a>
-                            </div>
-                        @else
-                            <span class="badge bg-success bg-opacity-10 text-success px-3 py-2 rounded-pill">
-                                <i class="bi bi-check-circle me-1"></i> Concluido
-                            </span>
-                        @endif
-                    </div>
-
-                    {{-- Fiscal --}}
-                    <div class="setup-item">
-                        <div class="setup-check {{ $setupCompleto['fiscal'] ? 'done' : 'pending' }}">
-                            <i class="bi {{ $setupCompleto['fiscal'] ? 'bi-check-lg' : 'bi-receipt' }}"></i>
-                        </div>
-                        <div class="setup-item-content">
-                            <div class="setup-item-title {{ $setupCompleto['fiscal'] ? 'text-success' : '' }}">
-                                Configurar fiscal
-                            </div>
-                            <div class="setup-item-desc">Configure a emissao de notas fiscais (opcional)</div>
-                        </div>
-                        @if(!$setupCompleto['fiscal'])
-                            <div class="d-flex gap-2">
-                                <a href="{{ route('app.configuracao-fiscal.edit') }}" class="btn btn-sm btn-primary rounded-pill px-3">
-                                    <i class="bi bi-gear me-1"></i> Configurar
-                                </a>
-                            </div>
-                        @else
-                            <span class="badge bg-success bg-opacity-10 text-success px-3 py-2 rounded-pill">
-                                <i class="bi bi-check-circle me-1"></i> Concluido
-                            </span>
-                        @endif
-                    </div>
-
-                    {{-- Primeira venda --}}
-                    <div class="setup-item">
-                        <div class="setup-check {{ $setupCompleto['primeira_venda'] ? 'done' : 'pending' }}">
-                            <i class="bi {{ $setupCompleto['primeira_venda'] ? 'bi-check-lg' : 'bi-cart-check' }}"></i>
-                        </div>
-                        <div class="setup-item-content">
-                            <div class="setup-item-title {{ $setupCompleto['primeira_venda'] ? 'text-success' : '' }}">
-                                Fazer primeira venda
-                            </div>
-                            <div class="setup-item-desc">Registre sua primeira venda pelo PDV ou modulo de vendas</div>
-                        </div>
-                        @if(!$setupCompleto['primeira_venda'])
-                            <a href="{{ route('app.pdv.index') }}" class="btn btn-sm btn-success rounded-pill px-3">
-                                <i class="bi bi-cart3 me-1"></i> Abrir PDV
-                            </a>
-                        @else
-                            <span class="badge bg-success bg-opacity-10 text-success px-3 py-2 rounded-pill">
-                                <i class="bi bi-check-circle me-1"></i> Concluido
-                            </span>
-                        @endif
-                    </div>
+                    @endforeach
                 </div>
             </div>
         </div>

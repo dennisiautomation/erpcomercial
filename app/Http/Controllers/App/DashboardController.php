@@ -26,18 +26,28 @@ class DashboardController extends Controller
         $unidadeId = session('unidade_id');
         $empresaId = auth()->user()->empresa_id;
 
-        // Setup progress checks
+        // Setup progress — 7 etapas cobrindo tudo que um negócio precisa
+        $empresa = Empresa::find($empresaId);
+        $temProdutos = Produto::where('empresa_id', $empresaId)->count();
+        $temClientes = Cliente::where('empresa_id', $empresaId)->count();
+        $temFornecedores = \App\Models\Fornecedor::where('empresa_id', $empresaId)->count();
+        $temFuncionarios = \App\Models\User::where('empresa_id', $empresaId)->where('perfil', '!=', 'dono')->count();
         $temVendas = Venda::where('empresa_id', $empresaId)->exists();
-        $temProdutos = Produto::where('empresa_id', $empresaId)->exists();
-        $temClientes = Cliente::where('empresa_id', $empresaId)->exists();
+        $configFiscal = ConfiguracaoFiscal::withoutGlobalScopes()->where('empresa_id', $empresaId)->exists();
+        $temEstoque = \App\Models\EstoqueMovimentacao::where('empresa_id', $empresaId)->exists();
 
         $setupCompleto = [
-            'produtos' => $temProdutos,
-            'clientes' => $temClientes,
-            'fiscal' => ConfiguracaoFiscal::withoutGlobalScopes()->where('empresa_id', $empresaId)->exists(),
-            'primeira_venda' => $temVendas,
+            'produtos' => ['done' => $temProdutos >= 3, 'count' => $temProdutos, 'label' => 'Cadastrar produtos', 'desc' => 'Cadastre pelo menos 3 produtos ou importe via CSV', 'icon' => 'box-seam', 'action' => route('app.produtos.create'), 'action_label' => 'Cadastrar', 'import' => route('app.import.produtos')],
+            'clientes' => ['done' => $temClientes >= 1, 'count' => $temClientes, 'label' => 'Cadastrar clientes', 'desc' => 'Cadastre seus clientes ou importe sua base', 'icon' => 'people', 'action' => route('app.clientes.create'), 'action_label' => 'Cadastrar', 'import' => route('app.import.clientes')],
+            'fornecedores' => ['done' => $temFornecedores >= 1, 'count' => $temFornecedores, 'label' => 'Cadastrar fornecedores', 'desc' => 'Adicione seus fornecedores para controle de compras', 'icon' => 'truck', 'action' => route('app.fornecedores.create'), 'action_label' => 'Cadastrar', 'import' => route('app.import.fornecedores')],
+            'funcionarios' => ['done' => $temFuncionarios >= 1, 'count' => $temFuncionarios, 'label' => 'Cadastrar equipe', 'desc' => 'Adicione vendedores, caixas e gerentes', 'icon' => 'person-badge', 'action' => route('app.funcionarios.create'), 'action_label' => 'Cadastrar'],
+            'estoque' => ['done' => $temEstoque, 'label' => 'Dar entrada no estoque', 'desc' => 'Registre a quantidade inicial dos seus produtos', 'icon' => 'archive', 'action' => route('app.movimentacoes.create'), 'action_label' => 'Registrar entrada'],
+            'fiscal' => ['done' => $configFiscal, 'label' => 'Configurar fiscal', 'desc' => 'Configure emissão de notas fiscais (opcional)', 'icon' => 'receipt', 'action' => route('app.configuracao-fiscal.edit'), 'action_label' => 'Configurar', 'optional' => true],
+            'primeira_venda' => ['done' => $temVendas, 'label' => 'Fazer primeira venda', 'desc' => 'Registre sua primeira venda pelo PDV ou balcão', 'icon' => 'cart-check', 'action' => route('app.pdv.index'), 'action_label' => 'Abrir PDV', 'action2' => route('app.vendas.create'), 'action2_label' => 'Venda balcão'],
         ];
-        $setupPercentual = (int)(collect($setupCompleto)->filter()->count() / count($setupCompleto) * 100);
+        $totalEtapas = count($setupCompleto);
+        $etapasConcluidas = collect($setupCompleto)->filter(fn($s) => $s['done'])->count();
+        $setupPercentual = (int)($etapasConcluidas / $totalEtapas * 100);
 
         // Alertas
         $estoqueBaixo = Produto::where('empresa_id', $empresaId)->whereColumn('estoque_minimo', '>', DB::raw('0'))->count();
@@ -149,6 +159,8 @@ class DashboardController extends Controller
             'ultimasVendas',
             'setupCompleto',
             'setupPercentual',
+            'totalEtapas',
+            'etapasConcluidas',
             'estoqueBaixo',
             'contasVencidas',
             'trialDias',
