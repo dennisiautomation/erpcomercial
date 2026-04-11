@@ -12,10 +12,9 @@ class Servico extends Model
 
     protected $fillable = [
         'empresa_id',
-        'codigo',
+        'codigo_lc116',
         'descricao',
         'valor_padrao',
-        'codigo_servico_municipal',
         'cnae',
         'iss_aliquota',
         'status',

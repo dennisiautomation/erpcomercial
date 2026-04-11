@@ -58,12 +58,12 @@ class ConfiguracaoFiscalController extends Controller
             $validated['ambiente'] = $request->input('ambiente', 'homologacao');
         }
 
-        $config = ConfiguracaoFiscal::updateOrCreate(
+        $config = ConfiguracaoFiscal::withoutGlobalScopes()->updateOrCreate(
             [
                 'empresa_id' => session('empresa_id'),
                 'unidade_id' => session('unidade_id'),
             ],
-            $validated,
+            collect($validated)->except(['empresa_id', 'unidade_id'])->toArray(),
         );
 
         return redirect()

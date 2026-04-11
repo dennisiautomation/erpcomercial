@@ -17,7 +17,7 @@ class ServicoController extends Controller
             $busca = $request->busca;
             $query->where(function ($q) use ($busca) {
                 $q->where('descricao', 'like', "%{$busca}%")
-                  ->orWhere('codigo', 'like', "%{$busca}%");
+                  ->orWhere('codigo_lc116', 'like', "%{$busca}%");
             });
         }
 
@@ -45,10 +45,10 @@ class ServicoController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'codigo'                    => 'nullable|string|max:20',
+            'codigo_lc116'                    => 'nullable|string|max:20',
             'descricao'                 => 'required|string|max:255',
             'valor_padrao'              => 'required|numeric|min:0',
-            'codigo_servico_municipal'  => 'nullable|string|max:20',
+            'codigo_lc116'  => 'nullable|string|max:20',
             'cnae'                      => 'nullable|string|max:10',
             'iss_aliquota'              => 'nullable|numeric|min:0|max:100',
         ]);
@@ -79,10 +79,10 @@ class ServicoController extends Controller
     public function update(Request $request, Servico $servico)
     {
         $validated = $request->validate([
-            'codigo'                    => 'nullable|string|max:20',
+            'codigo_lc116'                    => 'nullable|string|max:20',
             'descricao'                 => 'required|string|max:255',
             'valor_padrao'              => 'required|numeric|min:0',
-            'codigo_servico_municipal'  => 'nullable|string|max:20',
+            'codigo_lc116'  => 'nullable|string|max:20',
             'cnae'                      => 'nullable|string|max:10',
             'iss_aliquota'              => 'nullable|numeric|min:0|max:100',
             'status'                    => 'required|in:ativo,inativo',
