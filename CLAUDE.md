@@ -1,307 +1,239 @@
-# ERP Comercial SaaS — Guia Completo para Agentes
+# ERP Comercial SaaS — Guia para Agentes
 
 ## Visão Geral
+Sistema ERP SaaS multi-tenant para micro/pequenas/médias empresas. Admin (IA365) gerencia a plataforma. Cada empresa tem múltiplas unidades com estoque, caixa e fiscal independentes. Integração fiscal via Focus NFe (NFC-e, NF-e, NFS-e). Substituição tributária interestadual.
 
-Sistema ERP comercial SaaS multi-tenant para micro, pequenas e médias empresas. Inspirado no GestãoClick com integração fiscal via Focus NFe. O Admin (IA365) gerencia a plataforma, cadastra empresas clientes, cada empresa tem múltiplas unidades (filiais) com estoque, caixa e fiscal independentes.
+## Stack
+Laravel 12 (PHP 8.4) | Blade + Bootstrap 5.3 (CDN) + Bootstrap Icons | MySQL 8.0 | Redis | Docker (app, mysql, redis, nginx) | Focus NFe (REST) | Chart.js | JsBarcode
 
-## Stack Tecnológica
-
-| Camada | Tecnologia |
-|---|---|
-| Backend | Laravel 12 (PHP 8.4) |
-| Frontend | Blade + Bootstrap 5.3 (CDN) + Bootstrap Icons |
-| Banco | MySQL 8.0 |
-| Cache/Filas | Redis |
-| Infra | Docker (4 containers: app, mysql, redis, nginx) |
-| API Fiscal | Focus NFe (REST, JSON, Basic Auth) |
-| Autenticação | Laravel Auth + Middleware CheckPermission (RBAC) |
-| Multi-tenant | empresa_id + unidade_id em todas as tabelas + Global Scopes |
+## Estado Atual: ~49.000 linhas, 261 rotas, 138 views, 47 testadas OK
 
 ## Docker
-
 ```bash
-docker compose up -d          # Subir containers
-docker compose exec app bash  # Acessar container app
+docker compose up -d
+docker compose exec app php artisan migrate:fresh --seed --force  # rebuild completo
+docker compose exec app php artisan test
 ```
-
-| Container | Porta | Uso |
+| Container | Porta host | Porta container |
 |---|---|---|
-| erp-nginx | 8000 | HTTP (app) |
-| erp-mysql | 3308 (host) → 3306 (container) | MySQL |
-| erp-redis | 6379 | Cache, sessões, filas |
-| erp-app | 9000 (FPM) | PHP-FPM |
+| erp-nginx | 8080 | 80 |
+| erp-mysql | 3308 | 3306 |
+| erp-redis | 6379 | 6379 |
 
-**Credenciais MySQL:** user=erp_user, pass=erp_password, db=erp_comercial, test_db=erp_comercial_test
+**MySQL:** user=erp_user, pass=erp_password, db=erp_comercial, test_db=erp_comercial_test
 
-## Acesso ao Sistema
-
+## Logins Demo
 | Perfil | Email | Senha |
 |---|---|---|
-| Admin (IA365) | admin@ia365.com.br | admin123 |
-| Dono empresa | dono@demo.com | dono123 |
+| Admin | admin@ia365.com.br | admin123 |
+| Dono | dono@demo.com | dono123 |
 | Gerente | gerente@demo.com | gerente123 |
 | Vendedor | vendedor@demo.com | vendedor123 |
 | Caixa | caixa@demo.com | caixa123 |
 
 ## Arquitetura Multi-Tenant
+- **empresa_id** em TODAS as tabelas de dados
+- **unidade_id** em tabelas operacionais (vendas, estoque, caixa)
+- **Traits**: `BelongsToEmpresa`, `BelongsToUnidade` (app/Traits/)
+- **Scopes**: `EmpresaScope`, `UnidadeScope` (app/Scopes/) — TEM flag anti-recursão `static $applying`
+- **CUIDADO**: `auth()->user()` dentro de scope causa recursão infinita se o User model também tem o scope
+- `session('unidade_id')` define a unidade ativa — setar em testes com `withSession()`
+- Admin/Dono veem todas as unidades (UnidadeScope não aplica para eles)
 
-### 3 Níveis de Hierarquia
-1. **Admin (IA365)** — operador master da plataforma, `is_admin=true`, sem empresa_id
-2. **Empresa** — cliente do SaaS (CNPJ), com múltiplas unidades
-3. **Unidade** — filial/loja, com estoque, caixa e fiscal independentes
+## RBAC
+7 perfis em `App\Enums\Perfil`: admin(100), dono(90), gerente(70), financeiro(60), vendedor(50), caixa(40), consulta(10)
+- Middleware `permission:modulo,acao` — ação padrão: `ver`
+- Middleware `plano:feature` — verifica se plano da empresa inclui a feature
+- `$user->perfil` é enum — usar `->value` para string
 
-### Isolamento de Dados
-- **Trait `BelongsToEmpresa`** (app/Traits/) — Adiciona EmpresaScope automático + auto-set empresa_id no creating
-- **Trait `BelongsToUnidade`** (app/Traits/) — Adiciona UnidadeScope + auto-set unidade_id da sessão
-- **EmpresaScope** (app/Scopes/) — Filtra por `auth()->user()->empresa_id`
-- **UnidadeScope** (app/Scopes/) — Filtra por `session('unidade_id')`, NÃO aplica para Admin/Dono (veem tudo)
-- **Regra**: TODA tabela que pertence a uma empresa TEM `empresa_id`. Tabelas de operação (vendas, estoque, caixa) TEM TAMBÉM `unidade_id`
-
-### Fluxo de Login
-1. Usuário faz login
-2. Se Admin → redireciona para `/admin/dashboard`
-3. Se empresa user com 1 unidade → auto-seleciona e vai para `/app/dashboard`
-4. Se empresa user com N unidades → redireciona para `/selecionar-unidade`
-5. Após selecionar unidade → `session('unidade_id')` é definido → acessa o sistema
-
-## RBAC — Perfis e Permissões
-
-7 perfis definidos em `App\Enums\Perfil`:
-
-| Perfil | Nível | Escopo |
-|---|---|---|
-| admin | 100 | Toda plataforma |
-| dono | 90 | Empresa + todas unidades |
-| gerente | 70 | Unidade específica |
-| financeiro | 60 | Financeiro da empresa/unidade |
-| vendedor | 50 | Vendas da unidade |
-| caixa | 40 | PDV da unidade |
-| consulta | 10 | Apenas visualização |
-
-**Middleware `CheckPermission`** (app/Http/Middleware/CheckPermission.php):
-- Uso na rota: `->middleware('permission:modulo,acao')`
-- Ação padrão se omitida: `ver`
-- Admin sempre tem acesso total
-- Matriz de permissões hardcoded no middleware (constante PERMISSIONS)
-- `$user->perfil` é um enum `Perfil` — converter para `.value` antes de usar como índice de array
-
-**Middleware `EnsureUnidadeSelected`**: Redireciona para seleção de unidade se `session('unidade_id')` não existir.
-
-## Estrutura de Diretórios
-
+## Estrutura
 ```
 app/
-├── Enums/              # 11 enums PHP 8.4 (StatusEmpresa, Perfil, etc.)
-├── Http/
-│   ├── Controllers/
-│   │   ├── Admin/      # 4 controllers (Dashboard, Empresa, Unidade, Usuario)
-│   │   ├── App/        # 28 controllers (todos os módulos do ERP)
-│   │   └── Webhook/    # 1 controller (FocusNFeWebhook)
-│   └── Middleware/      # CheckPermission, EnsureUnidadeSelected
-├── Jobs/               # 3 jobs (EmitirNFCe, EmitirNFe, ConsultarNotaFiscal)
-├── Models/             # 37 models Eloquent
-├── Scopes/             # EmpresaScope, UnidadeScope
+├── Enums/           # 11 enums (StatusEmpresa, Perfil, StatusVenda, etc.)
+├── Http/Controllers/
+│   ├── Admin/       # 5 (Dashboard, Empresa, Unidade, Usuario, Onboarding, Plano)
+│   ├── App/         # 35+ (todos os módulos)
+│   ├── Auth/        # PasswordResetController
+│   └── Webhook/     # FocusNFeWebhookController
+├── Http/Middleware/  # CheckPermission, CheckPlano, EnsureUnidadeSelected
+├── Jobs/            # EmitirNFCeJob, EmitirNFeJob, ConsultarNotaFiscalJob
+├── Models/          # 38 models (Empresa, Unidade, User, Venda, Produto, NotaFiscal, RegraICMS, Notificacao, etc.)
+├── Scopes/          # EmpresaScope, UnidadeScope
 ├── Services/
-│   ├── FocusNFe/       # FocusNFeClient, NFCeService, NFeService, NFSeService
-│   └── OFXParser.php   # Parser de extratos bancários OFX
-└── Traits/             # BelongsToEmpresa, BelongsToUnidade
-
-database/
-├── migrations/         # 42 migrations
-└── seeders/            # AdminSeeder, PermissaoSeeder, EmpresaDemoSeeder
+│   ├── FocusNFe/    # FocusNFeClient, NFCeService, NFeService, NFSeService
+│   ├── FiscalAutoConfig.php  # Presets fiscais por regime tributário
+│   ├── ICMSCalculator.php    # Cálculo ST interestadual
+│   ├── NotificacaoService.php
+│   └── OFXParser.php
+└── Traits/          # BelongsToEmpresa, BelongsToUnidade
 
 resources/views/
-├── admin/              # Views do painel admin
-├── app/                # Views dos módulos ERP
-├── auth/               # Login
-├── components/         # Alert, DeleteForm
-└── layouts/            # app.blade.php (layout base com sidebar)
+├── admin/           # Dashboard, empresas CRUD, unidades, usuarios, planos, onboarding wizard (4 steps)
+├── app/             # Todos os módulos: cadastros, vendas, PDV, estoque, financeiro, fiscal, etc.
+├── auth/            # Login (glass-morphism), forgot-password, reset-password
+├── components/
+│   ├── erp/         # 9 componentes: page-header, stat-card, card, data-table, filter-bar, status-badge, form-section, import-buttons, empty-state, fiscal-tooltip
+│   ├── alert.blade.php
+│   ├── delete-form.blade.php
+│   └── trial-banner.blade.php
+└── layouts/app.blade.php  # Sidebar dark, topbar com busca global e sino notificações
 
-routes/web.php          # 208 rotas
-tests/                  # 125 testes / 411 assertions
+public/
+├── css/erp.css      # Design system (variáveis CSS, stat-card, erp-table, badge-status, btn-erp, etc.)
+└── js/erp-core.js   # Inteligência: masks, ViaCEP, CNPJ lookup, autocomplete, import CSV, price calc, parcelas
 ```
 
 ## Módulos Implementados
 
-### Fase 1 — MVP
-- **Painel Admin**: Dashboard, CRUD empresas, onboarding 4 passos, unidades, usuários
-- **Cadastros**: Clientes (PF/PJ), Produtos (c/ fiscal), Fornecedores, Categorias, Serviços, Funcionários, Transportadoras
-- **Vendas**: Orçamentos (conversão→pedido), Pedidos (workflow status), Vendas, Devoluções, Comissões
-- **PDV**: Frente de caixa fullscreen, código barras, split payment, atalhos F1-F12, cupom não fiscal 80mm
-- **Estoque**: Movimentações (entrada/saída/ajuste), Transferências entre unidades, Inventário
-- **Financeiro**: Contas a receber/pagar, Fluxo de caixa, Parcelas
-- **Relatórios**: Vendas, Estoque, Financeiro
+### Admin
+- Dashboard com stats, onboarding wizard 4 steps (empresa→unidade→dono→fiscal)
+- CRUD empresas, unidades (shallow routes), usuarios, planos
 
-### Fase 2 — Fiscal (Focus NFe)
-- **NFC-e**: Emissão síncrona no PDV, cancelamento, inutilização
-- **NF-e**: Emissão assíncrona, consulta polling, cancelamento, carta de correção
-- **NFS-e**: Emissão para serviços, cancelamento
-- **Webhooks**: Receiver para status updates da Focus NFe
-- **Config Fiscal**: Por unidade (token, série, ambiente, toggle fiscal/não fiscal)
-- **Jobs**: EmitirNFCeJob, EmitirNFeJob, ConsultarNotaFiscalJob (com backoff)
+### Cadastros (todos com wizard step-by-step)
+- **Clientes**: Wizard PF/PJ com cards grandes, CPF/CNPJ auto-preenche, ViaCEP
+- **Produtos**: Wizard 3 steps, fiscal inteligente por regime, CFOP/CST dropdown, tooltips
+- **Fornecedores**: Wizard 3 steps, CNPJ lookup ReceitaWS
+- **Serviços**: Wizard 2 steps, skip fiscal se não emite NFS-e
+- **Funcionários**: Wizard 3 steps, perfil como cards visuais
+- **Categorias**: CRUD hierárquico (parent/child)
+- **Import CSV**: Botão + template em clientes/produtos/fornecedores
+- **Export CSV**: Botão em todas as listas
+- **Etiquetas**: Código de barras (JsBarcode), 3 formatos (10/21/40 por página)
 
-### Fase 3 — Avançado
-- **Dashboard Multilojas**: Visão consolidada, ranking, comparação entre unidades, alertas
-- **Ordens de Serviço**: CRUD, workflow status, laudo técnico, conversão OS→Venda
-- **Contratos Recorrentes**: Cobranças automáticas, faturamento periódico
-- **Boletos**: Geração, carnês, baixa, cancelamento
-- **Conciliação Bancária**: Parser OFX, conciliação auto/manual, interface split-view
-- **DRE**: Por unidade e consolidado, plano de contas hierárquico, exportação CSV
-- **Centro de Custos**: CRUD vinculado a contas pagar/receber
-- **Comissões Avançadas**: Relatórios, pagamento em lote, config por produto/categoria
+### Vendas
+- Orçamentos (conversão→pedido), Pedidos (workflow status), Vendas
+- **Venda Balcão**: Criar venda fora do PDV com itens dinâmicos + autocomplete
+- PDV fullscreen dark theme, atalhos F1-F12, split payment, verificação estoque
+- Devoluções, Comissões avançadas (config por produto/categoria, pagamento em lote)
 
-### Fase 4 — Expansão (PENDENTE)
-- [ ] API REST pública para integrações terceiros
-- [ ] Integrações e-commerce (Nuvemshop, Mercado Livre)
-- [ ] App mobile (PWA)
-- [ ] Módulo de atendimento e agenda
-- [ ] Importação de XML de NF-e de entrada (compras)
-- [ ] Geração de etiquetas de código de barras
-- [ ] Cotações online com múltiplos fornecedores
-- [ ] Integração bancária para boletos registrados (API bancos)
-- [ ] Manifesto do Destinatário (MD-e)
-- [ ] NFS-e Nacional (novo padrão)
+### Fiscal (Focus NFe)
+- NFC-e (síncrona PDV), NF-e (assíncrona + polling), NFS-e
+- Config fiscal simplificada: "Emite nota? SIM/NÃO" + modo avançado colapsável
+- Tipos explicados: NFC-e = cupom PDV, NF-e = DANFE empresas, NFS-e = serviços
+- Emitir NF-e direto da tela de vendas
+- Recibo não fiscal imprimível em qualquer venda
+- **ST interestadual**: tabela `regras_icms` com alíquotas reais (SP/RJ/MG/PR→todos), calculadora ICMS-ST, FCP
+- FiscalAutoConfig: presets CST/CSOSN/alíquotas por regime (Simples/Presumido/Real)
+- Webhooks Focus NFe para status updates
 
-## Integração Fiscal — Focus NFe
-
-### Arquitetura Multi-Tenant
-- Cada unidade tem sua `ConfiguracaoFiscal` com token Focus NFe próprio
-- `FocusNFeClient::forUnidade($unidade)` — cria client autenticado para a unidade
-- Ambientes separados por unidade (homologação/produção)
-
-### Endpoints Focus NFe
-| Operação | Método | Endpoint | Processamento |
-|---|---|---|---|
-| Emitir NFC-e | POST | /v2/nfce?ref={ref} | Síncrono |
-| Consultar NFC-e | GET | /v2/nfce/{ref} | — |
-| Cancelar NFC-e | DELETE | /v2/nfce/{ref} | — |
-| Emitir NF-e | POST | /v2/nfe?ref={ref} | Assíncrono |
-| Consultar NF-e | GET | /v2/nfe/{ref}?completa=1 | — |
-| Cancelar NF-e | DELETE | /v2/nfe/{ref} | — |
-| CC-e NF-e | POST | /v2/nfe/{ref}/carta_correcao | — |
-| Inutilizar | POST | /v2/nfe/inutilizacao | — |
-| Emitir NFS-e | POST | /v2/nfse?ref={ref} | Assíncrono |
-
-### URLs
-- Homologação: `https://homologacao.focusnfe.com.br`
-- Produção: `https://api.focusnfe.com.br`
-- Auth: HTTP Basic (token como user, senha vazia)
-
-### Fluxo PDV com Fiscal
-1. Venda registrada no PDV
-2. Verifica `ConfiguracaoFiscal` da unidade
-3. Se `emissao_fiscal_ativa=true` e `tipo_cupom_pdv=fiscal` → emite NFC-e síncrona
-4. Se erro na NFC-e → fallback para cupom não fiscal (recibo)
-5. Se fiscal desativado → gera cupom não fiscal
-
-### Webhook
-- Endpoint público: `POST /webhooks/focusnfe`
-- Recebe status updates (autorizada, cancelada, etc.)
-- Atualiza NotaFiscal no banco
-
-## Convenções de Código
-
-### Models
-- Usar traits `BelongsToEmpresa` e/ou `BelongsToUnidade` conforme a tabela
-- Definir `$table` explicitamente para nomes em português irregular (fornecedores, permissoes, etc.)
-- Casts para enums PHP 8.4: `'status' => StatusEmpresa::class`
-- Casts decimais: `'valor' => 'decimal:2'`
-- SoftDeletes em todas as tabelas exceto audit trails (estoque_movimentacoes)
-- `withoutGlobalScopes()` ao criar registros em seeders/testes
-
-### Controllers
-- Admin: `App\Http\Controllers\Admin\` — verificar `$request->user()->is_admin` ou `abort(403)`
-- App: `App\Http\Controllers\App\` — protegidos por middleware `permission:modulo`
-- Usar DB::transaction() para operações que afetam múltiplas tabelas
-- Retornar JSON para endpoints AJAX (PDV, busca de produto, etc.)
-- Redirect com flash message para operações CRUD tradicionais
-
-### Views
-- Estender `layouts.app`
-- Usar `@section('content')` e `@push('scripts')`
-- Bootstrap 5.3 via CDN
-- Formulários: `@csrf`, `@method('PUT')` quando necessário
-- Validação: `@error('field')` com classe `is-invalid`
-- Inputs pré-preenchidos: `old('field', $model->field)`
-
-### Rotas
-- Admin: `admin.*` (prefix `/admin`)
-- App: `app.*` (prefix `/app`, middleware `auth` + `unidade`)
-- Webhook: sem auth, prefix `/webhooks`
-- Resources usam `Route::resource()` com middleware inline
-
-### Testes
-- `RefreshDatabase` trait em todos os testes
-- `Tests\Traits\CreatesTestData` para criar empresa, unidade, user, produto, cliente
-- `Http::fake()` para mockar Focus NFe
-- `$this->actingAs($user)->withSession(['unidade_id' => $id])` para simular contexto
-- `withoutGlobalScopes()` ao criar registros de teste
-- Test database: `erp_comercial_test` (MySQL, mesma instância Docker)
-
-## Comandos Úteis
-
-```bash
-# Rodar na raiz do projeto (/Users/denniscanteli/Desktop/erp/erp-comercial)
-
-# Docker
-docker compose up -d
-docker compose exec app bash
-
-# Dentro do container (ou com docker compose exec app prefixo)
-php artisan migrate --force
-php artisan migrate:fresh --force       # Cuidado: apaga tudo
-php artisan db:seed --force
-php artisan test
-php artisan test --filter="NomeTeste"
-php artisan route:list
-php artisan optimize:clear
-
-# Banco de teste
-docker exec erp-mysql mysql -uerp_user -perp_password -e "DROP DATABASE IF EXISTS erp_comercial_test; CREATE DATABASE erp_comercial_test;"
-```
-
-## Regras de Negócio Críticas
-
-### Venda no PDV
-1. Caixa deve estar aberto (`Caixa` com status=aberto na sessão)
-2. Venda criada com itens → baixa automática no estoque (EstoqueMovimentacao tipo=saida)
-3. MovimentacaoCaixa criada (tipo=venda)
-4. ContaReceber criada automaticamente
-5. Comissão calculada se vendedor tem `comissao_percentual`
-6. NFC-e emitida se config fiscal ativa
-
-### Orçamento → Pedido → Venda
-- Orçamento convertido → status muda para `convertido`, cria Pedido com mesmos itens
-- Pedido confirmado → cria ContaReceber
-- Pedido faturado → baixa estoque
-
-### Estoque Multi-Unidade
-- Cada unidade tem estoque isolado
-- Transferência: solicitada → aprovada → concluída (movimenta entre unidades)
-- EstoqueMovimentacao mantém quantidade_anterior e quantidade_posterior (audit trail, sem soft delete)
+### Estoque
+- Movimentações (entrada/saída/ajuste/transferência)
+- Transferências entre unidades (solicitação→aprovação)
 
 ### Financeiro
-- ContaReceber: gerada automaticamente por vendas/pedidos, suporta parcelas
-- ContaPagar: manual ou automática (compras), suporta recorrência
-- Boleto vinculado a ContaReceber e/ou Contrato
-- Conciliação: importa OFX → match automático por valor+data (±5 dias)
-- DRE: calculado a partir de contas pagas agrupadas por plano de contas
+- Contas receber/pagar com parcelas
+- Fluxo de caixa com Chart.js
+- Boletos e carnês
+- Conciliação bancária (parser OFX)
+- Contratos recorrentes com faturamento automático
+- DRE por unidade/consolidado
+- Plano de contas hierárquico + Centro de custos
 
-### Notas Fiscais
-- `ref` (referência Focus NFe) deve ser única por token — formato: `{tipo}-{id}-{timestamp}`
-- NFC-e é síncrona, NF-e/NFS-e são assíncronas (usar Job para polling)
-- Cancelamento requer justificativa de 15-255 caracteres
-- XML armazenado na Focus NFe por 5 anos
-- Chave de acesso é o identificador único da nota na SEFAZ
+### Planos e Assinatura
+- 3 planos (Básico R$97, Profissional R$197, Enterprise R$397)
+- Trial com dias restantes
+- Feature gating por plano (middleware `plano:feature`)
+- Limites: max_unidades, max_usuarios, max_produtos, max_notas_mes
 
-## Observações para o Próximo Agente
+### Funcionalidades Transversais
+- **Reset de senha**: /esqueci-senha → token → nova senha
+- **Busca global**: topbar busca em clientes, produtos, vendas (AJAX)
+- **Notificações**: sino no topbar, contas vencidas, estoque baixo, trial expirando
+- **Dashboard inteligente**: wizard setup no primeiro acesso (dispensável), stats/gráficos depois
+- **Tooltips fiscais**: linguagem simples em todos campos fiscais
 
-1. **Não alterar migrations existentes** — criar novas migrations para mudanças
-2. **Sempre rodar testes** após qualquer alteração: `docker exec erp-app php artisan test`
-3. **Respeitar o multi-tenant** — usar traits BelongsToEmpresa/BelongsToUnidade
-4. **Perfil enum** — `$user->perfil` é `App\Enums\Perfil`, usar `->value` para string
-5. **Session unidade_id** — controllers App dependem disso, sempre setar nos testes
-6. **Focus NFe** — tokens são por empresa/unidade, nunca hardcoded
-7. **Views são Blade + Bootstrap 5** — NÃO usar React, Vue ou SPA
-8. **Porta MySQL** — 3308 no host (3306 estava ocupada), 3306 dentro do Docker
-9. **O `version` no docker-compose.yml** é obsoleto mas funciona — ignorar o warning
+## Schema de Tabelas Importantes
+```
+empresas: cnpj, razao_social, nome_fantasia, regime_tributario, plano_id, em_trial, trial_inicio/fim, status
+unidades: empresa_id, nome, cnpj, status (ativa/inativa/em_implantacao)
+users: empresa_id, perfil (enum), is_admin, comissao_percentual, status
+produtos: empresa_id, codigo_interno, descricao, preco_custo, markup, preco_venda, ncm, cfop, cst_csosn, icms/pis/cofins/ipi_aliquota
+clientes: empresa_id, tipo_pessoa (pf/pj), cpf_cnpj, nome_razao_social
+fornecedores: empresa_id, cpf_cnpj, razao_social (NÃO nome_razao_social!)
+servicos: empresa_id, codigo_lc116 (NÃO codigo!), descricao, valor_padrao, iss_aliquota
+vendas: empresa_id, unidade_id, total, status (concluida/cancelada/devolvida — NÃO 'finalizada')
+venda_itens: total (NÃO subtotal!)
+notas_fiscais: tipo (nfe/nfce/nfse), status, focus_ref, chave_acesso, xml_url, danfe_url
+regras_icms: uf_origem, uf_destino, aliquota_interna, aliquota_interestadual, mva, fcp, tem_st
+configuracoes_fiscais: empresa_id+unidade_id (unique), focus_token, emissao_fiscal_ativa, tipo_cupom_pdv
+notificacoes: user_id, tipo, titulo, mensagem, url, lida
+```
+
+## ARMADILHAS CONHECIDAS (LEIA ANTES DE CODAR)
+1. **EmpresaScope recursão**: `auth()->user()` dentro do scope chama o User model que tem o scope → loop infinito. Scopes têm `static $applying` flag. Não remover.
+2. **Fornecedor NÃO tem nome_razao_social** — usa `razao_social`. Cliente SIM tem `nome_razao_social`.
+3. **Fornecedor NÃO tem coluna status** — não filtrar por status.
+4. **Servico usa `codigo_lc116`** — NÃO `codigo` nem `codigo_servico_municipal`.
+5. **Unidade status é `ativa/inativa`** — NÃO `ativo/inativo`.
+6. **Venda status é `concluida`** — NÃO `finalizada`.
+7. **VendaItem total é `total`** — NÃO `subtotal`.
+8. **ConfiguracaoFiscal tem unique (empresa_id, unidade_id)** — NÃO usar `updateOrCreate` direto. Usar `where()->first()` + `update()` ou `create()`.
+9. **$user->perfil é enum Perfil** — converter com `->value` antes de usar como string/array key.
+10. **$errors pode ser null em views standalone** — usar `$errors = $errors ?? new ViewErrorBag()`.
+11. **OrdemServico table = `ordens_servico`** — definir `$table` no model.
+12. **Porta nginx é 8080** (não 8000, que estava ocupada).
+
+## Blade Components (resources/views/components/erp/)
+Usar SEMPRE para consistência:
+```blade
+<x-erp.page-header title="Clientes" icon="people">botões aqui</x-erp.page-header>
+<x-erp.stat-card icon="people" color="primary" :value="$total" label="Ativos" />
+<x-erp.card title="Dados" icon="info-circle">conteúdo</x-erp.card>
+<x-erp.data-table>thead+tbody<x-slot:pagination>{{ $items->links() }}</x-slot:pagination></x-erp.data-table>
+<x-erp.filter-bar>inputs</x-erp.filter-bar>
+<x-erp.status-badge :status="$item->status" />
+<x-erp.form-section title="Endereço" icon="geo-alt">campos</x-erp.form-section>
+<x-erp.import-buttons :importRoute="route('app.import.clientes')" templateType="clientes" />
+<x-erp.empty-state title="Nenhum registro" icon="inbox" />
+<x-erp.fiscal-tooltip field="ncm" />
+```
+
+## JS Core (public/js/erp-core.js)
+```html
+<!-- Masks -->
+<input data-mask="cpf"> <input data-mask="cnpj"> <input data-mask="cpfCnpj">
+<input data-mask="cep"> <input data-mask="telefone"> <input data-mask="ncm">
+
+<!-- ViaCEP auto-preenche endereço -->
+<input data-cep name="cep">
+
+<!-- CNPJ lookup ReceitaWS auto-preenche razao_social, endereço, etc -->
+<input data-cnpj-lookup>
+
+<!-- Autocomplete -->
+<input data-autocomplete="/app/search/clientes" data-autocomplete-target="cliente_id" data-autocomplete-display="nome_razao_social">
+
+<!-- Price calculator -->
+<input data-price="custo"> <input data-price="markup"> <input data-price="venda">
+
+<!-- Import CSV -->
+<button data-import="/app/import/clientes">
+
+<!-- Parcelas generator -->
+<div data-parcelas>
+```
+
+## Rotas de API (AJAX)
+```
+GET /app/search/clientes?q=      → JSON [{id, nome_razao_social, cpf_cnpj, telefone}]
+GET /app/search/produtos?q=      → JSON [{id, descricao, codigo_interno, preco_venda}]
+GET /app/search/fornecedores?q=  → JSON [{id, razao_social, cpf_cnpj}]
+GET /app/search/vendedores?q=    → JSON [{id, name, perfil}]
+GET /app/search/global?q=        → JSON {clientes: [...], produtos: [...], vendas: [...]}
+GET /app/fiscal/calcular-st?uf_origem=SP&uf_destino=MG&valor=100 → JSON cálculo ST
+GET /app/fiscal/tabela-st/SP     → JSON tabela ST para todos os estados
+GET /app/notificacoes/contar     → JSON {count: N}
+GET /app/import/template/{tipo}  → Download CSV modelo
+POST /app/import/clientes        → JSON {success, imported, errors}
+GET /app/export/clientes         → Download CSV
+POST /webhooks/focusnfe          → 200 (webhook Focus NFe)
+```
+
+## Comandos
+```bash
+docker compose up -d
+docker compose exec app php artisan migrate:fresh --seed --force
+docker compose exec app php artisan test
+docker compose exec app php artisan optimize:clear
+docker compose exec app php artisan route:list
+```
