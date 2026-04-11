@@ -1,0 +1,78 @@
+<?php
+
+namespace App\Models;
+
+use App\Enums\StatusNotaFiscal;
+use App\Enums\TipoNotaFiscal;
+use App\Traits\BelongsToEmpresa;
+use App\Traits\BelongsToUnidade;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
+
+class NotaFiscal extends Model
+{
+    use BelongsToEmpresa, BelongsToUnidade, SoftDeletes;
+
+    protected $table = 'notas_fiscais';
+
+    protected $fillable = [
+        'empresa_id',
+        'unidade_id',
+        'tipo',
+        'numero',
+        'serie',
+        'chave_acesso',
+        'natureza_operacao',
+        'venda_id',
+        'cliente_id',
+        'valor_total',
+        'status',
+        'focus_ref',
+        'focus_status',
+        'focus_mensagem',
+        'xml_url',
+        'danfe_url',
+        'pdf_url',
+        'cancelamento_motivo',
+        'cancelamento_protocolo',
+        'ambiente',
+        'emitida_em',
+        'cancelada_em',
+    ];
+
+    protected function casts(): array
+    {
+        return [
+            'tipo' => TipoNotaFiscal::class,
+            'status' => StatusNotaFiscal::class,
+            'valor_total' => 'decimal:2',
+            'emitida_em' => 'datetime',
+            'cancelada_em' => 'datetime',
+        ];
+    }
+
+    /* ------------------------------------------------------------------ */
+    /*  Relationships                                                      */
+    /* ------------------------------------------------------------------ */
+
+    public function empresa(): BelongsTo
+    {
+        return $this->belongsTo(Empresa::class);
+    }
+
+    public function unidade(): BelongsTo
+    {
+        return $this->belongsTo(Unidade::class);
+    }
+
+    public function venda(): BelongsTo
+    {
+        return $this->belongsTo(Venda::class);
+    }
+
+    public function cliente(): BelongsTo
+    {
+        return $this->belongsTo(Cliente::class);
+    }
+}

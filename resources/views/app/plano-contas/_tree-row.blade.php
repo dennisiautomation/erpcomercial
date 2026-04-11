@@ -1,0 +1,64 @@
+<tr class="{{ $level > 0 ? 'child-of-' . $conta->parent_id : '' }}" data-id="{{ $conta->id }}">
+    <td>
+        <span style="padding-left: {{ $level * 24 }}px;">
+            @if($conta->children->isNotEmpty())
+                <a href="javascript:void(0)" onclick="toggleChildren({{ $conta->id }})" class="text-decoration-none text-dark me-1">
+                    <i id="toggle-icon-{{ $conta->id }}" class="bi bi-chevron-down small"></i>
+                </a>
+            @else
+                <span style="width: 16px; display: inline-block;"></span>
+            @endif
+            <code>{{ $conta->codigo }}</code>
+        </span>
+    </td>
+    <td>
+        <span style="padding-left: {{ $level * 12 }}px;">
+            {{ $conta->nome }}
+        </span>
+    </td>
+    <td>
+        @if($conta->tipo === 'receita')
+            <span class="badge bg-success-subtle text-success">Receita</span>
+        @elseif($conta->tipo === 'despesa')
+            <span class="badge bg-danger-subtle text-danger">Despesa</span>
+        @else
+            <span class="badge bg-warning-subtle text-warning">Custo</span>
+        @endif
+    </td>
+    <td>
+        @if($conta->natureza === 'sintetica')
+            <span class="badge bg-secondary-subtle text-secondary">Sintetica</span>
+        @else
+            <span class="badge bg-primary-subtle text-primary">Analitica</span>
+        @endif
+    </td>
+    <td>
+        @if($conta->ativo)
+            <span class="badge bg-success-subtle text-success">Ativa</span>
+        @else
+            <span class="badge bg-secondary-subtle text-secondary">Inativa</span>
+        @endif
+    </td>
+    <td class="text-end">
+        @if($conta->natureza === 'sintetica')
+            <a href="{{ route('app.plano-contas.create', ['parent_id' => $conta->id]) }}" class="btn btn-sm btn-outline-success" title="Adicionar Subconta">
+                <i class="bi bi-plus-lg"></i>
+            </a>
+        @endif
+        <a href="{{ route('app.plano-contas.edit', $conta) }}" class="btn btn-sm btn-outline-primary" title="Editar">
+            <i class="bi bi-pencil"></i>
+        </a>
+        <form method="POST" action="{{ route('app.plano-contas.destroy', $conta) }}" class="d-inline" onsubmit="return confirm('Confirma a exclusao?')">
+            @csrf
+            @method('DELETE')
+            <button type="submit" class="btn btn-sm btn-outline-danger" title="Excluir">
+                <i class="bi bi-trash"></i>
+            </button>
+        </form>
+    </td>
+</tr>
+@if($conta->children->isNotEmpty())
+    @foreach($conta->children as $child)
+        @include('app.plano-contas._tree-row', ['conta' => $child, 'level' => $level + 1])
+    @endforeach
+@endif
