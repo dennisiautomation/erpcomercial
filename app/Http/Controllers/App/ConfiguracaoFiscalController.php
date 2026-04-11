@@ -58,13 +58,23 @@ class ConfiguracaoFiscalController extends Controller
             $validated['ambiente'] = $request->input('ambiente', 'homologacao');
         }
 
-        $config = ConfiguracaoFiscal::withoutGlobalScopes()->updateOrCreate(
-            [
-                'empresa_id' => session('empresa_id'),
-                'unidade_id' => session('unidade_id'),
-            ],
-            collect($validated)->except(['empresa_id', 'unidade_id'])->toArray(),
-        );
+        $empresaId = session('empresa_id');
+        $unidadeId = session('unidade_id');
+        $data = collect($validated)->except(['empresa_id', 'unidade_id'])->toArray();
+
+        $config = ConfiguracaoFiscal::withoutGlobalScopes()
+            ->where('empresa_id', $empresaId)
+            ->where('unidade_id', $unidadeId)
+            ->first();
+
+        if ($config) {
+            $config->update($data);
+        } else {
+            $config = ConfiguracaoFiscal::withoutGlobalScopes()->create(array_merge($data, [
+                'empresa_id' => $empresaId,
+                'unidade_id' => $unidadeId,
+            ]));
+        }
 
         return redirect()
             ->route('app.configuracao-fiscal.edit')
