@@ -9,6 +9,9 @@
         <small class="text-muted">Gerencie seu catalogo de produtos</small>
     </div>
     <div class="d-flex gap-2">
+        <a href="{{ route('app.etiquetas.index') }}" class="btn btn-erp-outline">
+            <i class="bi bi-upc me-1"></i> Gerar Etiquetas
+        </a>
         <div class="btn-group">
             <button data-import="{{ route('app.import.produtos') }}" class="btn btn-erp-outline">
                 <i class="bi bi-upload me-1"></i> Importar CSV

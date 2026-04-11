@@ -3,163 +3,124 @@
 @section('title', 'Novo Fornecedor')
 
 @section('content')
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <div>
-        <h4 class="mb-0"><i class="bi bi-truck me-2"></i>Novo Fornecedor</h4>
-        <small class="text-muted">Cadastre um novo fornecedor ou parceiro comercial</small>
-    </div>
-    <a href="{{ route('app.fornecedores.index') }}" class="btn btn-outline-secondary">
-        <i class="bi bi-arrow-left me-1"></i> Voltar
-    </a>
-</div>
+<x-erp.page-header title="Novo Fornecedor" subtitle="Cadastre um novo fornecedor ou parceiro comercial" icon="truck">
+    <a href="{{ route('app.fornecedores.index') }}" class="btn btn-erp-outline"><i class="bi bi-arrow-left me-1"></i>Voltar</a>
+</x-erp.page-header>
 
-<form method="POST" action="{{ route('app.fornecedores.store') }}" id="formFornecedor" novalidate>
+<form method="POST" action="{{ route('app.fornecedores.store') }}" class="erp-form" id="formFornecedor" novalidate>
     @csrf
 
-    {{-- Identificacao --}}
-    <div class="card shadow-sm mb-4">
-        <div class="card-header bg-white">
-            <h6 class="mb-0"><i class="bi bi-person-badge me-2"></i>Identificacao</h6>
-        </div>
-        <div class="card-body">
-            <div class="row g-3">
-                <div class="col-md-4">
-                    <label for="cpf_cnpj" class="form-label fw-semibold">CPF/CNPJ <span class="text-danger">*</span></label>
-                    <div class="input-group">
-                        <span class="input-group-text"><i class="bi bi-card-text"></i></span>
-                        <input type="text" name="cpf_cnpj" id="cpf_cnpj" class="form-control @error('cpf_cnpj') is-invalid @enderror" value="{{ old('cpf_cnpj') }}" maxlength="18" placeholder="000.000.000-00" data-cnpj-lookup="" required>
-                        @error('cpf_cnpj')
-                            <div class="invalid-feedback">{{ $message }}</div>
-                        @enderror
-                    </div>
-                    <span data-cnpj-loading class="d-none"><span class="spinner-border spinner-border-sm text-primary"></span> Consultando CNPJ...</span>
-                    <div class="form-text" id="cpfCnpjHelp">Digite CPF ou CNPJ (somente numeros)</div>
+    <x-erp.form-section title="Identificacao" icon="person-badge">
+        <div class="row g-3">
+            <div class="col-md-4">
+                <label for="cpf_cnpj" class="form-label fw-semibold">CPF/CNPJ <span class="text-danger">*</span></label>
+                <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-card-text"></i></span>
+                    <input type="text" name="cpf_cnpj" id="cpf_cnpj" class="form-control @error('cpf_cnpj') is-invalid @enderror" value="{{ old('cpf_cnpj') }}" maxlength="18" placeholder="000.000.000-00" data-cnpj-lookup="" required>
+                    @error('cpf_cnpj') <div class="invalid-feedback">{{ $message }}</div> @enderror
                 </div>
-                <div class="col-md-8">
-                    <label for="razao_social" class="form-label fw-semibold">Razao Social <span class="text-danger">*</span></label>
-                    <input type="text" name="razao_social" id="razao_social" class="form-control @error('razao_social') is-invalid @enderror" value="{{ old('razao_social') }}" placeholder="Razao social ou nome completo" required>
-                    @error('razao_social')
-                        <div class="invalid-feedback">{{ $message }}</div>
-                    @enderror
-                </div>
-                <div class="col-md-6">
-                    <label for="nome_fantasia" class="form-label">Nome Fantasia</label>
-                    <input type="text" name="nome_fantasia" id="nome_fantasia" class="form-control @error('nome_fantasia') is-invalid @enderror" value="{{ old('nome_fantasia') }}" placeholder="Nome fantasia (opcional)">
-                    @error('nome_fantasia')
-                        <div class="invalid-feedback">{{ $message }}</div>
-                    @enderror
-                </div>
-                <div class="col-md-6">
-                    <label for="contato_representante" class="form-label">Contato / Representante</label>
-                    <div class="input-group">
-                        <span class="input-group-text"><i class="bi bi-person"></i></span>
-                        <input type="text" name="contato_representante" id="contato_representante" class="form-control @error('contato_representante') is-invalid @enderror" value="{{ old('contato_representante') }}" placeholder="Nome do contato ou representante">
-                        @error('contato_representante')
-                            <div class="invalid-feedback">{{ $message }}</div>
-                        @enderror
-                    </div>
+                <span data-cnpj-loading class="d-none"><span class="spinner-border spinner-border-sm text-primary"></span> Consultando CNPJ...</span>
+                <div class="form-text" id="cpfCnpjHelp">Digite CPF ou CNPJ (somente numeros)</div>
+            </div>
+            <div class="col-md-8">
+                <label for="razao_social" class="form-label fw-semibold">Razao Social <span class="text-danger">*</span></label>
+                <input type="text" name="razao_social" id="razao_social" class="form-control @error('razao_social') is-invalid @enderror" value="{{ old('razao_social') }}" placeholder="Razao social ou nome completo" required>
+                @error('razao_social') <div class="invalid-feedback">{{ $message }}</div> @enderror
+            </div>
+            <div class="col-md-6">
+                <label for="nome_fantasia" class="form-label">Nome Fantasia</label>
+                <input type="text" name="nome_fantasia" id="nome_fantasia" class="form-control @error('nome_fantasia') is-invalid @enderror" value="{{ old('nome_fantasia') }}" placeholder="Nome fantasia (opcional)">
+                @error('nome_fantasia') <div class="invalid-feedback">{{ $message }}</div> @enderror
+            </div>
+            <div class="col-md-6">
+                <label for="contato_representante" class="form-label">Contato / Representante</label>
+                <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-person"></i></span>
+                    <input type="text" name="contato_representante" id="contato_representante" class="form-control @error('contato_representante') is-invalid @enderror" value="{{ old('contato_representante') }}" placeholder="Nome do contato ou representante">
+                    @error('contato_representante') <div class="invalid-feedback">{{ $message }}</div> @enderror
                 </div>
             </div>
         </div>
-    </div>
+    </x-erp.form-section>
 
-    {{-- Endereco --}}
-    <div class="card shadow-sm mb-4">
-        <div class="card-header bg-white">
-            <h6 class="mb-0"><i class="bi bi-geo-alt me-2"></i>Endereco</h6>
-        </div>
-        <div class="card-body">
-            <div class="row g-3">
-                <div class="col-md-2">
-                    <label for="cep" class="form-label">CEP</label>
-                    <div class="input-group">
-                        <input type="text" name="cep" id="cep" class="form-control @error('cep') is-invalid @enderror" value="{{ old('cep') }}" maxlength="9" placeholder="00000-000">
-                        <button type="button" class="btn btn-outline-secondary" id="btnBuscarCep" title="Buscar CEP">
-                            <i class="bi bi-search"></i>
-                        </button>
-                        @error('cep') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                    </div>
-                    <div class="form-text" id="cepFeedback"></div>
+    <x-erp.form-section title="Endereco" icon="geo-alt">
+        <div class="row g-3">
+            <div class="col-md-2">
+                <label for="cep" class="form-label">CEP</label>
+                <div class="input-group">
+                    <input type="text" name="cep" id="cep" class="form-control @error('cep') is-invalid @enderror" value="{{ old('cep') }}" maxlength="9" placeholder="00000-000">
+                    <button type="button" class="btn btn-outline-secondary" id="btnBuscarCep" title="Buscar CEP"><i class="bi bi-search"></i></button>
+                    @error('cep') <div class="invalid-feedback">{{ $message }}</div> @enderror
                 </div>
-                <div class="col-md-5">
-                    <label for="logradouro" class="form-label">Logradouro</label>
-                    <input type="text" name="logradouro" id="logradouro" class="form-control @error('logradouro') is-invalid @enderror" value="{{ old('logradouro') }}" placeholder="Rua, Avenida, etc.">
-                    @error('logradouro') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                </div>
-                <div class="col-md-2">
-                    <label for="numero" class="form-label">Numero</label>
-                    <input type="text" name="numero" id="numero" class="form-control @error('numero') is-invalid @enderror" value="{{ old('numero') }}" placeholder="123">
-                    @error('numero') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                </div>
-                <div class="col-md-3">
-                    <label for="complemento" class="form-label">Complemento</label>
-                    <input type="text" name="complemento" id="complemento" class="form-control @error('complemento') is-invalid @enderror" value="{{ old('complemento') }}" placeholder="Sala, Bloco, etc.">
-                    @error('complemento') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                </div>
-                <div class="col-md-4">
-                    <label for="bairro" class="form-label">Bairro</label>
-                    <input type="text" name="bairro" id="bairro" class="form-control @error('bairro') is-invalid @enderror" value="{{ old('bairro') }}">
-                    @error('bairro') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                </div>
-                <div class="col-md-5">
-                    <label for="cidade" class="form-label">Cidade</label>
-                    <input type="text" name="cidade" id="cidade" class="form-control @error('cidade') is-invalid @enderror" value="{{ old('cidade') }}">
-                    @error('cidade') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                </div>
-                <div class="col-md-3">
-                    <label for="uf" class="form-label">UF</label>
-                    <select name="uf" id="uf" class="form-select @error('uf') is-invalid @enderror">
-                        <option value="">Selecione</option>
-                        @foreach(['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'] as $sigla)
-                            <option value="{{ $sigla }}" {{ old('uf') === $sigla ? 'selected' : '' }}>{{ $sigla }}</option>
-                        @endforeach
-                    </select>
-                    @error('uf') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                </div>
+                <div class="form-text" id="cepFeedback"></div>
+            </div>
+            <div class="col-md-5">
+                <label for="logradouro" class="form-label">Logradouro</label>
+                <input type="text" name="logradouro" id="logradouro" class="form-control @error('logradouro') is-invalid @enderror" value="{{ old('logradouro') }}" placeholder="Rua, Avenida, etc.">
+                @error('logradouro') <div class="invalid-feedback">{{ $message }}</div> @enderror
+            </div>
+            <div class="col-md-2">
+                <label for="numero" class="form-label">Numero</label>
+                <input type="text" name="numero" id="numero" class="form-control @error('numero') is-invalid @enderror" value="{{ old('numero') }}" placeholder="123">
+                @error('numero') <div class="invalid-feedback">{{ $message }}</div> @enderror
+            </div>
+            <div class="col-md-3">
+                <label for="complemento" class="form-label">Complemento</label>
+                <input type="text" name="complemento" id="complemento" class="form-control @error('complemento') is-invalid @enderror" value="{{ old('complemento') }}" placeholder="Sala, Bloco, etc.">
+                @error('complemento') <div class="invalid-feedback">{{ $message }}</div> @enderror
+            </div>
+            <div class="col-md-4">
+                <label for="bairro" class="form-label">Bairro</label>
+                <input type="text" name="bairro" id="bairro" class="form-control @error('bairro') is-invalid @enderror" value="{{ old('bairro') }}">
+                @error('bairro') <div class="invalid-feedback">{{ $message }}</div> @enderror
+            </div>
+            <div class="col-md-5">
+                <label for="cidade" class="form-label">Cidade</label>
+                <input type="text" name="cidade" id="cidade" class="form-control @error('cidade') is-invalid @enderror" value="{{ old('cidade') }}">
+                @error('cidade') <div class="invalid-feedback">{{ $message }}</div> @enderror
+            </div>
+            <div class="col-md-3">
+                <label for="uf" class="form-label">UF</label>
+                <select name="uf" id="uf" class="form-select @error('uf') is-invalid @enderror">
+                    <option value="">Selecione</option>
+                    @foreach(['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'] as $sigla)
+                        <option value="{{ $sigla }}" {{ old('uf') === $sigla ? 'selected' : '' }}>{{ $sigla }}</option>
+                    @endforeach
+                </select>
+                @error('uf') <div class="invalid-feedback">{{ $message }}</div> @enderror
             </div>
         </div>
-    </div>
+    </x-erp.form-section>
 
-    {{-- Contato e Condicoes --}}
-    <div class="card shadow-sm mb-4">
-        <div class="card-header bg-white">
-            <h6 class="mb-0"><i class="bi bi-telephone me-2"></i>Contato e Condicoes Comerciais</h6>
-        </div>
-        <div class="card-body">
-            <div class="row g-3">
-                <div class="col-md-4">
-                    <label for="telefone" class="form-label">Telefone</label>
-                    <div class="input-group">
-                        <span class="input-group-text"><i class="bi bi-telephone"></i></span>
-                        <input type="text" name="telefone" id="telefone" class="form-control @error('telefone') is-invalid @enderror" value="{{ old('telefone') }}" maxlength="15" placeholder="(00) 00000-0000">
-                        @error('telefone') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                    </div>
-                </div>
-                <div class="col-md-8">
-                    <label for="email" class="form-label">E-mail</label>
-                    <div class="input-group">
-                        <span class="input-group-text"><i class="bi bi-envelope"></i></span>
-                        <input type="email" name="email" id="email" class="form-control @error('email') is-invalid @enderror" value="{{ old('email') }}" placeholder="email@exemplo.com">
-                        @error('email') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                    </div>
-                </div>
-                <div class="col-md-12">
-                    <label for="condicoes_comerciais" class="form-label">Condicoes Comerciais</label>
-                    <textarea name="condicoes_comerciais" id="condicoes_comerciais" class="form-control @error('condicoes_comerciais') is-invalid @enderror" rows="3" placeholder="Prazo de pagamento, descontos, frete, etc.">{{ old('condicoes_comerciais') }}</textarea>
-                    @error('condicoes_comerciais') <div class="invalid-feedback">{{ $message }}</div> @enderror
+    <x-erp.form-section title="Contato e Condicoes Comerciais" icon="telephone">
+        <div class="row g-3">
+            <div class="col-md-4">
+                <label for="telefone" class="form-label">Telefone</label>
+                <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-telephone"></i></span>
+                    <input type="text" name="telefone" id="telefone" class="form-control @error('telefone') is-invalid @enderror" value="{{ old('telefone') }}" maxlength="15" placeholder="(00) 00000-0000">
+                    @error('telefone') <div class="invalid-feedback">{{ $message }}</div> @enderror
                 </div>
             </div>
+            <div class="col-md-8">
+                <label for="email" class="form-label">E-mail</label>
+                <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-envelope"></i></span>
+                    <input type="email" name="email" id="email" class="form-control @error('email') is-invalid @enderror" value="{{ old('email') }}" placeholder="email@exemplo.com">
+                    @error('email') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                </div>
+            </div>
+            <div class="col-md-12">
+                <label for="condicoes_comerciais" class="form-label">Condicoes Comerciais</label>
+                <textarea name="condicoes_comerciais" id="condicoes_comerciais" class="form-control @error('condicoes_comerciais') is-invalid @enderror" rows="3" placeholder="Prazo de pagamento, descontos, frete, etc.">{{ old('condicoes_comerciais') }}</textarea>
+                @error('condicoes_comerciais') <div class="invalid-feedback">{{ $message }}</div> @enderror
+            </div>
         </div>
-    </div>
+    </x-erp.form-section>
 
-    {{-- Botoes --}}
-    <div class="d-flex justify-content-end gap-2 mb-4">
-        <a href="{{ route('app.fornecedores.index') }}" class="btn btn-outline-secondary">
-            <i class="bi bi-x-lg me-1"></i> Cancelar
-        </a>
-        <button type="submit" class="btn btn-primary">
-            <i class="bi bi-check-lg me-1"></i> Salvar Fornecedor
-        </button>
+    <div class="d-flex gap-2 mb-4">
+        <button type="submit" class="btn btn-erp-primary"><i class="bi bi-check-lg me-1"></i>Salvar Fornecedor</button>
+        <a href="{{ route('app.fornecedores.index') }}" class="btn btn-erp-outline">Cancelar</a>
     </div>
 </form>
 @endsection
@@ -212,40 +173,24 @@ document.addEventListener('DOMContentLoaded', function () {
     function buscarCep() {
         const cep = cepInput.value.replace(/\D/g, '');
         const feedback = document.getElementById('cepFeedback');
-        if (cep.length !== 8) {
-            feedback.textContent = 'CEP deve ter 8 digitos';
-            feedback.className = 'form-text text-danger';
-            return;
-        }
-        feedback.textContent = 'Buscando...';
-        feedback.className = 'form-text text-info';
-
+        if (cep.length !== 8) { feedback.textContent = 'CEP deve ter 8 digitos'; feedback.className = 'form-text text-danger'; return; }
+        feedback.textContent = 'Buscando...'; feedback.className = 'form-text text-info';
         fetch(`https://viacep.com.br/ws/${cep}/json/`)
             .then(r => r.json())
             .then(data => {
-                if (data.erro) {
-                    feedback.textContent = 'CEP nao encontrado';
-                    feedback.className = 'form-text text-danger';
-                    return;
-                }
+                if (data.erro) { feedback.textContent = 'CEP nao encontrado'; feedback.className = 'form-text text-danger'; return; }
                 document.getElementById('logradouro').value = data.logradouro || '';
                 document.getElementById('bairro').value = data.bairro || '';
                 document.getElementById('cidade').value = data.localidade || '';
                 document.getElementById('uf').value = data.uf || '';
                 document.getElementById('numero').focus();
-                feedback.textContent = 'Endereco preenchido';
-                feedback.className = 'form-text text-success';
+                feedback.textContent = 'Endereco preenchido'; feedback.className = 'form-text text-success';
                 setTimeout(() => { feedback.textContent = ''; }, 3000);
             })
-            .catch(() => {
-                feedback.textContent = 'Erro ao buscar CEP';
-                feedback.className = 'form-text text-danger';
-            });
+            .catch(() => { feedback.textContent = 'Erro ao buscar CEP'; feedback.className = 'form-text text-danger'; });
     }
 
-    cepInput.addEventListener('blur', function () {
-        if (this.value.replace(/\D/g, '').length === 8) buscarCep();
-    });
+    cepInput.addEventListener('blur', function () { if (this.value.replace(/\D/g, '').length === 8) buscarCep(); });
     document.getElementById('btnBuscarCep').addEventListener('click', buscarCep);
 });
 </script>

@@ -50,10 +50,6 @@
         letter-spacing: 0.5px;
         opacity: 0.7;
     }
-    .info-card {
-        border: none;
-        border-radius: 12px;
-    }
     .info-item {
         padding: 10px 0;
         border-bottom: 1px solid #f1f5f9;
@@ -99,7 +95,7 @@
 
 @section('content')
 {{-- Client Header --}}
-<div class="client-header mb-4 shadow-sm">
+<div class="client-header mb-4 shadow-sm fade-in">
     <div class="d-flex justify-content-between align-items-start">
         <div class="d-flex align-items-center gap-3">
             <div class="client-avatar" style="background: {{ $cliente->tipo_pessoa === 'pj' ? 'rgba(139,92,246,0.3)' : 'rgba(56,189,248,0.3)' }};">
@@ -114,15 +110,7 @@
                     @if($cliente->nome_fantasia)
                         <span class="opacity-75">{{ $cliente->nome_fantasia }}</span>
                     @endif
-                    @php
-                        $statusMap = [
-                            'ativo'     => ['bg' => 'success', 'label' => 'Ativo'],
-                            'inativo'   => ['bg' => 'secondary', 'label' => 'Inativo'],
-                            'bloqueado' => ['bg' => 'danger', 'label' => 'Bloqueado'],
-                        ];
-                        $st = $statusMap[$cliente->status] ?? ['bg' => 'secondary', 'label' => ucfirst($cliente->status)];
-                    @endphp
-                    <span class="badge bg-{{ $st['bg'] }} px-3 py-1">{{ $st['label'] }}</span>
+                    <x-erp.status-badge :status="$cliente->status" />
                 </div>
             </div>
         </div>
@@ -168,111 +156,96 @@
 {{-- Info Cards --}}
 <div class="row g-3 mb-4">
     <div class="col-md-4">
-        <div class="card info-card shadow-sm h-100">
-            <div class="card-body">
-                <h6 class="fw-bold text-muted mb-3 small text-uppercase">
-                    <i class="bi bi-person-badge me-1 text-primary"></i> Identificacao
-                </h6>
-                <div class="info-item">
-                    <span class="info-label">{{ $cliente->tipo_pessoa === 'pf' ? 'CPF' : 'CNPJ' }}</span>
-                    <span class="info-value">{{ $cliente->cpf_cnpj }}</span>
-                </div>
-                @if($cliente->tipo_pessoa === 'pj')
-                    <div class="info-item">
-                        <span class="info-label">Nome Fantasia</span>
-                        <span class="info-value">{{ $cliente->nome_fantasia ?: '-' }}</span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">IE</span>
-                        <span class="info-value">{{ $cliente->ie ?: 'Isento' }}</span>
-                    </div>
-                @endif
-                <div class="info-item">
-                    <span class="info-label">Limite de Credito</span>
-                    <span class="info-value text-success">R$ {{ number_format($cliente->limite_credito ?? 0, 2, ',', '.') }}</span>
-                </div>
+        <x-erp.card title="Identificacao" icon="person-badge">
+            <div class="info-item">
+                <span class="info-label">{{ $cliente->tipo_pessoa === 'pf' ? 'CPF' : 'CNPJ' }}</span>
+                <span class="info-value">{{ $cliente->cpf_cnpj }}</span>
             </div>
-        </div>
+            @if($cliente->tipo_pessoa === 'pj')
+                <div class="info-item">
+                    <span class="info-label">Nome Fantasia</span>
+                    <span class="info-value">{{ $cliente->nome_fantasia ?: '-' }}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">IE</span>
+                    <span class="info-value">{{ $cliente->ie ?: 'Isento' }}</span>
+                </div>
+            @endif
+            <div class="info-item">
+                <span class="info-label">Limite de Credito</span>
+                <span class="info-value text-success">R$ {{ number_format($cliente->limite_credito ?? 0, 2, ',', '.') }}</span>
+            </div>
+        </x-erp.card>
     </div>
 
     <div class="col-md-4">
-        <div class="card info-card shadow-sm h-100">
-            <div class="card-body">
-                <h6 class="fw-bold text-muted mb-3 small text-uppercase">
-                    <i class="bi bi-geo-alt me-1 text-danger"></i> Endereco
-                </h6>
-                @if($cliente->logradouro)
+        <x-erp.card title="Endereco" icon="geo-alt">
+            @if($cliente->logradouro)
+                <div class="info-item">
+                    <span class="info-label">Logradouro</span>
+                    <span class="info-value">{{ $cliente->logradouro }}, {{ $cliente->numero }}</span>
+                </div>
+                @if($cliente->complemento)
                     <div class="info-item">
-                        <span class="info-label">Logradouro</span>
-                        <span class="info-value">{{ $cliente->logradouro }}, {{ $cliente->numero }}</span>
+                        <span class="info-label">Complemento</span>
+                        <span class="info-value">{{ $cliente->complemento }}</span>
                     </div>
-                    @if($cliente->complemento)
-                        <div class="info-item">
-                            <span class="info-label">Complemento</span>
-                            <span class="info-value">{{ $cliente->complemento }}</span>
-                        </div>
+                @endif
+                <div class="info-item">
+                    <span class="info-label">Bairro</span>
+                    <span class="info-value">{{ $cliente->bairro }}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Cidade/UF</span>
+                    <span class="info-value">{{ $cliente->cidade }}/{{ $cliente->uf }}</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">CEP</span>
+                    <span class="info-value">{{ $cliente->cep }}</span>
+                </div>
+            @else
+                <div class="d-flex flex-column align-items-center justify-content-center py-4 text-muted">
+                    <i class="bi bi-geo fs-2 opacity-50 mb-2"></i>
+                    <span class="small">Endereco nao informado</span>
+                </div>
+            @endif
+        </x-erp.card>
+    </div>
+
+    <div class="col-md-4">
+        <x-erp.card title="Contato" icon="telephone">
+            <div class="info-item">
+                <span class="info-label">Telefone</span>
+                <span class="info-value">{{ $cliente->telefone ?: '-' }}</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">WhatsApp</span>
+                <span class="info-value">
+                    @if($cliente->whatsapp)
+                        <a href="https://wa.me/55{{ preg_replace('/\D/', '', $cliente->whatsapp) }}" target="_blank" class="text-success text-decoration-none">
+                            <i class="bi bi-whatsapp me-1"></i>{{ $cliente->whatsapp }}
+                        </a>
+                    @else
+                        -
                     @endif
-                    <div class="info-item">
-                        <span class="info-label">Bairro</span>
-                        <span class="info-value">{{ $cliente->bairro }}</span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">Cidade/UF</span>
-                        <span class="info-value">{{ $cliente->cidade }}/{{ $cliente->uf }}</span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">CEP</span>
-                        <span class="info-value">{{ $cliente->cep }}</span>
-                    </div>
-                @else
-                    <div class="d-flex flex-column align-items-center justify-content-center py-4 text-muted">
-                        <i class="bi bi-geo fs-2 opacity-50 mb-2"></i>
-                        <span class="small">Endereco nao informado</span>
-                    </div>
-                @endif
+                </span>
             </div>
-        </div>
-    </div>
-
-    <div class="col-md-4">
-        <div class="card info-card shadow-sm h-100">
-            <div class="card-body">
-                <h6 class="fw-bold text-muted mb-3 small text-uppercase">
-                    <i class="bi bi-telephone me-1 text-success"></i> Contato
-                </h6>
-                <div class="info-item">
-                    <span class="info-label">Telefone</span>
-                    <span class="info-value">{{ $cliente->telefone ?: '-' }}</span>
-                </div>
-                <div class="info-item">
-                    <span class="info-label">WhatsApp</span>
-                    <span class="info-value">
-                        @if($cliente->whatsapp)
-                            <a href="https://wa.me/55{{ preg_replace('/\D/', '', $cliente->whatsapp) }}" target="_blank" class="text-success text-decoration-none">
-                                <i class="bi bi-whatsapp me-1"></i>{{ $cliente->whatsapp }}
-                            </a>
-                        @else
-                            -
-                        @endif
-                    </span>
-                </div>
-                <div class="info-item">
-                    <span class="info-label">E-mail</span>
-                    <span class="info-value">
-                        @if($cliente->email)
-                            <a href="mailto:{{ $cliente->email }}" class="text-decoration-none">{{ $cliente->email }}</a>
-                        @else
-                            -
-                        @endif
-                    </span>
-                </div>
-                <hr class="my-2">
-                <small class="text-muted">
-                    Cadastrado em {{ $cliente->created_at->format('d/m/Y H:i') }}<br>
-                    Atualizado em {{ $cliente->updated_at->format('d/m/Y H:i') }}
-                </small>
+            <div class="info-item">
+                <span class="info-label">E-mail</span>
+                <span class="info-value">
+                    @if($cliente->email)
+                        <a href="mailto:{{ $cliente->email }}" class="text-decoration-none">{{ $cliente->email }}</a>
+                    @else
+                        -
+                    @endif
+                </span>
             </div>
-        </div>
+            <hr class="my-2">
+            <small class="text-muted">
+                Cadastrado em {{ $cliente->created_at->format('d/m/Y H:i') }}<br>
+                Atualizado em {{ $cliente->updated_at->format('d/m/Y H:i') }}
+            </small>
+        </x-erp.card>
     </div>
 </div>
 
@@ -303,15 +276,15 @@
     {{-- Tab: Vendas --}}
     <div class="tab-pane fade show active" id="vendas" role="tabpanel">
         <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
+            <table class="erp-table">
                 <thead>
-                    <tr style="background: #f8fafc;">
-                        <th class="py-3 fw-semibold text-muted small text-uppercase">N.</th>
-                        <th class="py-3 fw-semibold text-muted small text-uppercase">Data</th>
-                        <th class="py-3 fw-semibold text-muted small text-uppercase">Tipo</th>
-                        <th class="py-3 fw-semibold text-muted small text-uppercase">Vendedor</th>
-                        <th class="py-3 fw-semibold text-muted small text-uppercase text-end">Total</th>
-                        <th class="py-3 fw-semibold text-muted small text-uppercase text-center">Status</th>
+                    <tr>
+                        <th>N.</th>
+                        <th>Data</th>
+                        <th>Tipo</th>
+                        <th>Vendedor</th>
+                        <th class="text-end">Total</th>
+                        <th class="text-center">Status</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -328,25 +301,14 @@
                             <td class="text-muted">{{ $venda->vendedor->name ?? '-' }}</td>
                             <td class="text-end fw-bold">R$ {{ number_format($venda->total, 2, ',', '.') }}</td>
                             <td class="text-center">
-                                @php
-                                    $sv = $venda->status->value ?? $venda->status;
-                                    $statusColors = [
-                                        'finalizada' => ['bg' => 'success', 'icon' => 'check-circle'],
-                                        'pendente'   => ['bg' => 'warning', 'icon' => 'clock'],
-                                        'cancelada'  => ['bg' => 'danger', 'icon' => 'x-circle'],
-                                    ];
-                                    $sc = $statusColors[$sv] ?? ['bg' => 'secondary', 'icon' => 'question-circle'];
-                                @endphp
-                                <span class="badge bg-{{ $sc['bg'] }} bg-opacity-10 text-{{ $sc['bg'] }} px-3 py-2 rounded-pill">
-                                    <i class="bi bi-{{ $sc['icon'] }} me-1"></i>{{ ucfirst($sv) }}
-                                </span>
+                                @php $sv = $venda->status->value ?? $venda->status; @endphp
+                                <x-erp.status-badge :status="$sv" />
                             </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="6" class="text-center py-5">
-                                <i class="bi bi-cart fs-1 d-block mb-2 opacity-25"></i>
-                                <p class="text-muted mb-0">Nenhuma venda registrada para este cliente</p>
+                            <td colspan="6">
+                                <x-erp.empty-state icon="cart" title="Nenhuma venda registrada para este cliente" />
                             </td>
                         </tr>
                     @endforelse
@@ -358,14 +320,14 @@
     {{-- Tab: Financeiro --}}
     <div class="tab-pane fade" id="financeiro" role="tabpanel">
         <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
+            <table class="erp-table">
                 <thead>
-                    <tr style="background: #f8fafc;">
-                        <th class="py-3 fw-semibold text-muted small text-uppercase">Descricao</th>
-                        <th class="py-3 fw-semibold text-muted small text-uppercase">Vencimento</th>
-                        <th class="py-3 fw-semibold text-muted small text-uppercase text-end">Valor</th>
-                        <th class="py-3 fw-semibold text-muted small text-uppercase text-end">Pago</th>
-                        <th class="py-3 fw-semibold text-muted small text-uppercase text-center">Status</th>
+                    <tr>
+                        <th>Descricao</th>
+                        <th>Vencimento</th>
+                        <th class="text-end">Valor</th>
+                        <th class="text-end">Pago</th>
+                        <th class="text-center">Status</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -383,24 +345,15 @@
                             <td class="text-center">
                                 @php
                                     $isVencido = $conta->status === 'pendente' && $conta->vencimento->isPast();
-                                    $statusCR = [
-                                        'pendente'  => $isVencido ? 'danger' : 'warning',
-                                        'pago'      => 'success',
-                                        'cancelado' => 'secondary',
-                                    ];
-                                    $crColor = $statusCR[$conta->status] ?? 'secondary';
-                                    $crLabel = $isVencido ? 'Vencido' : ucfirst($conta->status);
+                                    $crStatus = $isVencido ? 'vencida' : $conta->status;
                                 @endphp
-                                <span class="badge bg-{{ $crColor }} bg-opacity-10 text-{{ $crColor }} px-3 py-2 rounded-pill">
-                                    {{ $crLabel }}
-                                </span>
+                                <x-erp.status-badge :status="$crStatus" />
                             </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="5" class="text-center py-5">
-                                <i class="bi bi-wallet2 fs-1 d-block mb-2 opacity-25"></i>
-                                <p class="text-muted mb-0">Nenhuma conta a receber registrada</p>
+                            <td colspan="5">
+                                <x-erp.empty-state icon="wallet2" title="Nenhuma conta a receber registrada" />
                             </td>
                         </tr>
                     @endforelse
@@ -417,10 +370,7 @@
                     <p class="mb-0" style="white-space: pre-line;">{{ $cliente->observacoes }}</p>
                 </div>
             @else
-                <div class="text-center py-5">
-                    <i class="bi bi-chat-text fs-1 d-block mb-2 opacity-25"></i>
-                    <p class="text-muted mb-0">Nenhuma observacao registrada</p>
-                </div>
+                <x-erp.empty-state icon="chat-text" title="Nenhuma observacao registrada" />
             @endif
         </div>
     </div>

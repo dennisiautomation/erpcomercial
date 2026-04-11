@@ -77,6 +77,10 @@ Route::middleware(['auth', 'unidade'])->prefix('app')->name('app.')->group(funct
         Route::get('/template/{tipo}', [App\ImportController::class, 'template'])->name('template');
     });
 
+    /* ------ Etiquetas ------ */
+    Route::get('/etiquetas', [App\EtiquetaController::class, 'index'])->name('etiquetas.index')->middleware('permission:produtos');
+    Route::post('/etiquetas/gerar', [App\EtiquetaController::class, 'gerar'])->name('etiquetas.gerar')->middleware('permission:produtos');
+
     /* ------ Cadastros ------ */
     Route::resource('clientes', App\ClienteController::class)->middleware('permission:clientes');
     Route::resource('produtos', App\ProdutoController::class)->middleware('permission:produtos');

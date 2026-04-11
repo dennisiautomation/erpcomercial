@@ -684,15 +684,15 @@
                     {{-- ---- Cadastros ---- --}}
                     <li class="sidebar-heading">Cadastros</li>
                     <li class="nav-item">
-                        <a class="nav-link nav-toggle {{ request()->routeIs('app.clientes.*', 'app.produtos.*', 'app.fornecedores.*', 'app.categorias.*', 'app.servicos.*', 'app.funcionarios.*') ? '' : 'collapsed' }}"
+                        <a class="nav-link nav-toggle {{ request()->routeIs('app.clientes.*', 'app.produtos.*', 'app.fornecedores.*', 'app.categorias.*', 'app.servicos.*', 'app.funcionarios.*', 'app.etiquetas.*') ? '' : 'collapsed' }}"
                            data-bs-toggle="collapse" href="#menuCadastros" role="button"
-                           aria-expanded="{{ request()->routeIs('app.clientes.*', 'app.produtos.*', 'app.fornecedores.*', 'app.categorias.*', 'app.servicos.*', 'app.funcionarios.*') ? 'true' : 'false' }}"
+                           aria-expanded="{{ request()->routeIs('app.clientes.*', 'app.produtos.*', 'app.fornecedores.*', 'app.categorias.*', 'app.servicos.*', 'app.funcionarios.*', 'app.etiquetas.*') ? 'true' : 'false' }}"
                            aria-controls="menuCadastros">
                             <i class="bi bi-journal-bookmark nav-icon"></i>
                             <span class="nav-text">Cadastros</span>
                             <i class="bi bi-chevron-right toggle-icon"></i>
                         </a>
-                        <div class="collapse {{ request()->routeIs('app.clientes.*', 'app.produtos.*', 'app.fornecedores.*', 'app.categorias.*', 'app.servicos.*', 'app.funcionarios.*') ? 'show' : '' }}" id="menuCadastros">
+                        <div class="collapse {{ request()->routeIs('app.clientes.*', 'app.produtos.*', 'app.fornecedores.*', 'app.categorias.*', 'app.servicos.*', 'app.funcionarios.*', 'app.etiquetas.*') ? 'show' : '' }}" id="menuCadastros">
                             <ul class="nav flex-column submenu">
                                 <li class="nav-item">
                                     <a class="nav-link {{ request()->routeIs('app.clientes.*') ? 'active' : '' }}"
@@ -717,6 +717,10 @@
                                 <li class="nav-item">
                                     <a class="nav-link {{ request()->routeIs('app.funcionarios.*') ? 'active' : '' }}"
                                        href="{{ route('app.funcionarios.index') }}">Funcionarios</a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link {{ request()->routeIs('app.etiquetas.*') ? 'active' : '' }}"
+                                       href="{{ route('app.etiquetas.index') }}">Etiquetas</a>
                                 </li>
                             </ul>
                         </div>

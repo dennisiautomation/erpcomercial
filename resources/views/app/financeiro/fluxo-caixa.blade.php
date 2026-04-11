@@ -3,101 +3,49 @@
 @section('title', 'Fluxo de Caixa')
 
 @section('content')
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <div>
-        <h4 class="mb-1"><i class="bi bi-graph-up me-2"></i>Fluxo de Caixa</h4>
-        <p class="text-muted mb-0 small">Analise as entradas e saidas do periodo</p>
-    </div>
-</div>
+<x-erp.page-header title="Fluxo de Caixa" subtitle="Analise as entradas e saidas do periodo" icon="graph-up" />
 
 {{-- Date Filter --}}
-<div class="card border-0 shadow-sm mb-4">
-    <div class="card-body">
-        <form method="GET" class="row g-3 align-items-end">
-            <div class="col-md-3">
-                <label class="form-label fw-semibold small text-muted">Data Inicio</label>
-                <input type="date" name="data_inicio" class="form-control" value="{{ $dataInicio->format('Y-m-d') }}">
-            </div>
-            <div class="col-md-3">
-                <label class="form-label fw-semibold small text-muted">Data Fim</label>
-                <input type="date" name="data_fim" class="form-control" value="{{ $dataFim->format('Y-m-d') }}">
-            </div>
-            <div class="col-md-6 d-flex gap-2">
-                <button type="submit" class="btn btn-primary">
-                    <i class="bi bi-search me-1"></i> Filtrar
-                </button>
-                <a href="{{ route('app.financeiro.fluxo-caixa') }}" class="btn btn-outline-secondary">
-                    <i class="bi bi-x-lg me-1"></i> Limpar
-                </a>
-            </div>
-        </form>
+<x-erp.filter-bar :action="route('app.financeiro.fluxo-caixa')">
+    <div class="col-md-3">
+        <label class="form-label fw-semibold small text-muted">Data Inicio</label>
+        <input type="date" name="data_inicio" class="form-control" value="{{ $dataInicio->format('Y-m-d') }}">
     </div>
-</div>
+    <div class="col-md-3">
+        <label class="form-label fw-semibold small text-muted">Data Fim</label>
+        <input type="date" name="data_fim" class="form-control" value="{{ $dataFim->format('Y-m-d') }}">
+    </div>
+    <div class="col-auto">
+        <a href="{{ route('app.financeiro.fluxo-caixa') }}" class="btn btn-erp-outline">
+            <i class="bi bi-x-lg me-1"></i> Limpar
+        </a>
+    </div>
+</x-erp.filter-bar>
 
 {{-- Summary Cards --}}
 <div class="row g-3 mb-4">
     <div class="col-6 col-lg-3">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-body">
-                <div class="d-flex align-items-center">
-                    <div class="rounded-3 bg-success bg-opacity-10 p-3 me-3">
-                        <i class="bi bi-arrow-up-circle fs-4 text-success"></i>
-                    </div>
-                    <div>
-                        <div class="text-muted small">Entradas Realizadas</div>
-                        <div class="fs-4 fw-bold text-success">R$ {{ number_format($totalEntradas, 2, ',', '.') }}</div>
-                    </div>
-                </div>
-            </div>
-        </div>
+        <x-erp.stat-card icon="arrow-up-circle" color="success" :value="number_format($totalEntradas, 2, ',', '.')" label="Entradas Realizadas" prefix="R$ " />
     </div>
     <div class="col-6 col-lg-3">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-body">
-                <div class="d-flex align-items-center">
-                    <div class="rounded-3 bg-danger bg-opacity-10 p-3 me-3">
-                        <i class="bi bi-arrow-down-circle fs-4 text-danger"></i>
-                    </div>
-                    <div>
-                        <div class="text-muted small">Saidas Realizadas</div>
-                        <div class="fs-4 fw-bold text-danger">R$ {{ number_format($totalSaidas, 2, ',', '.') }}</div>
-                    </div>
-                </div>
-            </div>
-        </div>
+        <x-erp.stat-card icon="arrow-down-circle" color="danger" :value="number_format($totalSaidas, 2, ',', '.')" label="Saidas Realizadas" prefix="R$ " />
     </div>
     <div class="col-6 col-lg-3">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-body">
-                <div class="d-flex align-items-center">
-                    <div class="rounded-3 {{ $saldoFinal >= 0 ? 'bg-primary' : 'bg-danger' }} bg-opacity-10 p-3 me-3">
-                        <i class="bi bi-wallet2 fs-4 {{ $saldoFinal >= 0 ? 'text-primary' : 'text-danger' }}"></i>
-                    </div>
-                    <div>
-                        <div class="text-muted small">Saldo do Periodo</div>
-                        <div class="fs-4 fw-bold {{ $saldoFinal >= 0 ? 'text-success' : 'text-danger' }}">
-                            R$ {{ number_format($saldoFinal, 2, ',', '.') }}
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+        <x-erp.stat-card icon="wallet2" :color="$saldoFinal >= 0 ? 'primary' : 'danger'" :value="number_format($saldoFinal, 2, ',', '.')" label="Saldo do Periodo" prefix="R$ " />
     </div>
     <div class="col-6 col-lg-3">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-body">
-                <div class="d-flex align-items-center">
-                    <div class="rounded-3 bg-info bg-opacity-10 p-3 me-3">
-                        <i class="bi bi-calendar-check fs-4 text-info"></i>
+        <div class="stat-card">
+            <div class="d-flex align-items-center gap-3">
+                <div class="stat-icon info">
+                    <i class="bi bi-calendar-check"></i>
+                </div>
+                <div>
+                    <div class="small">
+                        <span class="text-success fw-semibold">+R$ {{ number_format($previstaReceber, 2, ',', '.') }}</span>
+                        <span class="mx-1">/</span>
+                        <span class="text-danger fw-semibold">-R$ {{ number_format($previstaPagar, 2, ',', '.') }}</span>
                     </div>
-                    <div>
-                        <div class="text-muted small">Previsto (Pendente)</div>
-                        <div class="small">
-                            <span class="text-success fw-semibold">+R$ {{ number_format($previstaReceber, 2, ',', '.') }}</span>
-                            <span class="mx-1">/</span>
-                            <span class="text-danger fw-semibold">-R$ {{ number_format($previstaPagar, 2, ',', '.') }}</span>
-                        </div>
-                    </div>
+                    <div class="stat-label">Previsto (Pendente)</div>
                 </div>
             </div>
         </div>
@@ -105,36 +53,28 @@
 </div>
 
 {{-- Chart --}}
-<div class="card border-0 shadow-sm mb-4">
-    <div class="card-header bg-white border-bottom">
-        <div class="d-flex justify-content-between align-items-center">
-            <h6 class="mb-0 fw-bold"><i class="bi bi-graph-up me-1"></i> Fluxo Diario</h6>
-            <div class="btn-group btn-group-sm" role="group" id="chart-toggle">
-                <button type="button" class="btn btn-outline-primary active" data-mode="bars">Barras</button>
-                <button type="button" class="btn btn-outline-primary" data-mode="line">Linha</button>
-            </div>
+<x-erp.card title="Fluxo Diario" icon="graph-up" class="mb-4">
+    <div class="d-flex justify-content-end mb-3">
+        <div class="btn-group btn-group-sm" role="group" id="chart-toggle">
+            <button type="button" class="btn btn-outline-primary active" data-mode="bars">Barras</button>
+            <button type="button" class="btn btn-outline-primary" data-mode="line">Linha</button>
         </div>
     </div>
-    <div class="card-body">
-        <canvas id="fluxoCaixaChart" height="80"></canvas>
-    </div>
-</div>
+    <canvas id="fluxoCaixaChart" height="80"></canvas>
+</x-erp.card>
 
 {{-- Daily Table --}}
-<div class="card border-0 shadow-sm">
-    <div class="card-header bg-white border-bottom">
-        <h6 class="mb-0 fw-bold"><i class="bi bi-table me-1"></i> Detalhamento Diario</h6>
-    </div>
+<x-erp.card title="Detalhamento Diario" icon="table">
     <div class="table-responsive">
-        <table class="table table-hover align-middle mb-0">
+        <table class="erp-table">
             <thead>
-                <tr class="bg-light">
-                    <th class="ps-3">Data</th>
+                <tr>
+                    <th>Data</th>
                     <th>Descricao</th>
                     <th>Categoria</th>
                     <th class="text-end">Entrada (+)</th>
                     <th class="text-end">Saida (-)</th>
-                    <th class="text-end pe-3">Saldo Acumulado</th>
+                    <th class="text-end">Saldo Acumulado</th>
                 </tr>
             </thead>
             <tbody>
@@ -145,7 +85,7 @@
                         @foreach($dia['itens'] as $index => $item)
                         <tr>
                             @if($index === 0)
-                            <td rowspan="{{ count($dia['itens']) }}" class="align-middle ps-3">
+                            <td rowspan="{{ count($dia['itens']) }}" class="align-middle">
                                 <div class="fw-bold">{{ \Carbon\Carbon::parse($dia['data'])->format('d/m') }}</div>
                                 <small class="text-muted">{{ \Carbon\Carbon::parse($dia['data'])->translatedFormat('D') }}</small>
                             </td>
@@ -171,7 +111,7 @@
                                 @endif
                             </td>
                             @if($index === 0)
-                            <td rowspan="{{ count($dia['itens']) }}" class="text-end align-middle pe-3">
+                            <td rowspan="{{ count($dia['itens']) }}" class="text-end align-middle">
                                 <span class="fw-bold {{ $dia['saldo'] >= 0 ? 'text-success' : 'text-danger' }}">
                                     R$ {{ number_format($dia['saldo'], 2, ',', '.') }}
                                 </span>
@@ -183,26 +123,23 @@
                 @endforeach
                 @if(!$hasData)
                 <tr>
-                    <td colspan="6" class="text-center py-5">
-                        <div class="text-muted">
-                            <i class="bi bi-graph-up fs-1 d-block mb-2 opacity-25"></i>
-                            Nenhuma movimentacao financeira no periodo.
-                        </div>
+                    <td colspan="6">
+                        <x-erp.empty-state icon="graph-up" title="Nenhuma movimentacao financeira no periodo" />
                     </td>
                 </tr>
                 @endif
             </tbody>
             @if($hasData)
             <tfoot>
-                <tr class="bg-light fw-bold">
-                    <td class="ps-3" colspan="3">TOTAL DO PERIODO</td>
+                <tr class="fw-bold">
+                    <td colspan="3">TOTAL DO PERIODO</td>
                     <td class="text-end text-success">
                         <i class="bi bi-arrow-up-short"></i>R$ {{ number_format($totalEntradas, 2, ',', '.') }}
                     </td>
                     <td class="text-end text-danger">
                         <i class="bi bi-arrow-down-short"></i>R$ {{ number_format($totalSaidas, 2, ',', '.') }}
                     </td>
-                    <td class="text-end pe-3 {{ $saldoFinal >= 0 ? 'text-success' : 'text-danger' }}">
+                    <td class="text-end {{ $saldoFinal >= 0 ? 'text-success' : 'text-danger' }}">
                         R$ {{ number_format($saldoFinal, 2, ',', '.') }}
                     </td>
                 </tr>
@@ -210,7 +147,7 @@
             @endif
         </table>
     </div>
-</div>
+</x-erp.card>
 @endsection
 
 @push('scripts')

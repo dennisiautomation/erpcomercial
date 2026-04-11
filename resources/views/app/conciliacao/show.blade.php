@@ -3,58 +3,55 @@
 @section('title', 'Conciliacao - ' . $conciliacao->banco)
 
 @section('content')
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h4 class="mb-0"><i class="bi bi-bank me-2"></i>Conciliacao - {{ $conciliacao->banco }}</h4>
-    <div>
-        @if($conciliacao->status !== 'concluida')
-        <form action="{{ route('app.conciliacao.auto', $conciliacao) }}" method="POST" class="d-inline">
-            @csrf
-            <button type="submit" class="btn btn-info" onclick="return confirm('Executar conciliacao automatica?')">
-                <i class="bi bi-magic me-1"></i> Auto-Conciliar
-            </button>
-        </form>
-        <form action="{{ route('app.conciliacao.finalizar', $conciliacao) }}" method="POST" class="d-inline">
-            @csrf
-            <button type="submit" class="btn btn-success" onclick="return confirm('Finalizar esta conciliacao?')">
-                <i class="bi bi-check-circle me-1"></i> Finalizar
-            </button>
-        </form>
-        @endif
-        <a href="{{ route('app.conciliacao.index') }}" class="btn btn-outline-secondary">
-            <i class="bi bi-arrow-left me-1"></i> Voltar
-        </a>
-    </div>
-</div>
+<x-erp.page-header title="Conciliacao - {{ $conciliacao->banco }}" icon="bank">
+    @if($conciliacao->status !== 'concluida')
+    <form action="{{ route('app.conciliacao.auto', $conciliacao) }}" method="POST" class="d-inline">
+        @csrf
+        <button type="submit" class="btn btn-info" onclick="return confirm('Executar conciliacao automatica?')">
+            <i class="bi bi-magic me-1"></i> Auto-Conciliar
+        </button>
+    </form>
+    <form action="{{ route('app.conciliacao.finalizar', $conciliacao) }}" method="POST" class="d-inline">
+        @csrf
+        <button type="submit" class="btn btn-success" onclick="return confirm('Finalizar esta conciliacao?')">
+            <i class="bi bi-check-circle me-1"></i> Finalizar
+        </button>
+    </form>
+    @endif
+    <a href="{{ route('app.conciliacao.index') }}" class="btn btn-erp-outline">
+        <i class="bi bi-arrow-left me-1"></i> Voltar
+    </a>
+</x-erp.page-header>
 
 {{-- Info --}}
-<div class="row mb-4">
+<div class="row g-3 mb-4">
     <div class="col-md-3">
-        <div class="card">
-            <div class="card-body text-center">
+        <x-erp.card>
+            <div class="text-center">
                 <div class="text-muted small">Periodo</div>
                 <div class="fw-bold">{{ $conciliacao->periodo_inicio?->format('d/m/Y') }} - {{ $conciliacao->periodo_fim?->format('d/m/Y') }}</div>
             </div>
-        </div>
+        </x-erp.card>
     </div>
     <div class="col-md-3">
-        <div class="card">
-            <div class="card-body text-center">
+        <x-erp.card>
+            <div class="text-center">
                 <div class="text-muted small">Agencia / Conta</div>
                 <div class="fw-bold">{{ $conciliacao->agencia ?? '-' }} / {{ $conciliacao->conta ?? '-' }}</div>
             </div>
-        </div>
+        </x-erp.card>
     </div>
     <div class="col-md-3">
-        <div class="card">
-            <div class="card-body text-center">
+        <x-erp.card>
+            <div class="text-center">
                 <div class="text-muted small">Saldo Final</div>
                 <div class="fw-bold">R$ {{ number_format($conciliacao->saldo_final, 2, ',', '.') }}</div>
             </div>
-        </div>
+        </x-erp.card>
     </div>
     <div class="col-md-3">
-        <div class="card">
-            <div class="card-body text-center">
+        <x-erp.card>
+            <div class="text-center">
                 <div class="text-muted small">Progresso</div>
                 @php $pct = $conciliacao->total_lancamentos > 0 ? round(($conciliacao->conciliados / $conciliacao->total_lancamentos) * 100) : 0; @endphp
                 <div class="progress mt-1" style="height: 20px;">
@@ -62,7 +59,7 @@
                 </div>
                 <small class="text-muted">{{ $conciliacao->conciliados }} de {{ $conciliacao->total_lancamentos }}</small>
             </div>
-        </div>
+        </x-erp.card>
     </div>
 </div>
 
@@ -70,13 +67,10 @@
 <div class="row">
     {{-- Left: Extratos --}}
     <div class="col-lg-7">
-        <div class="card">
-            <div class="card-header">
-                <h6 class="mb-0"><i class="bi bi-list-ul me-1"></i> Extrato Bancario</h6>
-            </div>
+        <x-erp.card title="Extrato Bancario" icon="list-ul">
             <div class="table-responsive" style="max-height: 600px; overflow-y: auto;">
-                <table class="table table-sm table-hover mb-0">
-                    <thead class="table-light sticky-top">
+                <table class="erp-table">
+                    <thead class="sticky-top">
                         <tr>
                             <th>Data</th>
                             <th>Descricao</th>
@@ -101,14 +95,14 @@
                             </td>
                             <td>
                                 @if($extrato->conciliado)
-                                    <span class="badge bg-success"><i class="bi bi-check"></i> Conciliado</span>
+                                    <x-erp.status-badge status="concluida" label="Conciliado" />
                                 @else
-                                    <span class="badge bg-warning">Pendente</span>
+                                    <x-erp.status-badge status="pendente" />
                                 @endif
                             </td>
                             <td>
                                 @if(!$extrato->conciliado && $conciliacao->status !== 'concluida')
-                                    <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#modalConciliar{{ $extrato->id }}">
+                                    <button type="button" class="btn btn-sm btn-erp-outline" data-bs-toggle="modal" data-bs-target="#modalConciliar{{ $extrato->id }}">
                                         <i class="bi bi-link-45deg"></i>
                                     </button>
                                 @endif
@@ -118,18 +112,15 @@
                     </tbody>
                 </table>
             </div>
-        </div>
+        </x-erp.card>
     </div>
 
     {{-- Right: Contas Pendentes --}}
     <div class="col-lg-5">
-        <div class="card mb-3">
-            <div class="card-header">
-                <h6 class="mb-0"><i class="bi bi-cash-stack me-1"></i> Contas a Receber Pendentes</h6>
-            </div>
+        <x-erp.card title="Contas a Receber Pendentes" icon="cash-stack" class="mb-3">
             <div class="table-responsive" style="max-height: 280px; overflow-y: auto;">
-                <table class="table table-sm mb-0">
-                    <thead class="table-light sticky-top">
+                <table class="erp-table">
+                    <thead class="sticky-top">
                         <tr>
                             <th>Descricao</th>
                             <th>Valor</th>
@@ -151,15 +142,12 @@
                     </tbody>
                 </table>
             </div>
-        </div>
+        </x-erp.card>
 
-        <div class="card">
-            <div class="card-header">
-                <h6 class="mb-0"><i class="bi bi-wallet2 me-1"></i> Contas a Pagar Pendentes</h6>
-            </div>
+        <x-erp.card title="Contas a Pagar Pendentes" icon="wallet2">
             <div class="table-responsive" style="max-height: 280px; overflow-y: auto;">
-                <table class="table table-sm mb-0">
-                    <thead class="table-light sticky-top">
+                <table class="erp-table">
+                    <thead class="sticky-top">
                         <tr>
                             <th>Descricao</th>
                             <th>Valor</th>
@@ -181,7 +169,7 @@
                     </tbody>
                 </table>
             </div>
-        </div>
+        </x-erp.card>
     </div>
 </div>
 
@@ -233,7 +221,7 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-primary">
+                    <button type="submit" class="btn btn-erp-primary">
                         <i class="bi bi-link-45deg me-1"></i> Conciliar
                     </button>
                 </div>

@@ -3,100 +3,83 @@
 @section('title', 'Detalhes - Conta a Pagar')
 
 @section('content')
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h4 class="mb-0"><i class="bi bi-eye me-2"></i>Conta a Pagar #{{ $contaPagar->id }}</h4>
-    <a href="{{ route('app.contas-pagar.index') }}" class="btn btn-outline-secondary">
+<x-erp.page-header title="Conta a Pagar #{{ $contaPagar->id }}" icon="eye">
+    <a href="{{ route('app.contas-pagar.index') }}" class="btn btn-erp-outline">
         <i class="bi bi-arrow-left me-1"></i> Voltar
     </a>
-</div>
+</x-erp.page-header>
 
-<div class="row">
+<div class="row g-4">
     <div class="col-lg-8">
-        <div class="card mb-4">
-            <div class="card-header">
-                <h6 class="mb-0">Informacoes</h6>
-            </div>
-            <div class="card-body">
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <strong>Fornecedor:</strong><br>
-                        {{ $contaPagar->fornecedor->razao_social ?? '-' }}
-                    </div>
-                    <div class="col-md-6">
-                        <strong>Descricao:</strong><br>
-                        {{ $contaPagar->descricao }}
-                    </div>
-                </div>
-                <div class="row mb-3">
-                    <div class="col-md-3">
-                        <strong>Valor:</strong><br>
-                        R$ {{ number_format($contaPagar->valor, 2, ',', '.') }}
-                    </div>
-                    <div class="col-md-3">
-                        <strong>Vencimento:</strong><br>
-                        {{ $contaPagar->vencimento->format('d/m/Y') }}
-                    </div>
-                    <div class="col-md-3">
-                        <strong>Parcela:</strong><br>
-                        {{ $contaPagar->parcela }}/{{ $contaPagar->total_parcelas }}
-                    </div>
-                    <div class="col-md-3">
-                        <strong>Status:</strong><br>
+        <x-erp.card title="Informacoes" icon="info-circle">
+            <table class="table table-borderless mb-0">
+                <tr>
+                    <th width="40%">Fornecedor</th>
+                    <td>{{ $contaPagar->fornecedor->razao_social ?? '-' }}</td>
+                </tr>
+                <tr>
+                    <th>Descricao</th>
+                    <td>{{ $contaPagar->descricao }}</td>
+                </tr>
+                <tr>
+                    <th>Valor</th>
+                    <td>R$ {{ number_format($contaPagar->valor, 2, ',', '.') }}</td>
+                </tr>
+                <tr>
+                    <th>Vencimento</th>
+                    <td>{{ $contaPagar->vencimento->format('d/m/Y') }}</td>
+                </tr>
+                <tr>
+                    <th>Parcela</th>
+                    <td>{{ $contaPagar->parcela }}/{{ $contaPagar->total_parcelas }}</td>
+                </tr>
+                <tr>
+                    <th>Status</th>
+                    <td>
                         @php
-                            $statusBadge = match($contaPagar->status) {
-                                'pendente' => $contaPagar->vencimento->isPast() ? 'bg-danger' : 'bg-warning text-dark',
-                                'paga' => 'bg-success',
-                                default => 'bg-secondary',
-                            };
-                            $statusLabel = $contaPagar->status === 'pendente' && $contaPagar->vencimento->isPast() ? 'Vencida' : ucfirst($contaPagar->status);
+                            $isOverdue = $contaPagar->status === 'pendente' && $contaPagar->vencimento->isPast();
+                            $statusValue = $isOverdue ? 'vencida' : $contaPagar->status;
                         @endphp
-                        <span class="badge {{ $statusBadge }}">{{ $statusLabel }}</span>
-                    </div>
-                </div>
-                <div class="row mb-3">
-                    <div class="col-md-3">
-                        <strong>Categoria:</strong><br>
-                        {{ $contaPagar->categoria ?? '-' }}
-                    </div>
-                    <div class="col-md-3">
-                        <strong>Centro de Custo:</strong><br>
-                        {{ $contaPagar->centro_custo ?? '-' }}
-                    </div>
-                    <div class="col-md-3">
-                        <strong>Recorrente:</strong><br>
-                        {{ $contaPagar->recorrente ? 'Sim - ' . ucfirst($contaPagar->recorrencia_tipo ?? 'mensal') : 'Nao' }}
-                    </div>
-                </div>
+                        <x-erp.status-badge :status="$statusValue" />
+                    </td>
+                </tr>
+                <tr>
+                    <th>Categoria</th>
+                    <td>{{ $contaPagar->categoria ?? '-' }}</td>
+                </tr>
+                <tr>
+                    <th>Centro de Custo</th>
+                    <td>{{ $contaPagar->centro_custo ?? '-' }}</td>
+                </tr>
+                <tr>
+                    <th>Recorrente</th>
+                    <td>{{ $contaPagar->recorrente ? 'Sim - ' . ucfirst($contaPagar->recorrencia_tipo ?? 'mensal') : 'Nao' }}</td>
+                </tr>
                 @if($contaPagar->status === 'paga')
-                <div class="row mb-3">
-                    <div class="col-md-4">
-                        <strong>Valor Pago:</strong><br>
-                        R$ {{ number_format($contaPagar->valor_pago, 2, ',', '.') }}
-                    </div>
-                    <div class="col-md-4">
-                        <strong>Pago em:</strong><br>
-                        {{ $contaPagar->pago_em?->format('d/m/Y') ?? '-' }}
-                    </div>
-                </div>
+                <tr>
+                    <th>Valor Pago</th>
+                    <td>R$ {{ number_format($contaPagar->valor_pago, 2, ',', '.') }}</td>
+                </tr>
+                <tr>
+                    <th>Pago em</th>
+                    <td>{{ $contaPagar->pago_em?->format('d/m/Y') ?? '-' }}</td>
+                </tr>
                 @endif
                 @if($contaPagar->observacoes)
-                <div>
-                    <strong>Observacoes:</strong><br>
-                    {{ $contaPagar->observacoes }}
-                </div>
+                <tr>
+                    <th>Observacoes</th>
+                    <td>{{ $contaPagar->observacoes }}</td>
+                </tr>
                 @endif
-            </div>
-        </div>
+            </table>
+        </x-erp.card>
 
         {{-- Parcelas --}}
         @if($parcelas->count() > 1)
-        <div class="card mb-4">
-            <div class="card-header">
-                <h6 class="mb-0">Historico de Parcelas</h6>
-            </div>
+        <x-erp.card title="Historico de Parcelas" icon="list-ol" class="mt-4">
             <div class="table-responsive">
-                <table class="table table-hover mb-0">
-                    <thead class="table-light">
+                <table class="erp-table">
+                    <thead>
                         <tr>
                             <th>Parcela</th>
                             <th>Vencimento</th>
@@ -113,13 +96,10 @@
                             <td class="text-end">R$ {{ number_format($parcela->valor, 2, ',', '.') }}</td>
                             <td class="text-center">
                                 @php
-                                    $pBadge = match($parcela->status) {
-                                        'pendente' => $parcela->vencimento->isPast() ? 'bg-danger' : 'bg-warning text-dark',
-                                        'paga' => 'bg-success',
-                                        default => 'bg-secondary',
-                                    };
+                                    $pOverdue = $parcela->status === 'pendente' && $parcela->vencimento->isPast();
+                                    $pStatus = $pOverdue ? 'vencida' : $parcela->status;
                                 @endphp
-                                <span class="badge {{ $pBadge }}">{{ ucfirst($parcela->status) }}</span>
+                                <x-erp.status-badge :status="$pStatus" />
                             </td>
                             <td>{{ $parcela->pago_em?->format('d/m/Y') ?? '-' }}</td>
                         </tr>
@@ -127,11 +107,11 @@
                     </tbody>
                 </table>
             </div>
-        </div>
+        </x-erp.card>
         @endif
 
         @if($contaPagar->status === 'pendente')
-        <div class="d-flex gap-2">
+        <div class="d-flex gap-2 mt-4">
             <form method="POST" action="{{ route('app.contas-pagar.baixar', $contaPagar) }}"
                 onsubmit="return confirm('Confirma o pagamento desta conta?')">
                 @csrf

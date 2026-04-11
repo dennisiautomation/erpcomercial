@@ -146,8 +146,8 @@ class ComissaoController extends Controller
             ->get(['id', 'nome']);
 
         $produtos = Produto::where('empresa_id', $empresaId)
-            ->orderBy('nome')
-            ->get(['id', 'nome']);
+            ->orderBy('descricao')
+            ->get(['id', 'descricao']);
 
         // Load existing config
         $configPath = storage_path('app/comissao_config_' . $empresaId . '.json');

@@ -207,14 +207,17 @@ document.addEventListener('DOMContentLoaded', function() {
     const clientesBuscarUrl = '{{ route("app.search.clientes") }}';
     const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
 
-    const itensExistentes = @json($pedido->itens->map(fn($i) => [
-        'produto_id' => $i->produto_id,
-        'servico_id' => $i->servico_id,
-        'descricao' => $i->descricao ?? $i->produto?->descricao ?? $i->servico?->descricao,
-        'quantidade' => $i->quantidade,
-        'preco_unitario' => $i->preco_unitario,
-        'desconto_percentual' => $i->desconto_percentual,
-    ]));
+    @php
+        $itensData = $pedido->itens->map(fn($i) => [
+            'produto_id' => $i->produto_id,
+            'servico_id' => $i->servico_id,
+            'descricao' => $i->descricao ?? $i->produto?->descricao ?? $i->servico?->descricao,
+            'quantidade' => $i->quantidade,
+            'preco_unitario' => $i->preco_unitario,
+            'desconto_percentual' => $i->desconto_percentual,
+        ]);
+    @endphp
+    const itensExistentes = @json($itensData);
 
     function addItemRow(data = null) {
         const idx = itemIndex;

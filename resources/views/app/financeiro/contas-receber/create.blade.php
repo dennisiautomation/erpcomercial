@@ -3,134 +3,130 @@
 @section('title', 'Nova Conta a Receber')
 
 @section('content')
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <div>
-        <h4 class="mb-1"><i class="bi bi-plus-circle me-2"></i>Nova Conta a Receber</h4>
-        <p class="text-muted mb-0 small">Cadastre um novo recebivel com parcelas automaticas</p>
-    </div>
-    <a href="{{ route('app.contas-receber.index') }}" class="btn btn-outline-secondary">
+<x-erp.page-header title="Nova Conta a Receber" subtitle="Cadastre um novo recebivel com parcelas automaticas" icon="plus-circle">
+    <a href="{{ route('app.contas-receber.index') }}" class="btn btn-erp-outline">
         <i class="bi bi-arrow-left me-1"></i> Voltar
     </a>
-</div>
+</x-erp.page-header>
 
 <div class="row">
     <div class="col-lg-7">
-        <div class="card border-0 shadow-sm">
-            <div class="card-body p-4">
-                <form method="POST" action="{{ route('app.contas-receber.store') }}">
-                    @csrf
+        <form method="POST" action="{{ route('app.contas-receber.store') }}">
+            @csrf
 
-                    <div class="mb-4">
-                        <label for="cliente_id" class="form-label fw-semibold">Cliente <span class="text-danger">*</span></label>
-                        <select name="cliente_id" id="cliente_id" class="form-select form-select-lg @error('cliente_id') is-invalid @enderror" required>
-                            <option value="">Selecione o cliente...</option>
-                            @foreach($clientes as $cliente)
-                                <option value="{{ $cliente->id }}" {{ old('cliente_id') == $cliente->id ? 'selected' : '' }}>
-                                    {{ $cliente->nome_razao_social }}
-                                </option>
-                            @endforeach
-                        </select>
-                        @error('cliente_id')
+            <x-erp.form-section title="Dados do Recebivel" icon="cash-stack">
+                <div class="mb-4">
+                    <label for="cliente_id" class="form-label fw-semibold">Cliente <span class="text-danger">*</span></label>
+                    <select name="cliente_id" id="cliente_id" class="form-select form-select-lg @error('cliente_id') is-invalid @enderror" required>
+                        <option value="">Selecione o cliente...</option>
+                        @foreach($clientes as $cliente)
+                            <option value="{{ $cliente->id }}" {{ old('cliente_id') == $cliente->id ? 'selected' : '' }}>
+                                {{ $cliente->nome_razao_social }}
+                            </option>
+                        @endforeach
+                    </select>
+                    @error('cliente_id')
+                        <div class="invalid-feedback">{{ $message }}</div>
+                    @enderror
+                </div>
+
+                <div class="mb-4">
+                    <label for="descricao" class="form-label fw-semibold">Descricao <span class="text-danger">*</span></label>
+                    <input type="text" name="descricao" id="descricao"
+                        class="form-control @error('descricao') is-invalid @enderror"
+                        value="{{ old('descricao') }}" placeholder="Ex: Venda de produtos, Servico prestado..." required>
+                    @error('descricao')
+                        <div class="invalid-feedback">{{ $message }}</div>
+                    @enderror
+                </div>
+
+                <div class="row g-3 mb-4">
+                    <div class="col-md-4">
+                        <label for="valor" class="form-label fw-semibold">Valor Total <span class="text-danger">*</span></label>
+                        <div class="input-group input-group-lg">
+                            <span class="input-group-text">R$</span>
+                            <input type="number" name="valor" id="valor" step="0.01" min="0.01"
+                                class="form-control @error('valor') is-invalid @enderror"
+                                value="{{ old('valor') }}" placeholder="0,00" required>
+                        </div>
+                        @error('valor')
                             <div class="invalid-feedback">{{ $message }}</div>
                         @enderror
                     </div>
-
-                    <div class="mb-4">
-                        <label for="descricao" class="form-label fw-semibold">Descricao <span class="text-danger">*</span></label>
-                        <input type="text" name="descricao" id="descricao"
-                            class="form-control @error('descricao') is-invalid @enderror"
-                            value="{{ old('descricao') }}" placeholder="Ex: Venda de produtos, Servico prestado..." required>
-                        @error('descricao')
+                    <div class="col-md-4">
+                        <label for="parcelas" class="form-label fw-semibold">Parcelas <span class="text-danger">*</span></label>
+                        <div class="input-group input-group-lg">
+                            <input type="number" name="parcelas" id="parcelas" min="1" max="48"
+                                class="form-control @error('parcelas') is-invalid @enderror"
+                                value="{{ old('parcelas', 1) }}" required>
+                            <span class="input-group-text">x</span>
+                        </div>
+                        @error('parcelas')
                             <div class="invalid-feedback">{{ $message }}</div>
                         @enderror
                     </div>
-
-                    <div class="row g-3 mb-4">
-                        <div class="col-md-4">
-                            <label for="valor" class="form-label fw-semibold">Valor Total <span class="text-danger">*</span></label>
-                            <div class="input-group input-group-lg">
-                                <span class="input-group-text">R$</span>
-                                <input type="number" name="valor" id="valor" step="0.01" min="0.01"
-                                    class="form-control @error('valor') is-invalid @enderror"
-                                    value="{{ old('valor') }}" placeholder="0,00" required>
-                            </div>
-                            @error('valor')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
-                        </div>
-                        <div class="col-md-4">
-                            <label for="parcelas" class="form-label fw-semibold">Parcelas <span class="text-danger">*</span></label>
-                            <div class="input-group input-group-lg">
-                                <input type="number" name="parcelas" id="parcelas" min="1" max="48"
-                                    class="form-control @error('parcelas') is-invalid @enderror"
-                                    value="{{ old('parcelas', 1) }}" required>
-                                <span class="input-group-text">x</span>
-                            </div>
-                            @error('parcelas')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
-                        </div>
-                        <div class="col-md-4">
-                            <label for="primeiro_vencimento" class="form-label fw-semibold">1o Vencimento <span class="text-danger">*</span></label>
-                            <input type="date" name="primeiro_vencimento" id="primeiro_vencimento"
-                                class="form-control form-control-lg @error('primeiro_vencimento') is-invalid @enderror"
-                                value="{{ old('primeiro_vencimento') }}" required>
-                            @error('primeiro_vencimento')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
-                        </div>
-                    </div>
-
-                    <div class="mb-4">
-                        <label for="forma_pagamento" class="form-label fw-semibold">Forma de Pagamento</label>
-                        <div class="row g-2" id="forma-pagamento-cards">
-                            @php
-                                $formas = [
-                                    'boleto' => ['icon' => 'bi-upc-scan', 'label' => 'Boleto'],
-                                    'pix' => ['icon' => 'bi-qr-code', 'label' => 'PIX'],
-                                    'cartao_credito' => ['icon' => 'bi-credit-card', 'label' => 'Cartao'],
-                                    'transferencia' => ['icon' => 'bi-bank', 'label' => 'TED/DOC'],
-                                    'dinheiro' => ['icon' => 'bi-cash', 'label' => 'Dinheiro'],
-                                ];
-                            @endphp
-                            @foreach($formas as $value => $forma)
-                            <div class="col">
-                                <input type="radio" name="forma_pagamento" value="{{ $value }}" id="fp-{{ $value }}" class="btn-check" {{ old('forma_pagamento') == $value ? 'checked' : '' }}>
-                                <label class="btn btn-outline-secondary w-100 py-2 text-center" for="fp-{{ $value }}">
-                                    <i class="bi {{ $forma['icon'] }} d-block mb-1"></i>
-                                    <span class="small">{{ $forma['label'] }}</span>
-                                </label>
-                            </div>
-                            @endforeach
-                        </div>
-                    </div>
-
-                    <div class="mb-4">
-                        <label for="observacoes" class="form-label fw-semibold">Observacoes</label>
-                        <textarea name="observacoes" id="observacoes" rows="3"
-                            class="form-control @error('observacoes') is-invalid @enderror"
-                            placeholder="Informacoes adicionais...">{{ old('observacoes') }}</textarea>
-                        @error('observacoes')
+                    <div class="col-md-4">
+                        <label for="primeiro_vencimento" class="form-label fw-semibold">1o Vencimento <span class="text-danger">*</span></label>
+                        <input type="date" name="primeiro_vencimento" id="primeiro_vencimento"
+                            class="form-control form-control-lg @error('primeiro_vencimento') is-invalid @enderror"
+                            value="{{ old('primeiro_vencimento') }}" required>
+                        @error('primeiro_vencimento')
                             <div class="invalid-feedback">{{ $message }}</div>
                         @enderror
                     </div>
+                </div>
+            </x-erp.form-section>
 
-                    <hr class="my-4">
-
-                    <div class="d-flex gap-2">
-                        <button type="submit" class="btn btn-primary btn-lg px-4">
-                            <i class="bi bi-check-lg me-1"></i> Salvar Conta
-                        </button>
-                        <a href="{{ route('app.contas-receber.index') }}" class="btn btn-outline-secondary btn-lg">Cancelar</a>
+            <x-erp.form-section title="Pagamento" icon="credit-card">
+                <div class="mb-4">
+                    <label for="forma_pagamento" class="form-label fw-semibold">Forma de Pagamento</label>
+                    <div class="row g-2" id="forma-pagamento-cards">
+                        @php
+                            $formas = [
+                                'boleto' => ['icon' => 'bi-upc-scan', 'label' => 'Boleto'],
+                                'pix' => ['icon' => 'bi-qr-code', 'label' => 'PIX'],
+                                'cartao_credito' => ['icon' => 'bi-credit-card', 'label' => 'Cartao'],
+                                'transferencia' => ['icon' => 'bi-bank', 'label' => 'TED/DOC'],
+                                'dinheiro' => ['icon' => 'bi-cash', 'label' => 'Dinheiro'],
+                            ];
+                        @endphp
+                        @foreach($formas as $value => $forma)
+                        <div class="col">
+                            <input type="radio" name="forma_pagamento" value="{{ $value }}" id="fp-{{ $value }}" class="btn-check" {{ old('forma_pagamento') == $value ? 'checked' : '' }}>
+                            <label class="btn btn-outline-secondary w-100 py-2 text-center" for="fp-{{ $value }}">
+                                <i class="bi {{ $forma['icon'] }} d-block mb-1"></i>
+                                <span class="small">{{ $forma['label'] }}</span>
+                            </label>
+                        </div>
+                        @endforeach
                     </div>
-                </form>
-            </div>
-        </div>
+                </div>
+
+                <div class="mb-4">
+                    <label for="observacoes" class="form-label fw-semibold">Observacoes</label>
+                    <textarea name="observacoes" id="observacoes" rows="3"
+                        class="form-control @error('observacoes') is-invalid @enderror"
+                        placeholder="Informacoes adicionais...">{{ old('observacoes') }}</textarea>
+                    @error('observacoes')
+                        <div class="invalid-feedback">{{ $message }}</div>
+                    @enderror
+                </div>
+
+                <hr class="my-4">
+
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-erp-primary btn-lg px-4">
+                        <i class="bi bi-check-lg me-1"></i> Salvar Conta
+                    </button>
+                    <a href="{{ route('app.contas-receber.index') }}" class="btn btn-erp-outline btn-lg">Cancelar</a>
+                </div>
+            </x-erp.form-section>
+        </form>
     </div>
 
     {{-- Parcelas Preview --}}
     <div class="col-lg-5">
-        <div id="parcelas-preview" class="card border-0 shadow-sm d-none sticky-top" style="top: 1rem;">
+        <div id="parcelas-preview" class="erp-card d-none sticky-top" style="top: 1rem;">
             <div class="card-header bg-primary text-white border-0">
                 <h6 class="mb-0 fw-bold"><i class="bi bi-list-ol me-1"></i> Previa das Parcelas</h6>
             </div>
@@ -156,7 +152,7 @@
             </div>
         </div>
 
-        <div id="parcelas-placeholder" class="card border-0 shadow-sm bg-light">
+        <div id="parcelas-placeholder" class="erp-card">
             <div class="card-body text-center py-5">
                 <i class="bi bi-calculator fs-1 text-muted opacity-25 d-block mb-3"></i>
                 <p class="text-muted mb-0">Preencha o valor, numero de parcelas e<br>primeiro vencimento para visualizar.</p>
