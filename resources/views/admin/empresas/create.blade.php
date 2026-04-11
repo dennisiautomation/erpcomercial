@@ -70,7 +70,8 @@
                             <label for="cnpj" class="form-label">CNPJ <span class="required-dot">*</span></label>
                             <input type="text" class="form-control @error('cnpj') is-invalid @enderror"
                                    id="cnpj" name="cnpj" value="{{ old('cnpj') }}"
-                                   placeholder="00.000.000/0000-00" data-mask="cnpj" required>
+                                   placeholder="00.000.000/0000-00" data-mask="cnpj" data-cnpj-lookup="" required>
+                            <span data-cnpj-loading class="d-none"><span class="spinner-border spinner-border-sm text-primary"></span> Consultando CNPJ...</span>
                             @error('cnpj')
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror

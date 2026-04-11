@@ -3,52 +3,56 @@
 @section('title', 'Boletos')
 
 @section('content')
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h4 class="mb-0"><i class="bi bi-upc-scan me-2"></i>Boletos</h4>
+<div class="fade-in">
+<div class="page-header">
     <div>
-        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalCarne">
+        <h4><i class="bi bi-upc-scan me-2"></i>Boletos</h4>
+        <div class="subtitle">Gerencie boletos e carnes</div>
+    </div>
+    <div>
+        <button type="button" class="btn btn-erp btn-erp-primary" data-bs-toggle="modal" data-bs-target="#modalCarne">
             <i class="bi bi-collection me-1"></i> Gerar Carne
         </button>
     </div>
 </div>
 
 {{-- Summary Cards --}}
-<div class="row mb-4">
+<div class="row g-3 mb-4">
     <div class="col-md-4">
-        <div class="card stat-card border-start border-warning border-4">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <div class="text-muted small">Total Pendente</div>
-                        <div class="fs-4 fw-bold text-warning">R$ {{ number_format($totalPendente, 2, ',', '.') }}</div>
-                    </div>
-                    <i class="bi bi-clock-history fs-1 text-warning opacity-25"></i>
+        <div class="stat-card">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="stat-label">Total Pendente</div>
+                    <div class="stat-value" style="color: var(--warning);">R$ {{ number_format($totalPendente, 2, ',', '.') }}</div>
+                </div>
+                <div class="stat-icon warning">
+                    <i class="bi bi-clock-history"></i>
                 </div>
             </div>
         </div>
     </div>
     <div class="col-md-4">
-        <div class="card stat-card border-start border-danger border-4">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <div class="text-muted small">Total Vencido</div>
-                        <div class="fs-4 fw-bold text-danger">R$ {{ number_format($totalVencido, 2, ',', '.') }}</div>
-                    </div>
-                    <i class="bi bi-exclamation-triangle fs-1 text-danger opacity-25"></i>
+        <div class="stat-card">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="stat-label">Total Vencido</div>
+                    <div class="stat-value" style="color: var(--danger);">R$ {{ number_format($totalVencido, 2, ',', '.') }}</div>
+                </div>
+                <div class="stat-icon danger">
+                    <i class="bi bi-exclamation-triangle"></i>
                 </div>
             </div>
         </div>
     </div>
     <div class="col-md-4">
-        <div class="card stat-card border-start border-success border-4">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <div class="text-muted small">Pago no Mes</div>
-                        <div class="fs-4 fw-bold text-success">R$ {{ number_format($totalPago, 2, ',', '.') }}</div>
-                    </div>
-                    <i class="bi bi-check-circle fs-1 text-success opacity-25"></i>
+        <div class="stat-card">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="stat-label">Pago no Mes</div>
+                    <div class="stat-value" style="color: var(--success);">R$ {{ number_format($totalPago, 2, ',', '.') }}</div>
+                </div>
+                <div class="stat-icon success">
+                    <i class="bi bi-check-circle"></i>
                 </div>
             </div>
         </div>
@@ -56,50 +60,48 @@
 </div>
 
 {{-- Filters --}}
-<div class="card mb-4">
-    <div class="card-body">
-        <form method="GET" class="row g-3">
-            <div class="col-md-2">
-                <label class="form-label">Status</label>
-                <select name="status" class="form-select">
-                    <option value="">Todos</option>
-                    <option value="pendente" @selected(request('status') == 'pendente')>Pendente</option>
-                    <option value="pago" @selected(request('status') == 'pago')>Pago</option>
-                    <option value="vencido" @selected(request('status') == 'vencido')>Vencido</option>
-                    <option value="cancelado" @selected(request('status') == 'cancelado')>Cancelado</option>
-                </select>
-            </div>
-            <div class="col-md-3">
-                <label class="form-label">Cliente</label>
-                <select name="cliente_id" class="form-select">
-                    <option value="">Todos</option>
-                    @foreach($clientes as $cliente)
-                        <option value="{{ $cliente->id }}" @selected(request('cliente_id') == $cliente->id)>{{ $cliente->nome_razao_social }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <div class="col-md-2">
-                <label class="form-label">Vencimento De</label>
-                <input type="date" name="vencimento_inicio" class="form-control" value="{{ request('vencimento_inicio') }}">
-            </div>
-            <div class="col-md-2">
-                <label class="form-label">Vencimento Ate</label>
-                <input type="date" name="vencimento_fim" class="form-control" value="{{ request('vencimento_fim') }}">
-            </div>
-            <div class="col-md-3 d-flex align-items-end">
-                <button type="submit" class="btn btn-outline-primary w-100">
-                    <i class="bi bi-search me-1"></i> Filtrar
-                </button>
-            </div>
-        </form>
-    </div>
+<div class="filter-bar">
+    <form method="GET" class="row g-3 erp-form">
+        <div class="col-md-2">
+            <label class="form-label">Status</label>
+            <select name="status" class="form-select">
+                <option value="">Todos</option>
+                <option value="pendente" @selected(request('status') == 'pendente')>Pendente</option>
+                <option value="pago" @selected(request('status') == 'pago')>Pago</option>
+                <option value="vencido" @selected(request('status') == 'vencido')>Vencido</option>
+                <option value="cancelado" @selected(request('status') == 'cancelado')>Cancelado</option>
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">Cliente</label>
+            <select name="cliente_id" class="form-select">
+                <option value="">Todos</option>
+                @foreach($clientes as $cliente)
+                    <option value="{{ $cliente->id }}" @selected(request('cliente_id') == $cliente->id)>{{ $cliente->nome_razao_social }}</option>
+                @endforeach
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label class="form-label">Vencimento De</label>
+            <input type="date" name="vencimento_inicio" class="form-control" value="{{ request('vencimento_inicio') }}">
+        </div>
+        <div class="col-md-2">
+            <label class="form-label">Vencimento Ate</label>
+            <input type="date" name="vencimento_fim" class="form-control" value="{{ request('vencimento_fim') }}">
+        </div>
+        <div class="col-md-3 d-flex align-items-end">
+            <button type="submit" class="btn btn-erp btn-erp-primary w-100">
+                <i class="bi bi-search me-1"></i> Filtrar
+            </button>
+        </div>
+    </form>
 </div>
 
 {{-- Table --}}
-<div class="card">
+<div class="erp-card">
     <div class="table-responsive">
-        <table class="table table-hover mb-0">
-            <thead class="table-light">
+        <table class="erp-table">
+            <thead>
                 <tr>
                     <th>Nosso Numero</th>
                     <th>Cliente</th>
@@ -118,48 +120,56 @@
                     <td>{{ $boleto->vencimento?->format('d/m/Y') }}</td>
                     <td>
                         @php
-                            $statusClass = match($boleto->status) {
-                                'pago' => 'success',
-                                'pendente' => 'warning',
-                                'vencido' => 'danger',
-                                'cancelado' => 'secondary',
-                                default => 'secondary',
+                            $badgeClass = match($boleto->status) {
+                                'pago' => 'paga',
+                                'pendente' => 'pendente',
+                                'vencido' => 'vencida',
+                                'cancelado' => 'cancelado',
+                                default => 'inativo',
                             };
                         @endphp
-                        <span class="badge bg-{{ $statusClass }}">{{ ucfirst($boleto->status) }}</span>
+                        <span class="badge-status {{ $badgeClass }}">{{ ucfirst($boleto->status) }}</span>
                     </td>
                     <td>
-                        <a href="{{ route('app.boletos.show', $boleto) }}" class="btn btn-sm btn-outline-primary" title="Ver">
-                            <i class="bi bi-eye"></i>
-                        </a>
-                        @if($boleto->status === 'pendente')
-                        <form action="{{ route('app.boletos.baixar', $boleto) }}" method="POST" class="d-inline">
-                            @csrf
-                            <button type="submit" class="btn btn-sm btn-outline-success" title="Baixar" onclick="return confirm('Marcar como pago?')">
-                                <i class="bi bi-check-lg"></i>
-                            </button>
-                        </form>
-                        <form action="{{ route('app.boletos.cancelar', $boleto) }}" method="POST" class="d-inline">
-                            @csrf
-                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Cancelar" onclick="return confirm('Cancelar este boleto?')">
-                                <i class="bi bi-x-lg"></i>
-                            </button>
-                        </form>
-                        @endif
+                        <div class="action-btns">
+                            <a href="{{ route('app.boletos.show', $boleto) }}" class="btn btn-sm btn-outline-primary" title="Ver">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                            @if($boleto->status === 'pendente')
+                            <form action="{{ route('app.boletos.baixar', $boleto) }}" method="POST" class="d-inline">
+                                @csrf
+                                <button type="submit" class="btn btn-sm btn-outline-success" title="Baixar" onclick="return confirm('Marcar como pago?')">
+                                    <i class="bi bi-check-lg"></i>
+                                </button>
+                            </form>
+                            <form action="{{ route('app.boletos.cancelar', $boleto) }}" method="POST" class="d-inline">
+                                @csrf
+                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Cancelar" onclick="return confirm('Cancelar este boleto?')">
+                                    <i class="bi bi-x-lg"></i>
+                                </button>
+                            </form>
+                            @endif
+                        </div>
                     </td>
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="6" class="text-center text-muted py-4">Nenhum boleto encontrado.</td>
+                    <td colspan="6">
+                        <div class="empty-state">
+                            <i class="bi bi-upc-scan d-block"></i>
+                            <h5>Nenhum boleto encontrado</h5>
+                        </div>
+                    </td>
                 </tr>
                 @endforelse
             </tbody>
         </table>
     </div>
-</div>
-
-<div class="mt-3">
-    {{ $boletos->links() }}
+    @if($boletos->hasPages())
+        <div class="card-body border-top">
+            {{ $boletos->links() }}
+        </div>
+    @endif
 </div>
 
 {{-- Modal Gerar Carne --}}
@@ -205,13 +215,14 @@
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-primary">
+                    <button type="button" class="btn btn-erp btn-erp-outline" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-erp btn-erp-primary">
                         <i class="bi bi-check-lg me-1"></i> Gerar Carne
                     </button>
                 </div>
             </form>
         </div>
     </div>
+</div>
 </div>
 @endsection

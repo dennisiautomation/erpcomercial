@@ -2,10 +2,14 @@
 
 namespace Database\Seeders;
 
+use App\Models\Caixa;
 use App\Models\Categoria;
 use App\Models\Cliente;
+use App\Models\ConfiguracaoFiscal;
 use App\Models\Empresa;
+use App\Models\EstoqueMovimentacao;
 use App\Models\Fornecedor;
+use App\Models\Plano;
 use App\Models\Produto;
 use App\Models\Unidade;
 use App\Models\User;
@@ -16,45 +20,64 @@ class EmpresaDemoSeeder extends Seeder
 {
     public function run(): void
     {
-        $empresa = Empresa::updateOrCreate(
+        // Vincular plano Enterprise
+        $plano = Plano::where('slug', 'enterprise')->first();
+
+        $empresa = Empresa::withoutGlobalScopes()->updateOrCreate(
             ['cnpj' => '12345678000190'],
             [
                 'razao_social' => 'Empresa Demo Ltda',
                 'nome_fantasia' => 'Demo Store',
                 'regime_tributario' => 'simples_nacional',
                 'cep' => '01001000',
-                'logradouro' => 'Praça da Sé',
+                'logradouro' => 'Praca da Se',
                 'numero' => '100',
-                'bairro' => 'Sé',
-                'cidade' => 'São Paulo',
+                'bairro' => 'Se',
+                'cidade' => 'Sao Paulo',
                 'uf' => 'SP',
                 'telefone' => '11999999999',
                 'email' => 'demo@empresa.com',
-                'plano' => 'profissional',
+                'plano_id' => $plano?->id,
+                'em_trial' => true,
+                'trial_inicio' => now(),
+                'trial_fim' => now()->addDays(30),
                 'status' => 'ativo',
             ]
         );
 
-        $unidade = Unidade::updateOrCreate(
+        $unidade = Unidade::withoutGlobalScopes()->updateOrCreate(
             ['empresa_id' => $empresa->id, 'cnpj' => '12345678000190'],
             [
                 'nome' => 'Loja Centro',
                 'cep' => '01001000',
-                'logradouro' => 'Praça da Sé',
+                'logradouro' => 'Praca da Se',
                 'numero' => '100',
-                'bairro' => 'Sé',
-                'cidade' => 'São Paulo',
+                'bairro' => 'Se',
+                'cidade' => 'Sao Paulo',
                 'uf' => 'SP',
                 'telefone' => '11999999999',
                 'status' => 'ativa',
             ]
         );
 
+        // Configuracao Fiscal da unidade
+        ConfiguracaoFiscal::withoutGlobalScopes()->updateOrCreate(
+            ['empresa_id' => $empresa->id, 'unidade_id' => $unidade->id],
+            [
+                'focus_token' => 'token_demo_homologacao',
+                'ambiente' => 'homologacao',
+                'emissao_fiscal_ativa' => false,
+                'tipo_cupom_pdv' => 'nao_fiscal',
+                'serie_nfe' => '1',
+                'serie_nfce' => '1',
+            ]
+        );
+
         // Dono da empresa
-        $dono = User::updateOrCreate(
+        $dono = User::withoutGlobalScopes()->updateOrCreate(
             ['email' => 'dono@demo.com'],
             [
-                'name' => 'João Silva',
+                'name' => 'Joao Silva',
                 'password' => Hash::make('dono123'),
                 'empresa_id' => $empresa->id,
                 'cpf' => '12345678901',
@@ -65,7 +88,7 @@ class EmpresaDemoSeeder extends Seeder
         );
 
         // Gerente
-        User::updateOrCreate(
+        $gerente = User::withoutGlobalScopes()->updateOrCreate(
             ['email' => 'gerente@demo.com'],
             [
                 'name' => 'Maria Santos',
@@ -79,7 +102,7 @@ class EmpresaDemoSeeder extends Seeder
         );
 
         // Vendedor
-        User::updateOrCreate(
+        $vendedor = User::withoutGlobalScopes()->updateOrCreate(
             ['email' => 'vendedor@demo.com'],
             [
                 'name' => 'Carlos Oliveira',
@@ -94,7 +117,7 @@ class EmpresaDemoSeeder extends Seeder
         );
 
         // Caixa
-        User::updateOrCreate(
+        $caixaUser = User::withoutGlobalScopes()->updateOrCreate(
             ['email' => 'caixa@demo.com'],
             [
                 'name' => 'Ana Costa',
@@ -107,19 +130,35 @@ class EmpresaDemoSeeder extends Seeder
             ]
         );
 
+        // Vincular ALL users a unidade
+        $allUsers = [$dono, $gerente, $vendedor, $caixaUser];
+        foreach ($allUsers as $user) {
+            $user->unidades()->syncWithoutDetaching([$unidade->id]);
+        }
+
+        // Caixa aberto para o usuario caixa
+        Caixa::withoutGlobalScopes()->updateOrCreate(
+            ['empresa_id' => $empresa->id, 'unidade_id' => $unidade->id, 'user_id' => $caixaUser->id, 'status' => 'aberto'],
+            [
+                'numero_caixa' => 1,
+                'valor_abertura' => 200.00,
+                'aberto_em' => now(),
+            ]
+        );
+
         // Categorias
-        $eletronicos = Categoria::updateOrCreate(
-            ['empresa_id' => $empresa->id, 'nome' => 'Eletrônicos'],
+        $eletronicos = Categoria::withoutGlobalScopes()->updateOrCreate(
+            ['empresa_id' => $empresa->id, 'nome' => 'Eletronicos'],
             ['status' => 'ativa']
         );
 
-        $acessorios = Categoria::updateOrCreate(
-            ['empresa_id' => $empresa->id, 'nome' => 'Acessórios'],
+        $acessorios = Categoria::withoutGlobalScopes()->updateOrCreate(
+            ['empresa_id' => $empresa->id, 'nome' => 'Acessorios'],
             ['parent_id' => $eletronicos->id, 'status' => 'ativa']
         );
 
         // Produtos
-        Produto::updateOrCreate(
+        $prod1 = Produto::withoutGlobalScopes()->updateOrCreate(
             ['empresa_id' => $empresa->id, 'codigo_interno' => 'PROD001'],
             [
                 'descricao' => 'Notebook Dell Inspiron 15',
@@ -136,7 +175,7 @@ class EmpresaDemoSeeder extends Seeder
             ]
         );
 
-        Produto::updateOrCreate(
+        $prod2 = Produto::withoutGlobalScopes()->updateOrCreate(
             ['empresa_id' => $empresa->id, 'codigo_interno' => 'PROD002'],
             [
                 'descricao' => 'Mouse Logitech MX Master 3',
@@ -153,10 +192,10 @@ class EmpresaDemoSeeder extends Seeder
             ]
         );
 
-        Produto::updateOrCreate(
+        $prod3 = Produto::withoutGlobalScopes()->updateOrCreate(
             ['empresa_id' => $empresa->id, 'codigo_interno' => 'PROD003'],
             [
-                'descricao' => 'Teclado Mecânico Redragon Kumara',
+                'descricao' => 'Teclado Mecanico Redragon Kumara',
                 'unidade_medida' => 'UN',
                 'categoria_id' => $acessorios->id,
                 'ncm' => '84716053',
@@ -170,8 +209,26 @@ class EmpresaDemoSeeder extends Seeder
             ]
         );
 
+        // EstoqueMovimentacao para cada produto (entrada inicial de 100 unidades)
+        foreach ([$prod1, $prod2, $prod3] as $produto) {
+            EstoqueMovimentacao::withoutGlobalScopes()->updateOrCreate(
+                [
+                    'empresa_id' => $empresa->id,
+                    'unidade_id' => $unidade->id,
+                    'produto_id' => $produto->id,
+                    'tipo' => 'entrada',
+                ],
+                [
+                    'quantidade' => 100,
+                    'quantidade_anterior' => 0,
+                    'quantidade_posterior' => 100,
+                    'user_id' => $dono->id,
+                ]
+            );
+        }
+
         // Clientes
-        Cliente::updateOrCreate(
+        Cliente::withoutGlobalScopes()->updateOrCreate(
             ['empresa_id' => $empresa->id, 'cpf_cnpj' => '99988877766'],
             [
                 'tipo_pessoa' => 'pf',
@@ -180,7 +237,7 @@ class EmpresaDemoSeeder extends Seeder
                 'logradouro' => 'Av. Paulista',
                 'numero' => '1000',
                 'bairro' => 'Bela Vista',
-                'cidade' => 'São Paulo',
+                'cidade' => 'Sao Paulo',
                 'uf' => 'SP',
                 'telefone' => '11944444444',
                 'email' => 'pedro@email.com',
@@ -189,16 +246,16 @@ class EmpresaDemoSeeder extends Seeder
         );
 
         // Fornecedor
-        Fornecedor::updateOrCreate(
+        Fornecedor::withoutGlobalScopes()->updateOrCreate(
             ['empresa_id' => $empresa->id, 'cpf_cnpj' => '11222333000144'],
             [
                 'razao_social' => 'Distribuidora Tech Ltda',
                 'nome_fantasia' => 'TechDist',
                 'cep' => '09015000',
-                'logradouro' => 'Rua das Indústrias',
+                'logradouro' => 'Rua das Industrias',
                 'numero' => '500',
                 'bairro' => 'Centro',
-                'cidade' => 'Santo André',
+                'cidade' => 'Santo Andre',
                 'uf' => 'SP',
                 'telefone' => '1143211234',
                 'email' => 'contato@techdist.com',

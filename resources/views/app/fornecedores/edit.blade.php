@@ -33,11 +33,12 @@
                     <label for="cpf_cnpj" class="form-label fw-semibold">CPF/CNPJ <span class="text-danger">*</span></label>
                     <div class="input-group">
                         <span class="input-group-text"><i class="bi bi-card-text"></i></span>
-                        <input type="text" name="cpf_cnpj" id="cpf_cnpj" class="form-control @error('cpf_cnpj') is-invalid @enderror" value="{{ old('cpf_cnpj', $fornecedore->cpf_cnpj) }}" maxlength="18" required>
+                        <input type="text" name="cpf_cnpj" id="cpf_cnpj" class="form-control @error('cpf_cnpj') is-invalid @enderror" value="{{ old('cpf_cnpj', $fornecedore->cpf_cnpj) }}" maxlength="18" data-cnpj-lookup="" required>
                         @error('cpf_cnpj')
                             <div class="invalid-feedback">{{ $message }}</div>
                         @enderror
                     </div>
+                    <span data-cnpj-loading class="d-none"><span class="spinner-border spinner-border-sm text-primary"></span> Consultando CNPJ...</span>
                 </div>
                 <div class="col-md-8">
                     <label for="razao_social" class="form-label fw-semibold">Razao Social <span class="text-danger">*</span></label>

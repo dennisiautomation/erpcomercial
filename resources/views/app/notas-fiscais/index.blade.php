@@ -15,6 +15,43 @@
     </div>
 </div>
 
+{{-- Type Explanation Cards --}}
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="erp-card p-3 h-100">
+            <div class="d-flex align-items-center gap-3">
+                <div class="stat-icon success"><i class="bi bi-receipt"></i></div>
+                <div>
+                    <h6 class="mb-1 fw-bold">NFC-e</h6>
+                    <small class="text-muted">Cupom fiscal emitido no PDV para consumidor final</small>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="erp-card p-3 h-100">
+            <div class="d-flex align-items-center gap-3">
+                <div class="stat-icon primary"><i class="bi bi-file-earmark-text"></i></div>
+                <div>
+                    <h6 class="mb-1 fw-bold">NF-e (DANFE)</h6>
+                    <small class="text-muted">Nota fiscal para vendas entre empresas ou sob demanda</small>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="erp-card p-3 h-100">
+            <div class="d-flex align-items-center gap-3">
+                <div class="stat-icon info"><i class="bi bi-tools"></i></div>
+                <div>
+                    <h6 class="mb-1 fw-bold">NFS-e</h6>
+                    <small class="text-muted">Nota fiscal de servico para prestadores</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 {{-- Summary Cards --}}
 <div class="row g-3 mb-4">
     <div class="col-md-4">

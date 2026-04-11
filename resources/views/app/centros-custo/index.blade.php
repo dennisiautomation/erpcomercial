@@ -3,9 +3,13 @@
 @section('title', 'Centros de Custo')
 
 @section('content')
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h4 class="mb-0"><i class="bi bi-building me-2"></i>Centros de Custo</h4>
-    <a href="{{ route('app.centros-custo.create') }}" class="btn btn-primary">
+<div class="fade-in">
+<div class="page-header">
+    <div>
+        <h4><i class="bi bi-building me-2"></i>Centros de Custo</h4>
+        <div class="subtitle">Gerencie os centros de custo da empresa</div>
+    </div>
+    <a href="{{ route('app.centros-custo.create') }}" class="btn btn-erp btn-erp-primary">
         <i class="bi bi-plus-lg me-1"></i> Novo Centro
     </a>
 </div>
@@ -24,19 +28,20 @@
     </div>
 @endif
 
-<div class="card">
+<div class="erp-card">
     <div class="card-body">
         @if($centros->isEmpty())
-            <div class="text-center py-5 text-muted">
-                <i class="bi bi-building fs-1"></i>
-                <p class="mt-2">Nenhum centro de custo cadastrado.</p>
-                <a href="{{ route('app.centros-custo.create') }}" class="btn btn-primary btn-sm">
+            <div class="empty-state">
+                <i class="bi bi-building d-block"></i>
+                <h5>Nenhum centro de custo cadastrado</h5>
+                <p>Crie o primeiro centro de custo.</p>
+                <a href="{{ route('app.centros-custo.create') }}" class="btn btn-erp btn-erp-primary btn-sm">
                     <i class="bi bi-plus-lg me-1"></i> Cadastrar Primeiro
                 </a>
             </div>
         @else
             <div class="table-responsive">
-                <table class="table table-hover mb-0">
+                <table class="erp-table">
                     <thead>
                         <tr>
                             <th>Codigo</th>
@@ -54,22 +59,24 @@
                                 <td class="text-muted">{{ Str::limit($centro->descricao, 50) }}</td>
                                 <td>
                                     @if($centro->ativo)
-                                        <span class="badge bg-success-subtle text-success">Ativo</span>
+                                        <span class="badge-status ativo">Ativo</span>
                                     @else
-                                        <span class="badge bg-secondary-subtle text-secondary">Inativo</span>
+                                        <span class="badge-status inativo">Inativo</span>
                                     @endif
                                 </td>
                                 <td class="text-end">
-                                    <a href="{{ route('app.centros-custo.edit', $centro) }}" class="btn btn-sm btn-outline-primary" title="Editar">
-                                        <i class="bi bi-pencil"></i>
-                                    </a>
-                                    <form method="POST" action="{{ route('app.centros-custo.destroy', $centro) }}" class="d-inline" onsubmit="return confirm('Confirma a exclusao?')">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Excluir">
-                                            <i class="bi bi-trash"></i>
-                                        </button>
-                                    </form>
+                                    <div class="action-btns justify-content-end">
+                                        <a href="{{ route('app.centros-custo.edit', $centro) }}" class="btn btn-sm btn-outline-primary" title="Editar">
+                                            <i class="bi bi-pencil"></i>
+                                        </a>
+                                        <form method="POST" action="{{ route('app.centros-custo.destroy', $centro) }}" class="d-inline" onsubmit="return confirm('Confirma a exclusao?')">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Excluir">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </form>
+                                    </div>
                                 </td>
                             </tr>
                         @endforeach
@@ -77,10 +84,13 @@
                 </table>
             </div>
 
-            <div class="mt-3">
-                {{ $centros->links() }}
-            </div>
+            @if($centros->hasPages())
+                <div class="mt-3">
+                    {{ $centros->links() }}
+                </div>
+            @endif
         @endif
     </div>
+</div>
 </div>
 @endsection

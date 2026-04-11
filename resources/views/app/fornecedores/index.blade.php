@@ -8,9 +8,19 @@
         <h4 class="mb-0"><i class="bi bi-truck me-2"></i>Fornecedores</h4>
         <small class="text-muted">Gerencie seus fornecedores e parceiros comerciais</small>
     </div>
-    <a href="{{ route('app.fornecedores.create') }}" class="btn btn-primary">
-        <i class="bi bi-plus-lg me-1"></i> Novo Fornecedor
-    </a>
+    <div class="d-flex gap-2">
+        <div class="btn-group">
+            <button data-import="{{ route('app.import.fornecedores') }}" class="btn btn-erp-outline">
+                <i class="bi bi-upload me-1"></i> Importar CSV
+            </button>
+            <a href="{{ route('app.import.template', 'fornecedores') }}" class="btn btn-erp-outline">
+                <i class="bi bi-download me-1"></i> Modelo
+            </a>
+        </div>
+        <a href="{{ route('app.fornecedores.create') }}" class="btn btn-primary">
+            <i class="bi bi-plus-lg me-1"></i> Novo Fornecedor
+        </a>
+    </div>
 </div>
 
 {{-- Filtros --}}

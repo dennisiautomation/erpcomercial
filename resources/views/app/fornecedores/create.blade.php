@@ -27,11 +27,12 @@
                     <label for="cpf_cnpj" class="form-label fw-semibold">CPF/CNPJ <span class="text-danger">*</span></label>
                     <div class="input-group">
                         <span class="input-group-text"><i class="bi bi-card-text"></i></span>
-                        <input type="text" name="cpf_cnpj" id="cpf_cnpj" class="form-control @error('cpf_cnpj') is-invalid @enderror" value="{{ old('cpf_cnpj') }}" maxlength="18" placeholder="000.000.000-00" required>
+                        <input type="text" name="cpf_cnpj" id="cpf_cnpj" class="form-control @error('cpf_cnpj') is-invalid @enderror" value="{{ old('cpf_cnpj') }}" maxlength="18" placeholder="000.000.000-00" data-cnpj-lookup="" required>
                         @error('cpf_cnpj')
                             <div class="invalid-feedback">{{ $message }}</div>
                         @enderror
                     </div>
+                    <span data-cnpj-loading class="d-none"><span class="spinner-border spinner-border-sm text-primary"></span> Consultando CNPJ...</span>
                     <div class="form-text" id="cpfCnpjHelp">Digite CPF ou CNPJ (somente numeros)</div>
                 </div>
                 <div class="col-md-8">

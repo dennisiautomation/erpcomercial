@@ -266,48 +266,45 @@
         </div>
     </div>
 
-    {{-- Notas Fiscais --}}
+    {{-- Emissao de Nota Fiscal --}}
     <div class="col-lg-6">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-header bg-transparent fw-semibold">
-                <i class="bi bi-file-earmark-text me-1"></i> Notas Fiscais
-            </div>
+        <div class="erp-card h-100">
+            <div class="card-header"><i class="bi bi-file-earmark-text me-2"></i>Nota Fiscal</div>
             <div class="card-body">
                 @if($venda->notasFiscais->count())
-                    @foreach($venda->notasFiscais as $nf)
-                        <div class="d-flex justify-content-between align-items-center py-2 {{ !$loop->last ? 'border-bottom' : '' }}">
-                            <div>
-                                <div class="fw-semibold">
-                                    <i class="bi bi-file-earmark-check me-1"></i>
-                                    {{ strtoupper($nf->tipo ?? 'NF') }} #{{ $nf->numero ?? '-' }}
-                                </div>
-                                @if($nf->chave_acesso)
-                                    <small class="text-muted font-monospace" style="font-size: 0.7rem;">{{ $nf->chave_acesso }}</small>
-                                @endif
-                            </div>
-                            <div class="text-end">
-                                @php
-                                    $nfStatusColors = [
-                                        'autorizada' => 'success',
-                                        'cancelada' => 'danger',
-                                        'processando' => 'warning',
-                                        'rejeitada' => 'danger',
-                                    ];
-                                    $nfColor = $nfStatusColors[$nf->status] ?? 'secondary';
-                                @endphp
-                                <span class="badge bg-{{ $nfColor }}">{{ ucfirst($nf->status ?? '-') }}</span>
-                                @if($nf->url_danfe)
-                                    <a href="{{ $nf->url_danfe }}" target="_blank" class="btn btn-sm btn-outline-primary ms-1" title="Abrir DANFE">
-                                        <i class="bi bi-file-pdf"></i>
-                                    </a>
-                                @endif
-                            </div>
-                        </div>
-                    @endforeach
+                    {{-- Show existing notas --}}
+                    <table class="erp-table">
+                        <thead><tr><th>Tipo</th><th>Numero</th><th>Status</th><th>Acoes</th></tr></thead>
+                        <tbody>
+                        @foreach($venda->notasFiscais as $nota)
+                            <tr>
+                                <td><span class="badge bg-{{ $nota->tipo->value === 'nfce' ? 'success' : ($nota->tipo->value === 'nfe' ? 'primary' : 'info') }}">{{ strtoupper($nota->tipo->value) }}</span></td>
+                                <td>{{ $nota->numero ?? 'Processando...' }}</td>
+                                <td><span class="badge bg-{{ $nota->status->color() }}">{{ $nota->status->label() }}</span></td>
+                                <td>
+                                    @if($nota->xml_url)<a href="{{ route('app.notas-fiscais.xml', $nota) }}" class="btn btn-sm btn-outline-secondary">XML</a>@endif
+                                    @if($nota->danfe_url)<a href="{{ route('app.notas-fiscais.danfe', $nota) }}" class="btn btn-sm btn-outline-primary">DANFE</a>@endif
+                                </td>
+                            </tr>
+                        @endforeach
+                        </tbody>
+                    </table>
                 @else
-                    <div class="text-center py-4 text-muted">
-                        <i class="bi bi-file-earmark-x fs-3 d-block mb-1"></i>
-                        Nenhuma nota fiscal emitida.
+                    {{-- No notas yet — show emit buttons --}}
+                    <p class="text-muted mb-3">Nenhuma nota fiscal emitida para esta venda.</p>
+                    <div class="d-flex gap-2">
+                        <form method="POST" action="{{ route('app.notas-fiscais.emitir-nfe', $venda) }}">
+                            @csrf
+                            <button class="btn btn-erp-primary" onclick="return confirm('Emitir NF-e para esta venda?')">
+                                <i class="bi bi-file-earmark-text me-1"></i> Emitir NF-e (DANFE)
+                            </button>
+                        </form>
+                        <form method="POST" action="{{ route('app.notas-fiscais.emitir-nfce', $venda) }}">
+                            @csrf
+                            <button class="btn btn-erp-outline" onclick="return confirm('Emitir NFC-e para esta venda?')">
+                                <i class="bi bi-receipt me-1"></i> Emitir NFC-e
+                            </button>
+                        </form>
                     </div>
                 @endif
             </div>

@@ -1,4 +1,5 @@
 @extends('layouts.app')
+@php $errors = $errors ?? new \Illuminate\Support\MessageBag(); @endphp
 
 @section('title', 'Nova Conta a Pagar')
 
@@ -22,16 +23,30 @@
 
                     <div class="mb-4">
                         <label for="fornecedor_id" class="form-label fw-semibold">Fornecedor <span class="text-danger">*</span></label>
-                        <select name="fornecedor_id" id="fornecedor_id" class="form-select form-select-lg @error('fornecedor_id') is-invalid @enderror" required>
-                            <option value="">Selecione o fornecedor...</option>
-                            @foreach($fornecedores as $fornecedor)
-                                <option value="{{ $fornecedor->id }}" {{ old('fornecedor_id') == $fornecedor->id ? 'selected' : '' }}>
-                                    {{ $fornecedor->razao_social }}
-                                </option>
-                            @endforeach
-                        </select>
+                        <div class="position-relative">
+                            <div class="input-group input-group-lg" id="fornecedorBuscaGroup">
+                                <span class="input-group-text bg-transparent"><i class="bi bi-search"></i></span>
+                                <input type="text" id="fornecedorBusca" class="form-control @error('fornecedor_id') is-invalid @enderror"
+                                       placeholder="Buscar fornecedor por nome ou CPF/CNPJ..." autocomplete="off">
+                            </div>
+                            <div id="fornecedorResultados" class="list-group mt-1 position-absolute w-100 shadow-lg"
+                                 style="z-index:1050; display:none; max-height:300px; overflow-y:auto;"></div>
+                            <input type="hidden" name="fornecedor_id" id="fornecedorId" value="{{ old('fornecedor_id') }}" required>
+                            <div id="fornecedorSelecionado" class="mt-2" style="display:none;">
+                                <div class="d-flex align-items-center bg-primary bg-opacity-10 rounded-3 p-2 ps-3">
+                                    <i class="bi bi-building text-primary me-2 fs-5"></i>
+                                    <div class="flex-grow-1">
+                                        <div class="fw-semibold" id="fornecedorNome"></div>
+                                        <small class="text-muted" id="fornecedorDoc"></small>
+                                    </div>
+                                    <button type="button" class="btn btn-sm btn-outline-danger rounded-circle ms-2" id="btnRemoverFornecedor" title="Remover fornecedor">
+                                        <i class="bi bi-x-lg"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
                         @error('fornecedor_id')
-                            <div class="invalid-feedback">{{ $message }}</div>
+                            <div class="text-danger small mt-1">{{ $message }}</div>
                         @enderror
                     </div>
 
@@ -217,6 +232,71 @@
 
 @push('scripts')
 <script>
+    // ===== FORNECEDOR SEARCH =====
+    const fornecedorBuscarUrl = '{{ route("app.search.fornecedores") }}';
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+    const fornecedorBusca = document.getElementById('fornecedorBusca');
+    const fornecedorResultados = document.getElementById('fornecedorResultados');
+    let fornecedorTimeout;
+
+    fornecedorBusca.addEventListener('input', function() {
+        clearTimeout(fornecedorTimeout);
+        const termo = this.value.trim();
+        if (termo.length < 2) { fornecedorResultados.style.display = 'none'; return; }
+        fornecedorTimeout = setTimeout(() => {
+            fetch(`${fornecedorBuscarUrl}?q=${encodeURIComponent(termo)}`, {
+                headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': csrfToken }
+            })
+            .then(r => r.json())
+            .then(fornecedores => {
+                fornecedorResultados.innerHTML = '';
+                if (fornecedores.length === 0) {
+                    fornecedorResultados.innerHTML = '<div class="list-group-item text-muted small py-2">Nenhum fornecedor encontrado</div>';
+                    fornecedorResultados.style.display = 'block';
+                    return;
+                }
+                fornecedores.forEach(f => {
+                    const item = document.createElement('a');
+                    item.href = '#';
+                    item.className = 'list-group-item list-group-item-action py-2';
+                    item.innerHTML = `
+                        <div class="fw-semibold">${f.razao_social}</div>
+                        <small class="text-muted">${f.cpf_cnpj || 'Sem documento'}</small>
+                    `;
+                    item.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        document.getElementById('fornecedorId').value = f.id;
+                        document.getElementById('fornecedorNome').textContent = f.razao_social;
+                        document.getElementById('fornecedorDoc').textContent = f.cpf_cnpj || '';
+                        document.getElementById('fornecedorSelecionado').style.display = 'block';
+                        document.getElementById('fornecedorBuscaGroup').style.display = 'none';
+                        fornecedorResultados.style.display = 'none';
+                    });
+                    fornecedorResultados.appendChild(item);
+                });
+                fornecedorResultados.style.display = 'block';
+            });
+        }, 300);
+    });
+
+    fornecedorBusca.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') fornecedorResultados.style.display = 'none';
+    });
+
+    document.getElementById('btnRemoverFornecedor').addEventListener('click', function() {
+        document.getElementById('fornecedorId').value = '';
+        document.getElementById('fornecedorSelecionado').style.display = 'none';
+        document.getElementById('fornecedorBuscaGroup').style.display = 'flex';
+        fornecedorBusca.value = '';
+        fornecedorBusca.focus();
+    });
+
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('#fornecedorBusca') && !e.target.closest('#fornecedorResultados')) {
+            fornecedorResultados.style.display = 'none';
+        }
+    });
+
     // Toggle recorrencia options
     document.getElementById('recorrente').addEventListener('change', function() {
         document.getElementById('recorrencia-options').classList.toggle('d-none', !this.checked);

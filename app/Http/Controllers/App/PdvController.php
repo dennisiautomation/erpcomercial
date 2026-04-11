@@ -14,6 +14,7 @@ use App\Models\EstoqueMovimentacao;
 use App\Models\MovimentacaoCaixa;
 use App\Models\Produto;
 use App\Models\Unidade;
+use App\Models\User;
 use App\Models\Venda;
 use App\Models\VendaItem;
 use App\Models\ConfiguracaoFiscal;
@@ -46,7 +47,31 @@ class PdvController extends Controller
             ->where('unidade_id', session('unidade_id'))
             ->first();
 
-        return view('app.pdv.index', compact('caixa', 'unidade', 'configFiscal'));
+        // Operadores (caixa/vendedor) for vendedor selection
+        $operadores = User::where('empresa_id', session('empresa_id'))
+            ->where('status', 'ativo')
+            ->whereIn('perfil', ['caixa', 'vendedor'])
+            ->select('id', 'name', 'perfil')
+            ->orderBy('name')
+            ->get();
+
+        return view('app.pdv.index', compact('caixa', 'unidade', 'configFiscal', 'operadores'));
+    }
+
+    public function verificarEstoque(Request $request, $produtoId)
+    {
+        $produto = Produto::find($produtoId);
+        $estoque = EstoqueMovimentacao::withoutGlobalScopes()
+            ->where('produto_id', $produtoId)
+            ->where('unidade_id', session('unidade_id'))
+            ->orderByDesc('id')
+            ->first();
+
+        return response()->json([
+            'produto_id' => $produtoId,
+            'estoque_atual' => $estoque ? $estoque->quantidade_posterior : 0,
+            'estoque_minimo' => $produto->estoque_minimo ?? 0,
+        ]);
     }
 
     public function buscarProduto(Request $request, $codigo)

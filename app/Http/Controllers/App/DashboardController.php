@@ -4,8 +4,11 @@ namespace App\Http\Controllers\App;
 
 use App\Http\Controllers\Controller;
 use App\Models\Cliente;
+use App\Models\ConfiguracaoFiscal;
 use App\Models\ContaPagar;
 use App\Models\ContaReceber;
+use App\Models\Empresa;
+use App\Models\Produto;
 use App\Models\Venda;
 use App\Models\VendaItem;
 use Carbon\Carbon;
@@ -20,6 +23,26 @@ class DashboardController extends Controller
         $fimMes = Carbon::now()->endOfMonth();
         $unidadeId = session('unidade_id');
         $empresaId = auth()->user()->empresa_id;
+
+        // Setup progress checks
+        $temVendas = Venda::where('empresa_id', $empresaId)->exists();
+        $temProdutos = Produto::where('empresa_id', $empresaId)->exists();
+        $temClientes = Cliente::where('empresa_id', $empresaId)->exists();
+
+        $setupCompleto = [
+            'produtos' => $temProdutos,
+            'clientes' => $temClientes,
+            'fiscal' => ConfiguracaoFiscal::withoutGlobalScopes()->where('empresa_id', $empresaId)->where('emissao_fiscal_ativa', true)->exists(),
+            'primeira_venda' => $temVendas,
+        ];
+        $setupPercentual = (int)(collect($setupCompleto)->filter()->count() / count($setupCompleto) * 100);
+
+        // Alertas
+        $estoqueBaixo = Produto::where('empresa_id', $empresaId)->whereColumn('estoque_minimo', '>', DB::raw('0'))->count();
+        $contasVencidas = ContaReceber::where('empresa_id', $empresaId)->where('status', 'pendente')->where('vencimento', '<', now())->count();
+
+        $empresa = Empresa::find($empresaId);
+        $trialDias = $empresa ? $empresa->diasRestantesTrial() : 0;
 
         // Faturamento do mes
         $faturamentoMes = Venda::where('unidade_id', $unidadeId)
@@ -115,6 +138,11 @@ class DashboardController extends Controller
             'topProdutos',
             'vendasPorDia',
             'ultimasVendas',
+            'setupCompleto',
+            'setupPercentual',
+            'estoqueBaixo',
+            'contasVencidas',
+            'trialDias',
         ));
     }
 }

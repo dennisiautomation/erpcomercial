@@ -66,9 +66,19 @@
         <h4 class="fw-bold mb-1"><i class="bi bi-people me-2"></i>Clientes</h4>
         <p class="text-muted mb-0 small">Gerencie sua base de clientes</p>
     </div>
-    <a href="{{ route('app.clientes.create') }}" class="btn btn-primary rounded-pill px-4">
-        <i class="bi bi-plus-lg me-1"></i> Novo Cliente
-    </a>
+    <div class="d-flex gap-2">
+        <div class="btn-group">
+            <button data-import="{{ route('app.import.clientes') }}" class="btn btn-erp-outline">
+                <i class="bi bi-upload me-1"></i> Importar CSV
+            </button>
+            <a href="{{ route('app.import.template', 'clientes') }}" class="btn btn-erp-outline">
+                <i class="bi bi-download me-1"></i> Modelo
+            </a>
+        </div>
+        <a href="{{ route('app.clientes.create') }}" class="btn btn-primary rounded-pill px-4">
+            <i class="bi bi-plus-lg me-1"></i> Novo Cliente
+        </a>
+    </div>
 </div>
 
 {{-- Counter Cards --}}

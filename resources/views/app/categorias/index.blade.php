@@ -3,40 +3,42 @@
 @section('title', 'Categorias')
 
 @section('content')
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h4 class="mb-0"><i class="bi bi-tags me-2"></i>Categorias</h4>
-    <a href="{{ route('app.categorias.create') }}" class="btn btn-primary">
+<div class="fade-in">
+<div class="page-header">
+    <div>
+        <h4><i class="bi bi-tags me-2"></i>Categorias</h4>
+        <div class="subtitle">Gerencie as categorias de produtos</div>
+    </div>
+    <a href="{{ route('app.categorias.create') }}" class="btn btn-erp btn-erp-primary">
         <i class="bi bi-plus-lg me-1"></i> Nova Categoria
     </a>
 </div>
 
-<div class="card shadow-sm mb-4">
-    <div class="card-body">
-        <form method="GET" action="{{ route('app.categorias.index') }}" class="row g-3 align-items-end">
-            <div class="col-md-6">
-                <label class="form-label">Buscar</label>
-                <div class="input-group">
-                    <span class="input-group-text"><i class="bi bi-search"></i></span>
-                    <input type="text" name="busca" class="form-control" placeholder="Nome da categoria..." value="{{ request('busca') }}">
-                </div>
+<div class="filter-bar">
+    <form method="GET" action="{{ route('app.categorias.index') }}" class="row g-3 align-items-end erp-form">
+        <div class="col-md-6">
+            <label class="form-label">Buscar</label>
+            <div class="input-group">
+                <span class="input-group-text"><i class="bi bi-search"></i></span>
+                <input type="text" name="busca" class="form-control" placeholder="Nome da categoria..." value="{{ request('busca') }}">
             </div>
-            <div class="col-md-6 d-flex gap-2">
-                <button type="submit" class="btn btn-outline-primary">
-                    <i class="bi bi-funnel me-1"></i> Filtrar
-                </button>
-                <a href="{{ route('app.categorias.index') }}" class="btn btn-outline-secondary">
-                    <i class="bi bi-x-lg me-1"></i> Limpar
-                </a>
-            </div>
-        </form>
-    </div>
+        </div>
+        <div class="col-md-6 d-flex gap-2">
+            <button type="submit" class="btn btn-erp btn-erp-primary">
+                <i class="bi bi-funnel me-1"></i> Filtrar
+            </button>
+            <a href="{{ route('app.categorias.index') }}" class="btn btn-erp btn-erp-outline">
+                <i class="bi bi-x-lg me-1"></i> Limpar
+            </a>
+        </div>
+    </form>
 </div>
 
-<div class="card shadow-sm">
+<div class="erp-card">
     <div class="card-body p-0">
         <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
-                <thead class="table-light">
+            <table class="erp-table">
+                <thead>
                     <tr>
                         <th>Nome</th>
                         <th>Categoria Pai</th>
@@ -50,24 +52,24 @@
                         <tr>
                             <td><strong>{{ $categoria->nome }}</strong></td>
                             <td>{{ $categoria->parent->nome ?? '-' }}</td>
-                            <td class="text-center"><span class="badge bg-info">{{ $categoria->produtos_count }}</span></td>
+                            <td class="text-center"><span class="badge-status confirmado">{{ $categoria->produtos_count }}</span></td>
                             <td class="text-center">
-                                <span class="badge bg-{{ $categoria->status === 'ativo' ? 'success' : 'secondary' }}">
+                                <span class="badge-status {{ $categoria->status }}">
                                     {{ ucfirst($categoria->status) }}
                                 </span>
                             </td>
                             <td class="text-center">
-                                <div class="btn-group btn-group-sm">
-                                    <a href="{{ route('app.categorias.show', $categoria) }}" class="btn btn-outline-info" title="Visualizar">
+                                <div class="action-btns justify-content-center">
+                                    <a href="{{ route('app.categorias.show', $categoria) }}" class="btn btn-sm btn-outline-info" title="Visualizar">
                                         <i class="bi bi-eye"></i>
                                     </a>
-                                    <a href="{{ route('app.categorias.edit', $categoria) }}" class="btn btn-outline-primary" title="Editar">
+                                    <a href="{{ route('app.categorias.edit', $categoria) }}" class="btn btn-sm btn-outline-primary" title="Editar">
                                         <i class="bi bi-pencil"></i>
                                     </a>
                                     <form method="POST" action="{{ route('app.categorias.destroy', $categoria) }}" class="d-inline" onsubmit="return confirm('Tem certeza que deseja excluir esta categoria?')">
                                         @csrf
                                         @method('DELETE')
-                                        <button type="submit" class="btn btn-outline-danger" title="Excluir">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Excluir">
                                             <i class="bi bi-trash"></i>
                                         </button>
                                     </form>
@@ -76,9 +78,11 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="5" class="text-center text-muted py-4">
-                                <i class="bi bi-inbox fs-1 d-block mb-2"></i>
-                                Nenhuma categoria encontrada
+                            <td colspan="5">
+                                <div class="empty-state">
+                                    <i class="bi bi-inbox d-block"></i>
+                                    <h5>Nenhuma categoria encontrada</h5>
+                                </div>
                             </td>
                         </tr>
                     @endforelse
@@ -87,9 +91,10 @@
         </div>
     </div>
     @if($categorias->hasPages())
-        <div class="card-footer bg-white">
+        <div class="card-body border-top">
             {{ $categorias->links() }}
         </div>
     @endif
+</div>
 </div>
 @endsection

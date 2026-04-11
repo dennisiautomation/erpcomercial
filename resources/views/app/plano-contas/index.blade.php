@@ -3,9 +3,13 @@
 @section('title', 'Plano de Contas')
 
 @section('content')
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h4 class="mb-0"><i class="bi bi-diagram-3 me-2"></i>Plano de Contas</h4>
-    <a href="{{ route('app.plano-contas.create') }}" class="btn btn-primary">
+<div class="fade-in">
+<div class="page-header">
+    <div>
+        <h4><i class="bi bi-diagram-3 me-2"></i>Plano de Contas</h4>
+        <div class="subtitle">Estrutura hierarquica de contas contabeis</div>
+    </div>
+    <a href="{{ route('app.plano-contas.create') }}" class="btn btn-erp btn-erp-primary">
         <i class="bi bi-plus-lg me-1"></i> Nova Conta
     </a>
 </div>
@@ -24,19 +28,20 @@
     </div>
 @endif
 
-<div class="card">
+<div class="erp-card">
     <div class="card-body">
         @if($contas->isEmpty())
-            <div class="text-center py-5 text-muted">
-                <i class="bi bi-diagram-3 fs-1"></i>
-                <p class="mt-2">Nenhuma conta cadastrada.</p>
-                <a href="{{ route('app.plano-contas.create') }}" class="btn btn-primary btn-sm">
+            <div class="empty-state">
+                <i class="bi bi-diagram-3 d-block"></i>
+                <h5>Nenhuma conta cadastrada</h5>
+                <p>Crie a primeira conta para comecar.</p>
+                <a href="{{ route('app.plano-contas.create') }}" class="btn btn-erp btn-erp-primary btn-sm">
                     <i class="bi bi-plus-lg me-1"></i> Cadastrar Primeira Conta
                 </a>
             </div>
         @else
             <div class="table-responsive">
-                <table class="table table-hover mb-0">
+                <table class="erp-table">
                     <thead>
                         <tr>
                             <th>Codigo</th>
@@ -56,6 +61,7 @@
             </div>
         @endif
     </div>
+</div>
 </div>
 
 @push('scripts')

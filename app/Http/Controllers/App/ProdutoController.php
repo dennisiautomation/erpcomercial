@@ -5,6 +5,7 @@ namespace App\Http\Controllers\App;
 use App\Http\Controllers\Controller;
 use App\Models\Categoria;
 use App\Models\Produto;
+use App\Services\FiscalAutoConfig;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
@@ -40,9 +41,17 @@ class ProdutoController extends Controller
 
     public function create()
     {
-        $categorias = Categoria::where('status', 'ativo')->orderBy('nome')->get();
+        $empresa = auth()->user()->empresa;
+        $regime = $empresa->regime_tributario instanceof \App\Enums\RegimeTributario
+            ? $empresa->regime_tributario->value
+            : $empresa->regime_tributario;
 
-        return view('app.produtos.create', compact('categorias'));
+        $fiscalDefaults = FiscalAutoConfig::defaults($regime);
+        $cfopOptions = FiscalAutoConfig::cfopOptions();
+        $origemOptions = FiscalAutoConfig::origemOptions();
+        $categorias = Categoria::where('empresa_id', $empresa->id)->orderBy('nome')->get();
+
+        return view('app.produtos.create', compact('categorias', 'fiscalDefaults', 'cfopOptions', 'origemOptions'));
     }
 
     public function store(Request $request)
@@ -71,6 +80,19 @@ class ProdutoController extends Controller
             'cofins_aliquota'    => 'nullable|numeric|min:0|max:100',
             'ipi_aliquota'       => 'nullable|numeric|min:0|max:100',
         ]);
+
+        // Fill empty fiscal fields with defaults based on regime tributario
+        if (empty($validated['cst_csosn'])) {
+            $regime = auth()->user()->empresa->regime_tributario;
+            $regimeValue = $regime instanceof \App\Enums\RegimeTributario ? $regime->value : $regime;
+            $defaults = FiscalAutoConfig::defaults($regimeValue);
+            $validated['cst_csosn'] = $validated['cst_csosn'] ?: $defaults['cst_csosn'];
+            $validated['cfop'] = $validated['cfop'] ?: $defaults['cfop_venda_interna'];
+            $validated['icms_aliquota'] = $validated['icms_aliquota'] ?: $defaults['icms_aliquota'];
+            $validated['pis_aliquota'] = $validated['pis_aliquota'] ?: $defaults['pis_aliquota'];
+            $validated['cofins_aliquota'] = $validated['cofins_aliquota'] ?: $defaults['cofins_aliquota'];
+            $validated['origem'] = $validated['origem'] ?? $defaults['origem'];
+        }
 
         // Auto-generate codigo_interno
         $empresaId = auth()->user()->empresa_id;

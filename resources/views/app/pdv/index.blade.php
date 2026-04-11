@@ -818,6 +818,18 @@
             </div>
         </div>
 
+        {{-- Vendedor --}}
+        @if(isset($operadores) && $operadores->count() > 0)
+        <div class="cliente-section">
+            <select id="vendedorSelect" class="form-select" style="background:var(--bg-primary); border:1px solid var(--border); color:var(--text-primary); border-radius:8px; font-size:0.85rem; padding:8px 12px;">
+                <option value="">Vendedor: {{ auth()->user()->name }} (padrao)</option>
+                @foreach($operadores as $op)
+                    <option value="{{ $op->id }}">{{ $op->name }} ({{ $op->perfil }})</option>
+                @endforeach
+            </select>
+        </div>
+        @endif
+
         {{-- Summary --}}
         <div class="summary-section">
             <div class="summary-row">
@@ -1341,7 +1353,20 @@ const PDV = {
         document.getElementById('searchInput').focus();
     },
 
-    addProduto(produto) {
+    async addProduto(produto) {
+        // Check stock before adding
+        try {
+            const estoqueResp = await fetch(`/app/pdv/estoque/${produto.id}`, {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            });
+            const estoqueData = await estoqueResp.json();
+            if (estoqueData.estoque_atual <= 0) {
+                this.showAlert('Sem estoque para: ' + produto.descricao, 'warning');
+            }
+        } catch (err) {
+            // Continue even if stock check fails
+        }
+
         // Check if product already exists, increment qty
         const existing = this.itens.find(i => i.produto_id === produto.id);
         if (existing) {
@@ -1703,6 +1728,7 @@ const PDV = {
                 })),
                 pagamentos: this.pagamentos,
                 cliente_id: this.clienteId,
+                vendedor_id: document.getElementById('vendedorSelect')?.value || null,
                 desconto_valor: this.descontoValor,
                 desconto_percentual: this.descontoPercentual,
             };

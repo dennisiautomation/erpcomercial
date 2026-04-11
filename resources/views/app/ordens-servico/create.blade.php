@@ -25,16 +25,29 @@
                     <div class="row g-3">
                         <div class="col-md-12">
                             <label class="form-label fw-semibold">Cliente <span class="text-danger">*</span></label>
-                            <select name="cliente_id" class="form-select @error('cliente_id') is-invalid @enderror" required>
-                                <option value="">Selecione o cliente...</option>
-                                @foreach($clientes as $cliente)
-                                    <option value="{{ $cliente->id }}" {{ old('cliente_id') == $cliente->id ? 'selected' : '' }}>
-                                        {{ $cliente->nome_razao_social }}
-                                        @if($cliente->cpf_cnpj) - {{ $cliente->cpf_cnpj }} @endif
-                                    </option>
-                                @endforeach
-                            </select>
-                            @error('cliente_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                            <div class="position-relative">
+                                <div class="input-group" id="clienteBuscaGroup">
+                                    <span class="input-group-text bg-transparent"><i class="bi bi-search"></i></span>
+                                    <input type="text" id="clienteBusca" class="form-control @error('cliente_id') is-invalid @enderror"
+                                           placeholder="Buscar cliente por nome ou CPF/CNPJ..." autocomplete="off">
+                                </div>
+                                <div id="clienteResultados" class="list-group mt-1 position-absolute w-100 shadow-lg"
+                                     style="z-index:1050; display:none; max-height:300px; overflow-y:auto;"></div>
+                                <input type="hidden" name="cliente_id" id="clienteId" value="{{ old('cliente_id') }}" required>
+                                <div id="clienteSelecionado" class="mt-2" style="display:none;">
+                                    <div class="d-flex align-items-center bg-primary bg-opacity-10 rounded-3 p-2 ps-3">
+                                        <i class="bi bi-person-check text-primary me-2 fs-5"></i>
+                                        <div class="flex-grow-1">
+                                            <div class="fw-semibold" id="clienteNome"></div>
+                                            <small class="text-muted" id="clienteDoc"></small>
+                                        </div>
+                                        <button type="button" class="btn btn-sm btn-outline-danger rounded-circle ms-2" id="btnRemoverCliente" title="Remover cliente">
+                                            <i class="bi bi-x-lg"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            @error('cliente_id') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
                         </div>
                         <div class="col-md-12">
                             <label class="form-label fw-semibold">Equipamento <span class="text-danger">*</span></label>
@@ -172,6 +185,71 @@
 
 @push('scripts')
 <script>
+    // ===== CLIENTE SEARCH =====
+    const clientesBuscarUrl = '{{ route("app.search.clientes") }}';
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+    const clienteBusca = document.getElementById('clienteBusca');
+    const clienteResultados = document.getElementById('clienteResultados');
+    let clienteTimeout;
+
+    clienteBusca.addEventListener('input', function() {
+        clearTimeout(clienteTimeout);
+        const termo = this.value.trim();
+        if (termo.length < 2) { clienteResultados.style.display = 'none'; return; }
+        clienteTimeout = setTimeout(() => {
+            fetch(`${clientesBuscarUrl}?q=${encodeURIComponent(termo)}`, {
+                headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': csrfToken }
+            })
+            .then(r => r.json())
+            .then(clientes => {
+                clienteResultados.innerHTML = '';
+                if (clientes.length === 0) {
+                    clienteResultados.innerHTML = '<div class="list-group-item text-muted small py-2">Nenhum cliente encontrado</div>';
+                    clienteResultados.style.display = 'block';
+                    return;
+                }
+                clientes.forEach(c => {
+                    const item = document.createElement('a');
+                    item.href = '#';
+                    item.className = 'list-group-item list-group-item-action py-2';
+                    item.innerHTML = `
+                        <div class="fw-semibold">${c.nome_razao_social}</div>
+                        <small class="text-muted">${c.cpf_cnpj || 'Sem documento'}</small>
+                    `;
+                    item.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        document.getElementById('clienteId').value = c.id;
+                        document.getElementById('clienteNome').textContent = c.nome_razao_social;
+                        document.getElementById('clienteDoc').textContent = c.cpf_cnpj || '';
+                        document.getElementById('clienteSelecionado').style.display = 'block';
+                        document.getElementById('clienteBuscaGroup').style.display = 'none';
+                        clienteResultados.style.display = 'none';
+                    });
+                    clienteResultados.appendChild(item);
+                });
+                clienteResultados.style.display = 'block';
+            });
+        }, 300);
+    });
+
+    clienteBusca.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') clienteResultados.style.display = 'none';
+    });
+
+    document.getElementById('btnRemoverCliente').addEventListener('click', function() {
+        document.getElementById('clienteId').value = '';
+        document.getElementById('clienteSelecionado').style.display = 'none';
+        document.getElementById('clienteBuscaGroup').style.display = 'flex';
+        clienteBusca.value = '';
+        clienteBusca.focus();
+    });
+
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('#clienteBusca') && !e.target.closest('#clienteResultados')) {
+            clienteResultados.style.display = 'none';
+        }
+    });
+
     const produtos = @json($produtos);
     const servicos = @json($servicos);
     let itemIndex = 0;

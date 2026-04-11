@@ -30,18 +30,33 @@ class ConfiguracaoFiscalController extends Controller
 
     public function update(Request $request)
     {
-        $validated = $request->validate([
-            'ambiente'             => 'required|in:homologacao,producao',
-            'focus_token'          => 'nullable|string|max:255',
-            'serie_nfe'            => 'nullable|integer|min:1|max:999',
-            'serie_nfce'           => 'nullable|integer|min:1|max:999',
-            'csc_nfce'             => 'nullable|string|max:255',
-            'csc_id_nfce'          => 'nullable|string|max:10',
-            'emissao_fiscal_ativa' => 'boolean',
-            'tipo_cupom_pdv'       => 'required|in:fiscal,nao_fiscal',
-        ]);
+        // When fiscal is disabled, provide defaults for fields that won't be in the form
+        $emissaoAtiva = $request->boolean('emissao_fiscal_ativa');
 
-        $validated['emissao_fiscal_ativa'] = $request->boolean('emissao_fiscal_ativa');
+        $rules = [
+            'emissao_fiscal_ativa' => 'required|in:0,1',
+        ];
+
+        if ($emissaoAtiva) {
+            $rules += [
+                'ambiente'             => 'required|in:homologacao,producao',
+                'focus_token'          => 'nullable|string|max:255',
+                'serie_nfe'            => 'nullable|integer|min:1|max:999',
+                'serie_nfce'           => 'nullable|integer|min:1|max:999',
+                'csc_nfce'             => 'nullable|string|max:255',
+                'csc_id_nfce'          => 'nullable|string|max:10',
+                'tipo_cupom_pdv'       => 'required|in:fiscal,nao_fiscal',
+            ];
+        }
+
+        $validated = $request->validate($rules);
+
+        $validated['emissao_fiscal_ativa'] = $emissaoAtiva;
+
+        if (!$emissaoAtiva) {
+            $validated['tipo_cupom_pdv'] = $request->input('tipo_cupom_pdv', 'nao_fiscal');
+            $validated['ambiente'] = $request->input('ambiente', 'homologacao');
+        }
 
         $config = ConfiguracaoFiscal::updateOrCreate(
             [

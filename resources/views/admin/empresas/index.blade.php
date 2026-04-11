@@ -50,7 +50,7 @@
         <h4 class="fw-bold mb-1"><i class="bi bi-building me-2"></i>Empresas</h4>
         <p class="text-muted mb-0 small">Gerenciar empresas cadastradas na plataforma</p>
     </div>
-    <a href="{{ route('admin.empresas.create') }}" class="btn btn-primary">
+    <a href="{{ route('admin.onboarding.step1') }}" class="btn btn-primary">
         <i class="bi bi-plus-lg me-1"></i> Nova Empresa
     </a>
 </div>

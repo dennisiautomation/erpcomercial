@@ -3,17 +3,21 @@
 @section('title', 'Conciliacao Bancaria')
 
 @section('content')
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h4 class="mb-0"><i class="bi bi-bank me-2"></i>Conciliacao Bancaria</h4>
-    <a href="{{ route('app.conciliacao.create') }}" class="btn btn-primary">
+<div class="fade-in">
+<div class="page-header">
+    <div>
+        <h4><i class="bi bi-bank me-2"></i>Conciliacao Bancaria</h4>
+        <div class="subtitle">Importe extratos e concilie lancamentos</div>
+    </div>
+    <a href="{{ route('app.conciliacao.create') }}" class="btn btn-erp btn-erp-primary">
         <i class="bi bi-upload me-1"></i> Importar OFX
     </a>
 </div>
 
-<div class="card">
+<div class="erp-card">
     <div class="table-responsive">
-        <table class="table table-hover mb-0">
-            <thead class="table-light">
+        <table class="erp-table">
+            <thead>
                 <tr>
                     <th>Banco</th>
                     <th>Agencia / Conta</th>
@@ -43,12 +47,6 @@
                     </td>
                     <td>
                         @php
-                            $statusClass = match($c->status) {
-                                'concluida' => 'success',
-                                'em_andamento' => 'info',
-                                'pendente' => 'warning',
-                                default => 'secondary',
-                            };
                             $statusLabel = match($c->status) {
                                 'concluida' => 'Concluida',
                                 'em_andamento' => 'Em Andamento',
@@ -56,26 +54,36 @@
                                 default => $c->status,
                             };
                         @endphp
-                        <span class="badge bg-{{ $statusClass }}">{{ $statusLabel }}</span>
+                        <span class="badge-status {{ $c->status }}">{{ $statusLabel }}</span>
                     </td>
                     <td>{{ $c->created_at?->format('d/m/Y') }}</td>
                     <td>
-                        <a href="{{ route('app.conciliacao.show', $c) }}" class="btn btn-sm btn-outline-primary" title="Ver">
-                            <i class="bi bi-eye"></i>
-                        </a>
+                        <div class="action-btns">
+                            <a href="{{ route('app.conciliacao.show', $c) }}" class="btn btn-sm btn-outline-primary" title="Ver">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                        </div>
                     </td>
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="8" class="text-center text-muted py-4">Nenhuma conciliacao encontrada. Importe um arquivo OFX para comecar.</td>
+                    <td colspan="8">
+                        <div class="empty-state">
+                            <i class="bi bi-bank d-block"></i>
+                            <h5>Nenhuma conciliacao encontrada</h5>
+                            <p>Importe um arquivo OFX para comecar.</p>
+                        </div>
+                    </td>
                 </tr>
                 @endforelse
             </tbody>
         </table>
     </div>
+    @if($conciliacoes->hasPages())
+        <div class="card-body border-top">
+            {{ $conciliacoes->links() }}
+        </div>
+    @endif
 </div>
-
-<div class="mt-3">
-    {{ $conciliacoes->links() }}
 </div>
 @endsection

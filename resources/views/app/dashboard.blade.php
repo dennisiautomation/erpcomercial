@@ -117,6 +117,84 @@
         background: radial-gradient(circle, rgba(255,255,255,0.06) 0%, transparent 70%);
         border-radius: 50%;
     }
+
+    /* Setup wizard styles */
+    .setup-card {
+        border: none;
+        border-radius: 20px;
+        overflow: hidden;
+        box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+    }
+    .setup-progress-bar {
+        height: 8px;
+        border-radius: 4px;
+        background: #e2e8f0;
+        overflow: hidden;
+    }
+    .setup-progress-fill {
+        height: 100%;
+        border-radius: 4px;
+        background: linear-gradient(90deg, #3b82f6, #10b981);
+        transition: width 0.5s ease;
+    }
+    .setup-item {
+        display: flex;
+        align-items: center;
+        padding: 16px 20px;
+        border-bottom: 1px solid #f1f5f9;
+        transition: background 0.15s;
+    }
+    .setup-item:last-child { border-bottom: none; }
+    .setup-item:hover { background: #f8fafc; }
+    .setup-check {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1rem;
+        margin-right: 16px;
+        flex-shrink: 0;
+    }
+    .setup-check.done {
+        background: #dcfce7;
+        color: #16a34a;
+    }
+    .setup-check.pending {
+        background: #f1f5f9;
+        color: #94a3b8;
+        border: 2px dashed #cbd5e1;
+    }
+    .setup-item-content { flex: 1; }
+    .setup-item-title { font-weight: 600; font-size: 0.95rem; }
+    .setup-item-desc { font-size: 0.82rem; color: #64748b; }
+
+    /* Quick action buttons */
+    .quick-action-btn {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 20px 16px;
+        border-radius: 16px;
+        border: 2px solid #e2e8f0;
+        background: #fff;
+        color: #334155;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 0.9rem;
+        transition: all 0.2s;
+        gap: 8px;
+    }
+    .quick-action-btn i { font-size: 1.8rem; }
+    .quick-action-btn:hover {
+        border-color: #3b82f6;
+        background: #eff6ff;
+        color: #2563eb;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(59,130,246,0.15);
+    }
 </style>
 @endpush
 
@@ -134,6 +212,210 @@
                 {{ now()->translatedFormat('F Y') }}
             </span>
         </div>
+    </div>
+</div>
+
+@if($setupPercentual < 100)
+{{-- ===== SETUP WIZARD (First time user) ===== --}}
+<div class="row justify-content-center mb-4">
+    <div class="col-lg-8">
+        <div class="card setup-card">
+            <div class="card-body p-4">
+                <div class="text-center mb-4">
+                    <i class="bi bi-rocket-takeoff fs-1 text-primary d-block mb-2"></i>
+                    <h4 class="fw-bold mb-1">Vamos configurar seu ERP</h4>
+                    <p class="text-muted mb-3">Complete os passos abaixo para comecar a usar o sistema</p>
+                    <div class="d-flex align-items-center justify-content-center gap-3 mb-2">
+                        <div class="setup-progress-bar" style="width: 200px;">
+                            <div class="setup-progress-fill" style="width: {{ $setupPercentual }}%"></div>
+                        </div>
+                        <span class="fw-bold text-primary">{{ $setupPercentual }}%</span>
+                    </div>
+                    <small class="text-muted">{{ collect($setupCompleto)->filter()->count() }} de {{ count($setupCompleto) }} etapas concluidas</small>
+                </div>
+
+                <div class="border rounded-3 overflow-hidden">
+                    {{-- Produtos --}}
+                    <div class="setup-item">
+                        <div class="setup-check {{ $setupCompleto['produtos'] ? 'done' : 'pending' }}">
+                            <i class="bi {{ $setupCompleto['produtos'] ? 'bi-check-lg' : 'bi-box-seam' }}"></i>
+                        </div>
+                        <div class="setup-item-content">
+                            <div class="setup-item-title {{ $setupCompleto['produtos'] ? 'text-success' : '' }}">
+                                Cadastrar produtos
+                            </div>
+                            <div class="setup-item-desc">Cadastre seus produtos ou importe via CSV</div>
+                        </div>
+                        @if(!$setupCompleto['produtos'])
+                            <div class="d-flex gap-2">
+                                <a href="{{ route('app.produtos.create') }}" class="btn btn-sm btn-primary rounded-pill px-3">
+                                    <i class="bi bi-plus-lg me-1"></i> Criar
+                                </a>
+                                <a href="{{ route('app.produtos.index') }}" class="btn btn-sm btn-outline-primary rounded-pill px-3">
+                                    <i class="bi bi-upload me-1"></i> Importar CSV
+                                </a>
+                            </div>
+                        @else
+                            <span class="badge bg-success bg-opacity-10 text-success px-3 py-2 rounded-pill">
+                                <i class="bi bi-check-circle me-1"></i> Concluido
+                            </span>
+                        @endif
+                    </div>
+
+                    {{-- Clientes --}}
+                    <div class="setup-item">
+                        <div class="setup-check {{ $setupCompleto['clientes'] ? 'done' : 'pending' }}">
+                            <i class="bi {{ $setupCompleto['clientes'] ? 'bi-check-lg' : 'bi-people' }}"></i>
+                        </div>
+                        <div class="setup-item-content">
+                            <div class="setup-item-title {{ $setupCompleto['clientes'] ? 'text-success' : '' }}">
+                                Cadastrar clientes
+                            </div>
+                            <div class="setup-item-desc">Cadastre seus clientes ou importe via CSV</div>
+                        </div>
+                        @if(!$setupCompleto['clientes'])
+                            <div class="d-flex gap-2">
+                                <a href="{{ route('app.clientes.create') }}" class="btn btn-sm btn-primary rounded-pill px-3">
+                                    <i class="bi bi-plus-lg me-1"></i> Criar
+                                </a>
+                                <a href="{{ route('app.clientes.index') }}" class="btn btn-sm btn-outline-primary rounded-pill px-3">
+                                    <i class="bi bi-upload me-1"></i> Importar CSV
+                                </a>
+                            </div>
+                        @else
+                            <span class="badge bg-success bg-opacity-10 text-success px-3 py-2 rounded-pill">
+                                <i class="bi bi-check-circle me-1"></i> Concluido
+                            </span>
+                        @endif
+                    </div>
+
+                    {{-- Fiscal --}}
+                    <div class="setup-item">
+                        <div class="setup-check {{ $setupCompleto['fiscal'] ? 'done' : 'pending' }}">
+                            <i class="bi {{ $setupCompleto['fiscal'] ? 'bi-check-lg' : 'bi-receipt' }}"></i>
+                        </div>
+                        <div class="setup-item-content">
+                            <div class="setup-item-title {{ $setupCompleto['fiscal'] ? 'text-success' : '' }}">
+                                Configurar fiscal
+                            </div>
+                            <div class="setup-item-desc">Configure a emissao de notas fiscais (opcional)</div>
+                        </div>
+                        @if(!$setupCompleto['fiscal'])
+                            <div class="d-flex gap-2">
+                                <a href="{{ route('app.configuracao-fiscal.edit') }}" class="btn btn-sm btn-primary rounded-pill px-3">
+                                    <i class="bi bi-gear me-1"></i> Configurar
+                                </a>
+                            </div>
+                        @else
+                            <span class="badge bg-success bg-opacity-10 text-success px-3 py-2 rounded-pill">
+                                <i class="bi bi-check-circle me-1"></i> Concluido
+                            </span>
+                        @endif
+                    </div>
+
+                    {{-- Primeira venda --}}
+                    <div class="setup-item">
+                        <div class="setup-check {{ $setupCompleto['primeira_venda'] ? 'done' : 'pending' }}">
+                            <i class="bi {{ $setupCompleto['primeira_venda'] ? 'bi-check-lg' : 'bi-cart-check' }}"></i>
+                        </div>
+                        <div class="setup-item-content">
+                            <div class="setup-item-title {{ $setupCompleto['primeira_venda'] ? 'text-success' : '' }}">
+                                Fazer primeira venda
+                            </div>
+                            <div class="setup-item-desc">Registre sua primeira venda pelo PDV ou modulo de vendas</div>
+                        </div>
+                        @if(!$setupCompleto['primeira_venda'])
+                            <a href="{{ route('app.pdv.index') }}" class="btn btn-sm btn-success rounded-pill px-3">
+                                <i class="bi bi-cart3 me-1"></i> Abrir PDV
+                            </a>
+                        @else
+                            <span class="badge bg-success bg-opacity-10 text-success px-3 py-2 rounded-pill">
+                                <i class="bi bi-check-circle me-1"></i> Concluido
+                            </span>
+                        @endif
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@else
+{{-- ===== CONFIGURED DASHBOARD ===== --}}
+
+{{-- Alerts Bar --}}
+@if($estoqueBaixo > 0 || $contasVencidas > 0 || ($trialDias > 0 && $trialDias <= 7))
+<div class="row g-3 mb-4">
+    @if($estoqueBaixo > 0)
+    <div class="col-md-4">
+        <div class="card border-warning border-start border-4 shadow-sm">
+            <div class="card-body d-flex align-items-center py-3">
+                <div class="bg-warning bg-opacity-10 rounded-3 p-2 me-3">
+                    <i class="bi bi-exclamation-triangle fs-5 text-warning"></i>
+                </div>
+                <div>
+                    <h6 class="fw-bold text-warning mb-0">{{ $estoqueBaixo }} produto(s)</h6>
+                    <small class="text-muted">com estoque minimo definido</small>
+                </div>
+                <a href="{{ route('app.relatorios.estoque') }}" class="btn btn-sm btn-outline-warning ms-auto">Ver</a>
+            </div>
+        </div>
+    </div>
+    @endif
+    @if($contasVencidas > 0)
+    <div class="col-md-4">
+        <div class="card border-danger border-start border-4 shadow-sm">
+            <div class="card-body d-flex align-items-center py-3">
+                <div class="bg-danger bg-opacity-10 rounded-3 p-2 me-3">
+                    <i class="bi bi-exclamation-circle fs-5 text-danger"></i>
+                </div>
+                <div>
+                    <h6 class="fw-bold text-danger mb-0">{{ $contasVencidas }} conta(s)</h6>
+                    <small class="text-muted">a receber vencida(s)</small>
+                </div>
+                <a href="{{ route('app.contas-receber.index') }}" class="btn btn-sm btn-outline-danger ms-auto">Ver</a>
+            </div>
+        </div>
+    </div>
+    @endif
+    @if($trialDias > 0 && $trialDias <= 7)
+    <div class="col-md-4">
+        <div class="card border-primary border-start border-4 shadow-sm">
+            <div class="card-body d-flex align-items-center py-3">
+                <div class="bg-primary bg-opacity-10 rounded-3 p-2 me-3">
+                    <i class="bi bi-clock-history fs-5 text-primary"></i>
+                </div>
+                <div>
+                    <h6 class="fw-bold text-primary mb-0">{{ $trialDias }} dia(s)</h6>
+                    <small class="text-muted">restantes no trial</small>
+                </div>
+                <a href="{{ route('app.plano.index') }}" class="btn btn-sm btn-outline-primary ms-auto">Assinar</a>
+            </div>
+        </div>
+    </div>
+    @endif
+</div>
+@endif
+
+{{-- Quick Actions --}}
+<div class="row g-3 mb-4">
+    <div class="col-sm-4">
+        <a href="{{ route('app.vendas.create') }}" class="quick-action-btn w-100 h-100">
+            <i class="bi bi-cart-plus text-success"></i>
+            Nova Venda
+        </a>
+    </div>
+    <div class="col-sm-4">
+        <a href="{{ route('app.orcamentos.create') }}" class="quick-action-btn w-100 h-100">
+            <i class="bi bi-file-earmark-text text-primary"></i>
+            Novo Orcamento
+        </a>
+    </div>
+    <div class="col-sm-4">
+        <a href="{{ route('app.pdv.index') }}" class="quick-action-btn w-100 h-100">
+            <i class="bi bi-cart3 text-warning"></i>
+            Abrir PDV
+        </a>
     </div>
 </div>
 
@@ -208,7 +490,7 @@
     </div>
 </div>
 
-{{-- Alert Cards --}}
+{{-- Alert Cards (financial) --}}
 @if($inadimplencia > 0 || $contasPagarVencidas > 0)
 <div class="row g-3 mb-4">
     @if($inadimplencia > 0)
@@ -379,6 +661,8 @@
         </div>
     </div>
 </div>
+
+@endif {{-- end setupPercentual conditional --}}
 @endsection
 
 @push('scripts')

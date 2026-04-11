@@ -204,7 +204,7 @@
 document.addEventListener('DOMContentLoaded', function() {
     let itemIndex = 0;
     const produtosBuscarUrl = '{{ url("app/pdv/buscar-produto") }}';
-    const clientesBuscarUrl = '{{ url("app/clientes/buscar") }}';
+    const clientesBuscarUrl = '{{ route("app.search.clientes") }}';
     const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
 
     const itensExistentes = @json($orcamento->itens->map(fn($i) => [

@@ -41,6 +41,19 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
     Route::resource('empresas.unidades', Admin\UnidadeController::class)->shallow();
     Route::resource('usuarios', Admin\UsuarioController::class);
     Route::resource('planos', Admin\PlanoController::class);
+
+    // Onboarding
+    Route::prefix('onboarding')->name('onboarding.')->group(function () {
+        Route::get('/step1', [Admin\OnboardingController::class, 'step1'])->name('step1');
+        Route::post('/step1', [Admin\OnboardingController::class, 'storeStep1'])->name('step1.store');
+        Route::get('/step2', [Admin\OnboardingController::class, 'step2'])->name('step2');
+        Route::post('/step2', [Admin\OnboardingController::class, 'storeStep2'])->name('step2.store');
+        Route::get('/step3', [Admin\OnboardingController::class, 'step3'])->name('step3');
+        Route::post('/step3', [Admin\OnboardingController::class, 'storeStep3'])->name('step3.store');
+        Route::get('/step4', [Admin\OnboardingController::class, 'step4'])->name('step4');
+        Route::post('/step4', [Admin\OnboardingController::class, 'storeStep4'])->name('step4.store');
+        Route::get('/concluido/{empresa}', [Admin\OnboardingController::class, 'concluido'])->name('concluido');
+    });
 });
 
 /* ------------------------------------------------------------------ */
@@ -98,6 +111,9 @@ Route::middleware(['auth', 'unidade'])->prefix('app')->name('app.')->group(funct
         ->middleware('permission:vendas,criar');
     Route::get('/pdv/cliente/{termo}', [App\PdvController::class, 'buscarCliente'])
         ->name('pdv.buscar-cliente')
+        ->middleware('permission:vendas,criar');
+    Route::get('/pdv/estoque/{produto}', [App\PdvController::class, 'verificarEstoque'])
+        ->name('pdv.verificar-estoque')
         ->middleware('permission:vendas,criar');
 
     /* ------ Caixa ------ */
@@ -217,6 +233,14 @@ Route::middleware(['auth', 'unidade'])->prefix('app')->name('app.')->group(funct
     Route::prefix('multilojas')->name('multilojas.')->middleware('plano:multilojas')->group(function () {
         Route::get('/', [App\MultilojaController::class, 'index'])->name('index');
         Route::get('/comparar', [App\MultilojaController::class, 'comparar'])->name('comparar');
+    });
+
+    /* ------ Search API (autocomplete) ------ */
+    Route::prefix('search')->name('search.')->group(function () {
+        Route::get('/clientes', [App\SearchController::class, 'clientes'])->name('clientes');
+        Route::get('/produtos', [App\SearchController::class, 'produtos'])->name('produtos');
+        Route::get('/fornecedores', [App\SearchController::class, 'fornecedores'])->name('fornecedores');
+        Route::get('/vendedores', [App\SearchController::class, 'vendedores'])->name('vendedores');
     });
 
     /* ------ Ordens de Servico ------ */

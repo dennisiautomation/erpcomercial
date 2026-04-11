@@ -137,49 +137,56 @@
 
         {{-- Tab: Fiscal --}}
         <div class="tab-pane fade" id="fiscal" role="tabpanel">
-            <div class="alert alert-info border-0 mb-4">
+            @if(!empty($fiscalDefaults['label']))
+            <div class="alert alert-info d-flex align-items-center mb-3">
+                <i class="bi bi-magic me-2 fs-5"></i>
+                <div>
+                    <strong>{{ $fiscalDefaults['label'] }}</strong><br>
+                    <small>{{ $fiscalDefaults['help'] }}</small>
+                </div>
+            </div>
+            @endif
+            <div class="alert alert-secondary border-0 mb-4">
                 <i class="bi bi-info-circle me-2"></i>
                 <strong>Importante:</strong> Os dados fiscais sao obrigatorios para emissao de NF-e e NFC-e via Focus NFe.
             </div>
             <div class="row g-3">
                 <div class="col-md-3">
                     <label for="ncm" class="form-label fw-semibold">NCM</label>
-                    <input type="text" name="ncm" id="ncm" class="form-control @error('ncm') is-invalid @enderror" value="{{ old('ncm') }}" maxlength="10" placeholder="0000.00.00">
+                    <input type="text" name="ncm" id="ncm" class="form-control @error('ncm') is-invalid @enderror" value="{{ old('ncm') }}" maxlength="10" placeholder="0000.00.00" title="Nomenclatura Comum do Mercosul - classifica o produto para fins fiscais e de comercio exterior">
                     @error('ncm') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     <div class="form-text">Nomenclatura Comum do Mercosul</div>
                 </div>
                 <div class="col-md-3">
                     <label for="cest" class="form-label">CEST</label>
-                    <input type="text" name="cest" id="cest" class="form-control @error('cest') is-invalid @enderror" value="{{ old('cest') }}" maxlength="10" placeholder="00.000.00">
+                    <input type="text" name="cest" id="cest" class="form-control @error('cest') is-invalid @enderror" value="{{ old('cest') }}" maxlength="10" placeholder="00.000.00" title="Codigo Especificador da Substituicao Tributaria - obrigatorio para produtos com ST">
                     @error('cest') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     <div class="form-text">Codigo Especificador da Sub. Trib.</div>
                 </div>
                 <div class="col-md-6">
                     <label for="origem" class="form-label fw-semibold">Origem</label>
-                    <select name="origem" id="origem" class="form-select @error('origem') is-invalid @enderror">
+                    <select name="origem" id="origem" class="form-select @error('origem') is-invalid @enderror" title="Indica se o produto e nacional ou importado - obrigatorio na NF-e">
                         <option value="">Selecione a origem</option>
-                        <option value="0" {{ old('origem') === '0' ? 'selected' : '' }}>0 - Nacional, exceto as indicadas nos codigos 3, 4, 5 e 8</option>
-                        <option value="1" {{ old('origem') === '1' ? 'selected' : '' }}>1 - Estrangeira - Importacao direta</option>
-                        <option value="2" {{ old('origem') === '2' ? 'selected' : '' }}>2 - Estrangeira - Adquirida no mercado interno</option>
-                        <option value="3" {{ old('origem') === '3' ? 'selected' : '' }}>3 - Nacional - Conteudo de importacao superior a 40% e inferior ou igual a 70%</option>
-                        <option value="4" {{ old('origem') === '4' ? 'selected' : '' }}>4 - Nacional - Processos produtivos basicos</option>
-                        <option value="5" {{ old('origem') === '5' ? 'selected' : '' }}>5 - Nacional - Conteudo de importacao inferior ou igual a 40%</option>
-                        <option value="6" {{ old('origem') === '6' ? 'selected' : '' }}>6 - Estrangeira - Importacao direta, sem similar nacional</option>
-                        <option value="7" {{ old('origem') === '7' ? 'selected' : '' }}>7 - Estrangeira - Adquirida no mercado interno, sem similar nacional</option>
-                        <option value="8" {{ old('origem') === '8' ? 'selected' : '' }}>8 - Nacional - Conteudo de importacao superior a 70%</option>
+                        @foreach($origemOptions as $code => $label)
+                            <option value="{{ $code }}" {{ old('origem', $fiscalDefaults['origem'] ?? '') == (string)$code && old('origem', $fiscalDefaults['origem'] ?? '') !== '' ? 'selected' : '' }}>{{ $label }}</option>
+                        @endforeach
                     </select>
                     @error('origem') <div class="invalid-feedback">{{ $message }}</div> @enderror
                 </div>
 
                 <div class="col-md-3">
                     <label for="cfop" class="form-label fw-semibold">CFOP</label>
-                    <input type="text" name="cfop" id="cfop" class="form-control @error('cfop') is-invalid @enderror" value="{{ old('cfop') }}" maxlength="4" placeholder="5102">
+                    <select name="cfop" id="cfop" class="form-select @error('cfop') is-invalid @enderror" title="Codigo Fiscal de Operacoes e Prestacoes - define a natureza da operacao (venda, transferencia, devolucao, etc.)">
+                        <option value="">Selecione...</option>
+                        @foreach($cfopOptions as $code => $label)
+                            <option value="{{ $code }}" {{ old('cfop', $fiscalDefaults['cfop_venda_interna'] ?? '') == $code ? 'selected' : '' }}>{{ $label }}</option>
+                        @endforeach
+                    </select>
                     @error('cfop') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                    <div class="form-text">Ex: 5102 (venda merc. adquirida)</div>
                 </div>
                 <div class="col-md-3">
                     <label for="cst_csosn" class="form-label fw-semibold">CST/CSOSN</label>
-                    <input type="text" name="cst_csosn" id="cst_csosn" class="form-control @error('cst_csosn') is-invalid @enderror" value="{{ old('cst_csosn') }}" maxlength="4" placeholder="102">
+                    <input type="text" name="cst_csosn" id="cst_csosn" class="form-control @error('cst_csosn') is-invalid @enderror" value="{{ old('cst_csosn', $fiscalDefaults['cst_csosn'] ?? '') }}" maxlength="4" placeholder="102" title="Codigo de Situacao Tributaria (regime normal) ou CSOSN (Simples Nacional) - define como o ICMS e tributado">
                     @error('cst_csosn') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     <div class="form-text">Codigo de Sit. Tributaria / CSOSN</div>
                 </div>
@@ -192,7 +199,7 @@
                 <div class="col-md-3">
                     <label for="icms_aliquota" class="form-label">ICMS (%)</label>
                     <div class="input-group">
-                        <input type="number" name="icms_aliquota" id="icms_aliquota" class="form-control @error('icms_aliquota') is-invalid @enderror" value="{{ old('icms_aliquota', '0.00') }}" step="0.01" min="0" max="100">
+                        <input type="number" name="icms_aliquota" id="icms_aliquota" class="form-control @error('icms_aliquota') is-invalid @enderror" value="{{ old('icms_aliquota', $fiscalDefaults['icms_aliquota'] ?? '0.00') }}" step="0.01" min="0" max="100" title="Imposto sobre Circulacao de Mercadorias e Servicos - aliquota varia por estado (ex: 18% em SP)">
                         <span class="input-group-text">%</span>
                         @error('icms_aliquota') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
@@ -200,7 +207,7 @@
                 <div class="col-md-3">
                     <label for="pis_aliquota" class="form-label">PIS (%)</label>
                     <div class="input-group">
-                        <input type="number" name="pis_aliquota" id="pis_aliquota" class="form-control @error('pis_aliquota') is-invalid @enderror" value="{{ old('pis_aliquota', '0.00') }}" step="0.01" min="0" max="100">
+                        <input type="number" name="pis_aliquota" id="pis_aliquota" class="form-control @error('pis_aliquota') is-invalid @enderror" value="{{ old('pis_aliquota', $fiscalDefaults['pis_aliquota'] ?? '0.00') }}" step="0.01" min="0" max="100" title="Programa de Integracao Social - 0,65% cumulativo (Lucro Presumido) ou 1,65% nao cumulativo (Lucro Real)">
                         <span class="input-group-text">%</span>
                         @error('pis_aliquota') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
@@ -208,7 +215,7 @@
                 <div class="col-md-3">
                     <label for="cofins_aliquota" class="form-label">COFINS (%)</label>
                     <div class="input-group">
-                        <input type="number" name="cofins_aliquota" id="cofins_aliquota" class="form-control @error('cofins_aliquota') is-invalid @enderror" value="{{ old('cofins_aliquota', '0.00') }}" step="0.01" min="0" max="100">
+                        <input type="number" name="cofins_aliquota" id="cofins_aliquota" class="form-control @error('cofins_aliquota') is-invalid @enderror" value="{{ old('cofins_aliquota', $fiscalDefaults['cofins_aliquota'] ?? '0.00') }}" step="0.01" min="0" max="100" title="Contribuicao para Financiamento da Seguridade Social - 3,0% cumulativo ou 7,6% nao cumulativo">
                         <span class="input-group-text">%</span>
                         @error('cofins_aliquota') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
@@ -216,7 +223,7 @@
                 <div class="col-md-3">
                     <label for="ipi_aliquota" class="form-label">IPI (%)</label>
                     <div class="input-group">
-                        <input type="number" name="ipi_aliquota" id="ipi_aliquota" class="form-control @error('ipi_aliquota') is-invalid @enderror" value="{{ old('ipi_aliquota', '0.00') }}" step="0.01" min="0" max="100">
+                        <input type="number" name="ipi_aliquota" id="ipi_aliquota" class="form-control @error('ipi_aliquota') is-invalid @enderror" value="{{ old('ipi_aliquota', $fiscalDefaults['ipi_aliquota'] ?? '0.00') }}" step="0.01" min="0" max="100" title="Imposto sobre Produtos Industrializados - aplicavel a produtos industrializados, aliquota varia por NCM">
                         <span class="input-group-text">%</span>
                         @error('ipi_aliquota') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
