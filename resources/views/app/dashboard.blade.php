@@ -215,11 +215,12 @@
     </div>
 </div>
 
-@if($setupPercentual < 100)
+@if($setupPercentual < 100 && !$wizardDismissed)
 {{-- ===== SETUP WIZARD (First time user) ===== --}}
 <div class="row justify-content-center mb-4">
     <div class="col-lg-8">
-        <div class="card setup-card">
+        <div class="card setup-card position-relative">
+            <button type="button" class="btn-close position-absolute top-0 end-0 m-3" onclick="this.closest('.card').style.display='none'; fetch('/app/dismiss-wizard', {method:'POST', headers:{'X-CSRF-TOKEN':document.querySelector('meta[name=csrf-token]').content}})" aria-label="Fechar"></button>
             <div class="card-body p-4">
                 <div class="text-center mb-4">
                     <i class="bi bi-rocket-takeoff fs-1 text-primary d-block mb-2"></i>

@@ -67,6 +67,9 @@
         <p class="text-muted mb-0 small">Gerencie sua base de clientes</p>
     </div>
     <div class="d-flex gap-2">
+        <a href="{{ route('app.export.clientes') }}" class="btn btn-erp-outline">
+            <i class="bi bi-file-earmark-spreadsheet me-1"></i> Exportar
+        </a>
         <div class="btn-group">
             <button data-import="{{ route('app.import.clientes') }}" class="btn btn-erp-outline">
                 <i class="bi bi-upload me-1"></i> Importar CSV

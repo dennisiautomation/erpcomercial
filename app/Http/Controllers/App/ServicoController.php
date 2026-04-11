@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\App;
 
 use App\Http\Controllers\Controller;
+use App\Models\ConfiguracaoFiscal;
 use App\Models\Servico;
 use Illuminate\Http\Request;
 
@@ -34,7 +35,11 @@ class ServicoController extends Controller
 
     public function create()
     {
-        return view('app.servicos.create');
+        $emiteNfse = ConfiguracaoFiscal::where('unidade_id', session('unidade_id'))
+            ->where('emissao_fiscal_ativa', true)
+            ->exists();
+
+        return view('app.servicos.create', compact('emiteNfse'));
     }
 
     public function store(Request $request)
@@ -64,7 +69,11 @@ class ServicoController extends Controller
 
     public function edit(Servico $servico)
     {
-        return view('app.servicos.edit', compact('servico'));
+        $emiteNfse = ConfiguracaoFiscal::where('unidade_id', session('unidade_id'))
+            ->where('emissao_fiscal_ativa', true)
+            ->exists();
+
+        return view('app.servicos.edit', compact('servico', 'emiteNfse'));
     }
 
     public function update(Request $request, Servico $servico)

@@ -13,6 +13,9 @@
             </ol>
         </nav>
     </div>
+    <div class="d-flex gap-2">
+        <a href="{{ route('app.export.vendas') }}" class="btn btn-erp-outline"><i class="bi bi-file-earmark-spreadsheet me-1"></i>Exportar</a>
+    </div>
 </div>
 
 {{-- Stats Cards --}}

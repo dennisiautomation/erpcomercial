@@ -4,6 +4,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\UnidadeSelecaoController;
 use App\Http\Controllers\Admin;
 use App\Http\Controllers\App;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 /* ------------------------------------------------------------------ */
@@ -19,6 +20,12 @@ Route::get('/', fn () => redirect()->route('login'));
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+
+/* ------ Password Reset ------ */
+Route::get('/esqueci-senha', [\App\Http\Controllers\Auth\PasswordResetController::class, 'showForgotForm'])->name('password.request');
+Route::post('/esqueci-senha', [\App\Http\Controllers\Auth\PasswordResetController::class, 'sendReset'])->name('password.email');
+Route::get('/reset-senha/{token}', [\App\Http\Controllers\Auth\PasswordResetController::class, 'showResetForm'])->name('password.reset');
+Route::post('/reset-senha', [\App\Http\Controllers\Auth\PasswordResetController::class, 'reset'])->name('password.update');
 
 /* ------------------------------------------------------------------ */
 /*  Selecao de Unidade (pos-login, pre-sistema)                       */
@@ -239,12 +246,55 @@ Route::middleware(['auth', 'unidade'])->prefix('app')->name('app.')->group(funct
         Route::get('/comparar', [App\MultilojaController::class, 'comparar'])->name('comparar');
     });
 
+    /* ------ Fiscal — ICMS ST Calculator (AJAX) ------ */
+    Route::get('/fiscal/calcular-st', function (Request $request) {
+        $result = \App\Services\ICMSCalculator::calcular(
+            $request->uf_origem,
+            $request->uf_destino,
+            (float) $request->valor,
+            $request->mva,
+        );
+
+        return response()->json($result);
+    })->name('fiscal.calcular-st');
+
+    Route::get('/fiscal/tabela-st/{uf}', function (string $uf) {
+        $tabela = \App\Services\ICMSCalculator::tabelaPorEstado(strtoupper($uf));
+
+        return response()->json($tabela);
+    })->name('fiscal.tabela-st');
+
+    /* ------ Notificacoes ------ */
+    Route::prefix('notificacoes')->name('notificacoes.')->group(function () {
+        Route::get('/', [App\NotificacaoController::class, 'index'])->name('index');
+        Route::post('/{notificacao}/lida', [App\NotificacaoController::class, 'marcarLida'])->name('lida');
+        Route::post('/todas-lidas', [App\NotificacaoController::class, 'marcarTodasLidas'])->name('todas-lidas');
+        Route::get('/contar', [App\NotificacaoController::class, 'contar'])->name('contar');
+    });
+
+    /* ------ Dismiss Wizard ------ */
+    Route::post('/dismiss-wizard', function () {
+        session(['wizard_dismissed' => true]);
+        return response()->json(['ok' => true]);
+    })->name('dismiss-wizard');
+
     /* ------ Search API (autocomplete) ------ */
     Route::prefix('search')->name('search.')->group(function () {
         Route::get('/clientes', [App\SearchController::class, 'clientes'])->name('clientes');
         Route::get('/produtos', [App\SearchController::class, 'produtos'])->name('produtos');
         Route::get('/fornecedores', [App\SearchController::class, 'fornecedores'])->name('fornecedores');
         Route::get('/vendedores', [App\SearchController::class, 'vendedores'])->name('vendedores');
+        Route::get('/global', [App\SearchController::class, 'global'])->name('global');
+    });
+
+    /* ------ Exportacao CSV ------ */
+    Route::prefix('export')->name('export.')->group(function () {
+        Route::get('/clientes', [App\ExportController::class, 'clientes'])->name('clientes');
+        Route::get('/produtos', [App\ExportController::class, 'produtos'])->name('produtos');
+        Route::get('/fornecedores', [App\ExportController::class, 'fornecedores'])->name('fornecedores');
+        Route::get('/vendas', [App\ExportController::class, 'vendas'])->name('vendas');
+        Route::get('/contas-receber', [App\ExportController::class, 'contasReceber'])->name('contas-receber');
+        Route::get('/contas-pagar', [App\ExportController::class, 'contasPagar'])->name('contas-pagar');
     });
 
     /* ------ Ordens de Servico ------ */

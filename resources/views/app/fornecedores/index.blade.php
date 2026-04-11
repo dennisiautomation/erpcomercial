@@ -4,6 +4,7 @@
 
 @section('content')
 <x-erp.page-header title="Fornecedores" subtitle="Gerencie seus fornecedores e parceiros comerciais" icon="truck">
+    <a href="{{ route('app.export.fornecedores') }}" class="btn btn-erp-outline"><i class="bi bi-file-earmark-spreadsheet me-1"></i>Exportar</a>
     <x-erp.import-buttons :importRoute="route('app.import.fornecedores')" templateType="fornecedores" />
     <a href="{{ route('app.fornecedores.create') }}" class="btn btn-erp-primary"><i class="bi bi-plus-lg me-1"></i>Novo Fornecedor</a>
 </x-erp.page-header>

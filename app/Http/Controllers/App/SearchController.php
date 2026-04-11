@@ -7,6 +7,7 @@ use App\Models\Cliente;
 use App\Models\Fornecedor;
 use App\Models\Produto;
 use App\Models\User;
+use App\Models\Venda;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -78,5 +79,28 @@ class SearchController extends Controller
             ->get();
 
         return response()->json($users);
+    }
+
+    public function global(Request $request): JsonResponse
+    {
+        $q = $request->input('q', '');
+        $empresaId = auth()->user()->empresa_id;
+
+        $clientes = Cliente::where('empresa_id', $empresaId)
+            ->where(fn ($query) => $query->where('nome_razao_social', 'like', "%{$q}%")->orWhere('cpf_cnpj', 'like', "%{$q}%"))
+            ->limit(5)->get()
+            ->map(fn ($c) => ['label' => $c->nome_razao_social, 'detail' => $c->cpf_cnpj, 'url' => route('app.clientes.show', $c)]);
+
+        $produtos = Produto::where('empresa_id', $empresaId)
+            ->where(fn ($query) => $query->where('descricao', 'like', "%{$q}%")->orWhere('codigo_barras', 'like', "%{$q}%")->orWhere('codigo_interno', 'like', "%{$q}%"))
+            ->limit(5)->get()
+            ->map(fn ($p) => ['label' => $p->descricao, 'detail' => 'R$ ' . number_format($p->preco_venda, 2, ',', '.'), 'url' => route('app.produtos.show', $p)]);
+
+        $vendas = Venda::where('empresa_id', $empresaId)
+            ->where('numero', 'like', "%{$q}%")
+            ->limit(5)->get()
+            ->map(fn ($v) => ['label' => "Venda #{$v->numero}", 'detail' => 'R$ ' . number_format($v->total, 2, ',', '.'), 'url' => route('app.vendas.show', $v)]);
+
+        return response()->json(['clientes' => $clientes, 'produtos' => $produtos, 'vendas' => $vendas]);
     }
 }

@@ -125,9 +125,17 @@ class ProdutoController extends Controller
 
     public function edit(Produto $produto)
     {
-        $categorias = Categoria::where('status', 'ativo')->orderBy('nome')->get();
+        $empresa = auth()->user()->empresa;
+        $regime = $empresa->regime_tributario instanceof \App\Enums\RegimeTributario
+            ? $empresa->regime_tributario->value
+            : $empresa->regime_tributario;
 
-        return view('app.produtos.edit', compact('produto', 'categorias'));
+        $fiscalDefaults = FiscalAutoConfig::defaults($regime);
+        $cfopOptions = FiscalAutoConfig::cfopOptions();
+        $origemOptions = FiscalAutoConfig::origemOptions();
+        $categorias = Categoria::where('empresa_id', $empresa->id)->orderBy('nome')->get();
+
+        return view('app.produtos.edit', compact('produto', 'categorias', 'fiscalDefaults', 'cfopOptions', 'origemOptions'));
     }
 
     public function update(Request $request, Produto $produto)

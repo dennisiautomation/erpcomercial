@@ -4,6 +4,7 @@
 
 @section('content')
 <x-erp.page-header title="Contas a Receber" subtitle="Gerencie recebiveis, parcelas e baixas" icon="cash-stack">
+    <a href="{{ route('app.export.contas-receber') }}" class="btn btn-erp-outline"><i class="bi bi-file-earmark-spreadsheet me-1"></i>Exportar</a>
     <a href="{{ route('app.contas-receber.create') }}" class="btn btn-erp-primary">
         <i class="bi bi-plus-lg me-1"></i> Nova Conta
     </a>

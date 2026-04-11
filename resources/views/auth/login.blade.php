@@ -451,6 +451,10 @@
                     <span class="btn-text">Entrar</span>
                     <i class="bi bi-arrow-right"></i>
                 </button>
+
+                <div class="text-center mt-3">
+                    <a href="{{ route('password.request') }}" style="color:#94a3b8;font-size:0.85rem;text-decoration:none;">Esqueci minha senha</a>
+                </div>
             </form>
         </div>
 

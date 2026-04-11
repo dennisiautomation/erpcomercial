@@ -4,6 +4,7 @@
 
 @section('content')
 <x-erp.page-header title="Contas a Pagar" subtitle="Gerencie despesas, fornecedores e pagamentos" icon="wallet2">
+    <a href="{{ route('app.export.contas-pagar') }}" class="btn btn-erp-outline"><i class="bi bi-file-earmark-spreadsheet me-1"></i>Exportar</a>
     <a href="{{ route('app.contas-pagar.create') }}" class="btn btn-erp-primary">
         <i class="bi bi-plus-lg me-1"></i> Nova Conta
     </a>

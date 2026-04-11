@@ -13,6 +13,7 @@ class DatabaseSeeder extends Seeder
             PermissaoSeeder::class,
             PlanoSeeder::class,
             EmpresaDemoSeeder::class,
+            RegraICMSSeeder::class,
         ]);
     }
 }

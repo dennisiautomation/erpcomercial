@@ -13,12 +13,14 @@ use App\Models\Venda;
 use App\Models\VendaItem;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use App\Services\NotificacaoService;
 use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
 {
     public function index(Request $request)
     {
+        $wizardDismissed = session('wizard_dismissed', false);
         $inicioMes = Carbon::now()->startOfMonth();
         $fimMes = Carbon::now()->endOfMonth();
         $unidadeId = session('unidade_id');
@@ -126,6 +128,13 @@ class DashboardController extends Controller
             ->limit(10)
             ->get();
 
+        // Gerar alertas de notificação automaticamente
+        try {
+            NotificacaoService::gerarAlertas(auth()->id(), $empresaId);
+        } catch (\Throwable $e) {
+            // Silenciar erros de notificação para não quebrar o dashboard
+        }
+
         return view('app.dashboard', compact(
             'faturamentoMes',
             'variacaoFaturamento',
@@ -143,6 +152,7 @@ class DashboardController extends Controller
             'estoqueBaixo',
             'contasVencidas',
             'trialDias',
+            'wizardDismissed',
         ));
     }
 }

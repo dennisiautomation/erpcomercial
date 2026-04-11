@@ -897,7 +897,7 @@
                     </li>
 
                     {{-- ---- Gestao ---- --}}
-                    @if(in_array(auth()->user()->papel ?? '', ['dono', 'admin']))
+                    @if(auth()->user()->perfil && in_array(auth()->user()->perfil->value, ['dono', 'admin']))
                         <li class="sidebar-heading">Gestao</li>
                         <li class="nav-item">
                             <a class="nav-link nav-toggle {{ request()->routeIs('app.multilojas.*', 'app.plano-contas.*', 'app.centros-custo.*') ? '' : 'collapsed' }}"
@@ -951,7 +951,7 @@
                         @if(auth()->user()->is_admin)
                             Administrador
                         @else
-                            {{ ucfirst(auth()->user()->papel ?? 'usuario') }}
+                            {{ auth()->user()->perfil ? auth()->user()->perfil->label() : 'Usuario' }}
                         @endif
                     </span>
                 </div>
@@ -975,6 +975,15 @@
                 <i class="bi bi-house-door" style="font-size: 0.9rem; opacity: 0.5;"></i>
                 <i class="bi bi-chevron-right" style="font-size: 0.55rem; opacity: 0.35;"></i>
                 <span class="topbar-breadcrumb-page">@yield('title', 'Dashboard')</span>
+            </div>
+
+            {{-- Global Search --}}
+            <div class="position-relative d-none d-md-block" style="min-width:300px">
+                <input type="text" id="globalSearch" class="form-control form-control-sm"
+                       placeholder="Buscar clientes, produtos, vendas..."
+                       autocomplete="off" style="border-radius:2rem;padding-left:2.5rem;border-color:#e2e8f0">
+                <i class="bi bi-search position-absolute" style="left:1rem;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:0.85rem"></i>
+                <div id="globalSearchResults" class="position-absolute w-100 mt-1" style="display:none;z-index:1060"></div>
             </div>
 
             <div class="ms-auto d-flex align-items-center gap-2">
@@ -1010,11 +1019,37 @@
                 @endif
 
                 {{-- Notifications --}}
-                <button class="topbar-icon-btn" type="button" title="Notificacoes">
-                    <i class="bi bi-bell"></i>
-                    {{-- Badge placeholder --}}
-                    {{-- <span class="topbar-badge"></span> --}}
-                </button>
+                @if(!auth()->user()->is_admin)
+                <div class="dropdown">
+                    <button class="topbar-icon-btn dropdown-toggle" type="button" id="notificacoesDropdown"
+                            data-bs-toggle="dropdown" data-bs-auto-close="true" aria-expanded="false" title="Notificacoes">
+                        <i class="bi bi-bell"></i>
+                        <span class="topbar-badge d-none" id="notificacaoBadge"></span>
+                    </button>
+                    <div class="dropdown-menu dropdown-menu-end shadow" style="min-width: 340px; max-width: 400px;" aria-labelledby="notificacoesDropdown">
+                        <div class="d-flex justify-content-between align-items-center px-3 py-2 border-bottom">
+                            <h6 class="mb-0 fw-bold" style="font-size:0.875rem;">Notificacoes</h6>
+                            <form method="POST" action="{{ route('app.notificacoes.todas-lidas') }}" id="formMarcarTodasLidas">
+                                @csrf
+                                <button type="submit" class="btn btn-link btn-sm text-decoration-none p-0" style="font-size:0.75rem;">
+                                    Marcar todas como lidas
+                                </button>
+                            </form>
+                        </div>
+                        <div id="notificacoesLista" style="max-height: 320px; overflow-y: auto;">
+                            <div class="text-center py-4 text-muted">
+                                <i class="bi bi-bell-slash fs-4 d-block mb-1"></i>
+                                <small>Carregando...</small>
+                            </div>
+                        </div>
+                        <div class="border-top px-3 py-2 text-center">
+                            <a href="{{ route('app.notificacoes.index') }}" class="text-decoration-none" style="font-size:0.8125rem;">
+                                <i class="bi bi-list-ul me-1"></i> Ver todas
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                @endif
 
                 {{-- User Dropdown --}}
                 <div class="dropdown">
@@ -1124,6 +1159,113 @@
                 }, delay);
             });
         });
+        /**
+         * Init Bootstrap tooltips
+         */
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function(el) {
+                new bootstrap.Tooltip(el);
+            });
+        });
+
+        /**
+         * Notifications bell — AJAX
+         */
+        @if(!auth()->user()->is_admin)
+        document.addEventListener('DOMContentLoaded', function() {
+            var badge = document.getElementById('notificacaoBadge');
+            var lista = document.getElementById('notificacoesLista');
+
+            function carregarNotificacoes() {
+                fetch('{{ route("app.notificacoes.contar") }}', {
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    // Badge
+                    if (data.count > 0) {
+                        badge.textContent = data.count > 99 ? '99+' : data.count;
+                        badge.classList.remove('d-none');
+                    } else {
+                        badge.classList.add('d-none');
+                    }
+
+                    // Lista
+                    if (data.notificacoes && data.notificacoes.length > 0) {
+                        var html = '';
+                        data.notificacoes.forEach(function(n) {
+                            html += '<a href="' + (n.url || '#') + '" class="dropdown-item d-flex align-items-start gap-2 py-2 px-3" style="white-space:normal;">';
+                            html += '<div class="rounded-2 p-1 bg-' + n.cor + ' bg-opacity-10 flex-shrink-0" style="width:32px;height:32px;display:flex;align-items:center;justify-content:center;">';
+                            html += '<i class="bi bi-' + n.icone + ' text-' + n.cor + '" style="font-size:0.85rem;"></i>';
+                            html += '</div>';
+                            html += '<div class="min-w-0">';
+                            html += '<div class="fw-semibold" style="font-size:0.8125rem;">' + n.titulo + '</div>';
+                            html += '<small class="text-muted">' + n.tempo + '</small>';
+                            html += '</div></a>';
+                        });
+                        lista.innerHTML = html;
+                    } else {
+                        lista.innerHTML = '<div class="text-center py-4 text-muted"><i class="bi bi-bell-slash fs-4 d-block mb-1"></i><small>Nenhuma notificacao nova</small></div>';
+                    }
+                })
+                .catch(function() {});
+            }
+
+            carregarNotificacoes();
+
+            // Recarrega a cada 60 segundos
+            setInterval(carregarNotificacoes, 60000);
+        });
+        @endif
+    </script>
+    {{-- Global Search JS --}}
+    <script>
+    (function() {
+        const globalSearch = document.getElementById('globalSearch');
+        const globalResults = document.getElementById('globalSearchResults');
+        if (!globalSearch) return;
+        let debounce;
+        globalSearch.addEventListener('input', function() {
+            clearTimeout(debounce);
+            const q = globalSearch.value.trim();
+            if (q.length < 2) { globalResults.style.display = 'none'; return; }
+            debounce = setTimeout(async function() {
+                try {
+                    const res = await fetch('/app/search/global?q=' + encodeURIComponent(q), {
+                        headers: {'Accept':'application/json','X-CSRF-TOKEN':document.querySelector('meta[name="csrf-token"]')?.content}
+                    });
+                    const data = await res.json();
+                    const labels = {clientes:'Clientes',produtos:'Produtos',vendas:'Vendas'};
+                    const icons = {clientes:'people',produtos:'box',vendas:'bag-check'};
+                    let html = '<div class="bg-white border rounded shadow-lg p-2" style="max-height:400px;overflow-y:auto">';
+                    let hasResults = false;
+                    for (const [type, items] of Object.entries(data)) {
+                        if (!items.length) continue;
+                        hasResults = true;
+                        html += '<div class="small fw-bold text-muted px-2 py-1"><i class="bi bi-' + (icons[type]||'search') + ' me-1"></i>' + (labels[type]||type) + '</div>';
+                        items.forEach(function(item) {
+                            html += '<a href="' + item.url + '" class="d-block px-2 py-1 text-decoration-none text-dark rounded" style="transition:background .15s" onmouseover="this.style.background=\'#f1f5f9\'" onmouseout="this.style.background=\'transparent\'">' + item.label + ' <small class="text-muted">' + (item.detail||'') + '</small></a>';
+                        });
+                    }
+                    if (!hasResults) {
+                        html += '<div class="text-center text-muted py-2">Nenhum resultado</div>';
+                    }
+                    html += '</div>';
+                    globalResults.innerHTML = html;
+                    globalResults.style.display = 'block';
+                } catch(e) { globalResults.style.display = 'none'; }
+            }, 300);
+        });
+        document.addEventListener('click', function(e) {
+            if (!globalSearch.parentElement.contains(e.target)) globalResults.style.display = 'none';
+        });
+        globalSearch.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') { globalResults.style.display = 'none'; globalSearch.blur(); }
+        });
+    })();
     </script>
     @stack('scripts')
 </body>
