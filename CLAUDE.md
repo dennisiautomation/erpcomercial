@@ -6,7 +6,7 @@ Sistema ERP SaaS multi-tenant para micro/pequenas/médias empresas. Admin (IA365
 ## Stack
 Laravel 12 (PHP 8.4) | Blade + Bootstrap 5.3 (CDN) + Bootstrap Icons | MySQL 8.0 | Redis | Docker (app, mysql, redis, nginx) | Focus NFe (REST) | Chart.js | JsBarcode
 
-## Estado Atual: ~49.000 linhas, 261 rotas, 138 views, 47 testadas OK
+## Estado Atual: ~49.000 linhas, 261 rotas, 138 views, 12 commits
 
 ## Docker
 ```bash
@@ -136,11 +136,17 @@ public/
 - Limites: max_unidades, max_usuarios, max_produtos, max_notas_mes
 
 ### Funcionalidades Transversais
-- **Reset de senha**: /esqueci-senha → token → nova senha
-- **Busca global**: topbar busca em clientes, produtos, vendas (AJAX)
-- **Notificações**: sino no topbar, contas vencidas, estoque baixo, trial expirando
-- **Dashboard inteligente**: wizard setup no primeiro acesso (dispensável), stats/gráficos depois
-- **Tooltips fiscais**: linguagem simples em todos campos fiscais
+- **Reset de senha**: /esqueci-senha → token → nova senha (link no login)
+- **Busca global**: topbar busca em clientes, produtos, vendas (AJAX com dropdown agrupado)
+- **Notificações**: sino no topbar com contagem, contas vencidas, estoque baixo, trial expirando (tabela notificacoes, NotificacaoService, auto-gera no dashboard)
+- **Dashboard inteligente**: wizard setup 7 etapas no primeiro acesso (dispensável com X), stats/gráficos depois
+  - 7 etapas: produtos (3+), clientes, fornecedores, equipe, estoque, fiscal (opcional), primeira venda
+  - Cada etapa: botão ação + importar CSV quando aplicável
+  - Grid 2 colunas, cards com ícones, status verde quando concluído
+  - Progresso em % com barra visual
+- **Tooltips fiscais**: componente `<x-erp.fiscal-tooltip field="ncm" />` com linguagem simples
+- **Export CSV**: botão em clientes, produtos, fornecedores, vendas, contas receber/pagar (ExportController)
+- **Import CSV**: botão + download modelo em clientes, produtos, fornecedores (ImportController, auto-detect delimitador/encoding)
 
 ## Schema de Tabelas Importantes
 ```
@@ -227,6 +233,37 @@ GET /app/import/template/{tipo}  → Download CSV modelo
 POST /app/import/clientes        → JSON {success, imported, errors}
 GET /app/export/clientes         → Download CSV
 POST /webhooks/focusnfe          → 200 (webhook Focus NFe)
+```
+
+## Seeders (DatabaseSeeder chama nesta ordem)
+1. **AdminSeeder** — cria admin@ia365.com.br
+2. **PermissaoSeeder** — cria permissões por módulo/ação
+3. **PlanoSeeder** — 3 planos (Básico R$97, Profissional R$197, Enterprise R$397)
+4. **EmpresaDemoSeeder** — empresa demo completa:
+   - Empresa com plano Enterprise, trial 30 dias
+   - Unidade "Loja Centro"
+   - 5 usuários (dono, gerente, vendedor, caixa) vinculados à unidade
+   - ConfiguracaoFiscal (homologação, cupom não fiscal)
+   - Caixa aberto para o operador de caixa
+   - 2 categorias, 3 produtos com dados fiscais
+   - Estoque inicial (100 unidades cada produto)
+   - 1 cliente PF, 1 fornecedor PJ
+5. **RegraICMSSeeder** — alíquotas ICMS interestaduais reais (SP/RJ/MG/PR → todos os estados)
+
+## Commits
+```
+4ce9598 feat: wizard setup expandido — 7 etapas
+e9bee6c docs: CLAUDE.md atualizado
+4552ad5 fix: config fiscal update sem duplicate key
+2f36855 fix: servico codigo_lc116, config fiscal, search
+11ebbd0 feat: wizards, ST interestadual, reset senha, busca global, notificações
+598b553 feat: venda balcão, etiquetas, views padronizadas
+3887a7a fix: dashboard setup, status concluida
+7fe36d2 fix: botão recibo, fornecedor sem status
+9951290 feat: onboarding, smart forms, import CSV, fiscal inteligente
+fc36b55 fix: rebuild UX + bugfixes + smart forms
+642c9de feat: ERP Comercial SaaS completo — Fases 1, 2 e 3
+475f128 chore: setup inicial Laravel 12 + Docker
 ```
 
 ## Comandos
