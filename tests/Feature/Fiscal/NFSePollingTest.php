@@ -122,6 +122,54 @@ class NFSePollingTest extends TestCase
         Bus::assertDispatched(ConsultarNotaFiscalJob::class);
     }
 
+    public function test_emissao_nfse_sem_discriminacao_lanca_excecao_amigavel_sem_chamar_focus(): void
+    {
+        Http::fake(); // se for chamado, falha o teste
+        $cliente = $this->createCliente($this->empresa);
+
+        $client = \App\Services\FocusNFe\FocusNFeClient::fromConfig($this->config);
+        $service = new \App\Services\FocusNFe\NFSeService($client);
+
+        $this->expectException(\App\Exceptions\NotaFiscalEmissaoException::class);
+        $this->expectExceptionMessage('descrição do serviço');
+
+        $service->emitir(['valor_servicos' => 100.00], $this->config, $cliente);
+
+        Http::assertNothingSent();
+    }
+
+    public function test_emissao_nfse_aceita_alias_descricao_e_valor_servico(): void
+    {
+        Http::fake([
+            'homologacao.focusnfe.com.br/v2/nfse*' => Http::response([
+                'status'                    => 'autorizado',
+                'numero'                    => '999',
+                'codigo_verificacao'        => 'CV999',
+                'caminho_xml_nota_fiscal'   => '/xml/999.xml',
+                'caminho_pdf_nota_fiscal'   => '/pdf/999.pdf',
+            ], 200),
+        ]);
+
+        $cliente = $this->createCliente($this->empresa);
+        $client = \App\Services\FocusNFe\FocusNFeClient::fromConfig($this->config);
+        $service = new \App\Services\FocusNFe\NFSeService($client);
+
+        $nota = $service->emitir([
+            'descricao'     => 'Prestacao de servico mensal de TI',
+            'valor_servico' => 750.00,
+            'aliquota_iss'  => 2.5,
+        ], $this->config, $cliente);
+
+        $this->assertEquals(\App\Enums\StatusNotaFiscal::Autorizada, $nota->status);
+
+        // Confere que o payload enviado à Focus já tem discriminacao
+        Http::assertSent(function ($request) {
+            $body = $request->data();
+            return ($body['discriminacao'] ?? '') === 'Prestacao de servico mensal de TI'
+                && ($body['valor_servicos'] ?? '') === '750.00';
+        });
+    }
+
     public function test_consultar_nfse_atualiza_status_quando_autorizada(): void
     {
         Http::fake([

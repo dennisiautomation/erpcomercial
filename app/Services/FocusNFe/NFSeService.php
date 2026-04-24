@@ -32,6 +32,9 @@ class NFSeService
      */
     public function emitir(array $dadosServico, ConfiguracaoFiscal $config, ?Cliente $cliente = null): NotaFiscal
     {
+        $dadosServico = $this->normalizarDadosServico($dadosServico);
+        $this->validarDadosObrigatorios($dadosServico);
+
         $unidade = Unidade::with('empresa')->findOrFail($config->unidade_id);
 
         $ref = 'nfse-' . ($dadosServico['venda_id'] ?? $unidade->id) . '-' . time();
@@ -227,6 +230,52 @@ class NFSeService
     /**
      * Monta o payload completo da NFS-e.
      */
+    /**
+     * Aceita tanto o vocabulário do controller quanto o da Focus NFe.
+     * Traduz descricao→discriminacao, valor_servico→valor_servicos etc.
+     * e aplica defaults a partir da ConfiguracaoFiscal quando faz sentido.
+     */
+    private function normalizarDadosServico(array $dados): array
+    {
+        // Aliases amigáveis → nomes da Focus
+        if (! isset($dados['discriminacao']) && isset($dados['descricao'])) {
+            $dados['discriminacao'] = $dados['descricao'];
+        }
+        if (! isset($dados['valor_servicos']) && isset($dados['valor_servico'])) {
+            $dados['valor_servicos'] = $dados['valor_servico'];
+        }
+
+        // Limpa espaços e trunca (Focus aceita até 2000 chars)
+        if (isset($dados['discriminacao'])) {
+            $dados['discriminacao'] = trim(preg_replace('/\s+/', ' ', (string) $dados['discriminacao']));
+            $dados['discriminacao'] = mb_substr($dados['discriminacao'], 0, 2000);
+        }
+
+        return $dados;
+    }
+
+    /**
+     * Valida campos obrigatórios antes de gastar uma chamada à Focus.
+     *
+     * @throws \App\Exceptions\NotaFiscalEmissaoException
+     */
+    private function validarDadosObrigatorios(array $dados): void
+    {
+        $discriminacao = trim((string) ($dados['discriminacao'] ?? ''));
+        if (mb_strlen($discriminacao) < 3) {
+            throw new \App\Exceptions\NotaFiscalEmissaoException(
+                'Informe a descrição do serviço (discriminação). É exigida pela prefeitura e aparece na NFS-e.'
+            );
+        }
+
+        $valor = (float) ($dados['valor_servicos'] ?? 0);
+        if ($valor <= 0) {
+            throw new \App\Exceptions\NotaFiscalEmissaoException(
+                'Valor do serviço precisa ser maior que zero.'
+            );
+        }
+    }
+
     private function buildPayload(array $dadosServico, ConfiguracaoFiscal $config, ?Cliente $cliente): array
     {
         $unidade = Unidade::with('empresa')->findOrFail($config->unidade_id);

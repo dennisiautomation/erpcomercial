@@ -203,6 +203,8 @@ class NotaFiscalController extends Controller
             return redirect()
                 ->route('app.notas-fiscais.show', $nota)
                 ->with('success', 'NFS-e processada com sucesso!');
+        } catch (\App\Exceptions\NotaFiscalEmissaoException $e) {
+            return back()->withInput()->with('error', $e->getMessage());
         } catch (\Throwable $e) {
             Log::error('Erro ao emitir NFS-e', ['error' => $e->getMessage()]);
 
