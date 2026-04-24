@@ -57,7 +57,7 @@ class OnboardingController extends Controller
         $plano = Plano::findOrFail($validated['plano_id']);
 
         $empresa = Empresa::create(array_merge($validated, [
-            'status'    => StatusEmpresa::Ativa,
+            'status'    => StatusEmpresa::Ativo,
             'plano'     => $plano->slug,
             'em_trial'  => true,
             'trial_inicio' => now(),
