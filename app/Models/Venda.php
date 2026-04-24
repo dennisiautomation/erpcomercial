@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\StatusVenda;
+use App\Traits\AuditableModel;
 use App\Traits\BelongsToEmpresa;
 use App\Traits\BelongsToUnidade;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -13,7 +14,9 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Venda extends Model
 {
-    use HasFactory, SoftDeletes, BelongsToEmpresa, BelongsToUnidade;
+    use HasFactory, SoftDeletes, BelongsToEmpresa, BelongsToUnidade, AuditableModel;
+
+    protected $auditFields = ['status', 'total', 'cliente_id', 'cancelamento_motivo', 'canceled_at'];
 
     protected $fillable = [
         'empresa_id',

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\Perfil;
+use App\Traits\AuditableModel;
 use App\Traits\BelongsToEmpresa;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -15,7 +16,9 @@ use Illuminate\Notifications\Notifiable;
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, Notifiable, BelongsToEmpresa;
+    use HasFactory, Notifiable, BelongsToEmpresa, AuditableModel;
+
+    protected $auditFields = ['name', 'email', 'perfil', 'status', 'comissao_percentual', 'is_admin'];
 
     protected $fillable = [
         'name',

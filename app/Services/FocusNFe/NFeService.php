@@ -221,42 +221,113 @@ class NFeService
     }
 
     /**
-     * Emite uma Carta de Correção para uma NF-e autorizada.
+     * Emite uma Carta de Correção para uma NF-e autorizada e persiste o histórico.
+     *
+     * @throws \App\Exceptions\CartaCorrecaoException
      */
-    public function cartaCorrecao(NotaFiscal $nota, string $correcao): array
+    public function cartaCorrecao(NotaFiscal $nota, string $correcao, ?int $userId = null): \App\Models\CartaCorrecao
     {
-        try {
-            Log::info('NFe: Emitindo Carta de Correção', [
-                'ref' => $nota->focus_ref,
-                'correcao' => $correcao,
-            ]);
+        $sequencia = ((int) $nota->cartasCorrecao()->max('numero_sequencia')) + 1;
 
-            $response = $this->client->post("/v2/nfe/{$nota->focus_ref}/carta_correcao", [
-                'correcao' => $correcao,
-            ]);
-
-            $data = $response->json();
-
-            Log::info('NFe: Resultado Carta de Correção', [
-                'ref' => $nota->focus_ref,
-                'response' => $data,
-            ]);
-
-            return [
-                'success' => $response->successful(),
-                'data' => $data,
-            ];
-        } catch (\Throwable $e) {
-            Log::error('NFe: Erro ao emitir Carta de Correção', [
-                'ref' => $nota->focus_ref,
-                'error' => $e->getMessage(),
-            ]);
-
-            return [
-                'success' => false,
-                'error' => $e->getMessage(),
-            ];
+        if ($sequencia > 20) {
+            throw new \App\Exceptions\CartaCorrecaoException(
+                'Esta NF-e já atingiu o limite de 20 Cartas de Correção previsto pela SEFAZ.'
+            );
         }
+
+        $carta = \App\Models\CartaCorrecao::create([
+            'nota_fiscal_id'   => $nota->id,
+            'empresa_id'       => $nota->empresa_id,
+            'unidade_id'       => $nota->unidade_id,
+            'user_id'          => $userId,
+            'numero_sequencia' => $sequencia,
+            'correcao'         => $correcao,
+            'status'           => 'pendente',
+            'enviada_em'       => now(),
+        ]);
+
+        Log::info('NFe: Emitindo Carta de Correção', [
+            'ref'        => $nota->focus_ref,
+            'sequencia'  => $sequencia,
+            'carta_id'   => $carta->id,
+        ]);
+
+        try {
+            $response = $this->client->post("/v2/nfe/{$nota->focus_ref}/carta_correcao", [
+                'correcao'         => $correcao,
+                'numero_sequencia' => $sequencia,
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('NFe: Erro de comunicação ao emitir CC-e', [
+                'ref'      => $nota->focus_ref,
+                'error'    => $e->getMessage(),
+                'carta_id' => $carta->id,
+            ]);
+            $carta->update(['status' => 'rejeitada', 'mensagem_sefaz' => 'Falha de conexão: ' . $e->getMessage()]);
+            throw new \App\Exceptions\CartaCorrecaoException(
+                'Não foi possível conectar à SEFAZ para enviar a Carta de Correção. Verifique sua conexão e tente novamente.',
+                0, $e
+            );
+        }
+
+        $data = $response->json() ?? [];
+
+        Log::info('NFe: Resultado CC-e', [
+            'ref'      => $nota->focus_ref,
+            'status'   => $response->status(),
+            'response' => $data,
+        ]);
+
+        if (! $response->successful()) {
+            $rawMsg = $data['mensagem'] ?? $data['erros'][0]['mensagem'] ?? 'Erro desconhecido.';
+            $friendly = $this->translateCCeError($rawMsg, $response->status());
+
+            $carta->update([
+                'status'         => 'rejeitada',
+                'mensagem_sefaz' => $rawMsg,
+            ]);
+
+            throw new \App\Exceptions\CartaCorrecaoException($friendly);
+        }
+
+        $carta->update([
+            'status'         => 'autorizada',
+            'protocolo'      => $data['numero_protocolo'] ?? $data['protocolo'] ?? null,
+            'mensagem_sefaz' => $data['mensagem_sefaz'] ?? null,
+            'xml_url'        => $data['caminho_xml_carta_correcao'] ?? null,
+            'pdf_url'        => $data['caminho_pdf_carta_correcao'] ?? null,
+        ]);
+
+        return $carta->fresh();
+    }
+
+    /**
+     * Traduz erros comuns de CC-e para texto amigável pt-BR.
+     */
+    private function translateCCeError(string $raw, int $httpStatus): string
+    {
+        $lower = mb_strtolower($raw);
+
+        if (str_contains($lower, 'prazo')) {
+            return 'O prazo para emitir Carta de Correção foi excedido (720h após autorização).';
+        }
+        if (str_contains($lower, 'limite')) {
+            return 'Esta NF-e já atingiu o limite de 20 Cartas de Correção.';
+        }
+        if (str_contains($lower, 'nao autorizada') || str_contains($lower, 'não autorizada') || str_contains($lower, 'cancelad')) {
+            return 'Só é possível emitir Carta de Correção em NF-e autorizada — esta não está autorizada ou foi cancelada.';
+        }
+        if (str_contains($lower, 'certificado')) {
+            return 'Certificado digital inválido ou expirado. Verifique as configurações fiscais.';
+        }
+        if ($httpStatus === 401 || str_contains($lower, 'token')) {
+            return 'Token Focus NFe inválido. Verifique as configurações fiscais.';
+        }
+        if ($httpStatus >= 500) {
+            return 'A SEFAZ está instável no momento. Tente novamente em alguns minutos.';
+        }
+
+        return "Não foi possível emitir a Carta de Correção: {$raw}";
     }
 
     /**

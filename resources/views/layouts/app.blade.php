@@ -922,6 +922,12 @@
                                         <a class="nav-link {{ request()->routeIs('app.centros-custo.*') ? 'active' : '' }}"
                                            href="{{ route('app.centros-custo.index') }}">Centros de Custo</a>
                                     </li>
+                                    <li class="nav-item">
+                                        <a class="nav-link {{ request()->routeIs('app.auditoria.*') ? 'active' : '' }}"
+                                           href="{{ route('app.auditoria.index') }}">
+                                            <i class="bi bi-shield-check me-1"></i> Auditoria
+                                        </a>
+                                    </li>
                                 </ul>
                             </div>
                         </li>

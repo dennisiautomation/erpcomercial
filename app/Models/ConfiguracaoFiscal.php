@@ -2,13 +2,14 @@
 
 namespace App\Models;
 
+use App\Traits\AuditableModel;
 use App\Traits\BelongsToEmpresa;
 use App\Traits\BelongsToUnidade;
 use Illuminate\Database\Eloquent\Model;
 
 class ConfiguracaoFiscal extends Model
 {
-    use BelongsToEmpresa, BelongsToUnidade;
+    use BelongsToEmpresa, BelongsToUnidade, AuditableModel;
 
     protected $table = 'configuracoes_fiscais';
 

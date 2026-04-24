@@ -101,6 +101,10 @@ class CheckPermission
             'admin' => ['ver', 'criar', 'editar', 'excluir'],
             'dono' => ['ver', 'criar', 'editar'],
         ],
+        'auditoria' => [
+            'admin' => ['ver'],
+            'dono' => ['ver'],
+        ],
     ];
 
     public function handle(Request $request, Closure $next, string $modulo, string $acao = 'ver'): Response

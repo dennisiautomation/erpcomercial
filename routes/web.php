@@ -243,6 +243,11 @@ Route::middleware(['auth', 'unidade'])->prefix('app')->name('app.')->group(funct
         Route::get('/financeiro', [App\RelatorioController::class, 'financeiro'])->name('financeiro');
     });
 
+    /* ------ Auditoria (Dono/Admin) ------ */
+    Route::get('/auditoria', [App\AuditoriaController::class, 'index'])
+        ->name('auditoria.index')
+        ->middleware('permission:auditoria');
+
     /* ------ Multilojas (Dono/Admin only) ------ */
     Route::prefix('multilojas')->name('multilojas.')->middleware('plano:multilojas')->group(function () {
         Route::get('/', [App\MultilojaController::class, 'index'])->name('index');

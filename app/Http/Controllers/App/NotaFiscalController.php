@@ -77,7 +77,7 @@ class NotaFiscalController extends Controller
 
     public function show(NotaFiscal $notaFiscal)
     {
-        $notaFiscal->load(['cliente', 'venda', 'unidade', 'empresa']);
+        $notaFiscal->load(['cliente', 'venda', 'unidade', 'empresa', 'cartasCorrecao.user']);
 
         return view('app.notas-fiscais.show', compact('notaFiscal'));
     }
@@ -269,13 +269,15 @@ class NotaFiscalController extends Controller
 
         try {
             $service = app(NFeService::class);
-            $service->cartaCorrecao($notaFiscal, $request->correcao);
+            $carta = $service->cartaCorrecao($notaFiscal, $request->correcao, auth()->id());
 
-            return back()->with('success', 'Carta de correcao enviada com sucesso!');
+            return back()->with('success', "Carta de Correção #{$carta->numero_sequencia} autorizada pela SEFAZ!");
+        } catch (\App\Exceptions\CartaCorrecaoException $e) {
+            return back()->with('error', $e->getMessage());
         } catch (\Throwable $e) {
-            Log::error('Erro na carta de correcao', ['nota_id' => $notaFiscal->id, 'error' => $e->getMessage()]);
+            Log::error('Erro inesperado na carta de correcao', ['nota_id' => $notaFiscal->id, 'error' => $e->getMessage()]);
 
-            return back()->with('error', 'Erro na carta de correcao: ' . $e->getMessage());
+            return back()->with('error', 'Erro inesperado ao emitir Carta de Correção. Nossa equipe foi notificada.');
         }
     }
 

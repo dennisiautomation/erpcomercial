@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Traits\AuditableModel;
 use App\Traits\BelongsToEmpresa;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -10,7 +11,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Produto extends Model
 {
-    use SoftDeletes, BelongsToEmpresa;
+    use SoftDeletes, BelongsToEmpresa, AuditableModel;
 
     protected $fillable = [
         'empresa_id',

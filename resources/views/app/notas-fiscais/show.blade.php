@@ -297,6 +297,75 @@
     </div>
 </div>
 
+{{-- Histórico de Cartas de Correção --}}
+@if($notaFiscal->tipo === \App\Enums\TipoNotaFiscal::NFe && $notaFiscal->cartasCorrecao->isNotEmpty())
+<div class="card shadow-sm mb-4">
+    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+        <div class="fw-semibold">
+            <i class="bi bi-pencil-square me-1 text-warning"></i>
+            Cartas de Correção ({{ $notaFiscal->cartasCorrecao->count() }}/20)
+        </div>
+        @if($notaFiscal->status === \App\Enums\StatusNotaFiscal::Autorizada && $notaFiscal->cartasCorrecao->count() < 20)
+        <button type="button" class="btn btn-sm btn-outline-warning" data-bs-toggle="modal" data-bs-target="#modalCartaCorrecao">
+            <i class="bi bi-plus-lg me-1"></i> Nova CC-e
+        </button>
+        @endif
+    </div>
+    <div class="table-responsive">
+        <table class="table table-sm mb-0 align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th style="width:60px">#</th>
+                    <th style="width:150px">Enviada em</th>
+                    <th>Texto da correção</th>
+                    <th style="width:120px">Status</th>
+                    <th style="width:150px">Protocolo</th>
+                    <th style="width:120px" class="text-end">Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach($notaFiscal->cartasCorrecao as $cc)
+                <tr>
+                    <td class="fw-semibold text-muted">#{{ $cc->numero_sequencia }}</td>
+                    <td><small>{{ $cc->enviada_em?->format('d/m/Y H:i') ?? '-' }}</small></td>
+                    <td><small>{{ $cc->correcao }}</small>
+                        @if($cc->user)
+                            <small class="text-muted d-block"><i class="bi bi-person me-1"></i>{{ $cc->user->name }}</small>
+                        @endif
+                        @if($cc->status === 'rejeitada' && $cc->mensagem_sefaz)
+                            <small class="text-danger d-block"><i class="bi bi-exclamation-triangle me-1"></i>{{ $cc->mensagem_sefaz }}</small>
+                        @endif
+                    </td>
+                    <td>
+                        @if($cc->status === 'autorizada')
+                            <span class="badge bg-success">Autorizada</span>
+                        @elseif($cc->status === 'rejeitada')
+                            <span class="badge bg-danger">Rejeitada</span>
+                        @else
+                            <span class="badge bg-secondary">Pendente</span>
+                        @endif
+                    </td>
+                    <td><small class="font-monospace">{{ $cc->protocolo ?? '-' }}</small></td>
+                    <td class="text-end">
+                        @if($cc->pdf_url)
+                            <a href="{{ $cc->pdf_url }}" target="_blank" class="btn btn-sm btn-outline-danger" title="PDF">
+                                <i class="bi bi-file-pdf"></i>
+                            </a>
+                        @endif
+                        @if($cc->xml_url)
+                            <a href="{{ $cc->xml_url }}" target="_blank" class="btn btn-sm btn-outline-secondary" title="XML">
+                                <i class="bi bi-file-code"></i>
+                            </a>
+                        @endif
+                    </td>
+                </tr>
+                @endforeach
+            </tbody>
+        </table>
+    </div>
+</div>
+@endif
+
 {{-- Modal Cancelar --}}
 @if($notaFiscal->status === \App\Enums\StatusNotaFiscal::Autorizada)
 <div class="modal fade" id="modalCancelar" tabindex="-1">

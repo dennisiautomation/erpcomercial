@@ -217,21 +217,71 @@ class NFeServiceTest extends TestCase
     {
         Http::fake([
             'homologacao.focusnfe.com.br/v2/nfe/*/carta_correcao' => Http::response([
-                'status'                  => 'autorizado',
-                'status_sefaz'            => '135',
-                'mensagem_sefaz'          => 'Evento registrado e vinculado a NF-e',
-                'caminho_xml_carta_correcao' => '/arquivos/cce.xml',
-                'numero_carta_correcao'   => '1',
+                'status'                      => 'autorizado',
+                'status_sefaz'                => '135',
+                'mensagem_sefaz'              => 'Evento registrado e vinculado a NF-e',
+                'caminho_xml_carta_correcao'  => '/arquivos/cce.xml',
+                'caminho_pdf_carta_correcao'  => '/arquivos/cce.pdf',
+                'numero_protocolo'            => '135200000000001',
             ], 200),
         ]);
 
         $nota = $this->createNotaAutorizada();
 
-        $result = $this->service->cartaCorrecao($nota, 'Correcao do endereco de entrega');
+        $carta = $this->service->cartaCorrecao($nota, 'Correcao do endereco de entrega');
 
-        $this->assertTrue($result['success']);
-        $this->assertEquals('autorizado', $result['data']['status']);
-        $this->assertEquals('1', $result['data']['numero_carta_correcao']);
+        $this->assertInstanceOf(\App\Models\CartaCorrecao::class, $carta);
+        $this->assertEquals('autorizada', $carta->status);
+        $this->assertEquals(1, $carta->numero_sequencia);
+        $this->assertEquals('135200000000001', $carta->protocolo);
+        $this->assertEquals('/arquivos/cce.pdf', $carta->pdf_url);
+
+        $this->assertDatabaseHas('cartas_correcao', [
+            'nota_fiscal_id'   => $nota->id,
+            'numero_sequencia' => 1,
+            'status'           => 'autorizada',
+        ]);
+    }
+
+    public function test_nfe_carta_correcao_incrementa_sequencia(): void
+    {
+        Http::fake([
+            'homologacao.focusnfe.com.br/v2/nfe/*/carta_correcao' => Http::response([
+                'status'           => 'autorizado',
+                'numero_protocolo' => '135000000000002',
+            ], 200),
+        ]);
+
+        $nota = $this->createNotaAutorizada();
+
+        $cc1 = $this->service->cartaCorrecao($nota, 'Primeira correcao do endereco de entrega');
+        $cc2 = $this->service->cartaCorrecao($nota, 'Segunda correcao complementar ao endereco');
+
+        $this->assertEquals(1, $cc1->numero_sequencia);
+        $this->assertEquals(2, $cc2->numero_sequencia);
+    }
+
+    public function test_nfe_carta_correcao_falha_lanca_excecao_amigavel(): void
+    {
+        Http::fake([
+            'homologacao.focusnfe.com.br/v2/nfe/*/carta_correcao' => Http::response([
+                'codigo'   => 'NAOPERMITIDO',
+                'mensagem' => 'Prazo para registro de CC-e excedido',
+            ], 400),
+        ]);
+
+        $nota = $this->createNotaAutorizada();
+
+        $this->expectException(\App\Exceptions\CartaCorrecaoException::class);
+        $this->expectExceptionMessage('prazo para emitir Carta');
+
+        $this->service->cartaCorrecao($nota, 'Tentativa tardia de corrigir descricao');
+
+        // CC fica registrada como rejeitada mesmo após exception
+        $this->assertDatabaseHas('cartas_correcao', [
+            'nota_fiscal_id' => $nota->id,
+            'status'         => 'rejeitada',
+        ]);
     }
 
     public function test_nfe_inutilizacao_works(): void

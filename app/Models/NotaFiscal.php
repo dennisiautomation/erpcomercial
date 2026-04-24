@@ -4,15 +4,19 @@ namespace App\Models;
 
 use App\Enums\StatusNotaFiscal;
 use App\Enums\TipoNotaFiscal;
+use App\Traits\AuditableModel;
 use App\Traits\BelongsToEmpresa;
 use App\Traits\BelongsToUnidade;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class NotaFiscal extends Model
 {
-    use BelongsToEmpresa, BelongsToUnidade, SoftDeletes;
+    use BelongsToEmpresa, BelongsToUnidade, SoftDeletes, AuditableModel;
+
+    protected $auditFields = ['status', 'numero', 'chave_acesso', 'focus_status', 'cancelamento_motivo', 'cancelamento_protocolo'];
 
     protected $table = 'notas_fiscais';
 
@@ -74,5 +78,10 @@ class NotaFiscal extends Model
     public function cliente(): BelongsTo
     {
         return $this->belongsTo(Cliente::class);
+    }
+
+    public function cartasCorrecao(): HasMany
+    {
+        return $this->hasMany(CartaCorrecao::class)->orderByDesc('numero_sequencia');
     }
 }
