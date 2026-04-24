@@ -1,0 +1,72 @@
+# Docker Compose de PRODUÇÃO — prefixo erp-com- para não colidir com outros apps.
+# Porta pública única: APP_PORT (default 8091) — atrás do Caddy que está no host.
+# Rede externa caddy-proxy_default para que o Caddy ache o container pelo nome.
+
+name: erp-comercial-prod
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: docker/prod/Dockerfile
+    image: erp-com-app:latest
+    container_name: erp-com-app
+    restart: unless-stopped
+    env_file:
+      - .env
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    volumes:
+      - app_storage:/var/www/storage
+    ports:
+      - "${APP_PORT:-8091}:80"
+    networks:
+      - erpcom-internal
+      - caddy-proxy_default
+
+  mysql:
+    image: mysql:8.0
+    container_name: erp-com-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_DATABASE}
+      MYSQL_USER: ${DB_USERNAME}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    ports:
+      - "127.0.0.1:${DB_EXTERNAL_PORT:-3310}:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - erpcom-internal
+
+  redis:
+    image: redis:7-alpine
+    container_name: erp-com-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    ports:
+      - "127.0.0.1:${REDIS_EXTERNAL_PORT:-6381}:6379"
+    networks:
+      - erpcom-internal
+
+networks:
+  erpcom-internal:
+    driver: bridge
+  caddy-proxy_default:
+    external: true
+
+volumes:
+  mysql_data:
+  redis_data:
+  app_storage:
