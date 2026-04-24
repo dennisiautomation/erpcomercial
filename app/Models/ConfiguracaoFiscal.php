@@ -41,6 +41,13 @@ class ConfiguracaoFiscal extends Model
         'emite_nfe',
         'emite_nfce',
         'emite_nfse',
+        // Reforma Tributária + NFSe Nacional
+        'nfse_padrao',
+        'ibs_ativo',
+        'cbs_ativo',
+        'is_ativo',
+        'ibs_aliquota_padrao',
+        'cbs_aliquota_padrao',
     ];
 
     protected $hidden = [
@@ -57,6 +64,11 @@ class ConfiguracaoFiscal extends Model
             'emite_nfe' => 'boolean',
             'emite_nfce' => 'boolean',
             'emite_nfse' => 'boolean',
+            'ibs_ativo' => 'boolean',
+            'cbs_ativo' => 'boolean',
+            'is_ativo' => 'boolean',
+            'ibs_aliquota_padrao' => 'decimal:4',
+            'cbs_aliquota_padrao' => 'decimal:4',
             'nfse_incentivador_cultural' => 'boolean',
             'certificado_validade' => 'date',
             'certificado_enviado_em' => 'datetime',

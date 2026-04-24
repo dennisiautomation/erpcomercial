@@ -438,6 +438,43 @@
                             </div>
                         </div>
 
+                        {{-- Reforma Tributária (IBS/CBS/IS) --}}
+                        @if(($configFiscal->ibs_ativo ?? false) || ($configFiscal->cbs_ativo ?? false) || ($configFiscal->is_ativo ?? false))
+                            <div class="col-12 mt-3">
+                                <div class="alert alert-warning small d-flex mb-3">
+                                    <i class="bi bi-stars me-2 fs-5"></i>
+                                    <div>
+                                        <strong>Reforma Tributária (EC 132/2023)</strong> — preencha se esse item tem alíquota específica.
+                                        Em branco, usa a alíquota padrão da unidade.
+                                    </div>
+                                </div>
+                                <div class="row g-3">
+                                    @if($configFiscal->ibs_ativo ?? false)
+                                        <div class="col-md-3">
+                                            <label class="form-label">IBS (%)</label>
+                                            <input type="number" name="ibs_aliquota" step="0.0001" min="0" max="100" class="form-control" value="{{ old('ibs_aliquota', $produto->ibs_aliquota) }}">
+                                        </div>
+                                    @endif
+                                    @if($configFiscal->cbs_ativo ?? false)
+                                        <div class="col-md-3">
+                                            <label class="form-label">CBS (%)</label>
+                                            <input type="number" name="cbs_aliquota" step="0.0001" min="0" max="100" class="form-control" value="{{ old('cbs_aliquota', $produto->cbs_aliquota) }}">
+                                        </div>
+                                    @endif
+                                    @if($configFiscal->is_ativo ?? false)
+                                        <div class="col-md-3">
+                                            <label class="form-label">IS (%) <small class="text-muted">seletivo</small></label>
+                                            <input type="number" name="is_aliquota" step="0.0001" min="0" max="100" class="form-control" value="{{ old('is_aliquota', $produto->is_aliquota) }}">
+                                        </div>
+                                    @endif
+                                    <div class="col-md-3">
+                                        <label class="form-label">CST IBS/CBS</label>
+                                        <input type="text" name="cst_ibs_cbs" maxlength="3" class="form-control" placeholder="000" value="{{ old('cst_ibs_cbs', $produto->cst_ibs_cbs) }}">
+                                    </div>
+                                </div>
+                            </div>
+                        @endif
+
                         {{-- Origem --}}
                         <div class="col-md-6">
                             <label for="origem" class="form-label fw-semibold">

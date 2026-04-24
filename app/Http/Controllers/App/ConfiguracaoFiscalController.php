@@ -70,6 +70,13 @@ class ConfiguracaoFiscalController extends Controller
                 'nfse_codigo_tributacao'      => 'nullable|string|max:20',
                 'nfse_regime_especial'        => 'nullable|string|max:50',
                 'nfse_incentivador_cultural'  => 'nullable|boolean',
+                'nfse_padrao'                 => 'nullable|in:municipal,nacional',
+                // Reforma Tributária
+                'ibs_ativo'                   => 'nullable|boolean',
+                'cbs_ativo'                   => 'nullable|boolean',
+                'is_ativo'                    => 'nullable|boolean',
+                'ibs_aliquota_padrao'         => 'nullable|numeric|min:0|max:100',
+                'cbs_aliquota_padrao'         => 'nullable|numeric|min:0|max:100',
                 'tipo_cupom_pdv'       => 'required|in:fiscal,nao_fiscal',
             ];
         }
@@ -81,6 +88,9 @@ class ConfiguracaoFiscalController extends Controller
         $validated['emite_nfce'] = $request->boolean('emite_nfce');
         $validated['emite_nfse'] = $request->boolean('emite_nfse');
         $validated['nfse_incentivador_cultural'] = $request->boolean('nfse_incentivador_cultural');
+        $validated['ibs_ativo'] = $request->boolean('ibs_ativo');
+        $validated['cbs_ativo'] = $request->boolean('cbs_ativo');
+        $validated['is_ativo'] = $request->boolean('is_ativo');
 
         if (!$emissaoAtiva) {
             $validated['tipo_cupom_pdv'] = $request->input('tipo_cupom_pdv', 'nao_fiscal');

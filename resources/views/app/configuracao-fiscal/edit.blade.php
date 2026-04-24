@@ -382,6 +382,96 @@
                             <i class="bi bi-info-circle me-1"></i>
                             Cada prefeitura tem regras próprias. Item LC 116 e código de tributação devem ser obtidos na sua prefeitura.
                         </small>
+
+                        {{-- Sub-seção: padrão NFS-e --}}
+                        <hr class="my-3">
+                        <label class="form-label fw-semibold d-block">Padrão da NFS-e</label>
+                        <div class="btn-group" role="group">
+                            <input type="radio" class="btn-check" name="nfse_padrao" id="padrao_municipal"
+                                   value="municipal" autocomplete="off"
+                                   {{ old('nfse_padrao', $config->nfse_padrao ?? 'municipal') === 'municipal' ? 'checked' : '' }}>
+                            <label class="btn btn-outline-primary" for="padrao_municipal">
+                                <i class="bi bi-building me-1"></i>Municipal (prefeitura)
+                            </label>
+                            <input type="radio" class="btn-check" name="nfse_padrao" id="padrao_nacional"
+                                   value="nacional" autocomplete="off"
+                                   {{ old('nfse_padrao', $config->nfse_padrao ?? 'municipal') === 'nacional' ? 'checked' : '' }}>
+                            <label class="btn btn-outline-primary" for="padrao_nacional">
+                                <i class="bi bi-globe2 me-1"></i>Nacional (Portal RFB)
+                            </label>
+                        </div>
+                        <small class="d-block text-muted mt-2">
+                            <i class="bi bi-info-circle me-1"></i>
+                            <strong>Municipal</strong>: cada prefeitura valida a NFS-e (modelo legado). <strong>Nacional</strong>: novo padrão unificado da Receita Federal — obrigatório para cidades novas e em migração nas existentes até 2033.
+                        </small>
+                    </div>
+                </div>
+
+                {{-- ═══ Reforma Tributária (IBS / CBS / IS) ═══ --}}
+                <div class="erp-card mb-3 border">
+                    <div class="card-header bg-transparent d-flex align-items-center">
+                        <i class="bi bi-stars fs-4 text-warning me-2"></i>
+                        <div class="flex-grow-1">
+                            <strong>Reforma Tributária (EC 132/2023)</strong>
+                            <div class="small text-muted">
+                                IBS, CBS e IS — novos tributos substituindo ICMS/ISS/PIS/COFINS/IPI (transição 2026-2033).
+                            </div>
+                        </div>
+                        <span class="badge bg-warning text-dark">Transição</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="alert alert-info small mb-3">
+                            <i class="bi bi-info-circle me-1"></i>
+                            Em <strong>2026</strong> as alíquotas são de teste (IBS 0,9% + CBS 0,1%) com compensação via PIS/COFINS.
+                            Marque abaixo se quer que suas notas já incluam esses campos — a plataforma calcula automaticamente.
+                        </div>
+
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <div class="form-check form-switch">
+                                    <input type="hidden" name="ibs_ativo" value="0">
+                                    <input class="form-check-input" type="checkbox" role="switch" id="switch_ibs"
+                                           name="ibs_ativo" value="1"
+                                           {{ old('ibs_ativo', $config->ibs_ativo ?? false) ? 'checked' : '' }}>
+                                    <label class="form-check-label" for="switch_ibs">
+                                        <strong>IBS</strong> <small class="text-muted">(estadual/municipal)</small>
+                                    </label>
+                                </div>
+                                <label class="form-label small mt-2">Alíquota padrão (%)</label>
+                                <input type="number" step="0.0001" min="0" max="100" name="ibs_aliquota_padrao"
+                                       class="form-control form-control-sm"
+                                       value="{{ old('ibs_aliquota_padrao', $config->ibs_aliquota_padrao ?? '0.9') }}">
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-check form-switch">
+                                    <input type="hidden" name="cbs_ativo" value="0">
+                                    <input class="form-check-input" type="checkbox" role="switch" id="switch_cbs"
+                                           name="cbs_ativo" value="1"
+                                           {{ old('cbs_ativo', $config->cbs_ativo ?? false) ? 'checked' : '' }}>
+                                    <label class="form-check-label" for="switch_cbs">
+                                        <strong>CBS</strong> <small class="text-muted">(federal)</small>
+                                    </label>
+                                </div>
+                                <label class="form-label small mt-2">Alíquota padrão (%)</label>
+                                <input type="number" step="0.0001" min="0" max="100" name="cbs_aliquota_padrao"
+                                       class="form-control form-control-sm"
+                                       value="{{ old('cbs_aliquota_padrao', $config->cbs_aliquota_padrao ?? '0.1') }}">
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-check form-switch">
+                                    <input type="hidden" name="is_ativo" value="0">
+                                    <input class="form-check-input" type="checkbox" role="switch" id="switch_is"
+                                           name="is_ativo" value="1"
+                                           {{ old('is_ativo', $config->is_ativo ?? false) ? 'checked' : '' }}>
+                                    <label class="form-check-label" for="switch_is">
+                                        <strong>IS</strong> <small class="text-muted">(seletivo — bebidas/cigarros)</small>
+                                    </label>
+                                </div>
+                                <small class="d-block text-muted mt-3">
+                                    Alíquota varia por produto — definida na ficha do item.
+                                </small>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

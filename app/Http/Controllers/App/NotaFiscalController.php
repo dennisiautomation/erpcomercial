@@ -186,18 +186,24 @@ class NotaFiscalController extends Controller
         }
 
         try {
-            $client = \App\Services\FocusNFe\FocusNFeClient::fromConfig($config);
-            $service = new NFSeService($client);
-            $nota = $service->emitir($request->all(), $config);
+            // O dispatcher escolhe entre NFS-e municipal e NFS-e nacional conforme config
+            $dispatcher = \App\Services\FocusNFe\NFSeDispatcher::forConfig($config);
+            $nota = $dispatcher->emitir($request->all(), $request->cliente_id
+                ? \App\Models\Cliente::find($request->cliente_id)
+                : null);
 
-            // Se ficou pendente (Focus aceitou e está processando com a prefeitura),
+            // Se ficou pendente (Focus aceitou e está processando com a prefeitura/RFB),
             // encadeia o polling automático — mesma lógica da NF-e.
             if ($nota->status === \App\Enums\StatusNotaFiscal::Pendente) {
                 \App\Jobs\ConsultarNotaFiscalJob::dispatch($nota)->delay(now()->addSeconds(10));
 
+                $mensagemProcessamento = $dispatcher->padrao() === 'nacional'
+                    ? 'NFS-e enviada! Aguardando autorização do Portal Nacional. Esta página atualiza automaticamente.'
+                    : 'NFS-e enviada! Estamos aguardando a autorização da prefeitura. Esta página atualiza automaticamente.';
+
                 return redirect()
                     ->route('app.notas-fiscais.show', $nota)
-                    ->with('success', 'NFS-e enviada! Estamos aguardando a autorização da prefeitura. Esta página atualiza automaticamente.');
+                    ->with('success', $mensagemProcessamento);
             }
 
             return redirect()

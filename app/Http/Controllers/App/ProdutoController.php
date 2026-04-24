@@ -51,7 +51,13 @@ class ProdutoController extends Controller
         $origemOptions = FiscalAutoConfig::origemOptions();
         $categorias = Categoria::where('empresa_id', $empresa->id)->orderBy('nome')->get();
 
-        return view('app.produtos.create', compact('categorias', 'fiscalDefaults', 'cfopOptions', 'origemOptions'));
+        // Config fiscal da unidade ativa — usada para decidir se mostra campos da Reforma Tributária
+        $configFiscal = \App\Models\ConfiguracaoFiscal::withoutGlobalScopes()
+            ->where('empresa_id', $empresa->id)
+            ->where('unidade_id', session('unidade_id'))
+            ->first();
+
+        return view('app.produtos.create', compact('categorias', 'fiscalDefaults', 'cfopOptions', 'origemOptions', 'configFiscal'));
     }
 
     public function store(Request $request)
@@ -79,6 +85,12 @@ class ProdutoController extends Controller
             'pis_aliquota'       => 'nullable|numeric|min:0|max:100',
             'cofins_aliquota'    => 'nullable|numeric|min:0|max:100',
             'ipi_aliquota'       => 'nullable|numeric|min:0|max:100',
+            // Reforma Tributária
+            'ibs_aliquota'       => 'nullable|numeric|min:0|max:100',
+            'cbs_aliquota'       => 'nullable|numeric|min:0|max:100',
+            'is_aliquota'        => 'nullable|numeric|min:0|max:100',
+            'cst_ibs_cbs'        => 'nullable|string|max:3',
+            'classificacao_ibs'  => 'nullable|string|max:10',
         ]);
 
         // Fill empty fiscal fields with defaults based on regime tributario
@@ -135,7 +147,12 @@ class ProdutoController extends Controller
         $origemOptions = FiscalAutoConfig::origemOptions();
         $categorias = Categoria::where('empresa_id', $empresa->id)->orderBy('nome')->get();
 
-        return view('app.produtos.edit', compact('produto', 'categorias', 'fiscalDefaults', 'cfopOptions', 'origemOptions'));
+        $configFiscal = \App\Models\ConfiguracaoFiscal::withoutGlobalScopes()
+            ->where('empresa_id', $empresa->id)
+            ->where('unidade_id', session('unidade_id'))
+            ->first();
+
+        return view('app.produtos.edit', compact('produto', 'categorias', 'fiscalDefaults', 'cfopOptions', 'origemOptions', 'configFiscal'));
     }
 
     public function update(Request $request, Produto $produto)
@@ -163,6 +180,12 @@ class ProdutoController extends Controller
             'pis_aliquota'       => 'nullable|numeric|min:0|max:100',
             'cofins_aliquota'    => 'nullable|numeric|min:0|max:100',
             'ipi_aliquota'       => 'nullable|numeric|min:0|max:100',
+            // Reforma Tributária
+            'ibs_aliquota'       => 'nullable|numeric|min:0|max:100',
+            'cbs_aliquota'       => 'nullable|numeric|min:0|max:100',
+            'is_aliquota'        => 'nullable|numeric|min:0|max:100',
+            'cst_ibs_cbs'        => 'nullable|string|max:3',
+            'classificacao_ibs'  => 'nullable|string|max:10',
             'status'             => 'required|in:ativo,inativo',
         ]);
 

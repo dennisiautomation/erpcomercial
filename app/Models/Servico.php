@@ -17,6 +17,11 @@ class Servico extends Model
         'valor_padrao',
         'cnae',
         'iss_aliquota',
+        // Reforma Tributária (EC 132/2023)
+        'ibs_aliquota',
+        'cbs_aliquota',
+        'cst_ibs_cbs',
+        'classificacao_ibs',
         'status',
     ];
 
@@ -25,6 +30,8 @@ class Servico extends Model
         return [
             'valor_padrao' => 'decimal:2',
             'iss_aliquota' => 'decimal:2',
+            'ibs_aliquota' => 'decimal:4',
+            'cbs_aliquota' => 'decimal:4',
         ];
     }
 }
