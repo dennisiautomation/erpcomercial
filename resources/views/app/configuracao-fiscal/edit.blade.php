@@ -102,12 +102,29 @@
                 </div>
 
                 {{-- ═══ Certificado Digital A1 ═══ --}}
+                @php
+                    // Certificado A1 só é obrigatório para NF-e (modelo 55) e NFC-e em várias UFs.
+                    // NFS-e geralmente usa login/senha do portal da prefeitura (varia por cidade).
+                    // Em homologação muitas vezes nem precisa para testar.
+                    $precisaCertificado = old('emite_nfe', $config->emite_nfe ?? false) || old('emite_nfce', $config->emite_nfce ?? false);
+                    $apenasNFSe = !$precisaCertificado && old('emite_nfse', $config->emite_nfse ?? false);
+                    $ambienteAtual = old('ambiente', $config->ambiente ?? 'homologacao');
+                @endphp
+
                 <div class="erp-card mt-3 mb-3 border">
                     <div class="card-header bg-transparent d-flex align-items-center">
                         <i class="bi bi-shield-lock fs-4 text-primary me-2"></i>
                         <div class="flex-grow-1">
                             <strong>Certificado Digital A1</strong>
-                            <div class="small text-muted">Arquivo .pfx + senha — necessário para emitir qualquer nota fiscal</div>
+                            <div class="small text-muted">
+                                @if($precisaCertificado)
+                                    Obrigatório para emitir NF-e e NFC-e
+                                @elseif($apenasNFSe)
+                                    Opcional para NFS-e — depende da sua prefeitura
+                                @else
+                                    Só necessário quando você habilitar NF-e ou NFC-e
+                                @endif
+                            </div>
                         </div>
                         @if($config->certificado_validade)
                             @php $dias = (int) now()->startOfDay()->diffInDays($config->certificado_validade->startOfDay(), false); @endphp
@@ -118,11 +135,31 @@
                             @else
                                 <span class="badge bg-danger"><i class="bi bi-shield-x me-1"></i>VENCIDO</span>
                             @endif
+                        @elseif($precisaCertificado)
+                            <span class="badge bg-warning"><i class="bi bi-shield-exclamation me-1"></i>Necessário</span>
                         @else
-                            <span class="badge bg-secondary"><i class="bi bi-shield-exclamation me-1"></i>Não enviado</span>
+                            <span class="badge bg-secondary"><i class="bi bi-dash-circle me-1"></i>Opcional</span>
                         @endif
                     </div>
                     <div class="card-body">
+                        {{-- Contexto de quando é necessário --}}
+                        @if($apenasNFSe && !$config->certificado_enviado_em)
+                            <div class="alert alert-info small mb-3">
+                                <i class="bi bi-info-circle me-1"></i>
+                                <strong>Você só marcou NFS-e.</strong>
+                                A maioria das prefeituras permite emitir NFS-e apenas com login e senha do portal municipal —
+                                <strong>o certificado digital A1 geralmente não é exigido</strong>. Algumas cidades (ex: São Paulo, Curitiba)
+                                pedem o certificado. Consulte sua prefeitura ou contador se não tem certeza.
+                            </div>
+                        @elseif($ambienteAtual === 'homologacao' && !$config->certificado_enviado_em)
+                            <div class="alert alert-info small mb-3">
+                                <i class="bi bi-info-circle me-1"></i>
+                                Em <strong>homologação</strong> (ambiente de teste), você pode fazer emissões de teste sem enviar o certificado —
+                                a Focus NFe tem um certificado de homologação genérico. O certificado A1 só vira obrigatório
+                                quando trocar para <strong>produção</strong>.
+                            </div>
+                        @endif
+
                         @if($config->certificado_enviado_em)
                             <div class="small text-muted mb-3">
                                 <i class="bi bi-check-circle text-success me-1"></i>
@@ -132,16 +169,16 @@
                             </div>
                         @endif
 
-                        <form action="{{ route('app.configuracao-fiscal.certificado') }}" method="POST" enctype="multipart/form-data" class="row g-3" data-erp-no-loading="0">
+                        <form action="{{ route('app.configuracao-fiscal.certificado') }}" method="POST" enctype="multipart/form-data" class="row g-3">
                             @csrf
                             <div class="col-md-7">
                                 <label class="form-label small fw-semibold">Arquivo do certificado (.pfx)</label>
-                                <input type="file" name="certificado" accept=".pfx,.p12,application/x-pkcs12" class="form-control" required>
+                                <input type="file" name="certificado" accept=".pfx,.p12,application/x-pkcs12" class="form-control">
                                 <div class="form-text">Apenas certificado A1 em formato PKCS#12. Máximo 2MB.</div>
                             </div>
                             <div class="col-md-3">
                                 <label class="form-label small fw-semibold">Senha</label>
-                                <input type="password" name="certificado_senha" class="form-control" autocomplete="off" required>
+                                <input type="password" name="certificado_senha" class="form-control" autocomplete="off">
                                 <div class="form-text">Senha definida na emissão do certificado.</div>
                             </div>
                             <div class="col-md-2 d-flex align-items-end">
