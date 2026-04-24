@@ -58,7 +58,7 @@
                 <td class="action-btns text-center">
                     <a href="{{ route('app.fornecedores.show', $fornecedor) }}" class="btn btn-sm btn-outline-info" title="Visualizar"><i class="bi bi-eye"></i></a>
                     <a href="{{ route('app.fornecedores.edit', $fornecedor) }}" class="btn btn-sm btn-outline-primary" title="Editar"><i class="bi bi-pencil"></i></a>
-                    <form method="POST" action="{{ route('app.fornecedores.destroy', $fornecedor) }}" class="d-inline" onsubmit="return confirm('Tem certeza que deseja excluir este fornecedor?')">
+                    <form method="POST" action="{{ route('app.fornecedores.destroy', $fornecedor) }}" class="d-inline" data-confirm="Tem certeza que deseja excluir este fornecedor?">
                         @csrf @method('DELETE')
                         <button type="submit" class="btn btn-sm btn-outline-danger" title="Excluir"><i class="bi bi-trash"></i></button>
                     </form>

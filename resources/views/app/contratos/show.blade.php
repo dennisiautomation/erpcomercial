@@ -7,7 +7,7 @@
     @if($contrato->status === 'ativo')
     <form action="{{ route('app.contratos.faturar', $contrato) }}" method="POST" class="d-inline">
         @csrf
-        <button type="submit" class="btn btn-success" onclick="return confirm('Gerar faturamento para este contrato?')">
+        <button type="submit" class="btn btn-success" data-confirm="Gerar faturamento para este contrato?">
             <i class="bi bi-receipt me-1"></i> Faturar
         </button>
     </form>

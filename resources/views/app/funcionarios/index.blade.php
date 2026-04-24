@@ -80,7 +80,7 @@
                                     <a href="{{ route('app.funcionarios.show', $func) }}" class="btn btn-sm btn-outline-info" title="Visualizar"><i class="bi bi-eye"></i></a>
                                     <a href="{{ route('app.funcionarios.edit', $func) }}" class="btn btn-sm btn-outline-primary" title="Editar"><i class="bi bi-pencil"></i></a>
                                     @if($func->id !== auth()->id())
-                                        <form method="POST" action="{{ route('app.funcionarios.destroy', $func) }}" class="d-inline" onsubmit="return confirm('Tem certeza que deseja desativar este funcionário?')">
+                                        <form method="POST" action="{{ route('app.funcionarios.destroy', $func) }}" class="d-inline" data-confirm="Tem certeza que deseja desativar este funcionário?">
                                             @csrf
                                             @method('DELETE')
                                             <button type="submit" class="btn btn-sm btn-outline-danger" title="Desativar"><i class="bi bi-person-x"></i></button>

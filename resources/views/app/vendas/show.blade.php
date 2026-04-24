@@ -22,7 +22,7 @@
     <div class="d-flex gap-2 flex-wrap">
         @if($venda->status->value === 'concluida')
             <form method="POST" action="{{ route('app.vendas.destroy', $venda) }}"
-                  onsubmit="return confirm('Cancelar esta venda? O estoque sera revertido e as contas a receber serao canceladas.')">
+                  data-confirm="Cancelar esta venda? O estoque sera revertido e as contas a receber serao canceladas.">
                 @csrf
                 @method('DELETE')
                 <button type="submit" class="btn btn-danger">
@@ -298,13 +298,13 @@
                     <div class="d-flex gap-2">
                         <form method="POST" action="{{ route('app.notas-fiscais.emitir-nfe', $venda) }}">
                             @csrf
-                            <button class="btn btn-erp-primary" onclick="return confirm('Emitir NF-e para esta venda?')">
+                            <button class="btn btn-erp-primary" data-confirm="Emitir NF-e para esta venda?">
                                 <i class="bi bi-file-earmark-text me-1"></i> Emitir NF-e (DANFE)
                             </button>
                         </form>
                         <form method="POST" action="{{ route('app.notas-fiscais.emitir-nfce', $venda) }}">
                             @csrf
-                            <button class="btn btn-erp-outline" onclick="return confirm('Emitir NFC-e para esta venda?')">
+                            <button class="btn btn-erp-outline" data-confirm="Emitir NFC-e para esta venda?">
                                 <i class="bi bi-receipt me-1"></i> Emitir NFC-e
                             </button>
                         </form>

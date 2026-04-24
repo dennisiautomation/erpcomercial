@@ -242,7 +242,7 @@
                                     <a href="{{ route('app.clientes.edit', $cliente) }}" class="action-btn btn btn-light" title="Editar">
                                         <i class="bi bi-pencil text-primary"></i>
                                     </a>
-                                    <form method="POST" action="{{ route('app.clientes.destroy', $cliente) }}" class="d-inline" onsubmit="return confirm('Tem certeza que deseja excluir este cliente?')">
+                                    <form method="POST" action="{{ route('app.clientes.destroy', $cliente) }}" class="d-inline" data-confirm="Tem certeza que deseja excluir este cliente?">
                                         @csrf
                                         @method('DELETE')
                                         <button type="submit" class="action-btn btn btn-light" title="Excluir">

@@ -148,6 +148,9 @@ const ERP = {
                 const q = el.value.trim();
                 if (q.length < 2) { dropdown.innerHTML = ''; dropdown.style.display = 'none'; return; }
 
+                dropdown.innerHTML = '<div class="autocomplete-empty"><span class="spinner-border spinner-border-sm me-2"></span>Buscando...</div>';
+                dropdown.style.display = 'block';
+
                 debounce = setTimeout(async () => {
                     try {
                         const res = await fetch(`${url}?q=${encodeURIComponent(q)}`, {
@@ -183,7 +186,10 @@ const ERP = {
                                 el.dispatchEvent(new Event('autocomplete-select', { bubbles: true }));
                             });
                         });
-                    } catch (e) { console.error('Autocomplete error:', e); }
+                    } catch (e) {
+                        console.error('Autocomplete error:', e);
+                        dropdown.innerHTML = '<div class="autocomplete-empty text-danger">Erro ao buscar. Tente novamente.</div>';
+                    }
                 }, 300);
             });
 
@@ -420,24 +426,59 @@ const ERP = {
     },
 
     // ─── TOAST NOTIFICATIONS ────────────────────────────────
-    toast(message, type = 'info') {
+    toast(message, type = 'info', opts = {}) {
         let container = document.getElementById('erp-toasts');
         if (!container) {
             container = document.createElement('div');
             container.id = 'erp-toasts';
-            container.style.cssText = 'position:fixed;top:1rem;right:1rem;z-index:9999;display:flex;flex-direction:column;gap:0.5rem;';
+            container.style.cssText = 'position:fixed;top:1rem;right:1rem;z-index:9999;display:flex;flex-direction:column;gap:0.5rem;max-width:420px;';
             document.body.appendChild(container);
         }
 
         const icons = { success: 'check-circle-fill', danger: 'exclamation-triangle-fill', warning: 'exclamation-circle-fill', info: 'info-circle-fill' };
         const colors = { success: '#059669', danger: '#dc2626', warning: '#d97706', info: '#0891b2' };
+        const duration = opts.duration !== undefined ? opts.duration : (type === 'danger' ? 8000 : 4000);
 
         const toast = document.createElement('div');
-        toast.style.cssText = `background:#fff;border-left:4px solid ${colors[type]||colors.info};border-radius:0.5rem;padding:0.75rem 1rem;box-shadow:0 4px 12px rgba(0,0,0,0.15);display:flex;align-items:center;gap:0.5rem;min-width:280px;animation:slideIn 0.3s ease;font-size:0.875rem;`;
-        toast.innerHTML = `<i class="bi bi-${icons[type]||icons.info}" style="color:${colors[type]||colors.info};flex-shrink:0"></i><span>${message}</span>`;
+        toast.style.cssText = `background:#fff;border-left:4px solid ${colors[type]||colors.info};border-radius:0.5rem;padding:0.75rem 0.875rem;box-shadow:0 4px 12px rgba(0,0,0,0.15);display:flex;align-items:flex-start;gap:0.5rem;min-width:280px;animation:slideIn 0.3s ease;font-size:0.875rem;`;
+
+        const iconEl = document.createElement('i');
+        iconEl.className = `bi bi-${icons[type]||icons.info}`;
+        iconEl.style.cssText = `color:${colors[type]||colors.info};flex-shrink:0;margin-top:2px;`;
+
+        const msgEl = document.createElement('div');
+        msgEl.style.cssText = 'flex:1;line-height:1.4;word-break:break-word;';
+        if (opts.title) {
+            const titleEl = document.createElement('div');
+            titleEl.style.cssText = 'font-weight:600;margin-bottom:2px;';
+            titleEl.textContent = opts.title;
+            msgEl.appendChild(titleEl);
+        }
+        const textEl = document.createElement('div');
+        textEl.textContent = message;
+        msgEl.appendChild(textEl);
+
+        const closeBtn = document.createElement('button');
+        closeBtn.type = 'button';
+        closeBtn.setAttribute('aria-label', 'Fechar');
+        closeBtn.style.cssText = 'background:none;border:0;padding:0;line-height:1;cursor:pointer;color:#6b7280;font-size:1.25rem;flex-shrink:0;';
+        closeBtn.innerHTML = '&times;';
+
+        const dismiss = () => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(100%)';
+            toast.style.transition = 'all 0.3s';
+            setTimeout(() => toast.remove(), 300);
+        };
+        closeBtn.addEventListener('click', dismiss);
+
+        toast.appendChild(iconEl);
+        toast.appendChild(msgEl);
+        toast.appendChild(closeBtn);
         container.appendChild(toast);
 
-        setTimeout(() => { toast.style.opacity = '0'; toast.style.transform = 'translateX(100%)'; toast.style.transition = 'all 0.3s'; setTimeout(() => toast.remove(), 300); }, 4000);
+        if (duration > 0) setTimeout(dismiss, duration);
+        return { dismiss };
     },
 
     // ─── HELPERS ─────────────────────────────────────────────
@@ -459,15 +500,141 @@ const ERP = {
         });
     },
 
-    // ─── CONFIRM DELETE ─────────────────────────────────────
+    // ─── CONFIRM (modal Bootstrap) ──────────────────────────
+    confirm(opts = {}) {
+        const isDanger = opts.variant === 'danger' || opts.danger === true;
+        const modalEl = document.createElement('div');
+        modalEl.className = 'modal fade';
+        modalEl.tabIndex = -1;
+        modalEl.setAttribute('aria-hidden', 'true');
+        modalEl.innerHTML = `
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header ${isDanger ? 'bg-danger text-white' : ''}">
+                        <h5 class="modal-title">
+                            <i class="bi bi-${opts.icon || (isDanger ? 'exclamation-triangle-fill' : 'question-circle')} me-2"></i>
+                            <span data-role="title"></span>
+                        </h5>
+                        <button type="button" class="btn-close ${isDanger ? 'btn-close-white' : ''}" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="mb-0" data-role="message"></p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" data-role="cancel"></button>
+                        <button type="button" class="btn btn-${isDanger ? 'danger' : 'primary'}" data-role="ok"></button>
+                    </div>
+                </div>
+            </div>`;
+        modalEl.querySelector('[data-role="title"]').textContent = opts.title || 'Confirmar';
+        modalEl.querySelector('[data-role="message"]').textContent = opts.message || 'Tem certeza?';
+        modalEl.querySelector('[data-role="cancel"]').textContent = opts.cancelText || 'Cancelar';
+        const okBtn = modalEl.querySelector('[data-role="ok"]');
+        okBtn.innerHTML = `<i class="bi bi-${isDanger ? 'trash' : 'check-lg'} me-1"></i>${opts.confirmText || (isDanger ? 'Excluir' : 'Confirmar')}`;
+
+        document.body.appendChild(modalEl);
+        const bsModal = new bootstrap.Modal(modalEl);
+
+        return new Promise(resolve => {
+            let decided = false;
+            okBtn.addEventListener('click', () => { decided = true; bsModal.hide(); resolve(true); });
+            modalEl.addEventListener('hidden.bs.modal', () => {
+                if (!decided) resolve(false);
+                modalEl.remove();
+            });
+            bsModal.show();
+            setTimeout(() => okBtn.focus(), 200);
+        });
+    },
+
+    // ─── CONFIRM DELETE / DATA-CONFIRM ──────────────────────
     initConfirmDelete() {
+        // Intercepta submit com data-confirm no form ou DELETE
         document.addEventListener('submit', (e) => {
             const form = e.target;
-            if (form.method === 'post' && form.querySelector('input[name="_method"][value="DELETE"]')) {
-                if (!confirm('Tem certeza que deseja excluir este registro?')) {
-                    e.preventDefault();
+            if (form.dataset.erpConfirmed === '1') return;
+
+            const customMsg = form.dataset.confirm;
+            const isDelete = form.method && form.method.toLowerCase() === 'post'
+                && form.querySelector('input[name="_method"][value="DELETE"]');
+
+            if (!customMsg && !isDelete) return;
+
+            e.preventDefault();
+            ERP.confirm({
+                title: form.dataset.confirmTitle || (isDelete ? 'Confirmar exclusão' : 'Confirmar ação'),
+                message: customMsg || 'Tem certeza que deseja excluir este registro?',
+                variant: isDelete || form.dataset.confirmVariant === 'danger' ? 'danger' : 'primary',
+                confirmText: form.dataset.confirmOk || (isDelete ? 'Excluir' : 'Confirmar'),
+            }).then(ok => {
+                if (ok) {
+                    form.dataset.erpConfirmed = '1';
+                    form.submit();
                 }
+            });
+        }, true);
+
+        // Intercepta click em [data-confirm] (buttons, links)
+        document.addEventListener('click', (e) => {
+            const el = e.target.closest('[data-confirm]');
+            if (!el) return;
+            if (el.tagName === 'FORM') return; // form é tratado no submit
+            if (el.dataset.erpConfirmed === '1') return;
+
+            const isDanger = el.classList.contains('btn-danger') || el.classList.contains('btn-outline-danger')
+                || el.dataset.confirmVariant === 'danger';
+
+            e.preventDefault();
+            e.stopPropagation();
+
+            ERP.confirm({
+                title: el.dataset.confirmTitle || 'Confirmar ação',
+                message: el.dataset.confirm,
+                variant: isDanger ? 'danger' : 'primary',
+                confirmText: el.dataset.confirmOk || 'Confirmar',
+            }).then(ok => {
+                if (!ok) return;
+                el.dataset.erpConfirmed = '1';
+                // Se é submit button dentro de form, submete o form
+                if (el.tagName === 'BUTTON' && el.type === 'submit' && el.form) {
+                    el.form.dataset.erpConfirmed = '1';
+                    el.form.requestSubmit(el);
+                } else if (el.tagName === 'A' && el.href) {
+                    window.location.href = el.href;
+                } else {
+                    el.click();
+                }
+            });
+        }, true);
+    },
+
+    // ─── LOADING STATE EM SUBMIT ────────────────────────────
+    initSubmitLoading() {
+        document.addEventListener('submit', (e) => {
+            const form = e.target;
+            if (!form.matches('form')) return;
+            if (form.dataset.erpNoLoading === '1') return;
+            if (form.dataset.erpConfirmed === '0' && form.dataset.confirm) return; // será interceptado
+
+            const btn = form.querySelector('button[type="submit"]:not([data-no-loading])');
+            if (!btn || btn.disabled) return;
+
+            const original = btn.innerHTML;
+            const icon = btn.querySelector('i.bi');
+            if (icon) {
+                icon.className = 'spinner-border spinner-border-sm me-1';
+            } else {
+                btn.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span>${original}`;
             }
+            btn.disabled = true;
+
+            // Restaura se o form não navegar em 10s (fallback em caso de erro)
+            setTimeout(() => {
+                if (document.body.contains(btn)) {
+                    btn.disabled = false;
+                    btn.innerHTML = original;
+                }
+            }, 10000);
         });
     },
 
@@ -484,6 +651,7 @@ const ERP = {
         this.initParcelas();
         this.initKeyboard();
         this.initConfirmDelete();
+        this.initSubmitLoading();
     }
 };
 

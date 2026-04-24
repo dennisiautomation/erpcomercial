@@ -22,7 +22,7 @@
     <div class="d-flex gap-2 flex-wrap">
         @if(!in_array($orcamento->status->value, ['convertido', 'recusado']))
             <form method="POST" action="{{ route('app.orcamentos.converter', $orcamento) }}"
-                  onsubmit="return confirm('Converter este orcamento em pedido? Esta acao nao pode ser desfeita.')">
+                  data-confirm="Converter este orcamento em pedido? Esta acao nao pode ser desfeita.">
                 @csrf
                 <button type="submit" class="btn btn-success">
                     <i class="bi bi-arrow-right-circle me-1"></i> Converter em Pedido
@@ -52,14 +52,14 @@
                 <form method="POST" action="{{ route('app.orcamentos.update-status', $orcamento) }}" class="d-inline">
                     @csrf
                     <input type="hidden" name="status" value="aprovado">
-                    <button type="submit" class="btn btn-success btn-sm" onclick="return confirm('Aprovar este orcamento?')">
+                    <button type="submit" class="btn btn-success btn-sm" data-confirm="Aprovar este orcamento?">
                         <i class="bi bi-check-circle me-1"></i> Aprovar
                     </button>
                 </form>
                 <form method="POST" action="{{ route('app.orcamentos.update-status', $orcamento) }}" class="d-inline">
                     @csrf
                     <input type="hidden" name="status" value="recusado">
-                    <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('Recusar este orcamento?')">
+                    <button type="submit" class="btn btn-outline-danger btn-sm" data-confirm="Recusar este orcamento?">
                         <i class="bi bi-x-circle me-1"></i> Recusar
                     </button>
                 </form>

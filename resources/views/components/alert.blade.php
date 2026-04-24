@@ -12,7 +12,7 @@
 @endif
 
 @if(session('error'))
-    <div class="erp-alert erp-alert-danger alert alert-dismissible fade show mb-3" role="alert" data-auto-dismiss="8000">
+    <div class="erp-alert erp-alert-danger alert alert-dismissible fade show mb-3" role="alert">
         <i class="bi bi-exclamation-triangle-fill"></i>
         <div class="flex-grow-1">{{ session('error') }}</div>
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>

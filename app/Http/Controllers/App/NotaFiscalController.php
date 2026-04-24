@@ -239,11 +239,13 @@ class NotaFiscalController extends Controller
             $service = $this->resolveService($notaFiscal->tipo);
             $service->cancelar($notaFiscal, $request->justificativa);
 
-            return back()->with('success', 'Solicitacao de cancelamento enviada com sucesso!');
+            return back()->with('success', 'Nota fiscal cancelada com sucesso!');
+        } catch (\App\Exceptions\NotaFiscalCancelException $e) {
+            return back()->with('error', $e->getMessage());
         } catch (\Throwable $e) {
             Log::error('Erro ao cancelar nota', ['nota_id' => $notaFiscal->id, 'error' => $e->getMessage()]);
 
-            return back()->with('error', 'Erro ao cancelar: ' . $e->getMessage());
+            return back()->with('error', 'Erro inesperado ao cancelar a nota. Nossa equipe foi notificada — tente novamente em instantes.');
         }
     }
 

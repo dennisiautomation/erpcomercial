@@ -66,7 +66,7 @@
                                     <a href="{{ route('app.categorias.edit', $categoria) }}" class="btn btn-sm btn-outline-primary" title="Editar">
                                         <i class="bi bi-pencil"></i>
                                     </a>
-                                    <form method="POST" action="{{ route('app.categorias.destroy', $categoria) }}" class="d-inline" onsubmit="return confirm('Tem certeza que deseja excluir esta categoria?')">
+                                    <form method="POST" action="{{ route('app.categorias.destroy', $categoria) }}" class="d-inline" data-confirm="Tem certeza que deseja excluir esta categoria?">
                                         @csrf
                                         @method('DELETE')
                                         <button type="submit" class="btn btn-sm btn-outline-danger" title="Excluir">

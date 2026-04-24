@@ -197,6 +197,37 @@ class NFCeServiceTest extends TestCase
         ]);
     }
 
+    public function test_nfce_cancelamento_prazo_excedido_lanca_excecao_amigavel(): void
+    {
+        Http::fake([
+            'homologacao.focusnfe.com.br/v2/nfce/*' => Http::response([
+                'codigo'   => 'NAOCANC',
+                'mensagem' => 'Prazo de cancelamento excedido',
+            ], 400),
+        ]);
+
+        $nota = $this->createNotaAutorizada();
+
+        $this->expectException(\App\Exceptions\NotaFiscalCancelException::class);
+        $this->expectExceptionMessage('prazo para cancelamento');
+
+        $this->service->cancelar($nota, 'Tentando cancelar depois do prazo');
+    }
+
+    public function test_nfce_cancelamento_falha_conexao_lanca_excecao_amigavel(): void
+    {
+        Http::fake(function () {
+            throw new \Illuminate\Http\Client\ConnectionException('Timeout');
+        });
+
+        $nota = $this->createNotaAutorizada();
+
+        $this->expectException(\App\Exceptions\NotaFiscalCancelException::class);
+        $this->expectExceptionMessage('Não foi possível conectar');
+
+        $this->service->cancelar($nota, 'Tentativa com rede fora do ar');
+    }
+
     public function test_nfce_payload_contains_correct_emitente_data(): void
     {
         Http::fake([

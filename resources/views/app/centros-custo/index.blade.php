@@ -69,7 +69,7 @@
                                         <a href="{{ route('app.centros-custo.edit', $centro) }}" class="btn btn-sm btn-outline-primary" title="Editar">
                                             <i class="bi bi-pencil"></i>
                                         </a>
-                                        <form method="POST" action="{{ route('app.centros-custo.destroy', $centro) }}" class="d-inline" onsubmit="return confirm('Confirma a exclusao?')">
+                                        <form method="POST" action="{{ route('app.centros-custo.destroy', $centro) }}" class="d-inline" data-confirm="Confirma a exclusao?">
                                             @csrf
                                             @method('DELETE')
                                             <button type="submit" class="btn btn-sm btn-outline-danger" title="Excluir">

@@ -130,14 +130,14 @@
                     </a>
                     @if($conta->status === 'pendente')
                     <form method="POST" action="{{ route('app.contas-pagar.baixar', $conta) }}"
-                        onsubmit="return confirm('Confirma o pagamento de R$ {{ number_format($conta->valor, 2, ',', '.') }}?')">
+                        data-confirm="Confirma o pagamento de R$ {{ number_format($conta->valor, 2, ',', '.') }}?">
                         @csrf
                         <button type="submit" class="btn btn-sm btn-success" title="Dar baixa">
                             <i class="bi bi-check-lg"></i>
                         </button>
                     </form>
                     <form method="POST" action="{{ route('app.contas-pagar.destroy', $conta) }}"
-                        onsubmit="return confirm('Confirma a exclusao desta conta?')">
+                        data-confirm="Confirma a exclusao desta conta?">
                         @csrf
                         @method('DELETE')
                         <button type="submit" class="btn btn-sm btn-outline-danger" title="Excluir">

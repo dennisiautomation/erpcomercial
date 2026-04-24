@@ -120,7 +120,7 @@
                                     <i class="bi bi-pencil"></i>
                                 </a>
                                 <form method="POST" action="{{ route('app.servicos.destroy', $servico) }}" class="d-inline"
-                                      onsubmit="return confirm('Tem certeza que deseja excluir este servico?')">
+                                      data-confirm="Tem certeza que deseja excluir este servico?">
                                     @csrf
                                     @method('DELETE')
                                     <button type="submit" class="btn btn-sm btn-outline-danger" title="Excluir">

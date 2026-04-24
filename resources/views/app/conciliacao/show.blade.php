@@ -7,13 +7,13 @@
     @if($conciliacao->status !== 'concluida')
     <form action="{{ route('app.conciliacao.auto', $conciliacao) }}" method="POST" class="d-inline">
         @csrf
-        <button type="submit" class="btn btn-info" onclick="return confirm('Executar conciliacao automatica?')">
+        <button type="submit" class="btn btn-info" data-confirm="Executar conciliacao automatica?">
             <i class="bi bi-magic me-1"></i> Auto-Conciliar
         </button>
     </form>
     <form action="{{ route('app.conciliacao.finalizar', $conciliacao) }}" method="POST" class="d-inline">
         @csrf
-        <button type="submit" class="btn btn-success" onclick="return confirm('Finalizar esta conciliacao?')">
+        <button type="submit" class="btn btn-success" data-confirm="Finalizar esta conciliacao?">
             <i class="bi bi-check-circle me-1"></i> Finalizar
         </button>
     </form>

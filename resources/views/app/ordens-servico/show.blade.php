@@ -303,7 +303,7 @@
 
                 @if(in_array($ordemServico->status, ['concluida', 'entregue']))
                     <form method="POST" action="{{ route('app.ordens-servico.converter-venda', $ordemServico) }}"
-                          onsubmit="return confirm('Converter esta OS em venda?')">
+                          data-confirm="Converter esta OS em venda?">
                         @csrf
                         <button type="submit" class="btn btn-success w-100">
                             <i class="bi bi-receipt me-1"></i> Converter em Venda
@@ -314,7 +314,7 @@
                 @if(!in_array($ordemServico->status, ['entregue', 'cancelada']))
                     <hr class="my-1">
                     <form method="POST" action="{{ route('app.ordens-servico.destroy', $ordemServico) }}"
-                          onsubmit="return confirm('Tem certeza que deseja excluir esta OS? Esta acao e irreversivel.')">
+                          data-confirm="Tem certeza que deseja excluir esta OS? Esta acao e irreversivel.">
                         @csrf
                         @method('DELETE')
                         <button type="submit" class="btn btn-outline-danger btn-sm w-100">

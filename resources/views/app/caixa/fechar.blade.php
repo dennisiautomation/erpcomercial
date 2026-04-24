@@ -287,7 +287,7 @@
     </div>
 
     {{-- Formulario --}}
-    <form method="POST" action="{{ route('app.caixa.fechar') }}" onsubmit="return confirm('Confirmar fechamento do caixa?')">
+    <form method="POST" action="{{ route('app.caixa.fechar') }}" data-confirm="Confirmar fechamento do caixa?">
         @csrf
 
         <div class="form-group">

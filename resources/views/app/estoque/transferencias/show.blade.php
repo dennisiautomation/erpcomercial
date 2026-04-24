@@ -118,7 +118,7 @@
         <x-erp.card title="Acoes" icon="lightning" class="mt-4">
             <div class="d-flex gap-2">
                 <form method="POST" action="{{ route('app.transferencias.aprovar', $transferencia) }}"
-                    onsubmit="return confirm('Confirma a aprovacao desta transferencia? O estoque sera movimentado automaticamente.')">
+                    data-confirm="Confirma a aprovacao desta transferencia? O estoque sera movimentado automaticamente.">
                     @csrf
                     @method('PATCH')
                     <button type="submit" class="btn btn-success btn-lg">
@@ -126,7 +126,7 @@
                     </button>
                 </form>
                 <form method="POST" action="{{ route('app.transferencias.cancelar', $transferencia) }}"
-                    onsubmit="return confirm('Confirma o cancelamento desta transferencia?')">
+                    data-confirm="Confirma o cancelamento desta transferencia?">
                     @csrf
                     @method('PATCH')
                     <button type="submit" class="btn btn-outline-danger btn-lg">

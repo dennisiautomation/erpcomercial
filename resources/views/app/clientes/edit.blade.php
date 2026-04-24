@@ -557,7 +557,7 @@
         {{-- Delete button below wizard --}}
         <div class="text-center mt-4 pt-3" style="border-top: 1px solid var(--border);">
             <form method="POST" action="{{ route('app.clientes.destroy', $cliente) }}" class="d-inline"
-                  onsubmit="return confirm('Tem certeza que deseja excluir este cliente? Esta acao nao pode ser desfeita.')">
+                  data-confirm="Tem certeza que deseja excluir este cliente? Esta acao nao pode ser desfeita.">
                 @csrf
                 @method('DELETE')
                 <button type="submit" class="btn btn-link text-danger btn-sm">

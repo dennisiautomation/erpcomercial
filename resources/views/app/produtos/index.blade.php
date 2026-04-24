@@ -118,7 +118,7 @@
                                     <a href="{{ route('app.produtos.edit', $produto) }}" class="btn btn-outline-primary" title="Editar">
                                         <i class="bi bi-pencil"></i>
                                     </a>
-                                    <form method="POST" action="{{ route('app.produtos.destroy', $produto) }}" class="d-inline" onsubmit="return confirm('Tem certeza que deseja excluir este produto?')">
+                                    <form method="POST" action="{{ route('app.produtos.destroy', $produto) }}" class="d-inline" data-confirm="Tem certeza que deseja excluir este produto?">
                                         @csrf
                                         @method('DELETE')
                                         <button type="submit" class="btn btn-outline-danger" title="Excluir">

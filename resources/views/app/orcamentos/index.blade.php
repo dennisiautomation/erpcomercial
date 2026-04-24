@@ -197,7 +197,7 @@
                                         <i class="bi bi-pencil"></i>
                                     </a>
                                     <form method="POST" action="{{ route('app.orcamentos.destroy', $orcamento) }}" class="d-inline"
-                                          onsubmit="return confirm('Tem certeza que deseja excluir este orcamento?')">
+                                          data-confirm="Tem certeza que deseja excluir este orcamento?">
                                         @csrf
                                         @method('DELETE')
                                         <button type="submit" class="btn btn-outline-danger" title="Excluir">

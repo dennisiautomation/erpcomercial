@@ -76,7 +76,7 @@
                             </a>
                             @if($plano->empresas()->count() === 0)
                                 <form method="POST" action="{{ route('admin.planos.destroy', $plano) }}" class="d-inline"
-                                      onsubmit="return confirm('Tem certeza que deseja excluir este plano?')">
+                                      data-confirm="Tem certeza que deseja excluir este plano?">
                                     @csrf
                                     @method('DELETE')
                                     <button type="submit" class="btn btn-sm btn-outline-danger">

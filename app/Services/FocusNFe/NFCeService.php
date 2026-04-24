@@ -157,49 +157,87 @@ class NFCeService
 
     /**
      * Cancela uma NFC-e autorizada.
+     *
+     * @throws \App\Exceptions\NotaFiscalCancelException em caso de erro da SEFAZ/Focus
      */
     public function cancelar(NotaFiscal $nota, string $justificativa): NotaFiscal
     {
-        try {
-            Log::info('NFCe: Cancelando NFC-e', [
-                'ref' => $nota->focus_ref,
-                'justificativa' => $justificativa,
-            ]);
+        Log::info('NFCe: Cancelando NFC-e', [
+            'ref' => $nota->focus_ref,
+            'justificativa' => $justificativa,
+        ]);
 
+        try {
             $response = $this->client->delete("/v2/nfce/{$nota->focus_ref}", [
                 'justificativa' => $justificativa,
             ]);
-
-            $data = $response->json();
-
-            if ($response->successful()) {
-                $nota->status = StatusNotaFiscal::Cancelada;
-                $nota->focus_status = $data['status'] ?? 'cancelado';
-                $nota->cancelamento_motivo = $justificativa;
-                $nota->cancelamento_protocolo = $data['protocolo'] ?? null;
-                $nota->cancelada_em = now();
-                $nota->save();
-
-                Log::info('NFCe: NFC-e cancelada com sucesso', ['ref' => $nota->focus_ref]);
-            } else {
-                $nota->focus_mensagem = $data['mensagem'] ?? 'Erro ao cancelar NFC-e';
-                $nota->save();
-
-                Log::warning('NFCe: Erro ao cancelar NFC-e', [
-                    'ref' => $nota->focus_ref,
-                    'response' => $data,
-                ]);
-            }
-
-            return $nota;
         } catch (\Throwable $e) {
-            Log::error('NFCe: Erro ao cancelar NFC-e', [
+            Log::error('NFCe: Erro de comunicação ao cancelar NFC-e', [
                 'ref' => $nota->focus_ref,
                 'error' => $e->getMessage(),
             ]);
+            throw new \App\Exceptions\NotaFiscalCancelException(
+                'Não foi possível conectar à SEFAZ para cancelar. Verifique sua conexão e tente novamente.',
+                0, $e
+            );
+        }
 
+        $data = $response->json() ?? [];
+
+        if ($response->successful()) {
+            $nota->status = StatusNotaFiscal::Cancelada;
+            $nota->focus_status = $data['status'] ?? 'cancelado';
+            $nota->cancelamento_motivo = $justificativa;
+            $nota->cancelamento_protocolo = $data['protocolo'] ?? null;
+            $nota->cancelada_em = now();
+            $nota->save();
+
+            Log::info('NFCe: NFC-e cancelada com sucesso', ['ref' => $nota->focus_ref]);
             return $nota;
         }
+
+        $rawMsg = $data['mensagem'] ?? $data['erros'][0]['mensagem'] ?? 'Erro desconhecido ao cancelar.';
+        $friendly = $this->translateCancelError($rawMsg, $response->status());
+
+        $nota->focus_mensagem = $rawMsg;
+        $nota->save();
+
+        Log::warning('NFCe: Erro ao cancelar NFC-e', [
+            'ref' => $nota->focus_ref,
+            'status' => $response->status(),
+            'response' => $data,
+        ]);
+
+        throw new \App\Exceptions\NotaFiscalCancelException($friendly);
+    }
+
+    /**
+     * Traduz mensagens comuns da SEFAZ para texto amigável em pt-BR.
+     */
+    private function translateCancelError(string $raw, int $httpStatus): string
+    {
+        $lower = mb_strtolower($raw);
+
+        if (str_contains($lower, 'prazo') || str_contains($lower, 'exced')) {
+            return 'O prazo para cancelamento desta NFC-e foi excedido (máximo 30 minutos após autorização). Emita uma nota de devolução.';
+        }
+        if (str_contains($lower, 'nao autorizada') || str_contains($lower, 'não autorizada') || str_contains($lower, 'rejeit')) {
+            return 'Esta nota não está autorizada na SEFAZ e portanto não pode ser cancelada.';
+        }
+        if (str_contains($lower, 'duplicidade') || str_contains($lower, 'já cancel') || str_contains($lower, 'ja cancel')) {
+            return 'Esta NFC-e já foi cancelada anteriormente.';
+        }
+        if (str_contains($lower, 'certificado')) {
+            return 'Certificado digital inválido ou expirado. Atualize o certificado nas configurações fiscais.';
+        }
+        if ($httpStatus === 401 || str_contains($lower, 'token')) {
+            return 'Token da Focus NFe inválido. Verifique as configurações fiscais.';
+        }
+        if ($httpStatus >= 500) {
+            return 'A SEFAZ está instável no momento. Aguarde alguns minutos e tente novamente.';
+        }
+
+        return "Não foi possível cancelar: {$raw}";
     }
 
     /**

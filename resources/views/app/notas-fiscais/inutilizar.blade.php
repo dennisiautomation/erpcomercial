@@ -74,7 +74,7 @@
 
                         <div class="col-12">
                             <hr>
-                            <button type="submit" class="btn btn-danger" onclick="return confirm('Confirma a inutilizacao da numeracao? Esta acao e irreversivel.')">
+                            <button type="submit" class="btn btn-danger" data-confirm="Confirma a inutilizacao da numeracao? Esta acao e irreversivel.">
                                 <i class="bi bi-slash-circle me-1"></i> Inutilizar Numeracao
                             </button>
                         </div>

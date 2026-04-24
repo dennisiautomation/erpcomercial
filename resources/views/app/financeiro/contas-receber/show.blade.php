@@ -101,7 +101,7 @@
         @if($contaReceber->status === 'pendente')
         <div class="d-flex gap-2 mt-4">
             <form method="POST" action="{{ route('app.contas-receber.baixar', $contaReceber) }}"
-                onsubmit="return confirm('Confirma o recebimento desta conta?')">
+                data-confirm="Confirma o recebimento desta conta?">
                 @csrf
                 @method('PATCH')
                 <button type="submit" class="btn btn-success">

@@ -92,7 +92,7 @@
                     <form method="POST" action="{{ route('app.pedidos.update-status', $pedido) }}" class="d-inline">
                         @csrf
                         <input type="hidden" name="status" value="confirmado">
-                        <button type="submit" class="btn btn-primary" onclick="return confirm('Confirmar este pedido? Uma conta a receber sera criada.')">
+                        <button type="submit" class="btn btn-primary" data-confirm="Confirmar este pedido? Uma conta a receber sera criada.">
                             <i class="bi bi-check-circle me-1"></i> Confirmar Pedido
                         </button>
                     </form>
@@ -102,7 +102,7 @@
                     <form method="POST" action="{{ route('app.pedidos.update-status', $pedido) }}" class="d-inline">
                         @csrf
                         <input type="hidden" name="status" value="faturado">
-                        <button type="submit" class="btn btn-info text-white" onclick="return confirm('Faturar este pedido? O estoque sera baixado automaticamente.')">
+                        <button type="submit" class="btn btn-info text-white" data-confirm="Faturar este pedido? O estoque sera baixado automaticamente.">
                             <i class="bi bi-receipt me-1"></i> Faturar Pedido
                         </button>
                     </form>
@@ -112,7 +112,7 @@
                     <form method="POST" action="{{ route('app.pedidos.update-status', $pedido) }}" class="d-inline">
                         @csrf
                         <input type="hidden" name="status" value="entregue">
-                        <button type="submit" class="btn btn-success" onclick="return confirm('Marcar pedido como entregue?')">
+                        <button type="submit" class="btn btn-success" data-confirm="Marcar pedido como entregue?">
                             <i class="bi bi-truck me-1"></i> Marcar Entregue
                         </button>
                     </form>
@@ -123,7 +123,7 @@
                 <form method="POST" action="{{ route('app.pedidos.update-status', $pedido) }}" class="d-inline">
                     @csrf
                     <input type="hidden" name="status" value="cancelado">
-                    <button type="submit" class="btn btn-outline-danger" onclick="return confirm('Cancelar este pedido? Esta acao nao pode ser desfeita.')">
+                    <button type="submit" class="btn btn-outline-danger" data-confirm="Cancelar este pedido? Esta acao nao pode ser desfeita.">
                         <i class="bi bi-x-circle me-1"></i> Cancelar Pedido
                     </button>
                 </form>

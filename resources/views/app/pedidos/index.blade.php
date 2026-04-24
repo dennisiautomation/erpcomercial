@@ -220,7 +220,7 @@
                                 @endif
                                 @if(in_array($pedido->status->value, ['rascunho', 'cancelado']))
                                     <form method="POST" action="{{ route('app.pedidos.destroy', $pedido) }}" class="d-inline"
-                                          onsubmit="return confirm('Tem certeza que deseja excluir este pedido?')">
+                                          data-confirm="Tem certeza que deseja excluir este pedido?">
                                         @csrf
                                         @method('DELETE')
                                         <button type="submit" class="btn btn-outline-danger" title="Excluir">

@@ -7,13 +7,13 @@
     @if($boleto->status === 'pendente')
     <form action="{{ route('app.boletos.baixar', $boleto) }}" method="POST" class="d-inline">
         @csrf
-        <button type="submit" class="btn btn-success" onclick="return confirm('Marcar como pago?')">
+        <button type="submit" class="btn btn-success" data-confirm="Marcar como pago?">
             <i class="bi bi-check-lg me-1"></i> Baixar
         </button>
     </form>
     <form action="{{ route('app.boletos.cancelar', $boleto) }}" method="POST" class="d-inline">
         @csrf
-        <button type="submit" class="btn btn-danger" onclick="return confirm('Cancelar este boleto?')">
+        <button type="submit" class="btn btn-danger" data-confirm="Cancelar este boleto?">
             <i class="bi bi-x-lg me-1"></i> Cancelar
         </button>
     </form>

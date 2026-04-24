@@ -114,7 +114,7 @@
         <div class="card-header">
             <span>Lista de Comissoes</span>
             <div class="ms-auto">
-                <button type="submit" class="btn btn-erp btn-erp-success btn-sm" onclick="return confirm('Confirma o pagamento das comissoes selecionadas?')">
+                <button type="submit" class="btn btn-erp btn-erp-success btn-sm" data-confirm="Confirma o pagamento das comissoes selecionadas?">
                     <i class="bi bi-check2-all me-1"></i> Pagar Selecionadas
                 </button>
             </div>
