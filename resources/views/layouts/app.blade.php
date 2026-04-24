@@ -845,11 +845,15 @@
                             <span class="nav-text">Fiscal</span>
                             <i class="bi bi-chevron-right toggle-icon"></i>
                         </a>
-                        <div class="collapse {{ request()->routeIs('app.notas-fiscais.*', 'app.configuracao-fiscal.*') ? 'show' : '' }}" id="menuFiscal">
+                        <div class="collapse {{ request()->routeIs('app.notas-fiscais.*', 'app.configuracao-fiscal.*', 'app.nfes-recebidas.*') ? 'show' : '' }}" id="menuFiscal">
                             <ul class="nav flex-column submenu">
                                 <li class="nav-item">
                                     <a class="nav-link {{ request()->routeIs('app.notas-fiscais.*') ? 'active' : '' }}"
                                        href="{{ route('app.notas-fiscais.index') }}">Notas Fiscais</a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link {{ request()->routeIs('app.nfes-recebidas.*') ? 'active' : '' }}"
+                                       href="{{ route('app.nfes-recebidas.index') }}">NFes Recebidas</a>
                                 </li>
                                 <li class="nav-item">
                                     <a class="nav-link {{ request()->routeIs('app.configuracao-fiscal.*') ? 'active' : '' }}"

@@ -238,6 +238,15 @@ Route::middleware(['auth', 'unidade'])->prefix('app')->name('app.')->group(funct
         Route::get('/sefaz-status', [App\ConfiguracaoFiscalController::class, 'statusSefaz'])->name('sefaz-status');
     });
 
+    /* ------ NFes Recebidas (Manifestação do Destinatário) ------ */
+    Route::prefix('nfes-recebidas')->name('nfes-recebidas.')
+        ->middleware(['permission:notas_fiscais', 'plano:fiscal'])
+        ->group(function () {
+            Route::get('/', [App\NFeRecebidaController::class, 'index'])->name('index');
+            Route::post('/sincronizar', [App\NFeRecebidaController::class, 'sincronizar'])->name('sincronizar');
+            Route::post('/{nfeRecebida}/manifestar', [App\NFeRecebidaController::class, 'manifestar'])->name('manifestar');
+        });
+
     /* ------ Relatorios ------ */
     Route::prefix('relatorios')->name('relatorios.')->middleware('permission:relatorios')->group(function () {
         Route::get('/vendas', [App\RelatorioController::class, 'vendas'])->name('vendas');
