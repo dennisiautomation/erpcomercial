@@ -104,26 +104,44 @@ class ConfiguracaoFiscalController extends Controller
         $unidadeId = session('unidade_id');
         $data = collect($validated)->except(['empresa_id', 'unidade_id'])->toArray();
 
-        // Evitamos Eloquent\updateOrCreate aqui por causa de um bug reproduzido em
-        // produção: mesmo com withoutGlobalScopes(), o firstOrCreate não encontra
-        // o registro existente e cai no INSERT disparando 1062 (duplicate key).
-        //
-        // Usamos DB::table para a checagem de existência (0 scopes, 0 eventos),
-        // então decidimos entre Eloquent update (pra disparar auditlog) ou create.
+        // DEBUG: log session + query lookup para diagnosticar 1062 persistente em prod
         $configId = \Illuminate\Support\Facades\DB::table('configuracoes_fiscais')
             ->where('empresa_id', $empresaId)
             ->where('unidade_id', $unidadeId)
             ->value('id');
 
+        $allRows = \Illuminate\Support\Facades\DB::table('configuracoes_fiscais')
+            ->select('id', 'empresa_id', 'unidade_id')
+            ->get()
+            ->toArray();
+
+        Log::info('[ConfigFiscal DEBUG] antes de salvar', [
+            'session_empresa_id' => $empresaId,
+            'session_empresa_id_type' => gettype($empresaId),
+            'session_unidade_id' => $unidadeId,
+            'session_unidade_id_type' => gettype($unidadeId),
+            'configId_encontrado' => $configId,
+            'auth_user_id' => auth()->id(),
+            'auth_user_empresa_id' => auth()->user()?->empresa_id,
+            'all_config_rows' => $allRows,
+            'connection' => config('database.default'),
+        ]);
+
         if ($configId) {
             $config = ConfiguracaoFiscal::withoutGlobalScopes()->findOrFail($configId);
             $config->fill($data)->save();
         } else {
-            $config = new ConfiguracaoFiscal();
-            $config->empresa_id = $empresaId;
-            $config->unidade_id = $unidadeId;
-            $config->fill($data);
-            $config->save();
+            // Proteção dupla: usa updateOrInsert via DB direto — não falha com 1062
+            \Illuminate\Support\Facades\DB::table('configuracoes_fiscais')->updateOrInsert(
+                ['empresa_id' => $empresaId, 'unidade_id' => $unidadeId],
+                array_merge($data, ['updated_at' => now(), 'created_at' => now()]),
+            );
+
+            // Recarrega via Eloquent para retornar o modelo persistido
+            $config = ConfiguracaoFiscal::withoutGlobalScopes()
+                ->where('empresa_id', $empresaId)
+                ->where('unidade_id', $unidadeId)
+                ->first();
         }
 
         return redirect()
