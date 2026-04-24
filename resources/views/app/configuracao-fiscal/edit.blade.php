@@ -306,7 +306,7 @@
                                 @error('serie_nfce')<div class="invalid-feedback">{{ $message }}</div>@enderror
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label fw-semibold">CSC (Código de Segurança)</label>
+                                <label class="form-label fw-semibold">CSC (Código de Segurança) <x-erp.fiscal-tooltip field="csc" /></label>
                                 <input type="text" name="csc_nfce" class="form-control @error('csc_nfce') is-invalid @enderror"
                                        value="{{ old('csc_nfce', $config->csc_nfce) }}" placeholder="Obtido na SEFAZ do seu estado">
                                 @error('csc_nfce')<div class="invalid-feedback">{{ $message }}</div>@enderror
@@ -351,7 +351,7 @@
                                 @error('serie_nfse')<div class="invalid-feedback">{{ $message }}</div>@enderror
                             </div>
                             <div class="col-md-3">
-                                <label class="form-label fw-semibold">Item LC 116</label>
+                                <label class="form-label fw-semibold">Item LC 116 <x-erp.fiscal-tooltip field="item_lc116" /></label>
                                 <input type="text" name="nfse_item_lista_servico" class="form-control"
                                        value="{{ old('nfse_item_lista_servico', $config->nfse_item_lista_servico) }}" placeholder="01.01">
                             </div>
@@ -385,7 +385,7 @@
 
                         {{-- Sub-seção: padrão NFS-e --}}
                         <hr class="my-3">
-                        <label class="form-label fw-semibold d-block">Padrão da NFS-e</label>
+                        <label class="form-label fw-semibold d-block">Padrão da NFS-e <x-erp.fiscal-tooltip field="nfse_padrao" /></label>
                         <div class="btn-group" role="group">
                             <input type="radio" class="btn-check" name="nfse_padrao" id="padrao_municipal"
                                    value="municipal" autocomplete="off"
@@ -435,6 +435,7 @@
                                            {{ old('ibs_ativo', $config->ibs_ativo ?? false) ? 'checked' : '' }}>
                                     <label class="form-check-label" for="switch_ibs">
                                         <strong>IBS</strong> <small class="text-muted">(estadual/municipal)</small>
+                                        <x-erp.fiscal-tooltip field="ibs" />
                                     </label>
                                 </div>
                                 <label class="form-label small mt-2">Alíquota padrão (%)</label>
@@ -450,6 +451,7 @@
                                            {{ old('cbs_ativo', $config->cbs_ativo ?? false) ? 'checked' : '' }}>
                                     <label class="form-check-label" for="switch_cbs">
                                         <strong>CBS</strong> <small class="text-muted">(federal)</small>
+                                        <x-erp.fiscal-tooltip field="cbs" />
                                     </label>
                                 </div>
                                 <label class="form-label small mt-2">Alíquota padrão (%)</label>
@@ -465,6 +467,7 @@
                                            {{ old('is_ativo', $config->is_ativo ?? false) ? 'checked' : '' }}>
                                     <label class="form-check-label" for="switch_is">
                                         <strong>IS</strong> <small class="text-muted">(seletivo — bebidas/cigarros)</small>
+                                        <x-erp.fiscal-tooltip field="is" />
                                     </label>
                                 </div>
                                 <small class="d-block text-muted mt-3">

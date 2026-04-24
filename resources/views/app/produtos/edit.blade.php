@@ -329,8 +329,7 @@
                         {{-- CFOP --}}
                         <div class="col-md-4">
                             <label for="cfop" class="form-label fw-semibold">
-                                CFOP
-                                <i class="bi bi-question-circle text-muted ms-1" data-bs-toggle="tooltip" data-bs-placement="top" title="Define a natureza da operacao (venda, transferencia, devolucao). O mais comum para vendas e 5102."></i>
+                                CFOP <x-erp.fiscal-tooltip field="cfop" />
                             </label>
                             <select name="cfop" id="cfop" class="form-select @error('cfop') is-invalid @enderror">
                                 <option value="">Selecione...</option>
@@ -345,8 +344,7 @@
                         <div class="col-md-4">
                             @if($isSimples)
                             <label for="cst_csosn" class="form-label fw-semibold">
-                                CSOSN
-                                <i class="bi bi-question-circle text-muted ms-1" data-bs-toggle="tooltip" data-bs-placement="top" title="Codigo de Situacao da Operacao no Simples Nacional. O mais comum para revenda e 102 (tributada sem credito)."></i>
+                                CSOSN <x-erp.fiscal-tooltip field="csosn" />
                             </label>
                             <select name="cst_csosn" id="cst_csosn" class="form-select @error('cst_csosn') is-invalid @enderror">
                                 <option value="">Selecione...</option>
@@ -358,8 +356,7 @@
                             </select>
                             @else
                             <label for="cst_csosn" class="form-label fw-semibold">
-                                CST
-                                <i class="bi bi-question-circle text-muted ms-1" data-bs-toggle="tooltip" data-bs-placement="top" title="Codigo de Situacao Tributaria do ICMS. O mais comum e 00 (tributacao integral)."></i>
+                                CST <x-erp.fiscal-tooltip field="cst" />
                             </label>
                             <select name="cst_csosn" id="cst_csosn" class="form-select @error('cst_csosn') is-invalid @enderror">
                                 <option value="">Selecione...</option>
@@ -383,7 +380,7 @@
                             <div class="row g-3">
                                 <div class="col-6 col-md-3">
                                     <div class="aliquota-card aliquota-icms">
-                                        <div class="aliquota-card-header">ICMS</div>
+                                        <div class="aliquota-card-header">ICMS <x-erp.fiscal-tooltip field="icms" /></div>
                                         <div class="aliquota-card-body">
                                             <div class="input-group">
                                                 <input type="number" name="icms_aliquota" id="icms_aliquota" class="form-control text-center fw-bold @error('icms_aliquota') is-invalid @enderror" value="{{ old('icms_aliquota', $produto->icms_aliquota) }}" step="0.01" min="0" max="100">
@@ -398,7 +395,7 @@
                                 </div>
                                 <div class="col-6 col-md-3">
                                     <div class="aliquota-card aliquota-pis">
-                                        <div class="aliquota-card-header">PIS</div>
+                                        <div class="aliquota-card-header">PIS <x-erp.fiscal-tooltip field="pis" /></div>
                                         <div class="aliquota-card-body">
                                             <div class="input-group">
                                                 <input type="number" name="pis_aliquota" id="pis_aliquota" class="form-control text-center fw-bold @error('pis_aliquota') is-invalid @enderror" value="{{ old('pis_aliquota', $produto->pis_aliquota) }}" step="0.01" min="0" max="100">
@@ -413,7 +410,7 @@
                                 </div>
                                 <div class="col-6 col-md-3">
                                     <div class="aliquota-card aliquota-cofins">
-                                        <div class="aliquota-card-header">COFINS</div>
+                                        <div class="aliquota-card-header">COFINS <x-erp.fiscal-tooltip field="cofins" /></div>
                                         <div class="aliquota-card-body">
                                             <div class="input-group">
                                                 <input type="number" name="cofins_aliquota" id="cofins_aliquota" class="form-control text-center fw-bold @error('cofins_aliquota') is-invalid @enderror" value="{{ old('cofins_aliquota', $produto->cofins_aliquota) }}" step="0.01" min="0" max="100">
@@ -428,7 +425,7 @@
                                 </div>
                                 <div class="col-6 col-md-3">
                                     <div class="aliquota-card aliquota-ipi">
-                                        <div class="aliquota-card-header">IPI</div>
+                                        <div class="aliquota-card-header">IPI <x-erp.fiscal-tooltip field="ipi" /></div>
                                         <div class="aliquota-card-body">
                                             <div class="input-group">
                                                 <input type="number" name="ipi_aliquota" id="ipi_aliquota" class="form-control text-center fw-bold @error('ipi_aliquota') is-invalid @enderror" value="{{ old('ipi_aliquota', $produto->ipi_aliquota) }}" step="0.01" min="0" max="100">
@@ -484,8 +481,7 @@
                         {{-- Origem --}}
                         <div class="col-md-6">
                             <label for="origem" class="form-label fw-semibold">
-                                Origem do produto
-                                <i class="bi bi-question-circle text-muted ms-1" data-bs-toggle="tooltip" data-bs-placement="top" title="Indica se o produto e fabricado no Brasil ou importado. A maioria dos produtos e Nacional (0)."></i>
+                                Origem do produto <x-erp.fiscal-tooltip field="origem" />
                             </label>
                             <select name="origem" id="origem" class="form-select @error('origem') is-invalid @enderror">
                                 <option value="">Selecione a origem</option>
@@ -500,7 +496,7 @@
                         <div class="col-md-6">
                             <label for="cest" class="form-label">
                                 CEST <span class="text-muted fw-normal">(opcional)</span>
-                                <i class="bi bi-question-circle text-muted ms-1" data-bs-toggle="tooltip" data-bs-placement="top" title="Codigo Especificador da Substituicao Tributaria. So e obrigatorio para produtos com substituicao tributaria (ST). Pergunte ao contador."></i>
+                                <x-erp.fiscal-tooltip field="cest" />
                             </label>
                             <input type="text" name="cest" id="cest" class="form-control @error('cest') is-invalid @enderror" value="{{ old('cest', $produto->cest) }}" maxlength="10" placeholder="00.000.00">
                             @error('cest') <div class="invalid-feedback">{{ $message }}</div> @enderror

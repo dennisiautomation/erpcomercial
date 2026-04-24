@@ -1290,5 +1290,10 @@
     })();
     </script>
     @stack('scripts')
+
+    {{-- Modal de ajuda fiscal (textos oficiais CONFAZ / Receita / TIPI) --}}
+    @auth
+        <x-erp.fiscal-help-modal />
+    @endauth
 </body>
 </html>
