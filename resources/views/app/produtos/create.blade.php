@@ -252,7 +252,9 @@
         $empresa = auth()->user()->empresa;
         $unidadeId = session('unidade_id');
         $configFiscal = $unidadeId ? \App\Models\ConfiguracaoFiscal::withoutGlobalScopes()->where('unidade_id', $unidadeId)->first() : null;
-        $emiteFiscal = $configFiscal && $configFiscal->emissao_fiscal_ativa;
+        $emiteNFe = $configFiscal && $configFiscal->emissao_fiscal_ativa && $configFiscal->emite_nfe;
+        $emiteNFCe = $configFiscal && $configFiscal->emissao_fiscal_ativa && ($configFiscal->emite_nfce ?? $configFiscal->tipo_cupom_pdv === 'fiscal');
+        $emiteFiscal = $emiteNFe || $emiteNFCe;
         $regimeValue = $empresa->regime_tributario instanceof \App\Enums\RegimeTributario ? $empresa->regime_tributario->value : $empresa->regime_tributario;
         $isSimples = $regimeValue === 'simples_nacional';
     @endphp
@@ -282,6 +284,16 @@
                     </div>
                 @else
                     {{-- Empresa EMITE nota --}}
+                    <div class="d-flex align-items-center gap-2 mb-3">
+                        <span class="text-muted small">Campos usados na emissão de:</span>
+                        @if($emiteNFe)
+                            <span class="badge bg-primary"><i class="bi bi-file-earmark-text me-1"></i>NF-e</span>
+                        @endif
+                        @if($emiteNFCe)
+                            <span class="badge bg-info"><i class="bi bi-receipt me-1"></i>NFC-e</span>
+                        @endif
+                    </div>
+
                     @if(!empty($fiscalDefaults['label']))
                     <div class="alert alert-info d-flex align-items-start mb-4">
                         <i class="bi bi-magic me-2 fs-5 mt-1"></i>

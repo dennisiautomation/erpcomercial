@@ -305,29 +305,34 @@ class PdvController extends Controller
             $notaFiscal = null;
             $cupomHtml = '';
 
-            if ($config && $config->emissao_fiscal_ativa && $config->tipo_cupom_pdv === 'fiscal') {
+            // Decide se emite NFC-e: precisa estar fiscal ativo + flag emite_nfce
+            // (fallback compatível: antes era apenas tipo_cupom_pdv=fiscal)
+            $deveEmitirNfce = $config
+                && $config->emissao_fiscal_ativa
+                && ($config->emite_nfce ?? $config->tipo_cupom_pdv === 'fiscal');
+
+            if ($deveEmitirNfce) {
                 try {
                     $client = FocusNFeClient::fromConfig($config);
                     $nfceService = new NFCeService($client);
                     $notaFiscal = $nfceService->emitir($venda, $config);
-                    $cupomHtml = view('app.pdv.cupom-nao-fiscal', compact('venda', 'notaFiscal'))->render();
                 } catch (\Throwable $e) {
-                    Log::error('[PDV] Erro ao emitir NFC-e, gerando cupom nao fiscal.', [
+                    Log::error('[PDV] Erro ao emitir NFC-e, gerando apenas recibo.', [
                         'venda_id' => $venda->id,
                         'error'    => $e->getMessage(),
                     ]);
-                    $cupomHtml = view('app.pdv.cupom-nao-fiscal', compact('venda'))->render();
                 }
-            } else {
-                $cupomHtml = view('app.pdv.cupom-nao-fiscal', compact('venda'))->render();
             }
+
+            // Cupom/recibo sempre impresso. Se houver NFC-e, vai com dados fiscais.
+            $cupomHtml = view('app.pdv.cupom-nao-fiscal', compact('venda', 'notaFiscal'))->render();
 
             return response()->json([
                 'success'     => true,
                 'venda'       => $venda,
                 'cupom'       => $cupomHtml,
                 'nota_fiscal' => $notaFiscal,
-                'tipo_cupom'  => $config?->tipo_cupom_pdv ?? 'nao_fiscal',
+                'tipo_cupom'  => $deveEmitirNfce ? 'fiscal' : 'nao_fiscal',
             ]);
 
         } catch (\Throwable $e) {

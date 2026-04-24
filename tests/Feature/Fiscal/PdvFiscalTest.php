@@ -45,6 +45,7 @@ class PdvFiscalTest extends TestCase
             'csc_id_nfce'         => '1',
             'emissao_fiscal_ativa' => $ativa,
             'tipo_cupom_pdv'      => $tipoCupom,
+            'emite_nfce'          => $ativa && $tipoCupom === 'fiscal',
         ]);
     }
 
