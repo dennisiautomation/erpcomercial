@@ -247,6 +247,31 @@ Route::middleware(['auth', 'unidade'])->prefix('app')->name('app.')->group(funct
             Route::post('/{nfeRecebida}/manifestar', [App\NFeRecebidaController::class, 'manifestar'])->name('manifestar');
         });
 
+    /* ------ NFSes Recebidas (tomadas — serviços contratados) ------ */
+    Route::prefix('nfses-recebidas')->name('nfses-recebidas.')
+        ->middleware(['permission:notas_fiscais', 'plano:fiscal'])
+        ->group(function () {
+            Route::get('/', [App\NFSeRecebidaController::class, 'index'])->name('index');
+            Route::post('/sincronizar', [App\NFSeRecebidaController::class, 'sincronizar'])->name('sincronizar');
+            Route::get('/{nfseRecebida}', [App\NFSeRecebidaController::class, 'show'])->name('show');
+        });
+
+    /* ------ Emails bloqueados (Focus — bounces fiscais) ------ */
+    Route::prefix('emails-bloqueados')->name('emails-bloqueados.')
+        ->middleware(['permission:notas_fiscais', 'plano:fiscal'])
+        ->group(function () {
+            Route::get('/', [App\EmailsBloqueadosController::class, 'index'])->name('index');
+            Route::delete('/{email}', [App\EmailsBloqueadosController::class, 'desbloquear'])->name('desbloquear');
+        });
+
+    /* ------ Backups XML (mensais) ------ */
+    Route::prefix('backups-xml')->name('backups-xml.')
+        ->middleware(['permission:notas_fiscais', 'plano:fiscal'])
+        ->group(function () {
+            Route::get('/', [App\BackupsXmlController::class, 'index'])->name('index');
+            Route::post('/gerar', [App\BackupsXmlController::class, 'gerar'])->name('gerar');
+        });
+
     /* ------ Relatorios ------ */
     Route::prefix('relatorios')->name('relatorios.')->middleware('permission:relatorios')->group(function () {
         Route::get('/vendas', [App\RelatorioController::class, 'vendas'])->name('vendas');

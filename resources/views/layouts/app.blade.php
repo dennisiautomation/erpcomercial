@@ -845,7 +845,7 @@
                             <span class="nav-text">Fiscal</span>
                             <i class="bi bi-chevron-right toggle-icon"></i>
                         </a>
-                        <div class="collapse {{ request()->routeIs('app.notas-fiscais.*', 'app.configuracao-fiscal.*', 'app.nfes-recebidas.*') ? 'show' : '' }}" id="menuFiscal">
+                        <div class="collapse {{ request()->routeIs('app.notas-fiscais.*', 'app.configuracao-fiscal.*', 'app.nfes-recebidas.*', 'app.nfses-recebidas.*', 'app.emails-bloqueados.*', 'app.backups-xml.*') ? 'show' : '' }}" id="menuFiscal">
                             <ul class="nav flex-column submenu">
                                 <li class="nav-item">
                                     <a class="nav-link {{ request()->routeIs('app.notas-fiscais.*') ? 'active' : '' }}"
@@ -854,6 +854,18 @@
                                 <li class="nav-item">
                                     <a class="nav-link {{ request()->routeIs('app.nfes-recebidas.*') ? 'active' : '' }}"
                                        href="{{ route('app.nfes-recebidas.index') }}">NFes Recebidas</a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link {{ request()->routeIs('app.nfses-recebidas.*') ? 'active' : '' }}"
+                                       href="{{ route('app.nfses-recebidas.index') }}">NFSes Recebidas</a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link {{ request()->routeIs('app.emails-bloqueados.*') ? 'active' : '' }}"
+                                       href="{{ route('app.emails-bloqueados.index') }}">Emails Bloqueados</a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link {{ request()->routeIs('app.backups-xml.*') ? 'active' : '' }}"
+                                       href="{{ route('app.backups-xml.index') }}">Backups XML</a>
                                 </li>
                                 <li class="nav-item">
                                     <a class="nav-link {{ request()->routeIs('app.configuracao-fiscal.*') ? 'active' : '' }}"

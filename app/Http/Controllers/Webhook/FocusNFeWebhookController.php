@@ -155,8 +155,9 @@ class FocusNFeWebhookController extends Controller
             'unidade_id' => $config->unidade_id,
         ]);
 
-        if ($config->unidade) {
-            \App\Jobs\SincronizarNFesRecebidasJob::dispatch($config->unidade)->onQueue('fiscal');
+        if ($config->unidade_id) {
+            \App\Jobs\SincronizarNFesRecebidasJob::dispatch($config->empresa_id, $config->unidade_id)
+                ->onQueue('fiscal');
         }
 
         return response()->json(['message' => 'OK'], 200);
