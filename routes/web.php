@@ -331,6 +331,15 @@ Route::middleware(['auth', 'unidade'])->prefix('app')->name('app.')->group(funct
         Route::get('/global', [App\SearchController::class, 'global'])->name('global');
     });
 
+    /* ------ Autocomplete via Focus NFe (NCM/CFOP/CNAE/Municípios/CNPJ) ------ */
+    Route::prefix('focus-autocomplete')->name('focus-autocomplete.')->group(function () {
+        Route::get('/ncm',               [App\FocusAutocompleteController::class, 'ncm'])->name('ncm');
+        Route::get('/cfop',              [App\FocusAutocompleteController::class, 'cfop'])->name('cfop');
+        Route::get('/cnae',              [App\FocusAutocompleteController::class, 'cnae'])->name('cnae');
+        Route::get('/municipios/{uf}',   [App\FocusAutocompleteController::class, 'municipios'])->name('municipios');
+        Route::get('/cnpj/{cnpj}',       [App\FocusAutocompleteController::class, 'cnpj'])->name('cnpj');
+    });
+
     /* ------ Exportacao CSV ------ */
     Route::prefix('export')->name('export.')->group(function () {
         Route::get('/clientes', [App\ExportController::class, 'clientes'])->name('clientes');

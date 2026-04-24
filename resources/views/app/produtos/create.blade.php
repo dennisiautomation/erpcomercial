@@ -328,13 +328,19 @@
                     <div class="row g-3">
                         {{-- NCM --}}
                         <div class="col-md-4">
-                            <label for="ncm" class="form-label fw-semibold">
+                            <label for="ncm_busca" class="form-label fw-semibold">
                                 NCM
-                                <i class="bi bi-question-circle text-muted ms-1" data-bs-toggle="tooltip" data-bs-placement="top" title="Codigo de 8 digitos que classifica seu produto. Pergunte ao seu contador se nao souber."></i>
+                                <i class="bi bi-question-circle text-muted ms-1" data-bs-toggle="tooltip" data-bs-placement="top" title="Codigo de 8 digitos que classifica seu produto. Digite pelo menos 2 letras da descrição para buscar."></i>
                             </label>
-                            <input type="text" name="ncm" id="ncm" class="form-control @error('ncm') is-invalid @enderror" value="{{ old('ncm') }}" maxlength="10" placeholder="0000.00.00">
-                            @error('ncm') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                            <div class="form-text">Nomenclatura Comum do Mercosul</div>
+                            <input type="text" id="ncm_busca" class="form-control" value="{{ old('ncm') }}"
+                                   placeholder="Digite para buscar NCM (ex: leite, arroz, software)"
+                                   data-autocomplete="{{ route('app.focus-autocomplete.ncm') }}"
+                                   data-autocomplete-target="ncm"
+                                   data-autocomplete-display="descricao"
+                                   data-autocomplete-value="codigo">
+                            <input type="hidden" name="ncm" id="ncm" value="{{ old('ncm') }}">
+                            @error('ncm') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
+                            <div class="form-text">Classificação fiscal — ou digite manualmente</div>
                         </div>
 
                         {{-- CFOP --}}

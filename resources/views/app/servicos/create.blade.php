@@ -220,10 +220,14 @@
                     </div>
 
                     <div class="col-md-4">
-                        <label for="cnae" class="form-label">CNAE</label>
-                        <input type="text" name="cnae" id="cnae"
-                               class="form-control @error('cnae') is-invalid @enderror"
-                               value="{{ old('cnae') }}" placeholder="Ex: 6201-5/01">
+                        <label for="cnae_busca" class="form-label">CNAE</label>
+                        <input type="text" id="cnae_busca" class="form-control"
+                               value="{{ old('cnae') }}" placeholder="Digite atividade (ex: software, consultoria)"
+                               data-autocomplete="{{ route('app.focus-autocomplete.cnae') }}"
+                               data-autocomplete-target="cnae"
+                               data-autocomplete-display="descricao"
+                               data-autocomplete-value="codigo">
+                        <input type="hidden" name="cnae" id="cnae" value="{{ old('cnae') }}">
                         @error('cnae')
                             <div class="text-danger small mt-1">{{ $message }}</div>
                         @enderror
