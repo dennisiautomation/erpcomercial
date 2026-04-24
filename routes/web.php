@@ -89,6 +89,9 @@ Route::middleware(['auth', 'unidade'])->prefix('app')->name('app.')->group(funct
     Route::post('/etiquetas/gerar', [App\EtiquetaController::class, 'gerar'])->name('etiquetas.gerar')->middleware('permission:produtos');
 
     /* ------ Cadastros ------ */
+    Route::post('clientes/quick', [App\ClienteController::class, 'quickStore'])
+        ->name('clientes.quick')
+        ->middleware('permission:clientes');
     Route::resource('clientes', App\ClienteController::class)->middleware('permission:clientes');
     Route::resource('produtos', App\ProdutoController::class)->middleware('permission:produtos');
     Route::resource('fornecedores', App\FornecedorController::class)->middleware('permission:produtos');

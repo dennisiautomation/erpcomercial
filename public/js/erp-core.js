@@ -71,7 +71,7 @@ const ERP = {
         });
     },
 
-    // ─── CNPJ LOOKUP (ReceitaWS) ────────────────────────────
+    // ─── CNPJ LOOKUP (BrasilAPI) ────────────────────────────
     async buscaCNPJ(cnpj, prefix = '') {
         const clean = cnpj.replace(/\D/g, '');
         if (clean.length !== 14) return null;
@@ -80,18 +80,18 @@ const ERP = {
         if (indicator) indicator.classList.remove('d-none');
 
         try {
-            const res = await fetch(`https://receitaws.com.br/v1/cnpj/${clean}`, {
+            const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${clean}`, {
                 headers: { 'Accept': 'application/json' }
             });
+            if (!res.ok) throw new Error('not found');
             const data = await res.json();
-            if (data.status === 'ERROR') throw new Error(data.message);
 
             const map = {
-                nome: 'razao_social', fantasia: 'nome_fantasia',
+                razao_social: 'razao_social', nome_fantasia: 'nome_fantasia',
                 cep: 'cep', logradouro: 'logradouro', numero: 'numero',
                 complemento: 'complemento', bairro: 'bairro',
-                municipio: 'cidade', uf: 'uf', telefone: 'telefone',
-                email: 'email'
+                municipio: 'cidade', uf: 'uf',
+                ddd_telefone_1: 'telefone', email: 'email'
             };
 
             for (const [api, field] of Object.entries(map)) {
@@ -104,7 +104,7 @@ const ERP = {
                 }
             }
 
-            ERP.toast(`CNPJ encontrado: ${data.nome}`, 'success');
+            ERP.toast(`CNPJ encontrado: ${data.razao_social}`, 'success');
             return data;
         } catch (e) {
             ERP.toast('CNPJ não encontrado na Receita Federal', 'warning');

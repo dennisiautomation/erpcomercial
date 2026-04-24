@@ -30,21 +30,28 @@ class ConfiguracaoFiscalController extends Controller
 
     public function update(Request $request)
     {
-        // When fiscal is disabled, provide defaults for fields that won't be in the form
         $emissaoAtiva = $request->boolean('emissao_fiscal_ativa');
 
         $rules = [
-            'emissao_fiscal_ativa' => 'required|in:0,1',
+            'emissao_fiscal_ativa' => 'nullable|boolean',
         ];
 
         if ($emissaoAtiva) {
             $rules += [
                 'ambiente'             => 'required|in:homologacao,producao',
                 'focus_token'          => 'nullable|string|max:255',
+                'emite_nfe'            => 'nullable|boolean',
+                'emite_nfce'           => 'nullable|boolean',
+                'emite_nfse'           => 'nullable|boolean',
                 'serie_nfe'            => 'nullable|integer|min:1|max:999',
                 'serie_nfce'           => 'nullable|integer|min:1|max:999',
+                'serie_nfse'           => 'nullable|string|max:10',
                 'csc_nfce'             => 'nullable|string|max:255',
                 'csc_id_nfce'          => 'nullable|string|max:10',
+                'nfse_item_lista_servico'     => 'nullable|string|max:10',
+                'nfse_codigo_tributacao'      => 'nullable|string|max:20',
+                'nfse_regime_especial'        => 'nullable|string|max:50',
+                'nfse_incentivador_cultural'  => 'nullable|boolean',
                 'tipo_cupom_pdv'       => 'required|in:fiscal,nao_fiscal',
             ];
         }
@@ -52,10 +59,17 @@ class ConfiguracaoFiscalController extends Controller
         $validated = $request->validate($rules);
 
         $validated['emissao_fiscal_ativa'] = $emissaoAtiva;
+        $validated['emite_nfe'] = $request->boolean('emite_nfe');
+        $validated['emite_nfce'] = $request->boolean('emite_nfce');
+        $validated['emite_nfse'] = $request->boolean('emite_nfse');
+        $validated['nfse_incentivador_cultural'] = $request->boolean('nfse_incentivador_cultural');
 
         if (!$emissaoAtiva) {
             $validated['tipo_cupom_pdv'] = $request->input('tipo_cupom_pdv', 'nao_fiscal');
             $validated['ambiente'] = $request->input('ambiente', 'homologacao');
+            $validated['emite_nfe'] = false;
+            $validated['emite_nfce'] = false;
+            $validated['emite_nfse'] = false;
         }
 
         $empresaId = session('empresa_id');

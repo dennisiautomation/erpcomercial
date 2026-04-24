@@ -62,6 +62,12 @@
                     </div>
                 </div>
 
+                <div class="alert alert-info small">
+                    <i class="bi bi-info-circle me-1"></i>
+                    O mesmo <strong>token e certificado</strong> da Focus NFe emite NF-e, NFC-e e NFS-e.
+                    Abaixo, habilite cada tipo e configure os dados específicos.
+                </div>
+
                 {{-- Token e Ambiente --}}
                 <div class="row g-3 mb-3">
                     <div class="col-md-8">
@@ -114,44 +120,141 @@
                     </div>
                 @endif
 
-                {{-- Modo avancado (colapsavel) --}}
-                <a class="text-muted small" data-bs-toggle="collapse" href="#advancedConfig">
-                    <i class="bi bi-gear me-1"></i>Configuracoes avancadas
-                </a>
-                <div class="collapse mt-3" id="advancedConfig">
-                    <div class="row g-3">
-                        <div class="col-md-3">
-                            <label class="form-label fw-semibold">Serie NF-e</label>
-                            <input type="text" name="serie_nfe" class="form-control @error('serie_nfe') is-invalid @enderror"
-                                   value="{{ old('serie_nfe', $config->serie_nfe ?? '1') }}">
-                            @error('serie_nfe')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
+                {{-- ═══ NF-e ═══ --}}
+                <div class="erp-card mt-3 mb-3 border">
+                    <div class="card-header bg-transparent d-flex align-items-center">
+                        <i class="bi bi-file-earmark-text fs-4 text-primary me-2"></i>
+                        <div class="flex-grow-1">
+                            <strong>NF-e (DANFE)</strong>
+                            <div class="small text-muted">Nota fiscal eletrônica para vendas a empresas</div>
                         </div>
-                        <div class="col-md-3">
-                            <label class="form-label fw-semibold">Serie NFC-e</label>
-                            <input type="text" name="serie_nfce" class="form-control @error('serie_nfce') is-invalid @enderror"
-                                   value="{{ old('serie_nfce', $config->serie_nfce ?? '1') }}">
-                            @error('serie_nfce')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
+                        <div class="form-check form-switch m-0">
+                            <input type="hidden" name="emite_nfe" value="0">
+                            <input class="form-check-input" type="checkbox" role="switch" id="switch_nfe"
+                                   name="emite_nfe" value="1"
+                                   {{ old('emite_nfe', $config->emite_nfe ?? false) ? 'checked' : '' }}
+                                   onchange="document.getElementById('nfe_campos').classList.toggle('d-none', !this.checked)">
+                            <label class="form-check-label small" for="switch_nfe">Habilitar</label>
                         </div>
-                        <div class="col-md-3">
-                            <label class="form-label fw-semibold">CSC (NFC-e)</label>
-                            <input type="text" name="csc_nfce" class="form-control @error('csc_nfce') is-invalid @enderror"
-                                   value="{{ old('csc_nfce', $config->csc_nfce) }}">
-                            @error('csc_nfce')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
+                    </div>
+                    <div class="card-body {{ old('emite_nfe', $config->emite_nfe ?? false) ? '' : 'd-none' }}" id="nfe_campos">
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label class="form-label fw-semibold">Série NF-e</label>
+                                <input type="text" name="serie_nfe" class="form-control @error('serie_nfe') is-invalid @enderror"
+                                       value="{{ old('serie_nfe', $config->serie_nfe ?? '1') }}" placeholder="1">
+                                @error('serie_nfe')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                            </div>
                         </div>
-                        <div class="col-md-3">
-                            <label class="form-label fw-semibold">ID CSC</label>
-                            <input type="text" name="csc_id_nfce" class="form-control @error('csc_id_nfce') is-invalid @enderror"
-                                   value="{{ old('csc_id_nfce', $config->csc_id_nfce) }}">
-                            @error('csc_id_nfce')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
+                        <small class="text-muted d-block mt-2">
+                            <i class="bi bi-info-circle me-1"></i>
+                            NF-e é emitida manualmente a partir da tela da venda (botão "Emitir NF-e").
+                        </small>
+                    </div>
+                </div>
+
+                {{-- ═══ NFC-e ═══ --}}
+                <div class="erp-card mb-3 border">
+                    <div class="card-header bg-transparent d-flex align-items-center">
+                        <i class="bi bi-receipt fs-4 text-success me-2"></i>
+                        <div class="flex-grow-1">
+                            <strong>NFC-e (Cupom Fiscal)</strong>
+                            <div class="small text-muted">Cupom fiscal eletrônico para consumidor final (PDV)</div>
                         </div>
+                        <div class="form-check form-switch m-0">
+                            <input type="hidden" name="emite_nfce" value="0">
+                            <input class="form-check-input" type="checkbox" role="switch" id="switch_nfce"
+                                   name="emite_nfce" value="1"
+                                   {{ old('emite_nfce', $config->emite_nfce ?? false) ? 'checked' : '' }}
+                                   onchange="document.getElementById('nfce_campos').classList.toggle('d-none', !this.checked)">
+                            <label class="form-check-label small" for="switch_nfce">Habilitar</label>
+                        </div>
+                    </div>
+                    <div class="card-body {{ old('emite_nfce', $config->emite_nfce ?? false) ? '' : 'd-none' }}" id="nfce_campos">
+                        <div class="row g-3">
+                            <div class="col-md-3">
+                                <label class="form-label fw-semibold">Série NFC-e</label>
+                                <input type="text" name="serie_nfce" class="form-control @error('serie_nfce') is-invalid @enderror"
+                                       value="{{ old('serie_nfce', $config->serie_nfce ?? '1') }}" placeholder="1">
+                                @error('serie_nfce')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">CSC (Código de Segurança)</label>
+                                <input type="text" name="csc_nfce" class="form-control @error('csc_nfce') is-invalid @enderror"
+                                       value="{{ old('csc_nfce', $config->csc_nfce) }}" placeholder="Obtido na SEFAZ do seu estado">
+                                @error('csc_nfce')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label fw-semibold">ID CSC</label>
+                                <input type="text" name="csc_id_nfce" class="form-control @error('csc_id_nfce') is-invalid @enderror"
+                                       value="{{ old('csc_id_nfce', $config->csc_id_nfce) }}" placeholder="1">
+                                @error('csc_id_nfce')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                            </div>
+                        </div>
+                        <small class="text-muted d-block mt-2">
+                            <i class="bi bi-info-circle me-1"></i>
+                            Para usar NFC-e no PDV, selecione "NFC-e (Cupom Fiscal)" na opção acima.
+                        </small>
+                    </div>
+                </div>
+
+                {{-- ═══ NFS-e ═══ --}}
+                <div class="erp-card mb-3 border">
+                    <div class="card-header bg-transparent d-flex align-items-center">
+                        <i class="bi bi-briefcase fs-4 text-info me-2"></i>
+                        <div class="flex-grow-1">
+                            <strong>NFS-e (Serviços)</strong>
+                            <div class="small text-muted">Nota fiscal eletrônica de serviços (emitida pela prefeitura)</div>
+                        </div>
+                        <div class="form-check form-switch m-0">
+                            <input type="hidden" name="emite_nfse" value="0">
+                            <input class="form-check-input" type="checkbox" role="switch" id="switch_nfse"
+                                   name="emite_nfse" value="1"
+                                   {{ old('emite_nfse', $config->emite_nfse ?? false) ? 'checked' : '' }}
+                                   onchange="document.getElementById('nfse_campos').classList.toggle('d-none', !this.checked)">
+                            <label class="form-check-label small" for="switch_nfse">Habilitar</label>
+                        </div>
+                    </div>
+                    <div class="card-body {{ old('emite_nfse', $config->emite_nfse ?? false) ? '' : 'd-none' }}" id="nfse_campos">
+                        <div class="row g-3">
+                            <div class="col-md-3">
+                                <label class="form-label fw-semibold">Série RPS</label>
+                                <input type="text" name="serie_nfse" class="form-control @error('serie_nfse') is-invalid @enderror"
+                                       value="{{ old('serie_nfse', $config->serie_nfse ?? '1') }}" placeholder="1">
+                                @error('serie_nfse')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label fw-semibold">Item LC 116</label>
+                                <input type="text" name="nfse_item_lista_servico" class="form-control"
+                                       value="{{ old('nfse_item_lista_servico', $config->nfse_item_lista_servico) }}" placeholder="01.01">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Código de Tributação Municipal</label>
+                                <input type="text" name="nfse_codigo_tributacao" class="form-control"
+                                       value="{{ old('nfse_codigo_tributacao', $config->nfse_codigo_tributacao) }}" placeholder="Conforme prefeitura">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Regime Especial</label>
+                                <select name="nfse_regime_especial" class="form-select">
+                                    <option value="">Nenhum</option>
+                                    @foreach(['microempresa_municipal' => 'Microempresa Municipal', 'estimativa' => 'Estimativa', 'sociedade_profissionais' => 'Sociedade de Profissionais', 'cooperativa' => 'Cooperativa', 'mei' => 'MEI', 'me_epp' => 'ME / EPP'] as $v => $l)
+                                        <option value="{{ $v }}" {{ old('nfse_regime_especial', $config->nfse_regime_especial) === $v ? 'selected' : '' }}>{{ $l }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="col-md-6 d-flex align-items-end">
+                                <div class="form-check">
+                                    <input type="hidden" name="nfse_incentivador_cultural" value="0">
+                                    <input type="checkbox" name="nfse_incentivador_cultural" value="1" id="nfse_incent" class="form-check-input"
+                                           {{ old('nfse_incentivador_cultural', $config->nfse_incentivador_cultural ?? false) ? 'checked' : '' }}>
+                                    <label class="form-check-label" for="nfse_incent">Incentivador Cultural</label>
+                                </div>
+                            </div>
+                        </div>
+                        <small class="text-muted d-block mt-2">
+                            <i class="bi bi-info-circle me-1"></i>
+                            Cada prefeitura tem regras próprias. Item LC 116 e código de tributação devem ser obtidos na sua prefeitura.
+                        </small>
                     </div>
                 </div>
             </div>

@@ -82,15 +82,15 @@ class ProdutoController extends Controller
         ]);
 
         // Fill empty fiscal fields with defaults based on regime tributario
-        if (empty($validated['cst_csosn'])) {
+        if (empty($validated['cst_csosn'] ?? null)) {
             $regime = auth()->user()->empresa->regime_tributario;
             $regimeValue = $regime instanceof \App\Enums\RegimeTributario ? $regime->value : $regime;
             $defaults = FiscalAutoConfig::defaults($regimeValue);
-            $validated['cst_csosn'] = $validated['cst_csosn'] ?: $defaults['cst_csosn'];
-            $validated['cfop'] = $validated['cfop'] ?: $defaults['cfop_venda_interna'];
-            $validated['icms_aliquota'] = $validated['icms_aliquota'] ?: $defaults['icms_aliquota'];
-            $validated['pis_aliquota'] = $validated['pis_aliquota'] ?: $defaults['pis_aliquota'];
-            $validated['cofins_aliquota'] = $validated['cofins_aliquota'] ?: $defaults['cofins_aliquota'];
+            $validated['cst_csosn'] = $defaults['cst_csosn'];
+            $validated['cfop'] = $validated['cfop'] ?? $defaults['cfop_venda_interna'];
+            $validated['icms_aliquota'] = $validated['icms_aliquota'] ?? $defaults['icms_aliquota'];
+            $validated['pis_aliquota'] = $validated['pis_aliquota'] ?? $defaults['pis_aliquota'];
+            $validated['cofins_aliquota'] = $validated['cofins_aliquota'] ?? $defaults['cofins_aliquota'];
             $validated['origem'] = $validated['origem'] ?? $defaults['origem'];
         }
 

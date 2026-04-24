@@ -94,6 +94,32 @@ class ClienteController extends Controller
             ->with('success', 'Cliente cadastrado com sucesso!');
     }
 
+    public function quickStore(Request $request)
+    {
+        $empresaId = auth()->user()->empresa_id;
+
+        $validated = $request->validate([
+            'tipo_pessoa'       => 'required|in:pf,pj',
+            'cpf_cnpj'          => [
+                'required', 'string', 'max:18',
+                Rule::unique('clientes')->where('empresa_id', $empresaId)->whereNull('deleted_at'),
+            ],
+            'nome_razao_social' => 'required|string|max:255',
+            'telefone'          => 'nullable|string|max:20',
+            'email'             => 'nullable|email|max:255',
+        ]);
+
+        $validated['status'] = 'ativo';
+        $cliente = Cliente::create($validated);
+
+        return response()->json([
+            'id' => $cliente->id,
+            'nome_razao_social' => $cliente->nome_razao_social,
+            'cpf_cnpj' => $cliente->cpf_cnpj,
+            'telefone' => $cliente->telefone,
+        ]);
+    }
+
     public function show(Cliente $cliente)
     {
         $cliente->load(['vendas' => function ($q) {

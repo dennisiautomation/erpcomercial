@@ -34,6 +34,9 @@ trait CreatesTestData
             'email'             => "empresa{$s}@teste.com",
             'plano'             => 'profissional',
             'status'            => 'ativo',
+            'em_trial'          => true,
+            'trial_inicio'      => now()->toDateString(),
+            'trial_fim'         => now()->addDays(30)->toDateString(),
         ]);
 
         $unidade = Unidade::withoutGlobalScopes()->create([

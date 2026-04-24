@@ -705,22 +705,20 @@ document.addEventListener('DOMContentLoaded', function () {
         const loading = document.getElementById('cnpjLoading');
         loading.style.display = '';
 
-        fetch('https://receitaws.com.br/v1/cnpj/' + cnpj, { mode: 'cors' })
-            .then(r => r.json())
+        fetch('https://brasilapi.com.br/api/cnpj/v1/' + cnpj)
+            .then(r => r.ok ? r.json() : Promise.reject(r))
             .then(data => {
-                if (data.status !== 'ERROR') {
-                    if (data.nome) document.getElementById('nome_razao_social').value = data.nome;
-                    if (data.fantasia) document.getElementById('nome_fantasia').value = data.fantasia;
-                    // Also fill address if available
-                    if (data.cep) {
-                        document.getElementById('cep').value = data.cep.replace(/\D/g, '').replace(/(\d{5})(\d{3})/, '$1-$2');
-                        document.getElementById('logradouro').value = data.logradouro || '';
-                        document.getElementById('numero').value = data.numero || '';
-                        document.getElementById('complemento').value = data.complemento || '';
-                        document.getElementById('bairro').value = data.bairro || '';
-                        document.getElementById('cidade').value = data.municipio || '';
-                        document.getElementById('uf').value = data.uf || '';
-                    }
+                if (data.razao_social) document.getElementById('nome_razao_social').value = data.razao_social;
+                if (data.nome_fantasia) document.getElementById('nome_fantasia').value = data.nome_fantasia;
+                if (data.cep) {
+                    const cepDigits = String(data.cep).replace(/\D/g, '');
+                    document.getElementById('cep').value = cepDigits.replace(/(\d{5})(\d{3})/, '$1-$2');
+                    document.getElementById('logradouro').value = data.logradouro || '';
+                    document.getElementById('numero').value = data.numero || '';
+                    document.getElementById('complemento').value = data.complemento || '';
+                    document.getElementById('bairro').value = data.bairro || '';
+                    document.getElementById('cidade').value = data.municipio || '';
+                    document.getElementById('uf').value = data.uf || '';
                 }
             })
             .catch(() => {})
