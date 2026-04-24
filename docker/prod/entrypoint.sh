@@ -26,7 +26,8 @@ php artisan migrate --force
 php artisan config:cache
 php artisan route:cache
 php artisan view:cache
-php artisan storage:link || true
+# storage:link pode falhar se já existir — ignoramos
+[ -L /var/www/public/storage ] || php artisan storage:link
 
 # Permissões
 chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache
