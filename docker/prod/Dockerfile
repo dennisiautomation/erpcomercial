@@ -5,7 +5,9 @@
 FROM php:8.4-fpm-alpine AS base
 
 # Extensões necessárias para Laravel 12 + MySQL + Redis + imagick (etiquetas)
-RUN apk add --no-cache \
+RUN apk add --no-cache --virtual .build-deps \
+        autoconf g++ make linux-headers pkgconf \
+    && apk add --no-cache \
         bash curl git unzip icu-dev libzip-dev oniguruma-dev \
         libpng-dev libjpeg-turbo-dev freetype-dev \
         nginx supervisor tzdata \
@@ -16,7 +18,7 @@ RUN apk add --no-cache \
     && docker-php-ext-enable redis \
     && cp /usr/share/zoneinfo/America/Sao_Paulo /etc/localtime \
     && echo "America/Sao_Paulo" > /etc/timezone \
-    && apk del tzdata
+    && apk del .build-deps tzdata
 
 # Composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
