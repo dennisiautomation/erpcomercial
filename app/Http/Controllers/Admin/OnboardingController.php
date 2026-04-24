@@ -11,10 +11,13 @@ use App\Models\Empresa;
 use App\Models\Plano;
 use App\Models\Unidade;
 use App\Models\User;
+use App\Services\FocusNFe\FocusEmpresaService;
+use App\Services\FocusNFe\FocusNFeClient;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 
 class OnboardingController extends Controller
@@ -205,7 +208,11 @@ class OnboardingController extends Controller
         $empresaId = $request->session()->get('onboarding_empresa_id');
         abort_unless($empresaId, 404, 'Inicie o onboarding pela etapa 1.');
 
-        return view('admin.onboarding.step4');
+        // Plataforma em modo revenda → cria empresa-filha automaticamente na Focus.
+        // Sem master → fluxo legado (usuário cola token manualmente).
+        $modoRevenda = FocusNFeClient::masterDisponivel();
+
+        return view('admin.onboarding.step4', compact('modoRevenda'));
     }
 
     public function storeStep4(Request $request): RedirectResponse
@@ -217,34 +224,117 @@ class OnboardingController extends Controller
 
         $emiteFiscal = $request->input('emite_fiscal') === '1';
 
-        if ($emiteFiscal) {
-            $request->validate([
-                'focus_token'   => ['required', 'string', 'max:255'],
-                'ambiente'      => ['required', 'in:homologacao,producao'],
-                'tipo_cupom_pdv' => ['required', 'in:fiscal,nao_fiscal'],
-            ]);
+        if (! $emiteFiscal) {
+            return $this->finalizarOnboarding($request, $empresaId);
+        }
 
-            $unidades = Unidade::withoutGlobalScopes()
-                ->where('empresa_id', $empresaId)
-                ->get();
+        $modoRevenda = FocusNFeClient::masterDisponivel();
 
-            foreach ($unidades as $unidade) {
-                ConfiguracaoFiscal::withoutGlobalScopes()->create([
-                    'empresa_id'          => $empresaId,
-                    'unidade_id'          => $unidade->id,
-                    'focus_token'         => $request->input('focus_token'),
-                    'ambiente'            => $request->input('ambiente'),
-                    'tipo_cupom_pdv'      => $request->input('tipo_cupom_pdv'),
-                    'emissao_fiscal_ativa' => true,
-                ]);
-            }
+        if ($modoRevenda) {
+            $this->configurarEmRevenda($request, $empresaId);
+        } else {
+            $this->configurarTokenManual($request, $empresaId);
+        }
+
+        return $this->finalizarOnboarding($request, $empresaId);
+    }
+
+    /**
+     * Modo revenda: usa master token para criar a empresa na Focus automaticamente.
+     * Usuário só escolhe o que vai emitir (NFe/NFCe/NFSe/manifestação).
+     */
+    private function configurarEmRevenda(Request $request, int $empresaId): void
+    {
+        $request->validate([
+            'tipo_cupom_pdv' => ['required', 'in:fiscal,nao_fiscal'],
+            'emite_nfe'      => ['nullable', 'boolean'],
+            'emite_nfce'     => ['nullable', 'boolean'],
+            'emite_nfse'     => ['nullable', 'boolean'],
+            'habilita_manifestacao' => ['nullable', 'boolean'],
+        ]);
+
+        $flags = [
+            'habilita_nfe'          => $request->boolean('emite_nfe'),
+            'habilita_nfce'         => $request->boolean('emite_nfce'),
+            'habilita_nfse'         => $request->boolean('emite_nfse'),
+            'habilita_manifestacao' => $request->boolean('habilita_manifestacao'),
+        ];
+
+        // Se nada foi marcado, respeita (cria config com fiscal ativo mas sem tipos — usuário ajusta depois)
+        if (! array_filter($flags)) {
+            ConfiguracaoFiscal::withoutGlobalScopes()->updateOrCreate(
+                ['empresa_id' => $empresaId, 'unidade_id' => Unidade::withoutGlobalScopes()->where('empresa_id', $empresaId)->value('id')],
+                ['emissao_fiscal_ativa' => true, 'tipo_cupom_pdv' => $request->input('tipo_cupom_pdv')]
+            );
+            return;
         }
 
         $empresa = Empresa::findOrFail($empresaId);
+        $unidades = Unidade::withoutGlobalScopes()->where('empresa_id', $empresaId)->get();
 
-        // Clean up session
+        $service = FocusEmpresaService::make();
+
+        foreach ($unidades as $unidade) {
+            try {
+                $service->criar($empresa, $unidade, $flags);
+
+                // Completa campos locais específicos do onboarding
+                ConfiguracaoFiscal::withoutGlobalScopes()
+                    ->where('empresa_id', $empresaId)
+                    ->where('unidade_id', $unidade->id)
+                    ->update(['tipo_cupom_pdv' => $request->input('tipo_cupom_pdv')]);
+            } catch (\Throwable $e) {
+                Log::error('[Onboarding] falha ao criar empresa na Focus', [
+                    'empresa_id' => $empresaId,
+                    'unidade_id' => $unidade->id,
+                    'erro' => $e->getMessage(),
+                ]);
+                // Não aborta o onboarding: empresa existe localmente, admin pode retentar depois
+                session()->flash(
+                    'onboarding_fiscal_erro',
+                    'Empresa criada no ERP, mas falhou ao criar na Focus NFe: ' . $e->getMessage()
+                    . ' Você pode retentar em Configurações Fiscais.'
+                );
+            }
+        }
+    }
+
+    /**
+     * Modo legado: sem master token, usuário cola token manualmente.
+     */
+    private function configurarTokenManual(Request $request, int $empresaId): void
+    {
+        $request->validate([
+            'focus_token'   => ['required', 'string', 'max:255'],
+            'ambiente'      => ['required', 'in:homologacao,producao'],
+            'tipo_cupom_pdv' => ['required', 'in:fiscal,nao_fiscal'],
+        ]);
+
+        $ambiente = $request->input('ambiente');
+        $tokenCampo = $ambiente === 'producao' ? 'focus_token_producao' : 'focus_token_homologacao';
+
+        $unidades = Unidade::withoutGlobalScopes()
+            ->where('empresa_id', $empresaId)
+            ->get();
+
+        foreach ($unidades as $unidade) {
+            ConfiguracaoFiscal::withoutGlobalScopes()->updateOrCreate(
+                ['empresa_id' => $empresaId, 'unidade_id' => $unidade->id],
+                [
+                    'focus_token'          => $request->input('focus_token'),
+                    $tokenCampo            => $request->input('focus_token'),
+                    'ambiente'             => $ambiente,
+                    'tipo_cupom_pdv'       => $request->input('tipo_cupom_pdv'),
+                    'emissao_fiscal_ativa' => true,
+                ]
+            );
+        }
+    }
+
+    private function finalizarOnboarding(Request $request, int $empresaId): RedirectResponse
+    {
+        $empresa = Empresa::findOrFail($empresaId);
         $request->session()->forget('onboarding_empresa_id');
-
         return redirect()->route('admin.onboarding.concluido', $empresa);
     }
 

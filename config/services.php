@@ -35,4 +35,22 @@ return [
         ],
     ],
 
+    /*
+    | Focus NFe — revenda white-label
+    |
+    | master_token = Token Principal de Produção da conta Focus NFe.
+    |   Usado apenas para:
+    |     - Criar/atualizar empresas-filhas via POST/PUT /v2/empresas
+    |     - APIs acessórias (NCM, CFOP, CEP, CNAE, municípios, CNPJ)
+    |
+    | Este token NÃO deve ser usado para emitir notas fiscais.
+    | Emissão sempre usa o token específico da empresa (focus_token_producao
+    | ou focus_token_homologacao) obtido na criação da empresa-filha.
+    */
+    'focus_nfe' => [
+        'master_token'     => env('FOCUS_MASTER_TOKEN'),
+        'ambiente_padrao'  => env('FOCUS_NFE_AMBIENTE', 'homologacao'),
+        'webhook_base_url' => env('FOCUS_WEBHOOK_BASE_URL', env('APP_URL')),
+    ],
+
 ];

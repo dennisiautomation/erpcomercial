@@ -4,6 +4,7 @@ namespace Tests\Feature\Fiscal;
 
 use App\Enums\StatusNotaFiscal;
 use App\Enums\TipoNotaFiscal;
+use App\Models\ConfiguracaoFiscal;
 use App\Models\NotaFiscal;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Log;
@@ -119,6 +120,54 @@ class WebhookTest extends TestCase
 
         $response->assertOk();
         $response->assertJson(['message' => 'Nota nao encontrada.']);
+    }
+
+    public function test_webhook_rejeita_quando_authorization_header_nao_bate_com_webhook_secret(): void
+    {
+        ConfiguracaoFiscal::withoutGlobalScopes()->create([
+            'empresa_id' => $this->empresa->id,
+            'unidade_id' => $this->unidade->id,
+            'ambiente' => 'homologacao',
+            'webhook_secret' => 'segredo-verdadeiro',
+            'emissao_fiscal_ativa' => true,
+        ]);
+
+        $nota = $this->createNotaPendente('nfce-auth-guarded-001');
+
+        // Sem header Authorization correto → 401
+        $response = $this->withHeaders(['Authorization' => 'Bearer segredo-errado'])
+            ->postJson('/webhooks/focusnfe', [
+                'ref'    => 'nfce-auth-guarded-001',
+                'status' => 'autorizado',
+            ]);
+
+        $response->assertStatus(401);
+
+        $nota->refresh();
+        $this->assertEquals(StatusNotaFiscal::Pendente, $nota->status, 'nota não deve mudar quando auth falha');
+    }
+
+    public function test_webhook_aceita_quando_authorization_header_confere(): void
+    {
+        ConfiguracaoFiscal::withoutGlobalScopes()->create([
+            'empresa_id' => $this->empresa->id,
+            'unidade_id' => $this->unidade->id,
+            'ambiente' => 'homologacao',
+            'webhook_secret' => 'segredo-verdadeiro',
+            'emissao_fiscal_ativa' => true,
+        ]);
+
+        $nota = $this->createNotaPendente('nfce-auth-ok-001');
+
+        $response = $this->withHeaders(['Authorization' => 'Bearer segredo-verdadeiro'])
+            ->postJson('/webhooks/focusnfe', [
+                'ref'    => 'nfce-auth-ok-001',
+                'status' => 'autorizado',
+            ]);
+
+        $response->assertOk();
+        $nota->refresh();
+        $this->assertEquals(StatusNotaFiscal::Autorizada, $nota->status);
     }
 
     public function test_webhook_logs_received_data(): void

@@ -29,7 +29,17 @@ class ConfiguracaoFiscalController extends Controller
         $unidade = \App\Models\Unidade::withoutGlobalScopes()->with('empresa')->find(session('unidade_id'));
         $ufSefaz = strtoupper($unidade?->uf ?: $unidade?->empresa?->uf ?: '');
 
-        return view('app.configuracao-fiscal.edit', compact('config', 'ufSefaz'));
+        // Se a plataforma está em modo revenda E esta unidade foi criada via Focus,
+        // escondemos os campos de token (gerenciados automaticamente).
+        $modoRevenda = FocusNFeClient::masterDisponivel();
+        $gerenciadaPelaFocus = $config->isGerenciadaPelaFocus();
+
+        return view('app.configuracao-fiscal.edit', compact(
+            'config',
+            'ufSefaz',
+            'modoRevenda',
+            'gerenciadaPelaFocus'
+        ));
     }
 
     /* ------------------------------------------------------------------ */
@@ -165,7 +175,7 @@ class ConfiguracaoFiscalController extends Controller
             ->where('unidade_id', $unidadeId)
             ->first();
 
-        if (! $config || ! $config->focus_token) {
+        if (! $config || ! $config->tokenFocusAmbienteAtual()) {
             return back()->with('error', 'Informe o token Focus NFe antes de enviar o certificado.');
         }
 
@@ -218,7 +228,7 @@ class ConfiguracaoFiscalController extends Controller
             ->where('unidade_id', $unidadeId)
             ->first();
 
-        if (! $config || ! $config->focus_token) {
+        if (! $config || ! $config->tokenFocusAmbienteAtual()) {
             return response()->json([
                 'situacao' => 'desconhecido',
                 'mensagem' => 'Token Focus NFe não configurado.',

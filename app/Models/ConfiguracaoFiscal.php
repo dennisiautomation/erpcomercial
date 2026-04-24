@@ -18,6 +18,11 @@ class ConfiguracaoFiscal extends Model
         'unidade_id',
         'ambiente',
         'focus_token',
+        'focus_empresa_id',
+        'focus_token_producao',
+        'focus_token_homologacao',
+        'webhook_secret',
+        'focus_sincronizado_em',
         'serie_nfe',
         'serie_nfce',
         'serie_nfse',
@@ -40,6 +45,9 @@ class ConfiguracaoFiscal extends Model
 
     protected $hidden = [
         'focus_token',
+        'focus_token_producao',
+        'focus_token_homologacao',
+        'webhook_secret',
     ];
 
     protected function casts(): array
@@ -52,7 +60,29 @@ class ConfiguracaoFiscal extends Model
             'nfse_incentivador_cultural' => 'boolean',
             'certificado_validade' => 'date',
             'certificado_enviado_em' => 'datetime',
+            'focus_sincronizado_em' => 'datetime',
         ];
+    }
+
+    /**
+     * Retorna o token Focus adequado ao ambiente atual.
+     * Prioriza os tokens por-ambiente (modelo revenda); cai no
+     * focus_token legado se os novos não estiverem preenchidos.
+     */
+    public function tokenFocusAmbienteAtual(): ?string
+    {
+        $ambiente = $this->ambiente ?? 'homologacao';
+        $novo = $ambiente === 'producao'
+            ? $this->focus_token_producao
+            : $this->focus_token_homologacao;
+
+        return $novo ?: $this->focus_token;
+    }
+
+    /** True se a empresa foi criada na Focus via API (modelo revenda). */
+    public function isGerenciadaPelaFocus(): bool
+    {
+        return ! empty($this->focus_empresa_id);
     }
 
     /** Retorna true se o certificado foi enviado e ainda está válido. */

@@ -62,38 +62,61 @@
                     </div>
                 </div>
 
-                <div class="alert alert-info small">
-                    <i class="bi bi-info-circle me-1"></i>
-                    O mesmo <strong>token e certificado</strong> da Focus NFe emite NF-e, NFC-e e NFS-e.
-                    Abaixo, habilite cada tipo e configure os dados específicos.
-                </div>
+                @if($gerenciadaPelaFocus)
+                    <div class="alert alert-success small d-flex">
+                        <i class="bi bi-shield-check me-2 fs-4"></i>
+                        <div>
+                            <strong>Empresa gerenciada pela plataforma.</strong>
+                            Os tokens de produção e homologação desta unidade foram gerados automaticamente na Focus NFe (ID #{{ $config->focus_empresa_id }})
+                            e são usados conforme o ambiente selecionado. Você não precisa configurá-los manualmente.
+                        </div>
+                    </div>
+                @else
+                    <div class="alert alert-info small">
+                        <i class="bi bi-info-circle me-1"></i>
+                        O mesmo <strong>token e certificado</strong> da Focus NFe emite NF-e, NFC-e e NFS-e.
+                        Abaixo, habilite cada tipo e configure os dados específicos.
+                    </div>
+                @endif
 
                 {{-- Token e Ambiente --}}
                 <div class="row g-3 mb-3">
-                    <div class="col-md-8">
-                        <label class="form-label fw-semibold">Token Focus NFe</label>
-                        <div class="input-group">
-                            <input type="password" name="focus_token" class="form-control @error('focus_token') is-invalid @enderror"
-                                   value="{{ old('focus_token', $config->focus_token) }}" id="tokenInput"
-                                   placeholder="Cole aqui o token da Focus NFe">
-                            <button type="button" class="btn btn-outline-secondary" onclick="togglePassword('tokenInput')">
-                                <i class="bi bi-eye"></i>
-                            </button>
-                            <button type="button" class="btn btn-outline-primary" id="btn-testar-conexao">
-                                Testar
-                            </button>
+                    @if($gerenciadaPelaFocus)
+                        <div class="col-md-8">
+                            <label class="form-label fw-semibold">Status da integração</label>
+                            <div class="form-control-plaintext small">
+                                <span class="badge bg-success"><i class="bi bi-check2-circle me-1"></i>Conectada à Focus NFe</span>
+                                @if($config->focus_sincronizado_em)
+                                    <span class="text-muted ms-2">sincronizado em {{ $config->focus_sincronizado_em->format('d/m/Y H:i') }}</span>
+                                @endif
+                            </div>
                         </div>
-                        @error('focus_token')
-                            <div class="text-danger small mt-1">{{ $message }}</div>
-                        @enderror
-                        <small class="form-text">Token fornecido pela Focus NFe para sua empresa</small>
-                        <span id="teste-resultado" class="small d-block mt-1"></span>
-                    </div>
+                    @else
+                        <div class="col-md-8">
+                            <label class="form-label fw-semibold">Token Focus NFe</label>
+                            <div class="input-group">
+                                <input type="password" name="focus_token" class="form-control @error('focus_token') is-invalid @enderror"
+                                       value="{{ old('focus_token', $config->focus_token) }}" id="tokenInput"
+                                       placeholder="Cole aqui o token da Focus NFe">
+                                <button type="button" class="btn btn-outline-secondary" onclick="togglePassword('tokenInput')">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                                <button type="button" class="btn btn-outline-primary" id="btn-testar-conexao">
+                                    Testar
+                                </button>
+                            </div>
+                            @error('focus_token')
+                                <div class="text-danger small mt-1">{{ $message }}</div>
+                            @enderror
+                            <small class="form-text">Token fornecido pela Focus NFe para sua empresa</small>
+                            <span id="teste-resultado" class="small d-block mt-1"></span>
+                        </div>
+                    @endif
                     <div class="col-md-4">
                         <label class="form-label fw-semibold">Ambiente</label>
                         <select name="ambiente" class="form-select @error('ambiente') is-invalid @enderror">
-                            <option value="homologacao" {{ old('ambiente', $config->ambiente ?? 'homologacao') === 'homologacao' ? 'selected' : '' }}>Homologacao (testes)</option>
-                            <option value="producao" {{ old('ambiente', $config->ambiente) === 'producao' ? 'selected' : '' }}>Producao (real)</option>
+                            <option value="homologacao" {{ old('ambiente', $config->ambiente ?? 'homologacao') === 'homologacao' ? 'selected' : '' }}>Homologação (testes)</option>
+                            <option value="producao" {{ old('ambiente', $config->ambiente) === 'producao' ? 'selected' : '' }}>Produção (real)</option>
                         </select>
                         @error('ambiente')
                             <div class="invalid-feedback">{{ $message }}</div>
