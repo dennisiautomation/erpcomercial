@@ -234,6 +234,7 @@ Route::middleware(['auth', 'unidade'])->prefix('app')->name('app.')->group(funct
         Route::get('/', [App\ConfiguracaoFiscalController::class, 'edit'])->name('edit');
         Route::put('/', [App\ConfiguracaoFiscalController::class, 'update'])->name('update');
         Route::post('/testar', [App\ConfiguracaoFiscalController::class, 'testarConexao'])->name('testar');
+        Route::post('/certificado', [App\ConfiguracaoFiscalController::class, 'uploadCertificado'])->name('certificado');
     });
 
     /* ------ Relatorios ------ */

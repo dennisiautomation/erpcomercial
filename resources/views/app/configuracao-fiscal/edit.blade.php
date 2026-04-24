@@ -101,24 +101,67 @@
                     </div>
                 </div>
 
-                {{-- Certificado Digital (info) --}}
-                @if($config->certificado_validade)
-                    @php
-                        $validade = $config->certificado_validade;
-                        $diasRestantes = now()->diffInDays($validade, false);
-                    @endphp
-                    <div class="d-flex align-items-center gap-3 p-3 rounded-3 mb-3 bg-{{ $diasRestantes > 30 ? 'success' : ($diasRestantes > 0 ? 'warning' : 'danger') }} bg-opacity-10">
-                        <i class="bi bi-{{ $diasRestantes > 30 ? 'shield-check' : ($diasRestantes > 0 ? 'exclamation-triangle' : 'shield-x') }} fs-3 text-{{ $diasRestantes > 30 ? 'success' : ($diasRestantes > 0 ? 'warning' : 'danger') }}"></i>
-                        <div>
-                            <strong>Certificado Digital - Validade: {{ $validade->format('d/m/Y') }}</strong>
-                            @if($diasRestantes > 0)
-                                <small class="text-muted d-block">{{ $diasRestantes }} dia(s) restante(s)</small>
-                            @else
-                                <small class="text-danger fw-bold d-block">CERTIFICADO VENCIDO</small>
-                            @endif
+                {{-- ═══ Certificado Digital A1 ═══ --}}
+                <div class="erp-card mt-3 mb-3 border">
+                    <div class="card-header bg-transparent d-flex align-items-center">
+                        <i class="bi bi-shield-lock fs-4 text-primary me-2"></i>
+                        <div class="flex-grow-1">
+                            <strong>Certificado Digital A1</strong>
+                            <div class="small text-muted">Arquivo .pfx + senha — necessário para emitir qualquer nota fiscal</div>
                         </div>
+                        @if($config->certificado_validade)
+                            @php $dias = (int) now()->startOfDay()->diffInDays($config->certificado_validade->startOfDay(), false); @endphp
+                            @if($dias > 30)
+                                <span class="badge bg-success"><i class="bi bi-shield-check me-1"></i>Válido — {{ $dias }} dias</span>
+                            @elseif($dias > 0)
+                                <span class="badge bg-warning"><i class="bi bi-exclamation-triangle me-1"></i>Expira em {{ $dias }} dias</span>
+                            @else
+                                <span class="badge bg-danger"><i class="bi bi-shield-x me-1"></i>VENCIDO</span>
+                            @endif
+                        @else
+                            <span class="badge bg-secondary"><i class="bi bi-shield-exclamation me-1"></i>Não enviado</span>
+                        @endif
                     </div>
-                @endif
+                    <div class="card-body">
+                        @if($config->certificado_enviado_em)
+                            <div class="small text-muted mb-3">
+                                <i class="bi bi-check-circle text-success me-1"></i>
+                                Enviado em <strong>{{ $config->certificado_enviado_em->format('d/m/Y H:i') }}</strong>
+                                @if($config->certificado_nome) — arquivo <code>{{ $config->certificado_nome }}</code> @endif
+                                @if($config->certificado_validade) — validade até <strong>{{ $config->certificado_validade->format('d/m/Y') }}</strong> @endif
+                            </div>
+                        @endif
+
+                        <form action="{{ route('app.configuracao-fiscal.certificado') }}" method="POST" enctype="multipart/form-data" class="row g-3" data-erp-no-loading="0">
+                            @csrf
+                            <div class="col-md-7">
+                                <label class="form-label small fw-semibold">Arquivo do certificado (.pfx)</label>
+                                <input type="file" name="certificado" accept=".pfx,.p12,application/x-pkcs12" class="form-control" required>
+                                <div class="form-text">Apenas certificado A1 em formato PKCS#12. Máximo 2MB.</div>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small fw-semibold">Senha</label>
+                                <input type="password" name="certificado_senha" class="form-control" autocomplete="off" required>
+                                <div class="form-text">Senha definida na emissão do certificado.</div>
+                            </div>
+                            <div class="col-md-2 d-flex align-items-end">
+                                <button type="submit" class="btn btn-primary w-100">
+                                    <i class="bi bi-upload me-1"></i> Enviar
+                                </button>
+                            </div>
+                            <div class="col-12">
+                                <small class="text-muted">
+                                    <i class="bi bi-info-circle me-1"></i>
+                                    O arquivo é enviado diretamente ao Focus NFe e <strong>não é armazenado</strong> em nossos servidores.
+                                    A senha também não é gravada.
+                                </small>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                @error('certificado') <div class="alert alert-danger">{{ $message }}</div> @enderror
+                @error('certificado_senha') <div class="alert alert-danger">{{ $message }}</div> @enderror
 
                 <div id="aviso-nenhum-tipo" class="alert alert-warning d-flex align-items-start mb-3 d-none">
                     <i class="bi bi-exclamation-triangle me-2 fs-5 mt-1"></i>

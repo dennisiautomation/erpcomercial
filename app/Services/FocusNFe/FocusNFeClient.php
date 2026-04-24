@@ -80,6 +80,30 @@ class FocusNFeClient
         return $this->request()->delete($this->url($endpoint), $data);
     }
 
+    /**
+     * Upload multipart (usado para certificado .pfx).
+     * @param array<int, array{name:string, contents:string|resource, filename?:string}> $parts
+     */
+    public function postMultipart(string $endpoint, array $parts): Response
+    {
+        $req = Http::withBasicAuth($this->token, '')
+            ->acceptJson()
+            ->timeout(60)
+            ->retry(2, 1000, throw: false);
+
+        $first = array_shift($parts);
+        $req = $req->attach(
+            $first['name'],
+            $first['contents'],
+            $first['filename'] ?? null
+        );
+        foreach ($parts as $p) {
+            $req = $req->attach($p['name'], $p['contents'], $p['filename'] ?? null);
+        }
+
+        return $req->post($this->url($endpoint));
+    }
+
     // ─── Helpers ─────────────────────────────────────────────────────
 
     private function request(): PendingRequest

@@ -2,8 +2,11 @@
 
 namespace App\Http\Controllers\App;
 
+use App\Exceptions\CertificadoDigitalException;
 use App\Http\Controllers\Controller;
 use App\Models\ConfiguracaoFiscal;
+use App\Models\Empresa;
+use App\Services\FocusNFe\CertificadoDigitalService;
 use App\Services\FocusNFe\FocusNFeClient;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -131,5 +134,64 @@ class ConfiguracaoFiscalController extends Controller
                 'message' => 'Erro ao conectar: ' . $e->getMessage(),
             ], 500);
         }
+    }
+
+    /* ------------------------------------------------------------------ */
+    /*  Upload do Certificado Digital A1 (.pfx)                            */
+    /* ------------------------------------------------------------------ */
+
+    public function uploadCertificado(Request $request)
+    {
+        $request->validate([
+            'certificado'       => 'required|file|mimetypes:application/x-pkcs12,application/octet-stream,application/pkcs12|max:2048',
+            'certificado_senha' => 'required|string|min:1|max:255',
+        ], [
+            'certificado.required' => 'Escolha o arquivo .pfx do certificado A1.',
+            'certificado.mimetypes' => 'O arquivo precisa ser um certificado .pfx (PKCS#12).',
+            'certificado.max'      => 'O arquivo é grande demais (máximo 2MB). Certificados A1 típicos têm <100KB.',
+            'certificado_senha.required' => 'Informe a senha do certificado.',
+        ]);
+
+        $empresaId = session('empresa_id');
+        $unidadeId = session('unidade_id');
+
+        $config = ConfiguracaoFiscal::withoutGlobalScopes()
+            ->where('empresa_id', $empresaId)
+            ->where('unidade_id', $unidadeId)
+            ->first();
+
+        if (! $config || ! $config->focus_token) {
+            return back()->with('error', 'Informe o token Focus NFe antes de enviar o certificado.');
+        }
+
+        $empresa = Empresa::withoutGlobalScopes()->find($empresaId);
+        if (! $empresa) {
+            return back()->with('error', 'Empresa não encontrada na sessão atual.');
+        }
+
+        $file = $request->file('certificado');
+
+        try {
+            $service = new CertificadoDigitalService(FocusNFeClient::fromConfig($config));
+            $service->enviar(
+                $empresa,
+                $config,
+                file_get_contents($file->getRealPath()),
+                $request->input('certificado_senha'),
+                $file->getClientOriginalName()
+            );
+        } catch (CertificadoDigitalException $e) {
+            return back()->with('error', $e->getMessage());
+        } catch (\Throwable $e) {
+            Log::error('Erro inesperado no upload do certificado', [
+                'empresa_id' => $empresaId,
+                'error'      => $e->getMessage(),
+            ]);
+            return back()->with('error', 'Erro inesperado ao enviar certificado. Nossa equipe foi notificada.');
+        }
+
+        return redirect()
+            ->route('app.configuracao-fiscal.edit')
+            ->with('success', 'Certificado digital enviado com sucesso!');
     }
 }
