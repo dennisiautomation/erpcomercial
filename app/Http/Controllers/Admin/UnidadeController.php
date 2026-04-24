@@ -39,22 +39,7 @@ class UnidadeController extends Controller
     {
         abort_unless($request->user()->is_admin, 403);
 
-        $validated = $request->validate([
-            'nome'        => ['required', 'string', 'max:255'],
-            'cnpj'        => ['nullable', 'string', 'max:18'],
-            'ie'          => ['nullable', 'string', 'max:20'],
-            'im'          => ['nullable', 'string', 'max:20'],
-            'cep'         => ['nullable', 'string', 'max:10'],
-            'logradouro'  => ['nullable', 'string', 'max:255'],
-            'numero'      => ['nullable', 'string', 'max:20'],
-            'complemento' => ['nullable', 'string', 'max:100'],
-            'bairro'      => ['nullable', 'string', 'max:100'],
-            'cidade'      => ['nullable', 'string', 'max:100'],
-            'uf'          => ['nullable', 'string', 'size:2'],
-            'telefone'    => ['nullable', 'string', 'max:20'],
-            'gerente_id'  => ['nullable', 'exists:users,id'],
-            'status'      => ['required', 'in:ativa,inativa,em_implantacao'],
-        ]);
+        $validated = $request->validate(self::validationRules(), self::validationMessages());
 
         $validated['empresa_id'] = $empresa->id;
 
@@ -92,28 +77,53 @@ class UnidadeController extends Controller
     {
         abort_unless($request->user()->is_admin, 403);
 
-        $validated = $request->validate([
-            'nome'        => ['required', 'string', 'max:255'],
-            'cnpj'        => ['nullable', 'string', 'max:18'],
-            'ie'          => ['nullable', 'string', 'max:20'],
-            'im'          => ['nullable', 'string', 'max:20'],
-            'cep'         => ['nullable', 'string', 'max:10'],
-            'logradouro'  => ['nullable', 'string', 'max:255'],
-            'numero'      => ['nullable', 'string', 'max:20'],
-            'complemento' => ['nullable', 'string', 'max:100'],
-            'bairro'      => ['nullable', 'string', 'max:100'],
-            'cidade'      => ['nullable', 'string', 'max:100'],
-            'uf'          => ['nullable', 'string', 'size:2'],
-            'telefone'    => ['nullable', 'string', 'max:20'],
-            'gerente_id'  => ['nullable', 'exists:users,id'],
-            'status'      => ['required', 'in:ativa,inativa,em_implantacao'],
-        ]);
+        $validated = $request->validate(self::validationRules(), self::validationMessages());
 
         $unidade->update($validated);
 
         return redirect()
             ->route('admin.unidades.show', $unidade)
             ->with('success', 'Unidade atualizada com sucesso.');
+    }
+
+    /**
+     * Regras de validação compartilhadas entre store e update.
+     * Campos NOT NULL no schema são required para evitar erro 500 no banco.
+     */
+    public static function validationRules(): array
+    {
+        return [
+            'nome'        => ['required', 'string', 'max:255'],
+            'cnpj'        => ['required', 'string', 'max:18'],
+            'ie'          => ['nullable', 'string', 'max:20'],
+            'im'          => ['nullable', 'string', 'max:20'],
+            'cep'         => ['required', 'string', 'max:10'],
+            'logradouro'  => ['required', 'string', 'max:255'],
+            'numero'      => ['required', 'string', 'max:20'],
+            'complemento' => ['nullable', 'string', 'max:100'],
+            'bairro'      => ['required', 'string', 'max:100'],
+            'cidade'      => ['required', 'string', 'max:100'],
+            'uf'          => ['required', 'string', 'size:2'],
+            'telefone'    => ['required', 'string', 'max:20'],
+            'gerente_id'  => ['nullable', 'exists:users,id'],
+            'status'      => ['required', 'in:ativa,inativa,em_implantacao'],
+        ];
+    }
+
+    public static function validationMessages(): array
+    {
+        return [
+            'nome.required'       => 'Informe o nome da unidade (ex: Matriz, Filial Centro).',
+            'cnpj.required'       => 'Informe o CNPJ da unidade. Use o mesmo da empresa se a unidade não tem CNPJ próprio.',
+            'cep.required'        => 'Informe o CEP.',
+            'logradouro.required' => 'Informe o logradouro (rua/avenida).',
+            'numero.required'     => 'Informe o número.',
+            'bairro.required'     => 'Informe o bairro.',
+            'cidade.required'     => 'Informe a cidade.',
+            'uf.required'         => 'Selecione o estado (UF).',
+            'telefone.required'   => 'Informe um telefone de contato.',
+            'status.required'     => 'Selecione o status (ativa/inativa/em implantação).',
+        ];
     }
 
     public function destroy(Request $request, Unidade $unidade): RedirectResponse
