@@ -120,6 +120,15 @@
                     </div>
                 @endif
 
+                <div id="aviso-nenhum-tipo" class="alert alert-warning d-flex align-items-start mb-3 d-none">
+                    <i class="bi bi-exclamation-triangle me-2 fs-5 mt-1"></i>
+                    <div>
+                        <strong>Emissão fiscal ativada, mas nenhum tipo marcado.</strong><br>
+                        <small>Habilite ao menos <strong>NF-e</strong> (para empresas/transporte) ou
+                        <strong>NFC-e</strong> (para cupom fiscal no PDV) nos cards abaixo.</small>
+                    </div>
+                </div>
+
                 {{-- ═══ NF-e ═══ --}}
                 <div class="erp-card mt-3 mb-3 border">
                     <div class="card-header bg-transparent d-flex align-items-center">
@@ -269,6 +278,23 @@
 
 @push('scripts')
 <script>
+// Alerta se ativou emissão fiscal mas não escolheu nenhum tipo
+(function() {
+    const fiscalSim = document.getElementById('fiscal_sim');
+    const aviso = document.getElementById('aviso-nenhum-tipo');
+    const switches = ['switch_nfe', 'switch_nfce', 'switch_nfse'].map(id => document.getElementById(id));
+
+    function atualizar() {
+        if (!fiscalSim || !aviso) return;
+        const algumMarcado = switches.some(s => s && s.checked);
+        aviso.classList.toggle('d-none', !fiscalSim.checked || algumMarcado);
+    }
+    fiscalSim && fiscalSim.addEventListener('change', atualizar);
+    document.getElementById('fiscal_nao')?.addEventListener('change', atualizar);
+    switches.forEach(s => s && s.addEventListener('change', atualizar));
+    atualizar();
+})();
+
 // Toggle password visibility
 function togglePassword(inputId) {
     const input = document.getElementById(inputId);

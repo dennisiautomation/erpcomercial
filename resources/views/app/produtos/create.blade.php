@@ -171,11 +171,16 @@
                     {{-- Codigo de Barras --}}
                     <div class="col-md-6">
                         <label for="codigo_barras" class="form-label">
-                            <i class="bi bi-upc me-1"></i> Codigo de barras
+                            <i class="bi bi-upc me-1"></i> Código de barras <span class="text-muted fw-normal">(opcional)</span>
                         </label>
-                        <input type="text" name="codigo_barras" id="codigo_barras" class="form-control @error('codigo_barras') is-invalid @enderror" value="{{ old('codigo_barras') }}" placeholder="Escaneie com o leitor ou digite o EAN">
+                        <input type="text" name="codigo_barras" id="codigo_barras" class="form-control @error('codigo_barras') is-invalid @enderror" value="{{ old('codigo_barras') }}" placeholder="Escaneie ou digite o EAN — deixe vazio se não tem">
                         @error('codigo_barras') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                        <div class="form-text"><i class="bi bi-info-circle me-1"></i>Escaneie o codigo com leitor de barras ou digite manualmente</div>
+                        <div class="form-text">
+                            <i class="bi bi-info-circle me-1"></i>
+                            Se o produto já tem EAN impresso (industrializados), escaneie com o leitor.
+                            Se não tem, deixe em branco — você poderá gerar etiquetas com o código interno
+                            pelo menu <strong>Produtos → Etiquetas</strong>.
+                        </div>
                     </div>
 
                     {{-- SKU --}}
@@ -252,9 +257,13 @@
         $empresa = auth()->user()->empresa;
         $unidadeId = session('unidade_id');
         $configFiscal = $unidadeId ? \App\Models\ConfiguracaoFiscal::withoutGlobalScopes()->where('unidade_id', $unidadeId)->first() : null;
-        $emiteNFe = $configFiscal && $configFiscal->emissao_fiscal_ativa && $configFiscal->emite_nfe;
-        $emiteNFCe = $configFiscal && $configFiscal->emissao_fiscal_ativa && ($configFiscal->emite_nfce ?? $configFiscal->tipo_cupom_pdv === 'fiscal');
-        $emiteFiscal = $emiteNFe || $emiteNFCe;
+        $emissaoAtiva = $configFiscal && $configFiscal->emissao_fiscal_ativa;
+        $emiteNFe = $emissaoAtiva && $configFiscal->emite_nfe;
+        $emiteNFCe = $emissaoAtiva && ($configFiscal->emite_nfce ?? $configFiscal->tipo_cupom_pdv === 'fiscal');
+        // Se emissão está ativa, mostra os campos fiscais — mesmo que nenhum tipo específico
+        // esteja marcado ainda (evita ter que reeditar produtos depois).
+        $emiteFiscal = $emissaoAtiva;
+        $nenhumTipoMarcado = $emissaoAtiva && ! $emiteNFe && ! $emiteNFCe;
         $regimeValue = $empresa->regime_tributario instanceof \App\Enums\RegimeTributario ? $empresa->regime_tributario->value : $empresa->regime_tributario;
         $isSimples = $regimeValue === 'simples_nacional';
     @endphp
@@ -284,15 +293,27 @@
                     </div>
                 @else
                     {{-- Empresa EMITE nota --}}
-                    <div class="d-flex align-items-center gap-2 mb-3">
-                        <span class="text-muted small">Campos usados na emissão de:</span>
-                        @if($emiteNFe)
-                            <span class="badge bg-primary"><i class="bi bi-file-earmark-text me-1"></i>NF-e</span>
-                        @endif
-                        @if($emiteNFCe)
-                            <span class="badge bg-info"><i class="bi bi-receipt me-1"></i>NFC-e</span>
-                        @endif
-                    </div>
+                    @if($nenhumTipoMarcado)
+                        <div class="alert alert-warning d-flex align-items-start mb-3">
+                            <i class="bi bi-exclamation-triangle me-2 fs-5 mt-1"></i>
+                            <div>
+                                <strong>Você ativou a emissão fiscal, mas ainda não escolheu o tipo (NF-e ou NFC-e).</strong><br>
+                                <small>Continue preenchendo os dados fiscais do produto — quando escolher o tipo em
+                                    <a href="{{ route('app.configuracao-fiscal.edit') }}" target="_blank">Configurações Fiscais</a>,
+                                    este produto já estará pronto.</small>
+                            </div>
+                        </div>
+                    @else
+                        <div class="d-flex align-items-center gap-2 mb-3">
+                            <span class="text-muted small">Campos usados na emissão de:</span>
+                            @if($emiteNFe)
+                                <span class="badge bg-primary"><i class="bi bi-file-earmark-text me-1"></i>NF-e</span>
+                            @endif
+                            @if($emiteNFCe)
+                                <span class="badge bg-info"><i class="bi bi-receipt me-1"></i>NFC-e</span>
+                            @endif
+                        </div>
+                    @endif
 
                     @if(!empty($fiscalDefaults['label']))
                     <div class="alert alert-info d-flex align-items-start mb-4">
