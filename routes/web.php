@@ -225,6 +225,8 @@ Route::middleware(['auth', 'unidade'])->prefix('app')->name('app.')->group(funct
         Route::get('/{notaFiscal}/consultar', [App\NotaFiscalController::class, 'consultar'])->name('consultar');
         Route::post('/{notaFiscal}/cancelar', [App\NotaFiscalController::class, 'cancelar'])->name('cancelar');
         Route::post('/{notaFiscal}/carta-correcao', [App\NotaFiscalController::class, 'cartaCorrecao'])->name('carta-correcao');
+        Route::post('/{notaFiscal}/ator-interessado', [App\NFeEventoController::class, 'atorInteressado'])->name('ator-interessado');
+        Route::post('/{notaFiscal}/insucesso-entrega', [App\NFeEventoController::class, 'insucessoEntrega'])->name('insucesso-entrega');
         Route::get('/{notaFiscal}/xml', [App\NotaFiscalController::class, 'downloadXml'])->name('xml');
         Route::get('/{notaFiscal}/danfe', [App\NotaFiscalController::class, 'downloadDanfe'])->name('danfe');
     });

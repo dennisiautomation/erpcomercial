@@ -91,6 +91,16 @@ class ProdutoController extends Controller
             'is_aliquota'        => 'nullable|numeric|min:0|max:100',
             'cst_ibs_cbs'        => 'nullable|string|max:3',
             'classificacao_ibs'  => 'nullable|string|max:10',
+            // Declaração de Importação
+            'di_numero'              => 'nullable|string|max:20',
+            'di_data'                => 'nullable|date',
+            'di_local_desembaraco'   => 'nullable|string|max:100',
+            'di_uf_desembaraco'      => 'nullable|string|size:2',
+            'di_data_desembaraco'    => 'nullable|date',
+            'di_via_transp'          => 'nullable|integer|min:1|max:12',
+            'di_valor_afrmm'         => 'nullable|numeric|min:0',
+            'di_forma_importacao'    => 'nullable|integer|in:1,2,3',
+            'di_adicao_numero'       => 'nullable|string|max:10',
         ]);
 
         // Fill empty fiscal fields with defaults based on regime tributario
@@ -186,6 +196,16 @@ class ProdutoController extends Controller
             'is_aliquota'        => 'nullable|numeric|min:0|max:100',
             'cst_ibs_cbs'        => 'nullable|string|max:3',
             'classificacao_ibs'  => 'nullable|string|max:10',
+            // Declaração de Importação
+            'di_numero'              => 'nullable|string|max:20',
+            'di_data'                => 'nullable|date',
+            'di_local_desembaraco'   => 'nullable|string|max:100',
+            'di_uf_desembaraco'      => 'nullable|string|size:2',
+            'di_data_desembaraco'    => 'nullable|date',
+            'di_via_transp'          => 'nullable|integer|min:1|max:12',
+            'di_valor_afrmm'         => 'nullable|numeric|min:0',
+            'di_forma_importacao'    => 'nullable|integer|in:1,2,3',
+            'di_adicao_numero'       => 'nullable|string|max:10',
             'status'             => 'required|in:ativo,inativo',
         ]);
 

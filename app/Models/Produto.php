@@ -44,6 +44,16 @@ class Produto extends Model
         'is_aliquota',
         'cst_ibs_cbs',
         'classificacao_ibs',
+        // Declaração de Importação (NT 2015/003)
+        'di_numero',
+        'di_data',
+        'di_local_desembaraco',
+        'di_uf_desembaraco',
+        'di_data_desembaraco',
+        'di_via_transp',
+        'di_valor_afrmm',
+        'di_forma_importacao',
+        'di_adicao_numero',
         'status',
     ];
 
@@ -60,9 +70,20 @@ class Produto extends Model
             'ibs_aliquota' => 'decimal:4',
             'cbs_aliquota' => 'decimal:4',
             'is_aliquota' => 'decimal:4',
+            'di_data' => 'date',
+            'di_data_desembaraco' => 'date',
+            'di_valor_afrmm' => 'decimal:2',
             'peso_bruto' => 'decimal:3',
             'peso_liquido' => 'decimal:3',
         ];
+    }
+
+    /**
+     * True quando o produto é importado (origem 1, 2, 3, 6, 7, 8) e precisa dos campos de DI.
+     */
+    public function ehImportado(): bool
+    {
+        return in_array((string) $this->origem, ['1', '2', '3', '6', '7', '8'], true);
     }
 
     /* ------------------------------------------------------------------ */

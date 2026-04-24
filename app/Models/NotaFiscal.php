@@ -84,4 +84,10 @@ class NotaFiscal extends Model
     {
         return $this->hasMany(CartaCorrecao::class)->orderByDesc('numero_sequencia');
     }
+
+    /** Eventos avançados (Ator Interessado, Insucesso de Entrega, EPEC, etc). */
+    public function eventos(): HasMany
+    {
+        return $this->hasMany(NFeEvento::class)->orderByDesc('created_at');
+    }
 }

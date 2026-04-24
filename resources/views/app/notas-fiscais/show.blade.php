@@ -399,6 +399,166 @@
 </div>
 @endif
 
+{{-- ══════════ EVENTOS AVANÇADOS (Ator Interessado, Insucesso Entrega) ══════════ --}}
+@if($notaFiscal->tipo === \App\Enums\TipoNotaFiscal::NFe && $notaFiscal->status === \App\Enums\StatusNotaFiscal::Autorizada)
+    <div class="card mb-4">
+        <div class="card-header d-flex align-items-center">
+            <i class="bi bi-diagram-3 me-2"></i>
+            <strong>Eventos NFe</strong>
+            <div class="ms-auto">
+                <button class="btn btn-sm btn-outline-primary me-1" data-bs-toggle="modal" data-bs-target="#modalAtorInteressado">
+                    <i class="bi bi-person-plus me-1"></i>Ator Interessado
+                </button>
+                <button class="btn btn-sm btn-outline-warning" data-bs-toggle="modal" data-bs-target="#modalInsucessoEntrega">
+                    <i class="bi bi-truck me-1"></i>Insucesso de Entrega
+                </button>
+            </div>
+        </div>
+        <div class="card-body">
+            @forelse($notaFiscal->eventos as $evento)
+                <div class="border-start border-3 ps-3 mb-3 {{ $evento->status === 'autorizado' ? 'border-success' : 'border-danger' }}">
+                    <div class="d-flex justify-content-between">
+                        <strong>{{ $evento->labelTipo() }} <small class="text-muted">#{{ $evento->sequencia }}</small></strong>
+                        <span class="badge bg-{{ $evento->status === 'autorizado' ? 'success' : ($evento->status === 'pendente' ? 'warning' : 'danger') }}">
+                            {{ ucfirst($evento->status) }}
+                        </span>
+                    </div>
+                    @if($evento->tipo === 'ator_interessado')
+                        <div class="small">
+                            CNPJ: <code>{{ preg_replace('/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/', '$1.$2.$3/$4-$5', $evento->dados['cnpj_ator']) }}</code>
+                            @if(! empty($evento->dados['razao_social_ator']))
+                                — {{ $evento->dados['razao_social_ator'] }}
+                            @endif
+                            <br>
+                            Tipo: {{ ['1' => 'Transportador', '2' => 'Autor do fato', '3' => 'Marketplace', '4' => 'Outro'][(string) $evento->dados['tipo_ator']] ?? 'Desconhecido' }}
+                        </div>
+                    @elseif($evento->tipo === 'insucesso_entrega')
+                        <div class="small">
+                            Motivo:
+                            {{ [1 => 'Sem funcionamento', 2 => 'Recusa do destinatário', 3 => 'Endereço não encontrado', 4 => 'Outros'][$evento->dados['motivo']] ?? '—' }}
+                            @if(! empty($evento->dados['justificativa']))
+                                <br><em>"{{ $evento->dados['justificativa'] }}"</em>
+                            @endif
+                            @if(! empty($evento->dados['latitude']))
+                                <br>Local: {{ $evento->dados['latitude'] }}, {{ $evento->dados['longitude'] }}
+                            @endif
+                        </div>
+                    @endif
+                    <div class="small text-muted mt-1">
+                        {{ $evento->created_at->format('d/m/Y H:i') }}
+                        @if($evento->criador) — {{ $evento->criador->name }} @endif
+                        @if($evento->protocolo) — protocolo {{ $evento->protocolo }} @endif
+                    </div>
+                    @if($evento->status === 'rejeitado' && $evento->mensagem_retorno)
+                        <div class="text-danger small">{{ $evento->mensagem_retorno }}</div>
+                    @endif
+                </div>
+            @empty
+                <div class="text-muted small">Nenhum evento registrado.</div>
+            @endforelse
+        </div>
+    </div>
+
+    {{-- Modal Ator Interessado --}}
+    <div class="modal fade" id="modalAtorInteressado" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form method="POST" action="{{ route('app.notas-fiscais.ator-interessado', $notaFiscal) }}">
+                    @csrf
+                    <div class="modal-header bg-primary text-white">
+                        <h5 class="modal-title"><i class="bi bi-person-plus me-1"></i>Ator Interessado (evento 110150)</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="alert alert-info small mb-3">
+                            <i class="bi bi-info-circle me-1"></i>
+                            Adiciona um CNPJ autorizado a acessar o XML desta NF-e (transportadora, marketplace, seguradora, etc.).
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">CNPJ do Ator</label>
+                            <input type="text" name="cnpj_ator" class="form-control" data-mask="cnpj"
+                                   placeholder="00.000.000/0000-00" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Razão Social (opcional)</label>
+                            <input type="text" name="razao_social_ator" class="form-control" maxlength="255">
+                        </div>
+                        <div class="mb-0">
+                            <label class="form-label fw-semibold">Tipo de Ator</label>
+                            <select name="tipo_ator" class="form-select" required>
+                                <option value="1">1 — Transportador</option>
+                                <option value="2">2 — Autor do fato</option>
+                                <option value="3">3 — Marketplace / Intermediador</option>
+                                <option value="4">4 — Outro</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary"><i class="bi bi-send me-1"></i>Registrar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    {{-- Modal Insucesso Entrega --}}
+    <div class="modal fade" id="modalInsucessoEntrega" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form method="POST" action="{{ route('app.notas-fiscais.insucesso-entrega', $notaFiscal) }}" id="form-insucesso">
+                    @csrf
+                    <div class="modal-header bg-warning">
+                        <h5 class="modal-title"><i class="bi bi-truck me-1"></i>Insucesso de Entrega (evento 110192)</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="alert alert-info small mb-3">
+                            <i class="bi bi-info-circle me-1"></i>
+                            Registra que a mercadoria não pôde ser entregue. Permite retornar com a carga sem emitir nova NF-e.
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Motivo</label>
+                            <select name="motivo" id="insucesso-motivo" class="form-select" required>
+                                <option value="1">1 — Sem funcionamento do estabelecimento</option>
+                                <option value="2">2 — Recusa do destinatário</option>
+                                <option value="3">3 — Endereço não encontrado / inexistente</option>
+                                <option value="4">4 — Outros</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Data/hora da tentativa</label>
+                            <input type="datetime-local" name="data_tentativa" class="form-control"
+                                   value="{{ now()->format('Y-m-d\TH:i') }}">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">
+                                Justificativa
+                                <small class="text-muted fw-normal" id="just-req">(obrigatória para "Outros", min 15 chars)</small>
+                            </label>
+                            <textarea name="justificativa" class="form-control" rows="3" maxlength="500"></textarea>
+                        </div>
+                        <div class="row g-2">
+                            <div class="col-md-6">
+                                <label class="form-label small">Latitude (opcional)</label>
+                                <input type="number" name="latitude" class="form-control form-control-sm" step="0.000001">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small">Longitude (opcional)</label>
+                                <input type="number" name="longitude" class="form-control form-control-sm" step="0.000001">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-warning"><i class="bi bi-send me-1"></i>Registrar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+@endif
+
 {{-- Modal Carta de Correcao --}}
 @if($notaFiscal->status === \App\Enums\StatusNotaFiscal::Autorizada && $notaFiscal->tipo === \App\Enums\TipoNotaFiscal::NFe)
 <div class="modal fade" id="modalCartaCorrecao" tabindex="-1">
