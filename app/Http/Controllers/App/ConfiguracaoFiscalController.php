@@ -104,16 +104,27 @@ class ConfiguracaoFiscalController extends Controller
         $unidadeId = session('unidade_id');
         $data = collect($validated)->except(['empresa_id', 'unidade_id'])->toArray();
 
-        // updateOrCreate — atômico, sem race condition no unique (empresa_id, unidade_id).
-        // withoutGlobalScopes garante que achamos o registro mesmo fora do escopo ativo
-        // (ex: admin trocando de unidade que ele não "enxerga" pelo UnidadeScope).
-        $config = ConfiguracaoFiscal::withoutGlobalScopes()->updateOrCreate(
-            [
-                'empresa_id' => $empresaId,
-                'unidade_id' => $unidadeId,
-            ],
-            $data,
-        );
+        // Evitamos Eloquent\updateOrCreate aqui por causa de um bug reproduzido em
+        // produção: mesmo com withoutGlobalScopes(), o firstOrCreate não encontra
+        // o registro existente e cai no INSERT disparando 1062 (duplicate key).
+        //
+        // Usamos DB::table para a checagem de existência (0 scopes, 0 eventos),
+        // então decidimos entre Eloquent update (pra disparar auditlog) ou create.
+        $configId = \Illuminate\Support\Facades\DB::table('configuracoes_fiscais')
+            ->where('empresa_id', $empresaId)
+            ->where('unidade_id', $unidadeId)
+            ->value('id');
+
+        if ($configId) {
+            $config = ConfiguracaoFiscal::withoutGlobalScopes()->findOrFail($configId);
+            $config->fill($data)->save();
+        } else {
+            $config = new ConfiguracaoFiscal();
+            $config->empresa_id = $empresaId;
+            $config->unidade_id = $unidadeId;
+            $config->fill($data);
+            $config->save();
+        }
 
         return redirect()
             ->route('app.configuracao-fiscal.edit')
