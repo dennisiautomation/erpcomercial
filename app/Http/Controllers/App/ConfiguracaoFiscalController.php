@@ -100,48 +100,46 @@ class ConfiguracaoFiscalController extends Controller
             $validated['emite_nfse'] = false;
         }
 
-        $empresaId = session('empresa_id');
-        $unidadeId = session('unidade_id');
+        // Fonte autoritativa: auth()->user(). session só como fallback para
+        // unidade_id (admin pode estar em outra unidade). empresa_id sempre
+        // vem do usuário autenticado — nunca de session, que pode estar NULL
+        // (bug raiz deste 500: session('empresa_id') retornava NULL).
+        $user = auth()->user();
+        abort_unless($user, 403);
+
+        $empresaId = $user->empresa_id ?? session('empresa_id');
+        $unidadeId = session('unidade_id') ?? $user->unidade_id ?? null;
+
+        if (! $empresaId || ! $unidadeId) {
+            Log::error('[ConfigFiscal] empresa_id/unidade_id indisponíveis', [
+                'user_id' => $user->id,
+                'user_empresa_id' => $user->empresa_id,
+                'session_empresa_id' => session('empresa_id'),
+                'session_unidade_id' => session('unidade_id'),
+            ]);
+            return back()->with('error', 'Sua sessão perdeu a unidade ativa. Saia e entre novamente.');
+        }
+
+        // Re-sincroniza session com os valores confiáveis, evita repetir o bug
+        session(['empresa_id' => $empresaId, 'unidade_id' => $unidadeId]);
+
         $data = collect($validated)->except(['empresa_id', 'unidade_id'])->toArray();
 
-        // DEBUG: log session + query lookup para diagnosticar 1062 persistente em prod
+        // Find via DB::table (0 scopes, 0 events, comparação raw)
         $configId = \Illuminate\Support\Facades\DB::table('configuracoes_fiscais')
             ->where('empresa_id', $empresaId)
             ->where('unidade_id', $unidadeId)
             ->value('id');
 
-        $allRows = \Illuminate\Support\Facades\DB::table('configuracoes_fiscais')
-            ->select('id', 'empresa_id', 'unidade_id')
-            ->get()
-            ->toArray();
-
-        Log::info('[ConfigFiscal DEBUG] antes de salvar', [
-            'session_empresa_id' => $empresaId,
-            'session_empresa_id_type' => gettype($empresaId),
-            'session_unidade_id' => $unidadeId,
-            'session_unidade_id_type' => gettype($unidadeId),
-            'configId_encontrado' => $configId,
-            'auth_user_id' => auth()->id(),
-            'auth_user_empresa_id' => auth()->user()?->empresa_id,
-            'all_config_rows' => $allRows,
-            'connection' => config('database.default'),
-        ]);
-
         if ($configId) {
             $config = ConfiguracaoFiscal::withoutGlobalScopes()->findOrFail($configId);
             $config->fill($data)->save();
         } else {
-            // Proteção dupla: usa updateOrInsert via DB direto — não falha com 1062
-            \Illuminate\Support\Facades\DB::table('configuracoes_fiscais')->updateOrInsert(
-                ['empresa_id' => $empresaId, 'unidade_id' => $unidadeId],
-                array_merge($data, ['updated_at' => now(), 'created_at' => now()]),
-            );
-
-            // Recarrega via Eloquent para retornar o modelo persistido
-            $config = ConfiguracaoFiscal::withoutGlobalScopes()
-                ->where('empresa_id', $empresaId)
-                ->where('unidade_id', $unidadeId)
-                ->first();
+            $config = new ConfiguracaoFiscal();
+            $config->empresa_id = $empresaId;
+            $config->unidade_id = $unidadeId;
+            $config->fill($data);
+            $config->save();
         }
 
         return redirect()
