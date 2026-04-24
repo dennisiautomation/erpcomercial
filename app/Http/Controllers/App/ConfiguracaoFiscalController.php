@@ -104,19 +104,16 @@ class ConfiguracaoFiscalController extends Controller
         $unidadeId = session('unidade_id');
         $data = collect($validated)->except(['empresa_id', 'unidade_id'])->toArray();
 
-        $config = ConfiguracaoFiscal::withoutGlobalScopes()
-            ->where('empresa_id', $empresaId)
-            ->where('unidade_id', $unidadeId)
-            ->first();
-
-        if ($config) {
-            $config->update($data);
-        } else {
-            $config = ConfiguracaoFiscal::withoutGlobalScopes()->create(array_merge($data, [
+        // updateOrCreate — atômico, sem race condition no unique (empresa_id, unidade_id).
+        // withoutGlobalScopes garante que achamos o registro mesmo fora do escopo ativo
+        // (ex: admin trocando de unidade que ele não "enxerga" pelo UnidadeScope).
+        $config = ConfiguracaoFiscal::withoutGlobalScopes()->updateOrCreate(
+            [
                 'empresa_id' => $empresaId,
                 'unidade_id' => $unidadeId,
-            ]));
-        }
+            ],
+            $data,
+        );
 
         return redirect()
             ->route('app.configuracao-fiscal.edit')

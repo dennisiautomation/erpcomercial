@@ -147,6 +147,8 @@ class FocusEmpresaService
 
     /**
      * Lista todas as empresas-filhas (endpoint de revenda — apenas super-admin).
+     * Enriquece cada item com `ja_importada` (bool) e `empresa_local_id` (int|null)
+     * consultando nossa tabela `configuracoes_fiscais` pelo `focus_empresa_id`.
      *
      * @return array<int, array<string, mixed>>
      */
@@ -158,7 +160,25 @@ class FocusEmpresaService
             $this->handleError($response, 'listar empresas');
         }
 
-        return $response->json() ?? [];
+        $raw = $response->json() ?? [];
+
+        // Mapeia focus_empresa_id → empresa_id local já existente
+        $idsFocus = array_column($raw, 'id');
+        $existentes = [];
+        if (! empty($idsFocus)) {
+            $existentes = ConfiguracaoFiscal::withoutGlobalScopes()
+                ->whereIn('focus_empresa_id', $idsFocus)
+                ->pluck('empresa_id', 'focus_empresa_id')
+                ->toArray();
+        }
+
+        return array_map(function ($item) use ($existentes) {
+            $focusId = $item['id'] ?? null;
+            return array_merge($item, [
+                'ja_importada' => $focusId && isset($existentes[$focusId]),
+                'empresa_local_id' => $focusId ? ($existentes[$focusId] ?? null) : null,
+            ]);
+        }, $raw);
     }
 
     // ─── Webhooks ──────────────────────────────────────────────────────
