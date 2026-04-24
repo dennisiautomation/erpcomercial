@@ -163,6 +163,21 @@
                 @error('certificado') <div class="alert alert-danger">{{ $message }}</div> @enderror
                 @error('certificado_senha') <div class="alert alert-danger">{{ $message }}</div> @enderror
 
+                {{-- ═══ Status SEFAZ (UF da unidade) ═══ --}}
+                @if(!empty($ufSefaz))
+                <div class="d-flex align-items-center gap-2 p-2 rounded-3 bg-light border mb-3" id="sefaz-status-widget" data-uf="{{ $ufSefaz }}">
+                    <i class="bi bi-broadcast fs-5 text-muted" data-role="icon"></i>
+                    <div class="flex-grow-1">
+                        <strong class="small">SEFAZ {{ $ufSefaz }}</strong>
+                        <span class="text-muted small ms-2" data-role="mensagem">consultando...</span>
+                    </div>
+                    <span class="badge bg-secondary" data-role="badge">--</span>
+                    <button type="button" class="btn btn-sm btn-link text-muted" data-role="refresh" title="Atualizar">
+                        <i class="bi bi-arrow-clockwise"></i>
+                    </button>
+                </div>
+                @endif
+
                 <div id="aviso-nenhum-tipo" class="alert alert-warning d-flex align-items-start mb-3 d-none">
                     <i class="bi bi-exclamation-triangle me-2 fs-5 mt-1"></i>
                     <div>
@@ -321,6 +336,53 @@
 
 @push('scripts')
 <script>
+// Status SEFAZ — badge + auto-refresh a cada 60s
+(function() {
+    const widget = document.getElementById('sefaz-status-widget');
+    if (!widget) return;
+
+    const uf = widget.dataset.uf;
+    const badge = widget.querySelector('[data-role="badge"]');
+    const icon = widget.querySelector('[data-role="icon"]');
+    const msg = widget.querySelector('[data-role="mensagem"]');
+    const refreshBtn = widget.querySelector('[data-role="refresh"]');
+
+    const cores = {
+        online:       { badge: 'bg-success', icon: 'bi-broadcast text-success',  label: 'Online' },
+        instavel:     { badge: 'bg-warning', icon: 'bi-exclamation-triangle text-warning', label: 'Instável' },
+        offline:      { badge: 'bg-danger',  icon: 'bi-x-circle text-danger',    label: 'Offline' },
+        desconhecido: { badge: 'bg-secondary', icon: 'bi-question-circle text-muted', label: '—' },
+    };
+
+    async function consultar() {
+        refreshBtn.disabled = true;
+        refreshBtn.querySelector('i').classList.add('spinner-border', 'spinner-border-sm');
+        refreshBtn.querySelector('i').classList.remove('bi-arrow-clockwise');
+        try {
+            const res = await fetch('{{ route("app.configuracao-fiscal.sefaz-status") }}?uf=' + encodeURIComponent(uf), {
+                headers: { 'Accept': 'application/json' }
+            });
+            const data = await res.json();
+            const config = cores[data.situacao] || cores.desconhecido;
+
+            badge.className = 'badge ' + config.badge;
+            badge.textContent = config.label;
+            icon.className = 'bi fs-5 ' + config.icon;
+            msg.textContent = data.mensagem + (data.consultado_em ? ' (' + data.consultado_em + ')' : '');
+        } catch (e) {
+            msg.textContent = 'Sem resposta — tente novamente.';
+        } finally {
+            refreshBtn.querySelector('i').classList.remove('spinner-border', 'spinner-border-sm');
+            refreshBtn.querySelector('i').classList.add('bi-arrow-clockwise');
+            refreshBtn.disabled = false;
+        }
+    }
+
+    refreshBtn.addEventListener('click', consultar);
+    consultar();
+    setInterval(consultar, 60_000);
+})();
+
 // Alerta se ativou emissão fiscal mas não escolheu nenhum tipo
 (function() {
     const fiscalSim = document.getElementById('fiscal_sim');

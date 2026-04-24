@@ -8,6 +8,7 @@ use App\Models\ConfiguracaoFiscal;
 use App\Models\Empresa;
 use App\Services\FocusNFe\CertificadoDigitalService;
 use App\Services\FocusNFe\FocusNFeClient;
+use App\Services\FocusNFe\SefazStatusService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
@@ -24,7 +25,11 @@ class ConfiguracaoFiscalController extends Controller
             'unidade_id' => session('unidade_id'),
         ]);
 
-        return view('app.configuracao-fiscal.edit', compact('config'));
+        // UF da unidade (ou empresa como fallback) — usada na consulta SEFAZ
+        $unidade = \App\Models\Unidade::withoutGlobalScopes()->with('empresa')->find(session('unidade_id'));
+        $ufSefaz = strtoupper($unidade?->uf ?: $unidade?->empresa?->uf ?: '');
+
+        return view('app.configuracao-fiscal.edit', compact('config', 'ufSefaz'));
     }
 
     /* ------------------------------------------------------------------ */
@@ -193,5 +198,41 @@ class ConfiguracaoFiscalController extends Controller
         return redirect()
             ->route('app.configuracao-fiscal.edit')
             ->with('success', 'Certificado digital enviado com sucesso!');
+    }
+
+    /* ------------------------------------------------------------------ */
+    /*  Status SEFAZ por UF (AJAX, cache global 2min)                      */
+    /* ------------------------------------------------------------------ */
+
+    public function statusSefaz(Request $request)
+    {
+        $request->validate([
+            'uf' => 'required|string|size:2',
+        ]);
+
+        $empresaId = session('empresa_id');
+        $unidadeId = session('unidade_id');
+
+        $config = ConfiguracaoFiscal::withoutGlobalScopes()
+            ->where('empresa_id', $empresaId)
+            ->where('unidade_id', $unidadeId)
+            ->first();
+
+        if (! $config || ! $config->focus_token) {
+            return response()->json([
+                'situacao' => 'desconhecido',
+                'mensagem' => 'Token Focus NFe não configurado.',
+            ]);
+        }
+
+        $service = new SefazStatusService(FocusNFeClient::fromConfig($config));
+        $status = $service->consultar($request->input('uf'));
+
+        return response()->json([
+            'situacao' => $status['situacao'],
+            'mensagem' => $status['mensagem'],
+            'tempo_resposta_ms' => $status['tempo_resposta_ms'],
+            'consultado_em' => $status['consultado_em']?->format('H:i:s'),
+        ]);
     }
 }
