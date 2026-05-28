@@ -2,7 +2,7 @@
 
 > SaaS ERP multi-tenant para PMEs. Admin (IA365) gerencia a plataforma; cada empresa-cliente tem múltiplas unidades com fiscal, estoque e caixa independentes. Integração 100% Focus NFe (NF-e, NFC-e, NFS-e, CC-e, manifestação do destinatário, backup XMLs).
 
-**Última revisão:** 2026-05-28 · **Estado:** integração fiscal Fase 1-4 + multi-loja concluídas
+**Última revisão:** 2026-05-28 · **Estado:** integração fiscal Fase 1-4 + multi-loja + regime de cobrança + auto-sync Focus + UX config fiscal — concluídos
 
 ---
 
@@ -11,12 +11,13 @@
 2. [Multi-tenancy](#multi-tenancy)
 3. [Integração fiscal Focus NFe](#integração-fiscal-focus-nfe)
 4. [Multi-loja — política de estoque](#multi-loja--política-de-estoque)
-5. [Schema essencial](#schema-essencial)
-6. [Comandos artisan](#comandos-artisan)
-7. [Crons agendados](#crons-agendados)
-8. [Logins demo](#logins-demo)
-9. [Armadilhas conhecidas](#armadilhas-conhecidas)
-10. [Próximos passos](#próximos-passos)
+5. [Regime de cobrança](#regime-de-cobrança--cortesiaparceiropós-pago-commit-a2121bf)
+6. [Schema essencial](#schema-essencial)
+7. [Comandos artisan](#comandos-artisan)
+8. [Crons agendados](#crons-agendados)
+9. [Logins demo](#logins-demo)
+10. [Armadilhas conhecidas](#armadilhas-conhecidas)
+11. [Próximos passos](#próximos-passos)
 
 ---
 
@@ -161,6 +162,35 @@ O builder consulta via `$item->fiscal('ncm')` — com fallback no produto se sna
 - **Alerta certificado** (`fiscal:alertar-certificado`, diário 8h): janelas 30/15/7/1 dias antes do vencimento.
 - **Dashboard fiscal** `/app/fiscal/dashboard`: NF-es por status (30d), top 5 erros, série diária 14d (Chart.js), saúde por unidade, status SEFAZ por UF.
 
+### Auto-sincronização total com Focus (commit `b5487bd`)
+
+Quando há `FOCUS_MASTER_TOKEN`, toda mudança na configuração fiscal propaga automaticamente para a Focus — sem precisar colar token manualmente em nenhum momento.
+
+| Ação no ERP | O que acontece na Focus |
+|---|---|
+| Admin cria nova empresa | `POST /v2/empresas` + 1 `POST /v2/hooks` por evento aplicável (idempotente) |
+| Marca `emite_nfse=true` na config | `PUT /v2/empresas/{id}` com `habilita_nfse=true` + recadastra hooks `nfse`/`nfse_recebida` |
+| Preenche CSC NFC-e | `PUT /v2/empresas/{id}` com `csc_nfce_producao` + `id_token_nfce_producao` |
+| Edita endereço/IE/IM | `PUT /v2/empresas/{id}` via `ProvisionarEmpresaFocusJob` |
+| Há empresas legadas com `focus_token` colado | `php artisan fiscal:migrar-empresas-legadas` migra todas |
+
+**Bug fixado:** webhook ID da Focus é **string alfanumérica** (ex: `Y5P0na15`), não inteiro. `(int) $data['id']` virava 0 e quebrava sincronizações silenciosamente. Corrigido para `(string)`.
+
+### UX da config fiscal (commits `2097213` + `de8bb16`)
+
+- **Checklist de prontidão** no topo da tela: cards por tipo de nota (NF-e/NFC-e/NFS-e) com progresso `X/Y` + lista visual de itens prontos/faltando + "Pronto para emitir!" quando 100%.
+- **Badges `★ obrigatório`** nos campos críticos (CSC, ID CSC, Série, Resp.Técnico) — usuário não confunde com opcionais.
+- **Texto explicativo** no card Responsável Técnico ("geralmente o dono, contador, ou TI da empresa") + botão **"Usar meus dados"** auto-preenche CNPJ empresa + nome + email do user logado em 1 clique.
+- **Mensagem SEFAZ status** mais amigável quando empresa ainda não tem token ("Aguardando provisionamento" em vez de erro técnico).
+
+### O que a Focus NÃO consegue gerenciar (limite do SEFAZ)
+
+Mesmo com auto-sync, **estes 3 itens dependem do cliente final** (a Focus é só intermediária):
+
+1. **Certificado A1 (.pfx)**: comprado em AC (Certisign, Serasa, AC SOLUTI — ~R$200/ano). Upload direto pra Focus, não fica no servidor.
+2. **CSC NFC-e + ID**: gerado no portal SEFAZ do **estado da empresa-cliente** (e-CAC → menu NFC-e → "Gerar CSC"). Único por estabelecimento.
+3. **Responsável Técnico** (NT 2018/003): cada empresa preenche o próprio (decisão arquitetural deste projeto — opção B).
+
 ### Arquivos críticos da integração
 
 ```
@@ -192,7 +222,8 @@ app/Jobs/
 app/Console/Commands/
 ├── BackupXmlsFiscaisCommand.php
 ├── VerificarSaudeWebhooksCommand.php
-└── AlertarCertificadoVencendoCommand.php
+├── AlertarCertificadoVencendoCommand.php
+└── MigrarEmpresasLegadasFocusCommand.php
 
 app/Observers/
 └── VendaItemObserver.php        # snapshot fiscal automático
@@ -264,6 +295,31 @@ Cada `Unidade` continua sendo um CNPJ independente na Focus NFe. Empresa com 5 u
 
 ---
 
+## Regime de cobrança — cortesia/parceiro/pós-pago (commit `a2121bf`)
+
+Admin (IA365) pode liberar empresas-cliente do funil normal de trial+pago sem gateway de pagamento. Campo `empresas.regime_cobranca`:
+
+| Regime | Cobra? | Limites do plano | Caso de uso |
+|---|---|---|---|
+| `padrao` | Sim (trial → pago) | Aplica | Cliente normal |
+| `cortesia` | Não | Aplica | Amigo, beta tester, VIP |
+| `parceiro` | Não | **Ignora** (tudo liberado) | Cliente-âncora, case |
+| `pos_pago` | Manual fora | Aplica | Grandes contas faturadas externamente |
+
+**Como funciona internamente:**
+- `Empresa::isAssinaturaAtiva()` retorna `true` direto se `regime_cobranca` ≠ `padrao` → nunca cai em "plano expirado"
+- `Empresa::limiteAtingido()` retorna `false` direto se `bypassaLimitesPlano()` (apenas parceiro)
+- `CheckPlano` middleware pula feature gate quando parceiro
+- `cortesia_concedida_por` registra qual admin aplicou (auditoria)
+
+**UI:**
+- `/admin/empresas/{id}/edit` — 4 radio cards visuais (só >1 unidade tem o card de multi-loja, regime de cobrança aparece sempre)
+- Listagem `/admin/empresas` — badge colorido ao lado da razão social + botão `+30d` (trial extension)
+- Dashboard admin — card "Cortesias / Parceiros" linkando para lista filtrada
+- `Empresa::estenderTrial(N)` — extende `trial_fim` em N dias; se já tem assinatura paga, extende `assinatura_fim` em vez de regredir para trial; lança `DomainException` se empresa já é gratuita (não usa trial)
+
+---
+
 ## Schema essencial
 
 ### Tabelas-chave (campos relevantes)
@@ -273,6 +329,8 @@ empresas
   cnpj, razao_social, nome_fantasia, regime_tributario, plano_id,
   em_trial, trial_inicio/fim, status,
   politica_estoque_inter_unidade ENUM('silos','ver_apenas','ver_e_vender'),
+  regime_cobranca ENUM('padrao','cortesia','parceiro','pos_pago'),
+  cortesia_motivo, cortesia_concedida_em, cortesia_revisar_em, cortesia_concedida_por,
   codigo_municipio (IBGE 7 dígitos)
 
 unidades
@@ -360,6 +418,10 @@ docker exec -i erp-com-app php artisan fiscal:backup-xmls
 docker exec -i erp-com-app php artisan fiscal:backup-xmls --mes=2026-04 --apenas-download
 docker exec -i erp-com-app php artisan fiscal:saude-webhooks
 docker exec -i erp-com-app php artisan fiscal:alertar-certificado
+
+# Migrar empresas legadas (que têm focus_token colado mas focus_empresa_id NULL)
+docker exec -i erp-com-app php artisan fiscal:migrar-empresas-legadas --dry-run
+docker exec -i erp-com-app php artisan fiscal:migrar-empresas-legadas --sync
 
 # Filas (jobs assíncronos)
 docker exec -i erp-com-app php artisan queue:work
