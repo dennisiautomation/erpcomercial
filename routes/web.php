@@ -44,6 +44,11 @@ Route::middleware('auth')->group(function () {
 
 Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/dashboard', [Admin\DashboardController::class, 'index'])->name('dashboard');
+    // Saúde da integração Focus (antes do resource para não bater com show/{id})
+    Route::get('/empresas/{empresa}/saude-focus', [Admin\SaudeFocusController::class, 'show'])
+        ->name('empresas.saude-focus');
+    Route::post('/empresas/{empresa}/saude-focus/resincronizar', [Admin\SaudeFocusController::class, 'resincronizar'])
+        ->name('empresas.saude-focus.resincronizar');
     Route::resource('empresas', Admin\EmpresaController::class);
     Route::resource('empresas.unidades', Admin\UnidadeController::class)->shallow();
     Route::resource('usuarios', Admin\UsuarioController::class);
@@ -291,6 +296,11 @@ Route::middleware(['auth', 'unidade'])->prefix('app')->name('app.')->group(funct
         Route::get('/', [App\MultilojaController::class, 'index'])->name('index');
         Route::get('/comparar', [App\MultilojaController::class, 'comparar'])->name('comparar');
     });
+
+    /* ------ Fiscal — Dashboard ------ */
+    Route::get('/fiscal/dashboard', [App\DashboardFiscalController::class, 'index'])
+        ->middleware(['permission:notas_fiscais', 'plano:fiscal'])
+        ->name('fiscal.dashboard');
 
     /* ------ Fiscal — ICMS ST Calculator (AJAX) ------ */
     Route::get('/fiscal/calcular-st', function (Request $request) {

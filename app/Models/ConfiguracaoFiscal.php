@@ -48,6 +48,14 @@ class ConfiguracaoFiscal extends Model
         'is_ativo',
         'ibs_aliquota_padrao',
         'cbs_aliquota_padrao',
+        // Webhooks Focus (cada evento tem 1 hook independente)
+        'focus_webhook_ids',
+        'webhooks_sincronizados_em',
+        // Responsável técnico (NT 2018/003)
+        'responsavel_tecnico_cnpj',
+        'responsavel_tecnico_nome',
+        'responsavel_tecnico_email',
+        'responsavel_tecnico_telefone',
     ];
 
     protected $hidden = [
@@ -73,6 +81,8 @@ class ConfiguracaoFiscal extends Model
             'certificado_validade' => 'date',
             'certificado_enviado_em' => 'datetime',
             'focus_sincronizado_em' => 'datetime',
+            'focus_webhook_ids' => 'array',
+            'webhooks_sincronizados_em' => 'datetime',
         ];
     }
 

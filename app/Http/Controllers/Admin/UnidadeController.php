@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\ProvisionarEmpresaFocusJob;
 use App\Models\Empresa;
 use App\Models\Unidade;
 use App\Models\User;
+use App\Services\FocusNFe\FocusNFeClient;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -45,9 +47,37 @@ class UnidadeController extends Controller
 
         $unidade = Unidade::create($validated);
 
+        // Auto-provisionar unidade na Focus NFe (cria/atualiza CNPJ na Focus
+        // + cadastra webhooks conforme o perfil fiscal). Idempotente.
+        if (FocusNFeClient::masterDisponivel()) {
+            ProvisionarEmpresaFocusJob::dispatch(
+                empresaId: $empresa->id,
+                unidadeId: $unidade->id,
+                flags: $this->flagsHabilitacao($request),
+                solicitadoPor: $request->user()->id,
+            );
+        }
+
         return redirect()
             ->route('admin.unidades.show', $unidade)
-            ->with('success', 'Unidade cadastrada com sucesso.');
+            ->with('success', 'Unidade cadastrada com sucesso.'
+                . (FocusNFeClient::masterDisponivel()
+                    ? ' Provisionamento Focus NFe em andamento — acompanhe na página de Saúde Focus.'
+                    : ''));
+    }
+
+    /**
+     * Define quais habilitações enviar para a Focus NFe baseado nos checkboxes
+     * do formulário (ou defaults seguros se não informados).
+     */
+    private function flagsHabilitacao(Request $request): array
+    {
+        return [
+            'habilita_nfe' => $request->boolean('habilita_nfe', true),
+            'habilita_nfce' => $request->boolean('habilita_nfce', true),
+            'habilita_nfse' => $request->boolean('habilita_nfse', false),
+            'habilita_manifestacao' => $request->boolean('habilita_manifestacao', true),
+        ];
     }
 
     public function show(Request $request, Unidade $unidade): View

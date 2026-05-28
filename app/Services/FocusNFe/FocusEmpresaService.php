@@ -184,19 +184,34 @@ class FocusEmpresaService
     // ─── Webhooks ──────────────────────────────────────────────────────
 
     /**
-     * Cadastra um webhook (gatilho) para a empresa-filha.
-     * $eventos é array como ['nfe','nfce','nfse','manifestacao_destinatario'].
-     *
-     * @param  array<int, string>  $eventos
-     * @return array<string, mixed>
+     * Eventos webhook que a Focus aceita em POST /v2/hooks.
+     * Cada chamada do endpoint registra UM evento — não é array.
      */
-    public function cadastrarWebhook(ConfiguracaoFiscal $config, string $url, array $eventos): array
+    public const EVENTOS_SUPORTADOS = [
+        'nfe',
+        'nfse',
+        'nfce_contingencia',
+        'nfe_recebida',
+        'nfse_recebida',
+        'inutilizacao',
+        'cte',
+        'mdfe',
+    ];
+
+    /**
+     * Cadastra UM webhook para um evento específico da empresa-filha.
+     * A Focus exige 1 chamada POST /v2/hooks por evento — não aceita array.
+     *
+     * @return array<string, mixed> resposta da Focus incluindo `id` do hook
+     */
+    public function cadastrarWebhook(ConfiguracaoFiscal $config, string $url, string $evento): array
     {
-        $payload = [
-            'cnpj' => $this->cnpjLimpo($config->unidade->cnpj ?? $config->empresa->cnpj),
-            'url' => $url,
-            'eventos' => $eventos,
-        ];
+        if (! in_array($evento, self::EVENTOS_SUPORTADOS, true)) {
+            throw new \InvalidArgumentException(
+                "Evento '{$evento}' não suportado. Eventos válidos: "
+                . implode(', ', self::EVENTOS_SUPORTADOS)
+            );
+        }
 
         // Gera webhook_secret se ainda não tiver
         if (empty($config->webhook_secret)) {
@@ -204,13 +219,17 @@ class FocusEmpresaService
             $config->save();
         }
 
-        // Authorization header que a Focus vai mandar nos webhooks de volta
-        $payload['authorization'] = 'Bearer ' . $config->webhook_secret;
+        $payload = [
+            'cnpj' => $this->cnpjLimpo($config->unidade->cnpj ?? $config->empresa->cnpj),
+            'event' => $evento,
+            'url' => $url,
+            'authorization' => 'Bearer ' . $config->webhook_secret,
+        ];
 
         $response = $this->master->post('/v2/hooks', $payload);
 
         if ($response->failed()) {
-            $this->handleError($response, 'cadastrar webhook');
+            $this->handleError($response, "cadastrar webhook {$evento}");
         }
 
         $data = $response->json() ?? [];
@@ -218,11 +237,89 @@ class FocusEmpresaService
         Log::info('[FocusEmpresa] webhook cadastrado', [
             'empresa_id' => $config->empresa_id,
             'unidade_id' => $config->unidade_id,
+            'evento' => $evento,
             'webhook_id' => $data['id'] ?? null,
-            'eventos' => $eventos,
         ]);
 
         return $data;
+    }
+
+    /**
+     * Sincroniza todos os webhooks aplicáveis para uma unidade.
+     * Idempotente: remove os hooks órfãos antes de cadastrar.
+     *
+     * @param  array<int, string>|null  $eventos  evento por evento; null = todos os aplicáveis ao perfil da unidade
+     * @return array<string, int>  evento => hook_id
+     */
+    public function sincronizarWebhooks(ConfiguracaoFiscal $config, ?array $eventos = null): array
+    {
+        $base = rtrim(config('services.focus_nfe.webhook_base_url') ?: config('app.url'), '/');
+        $url = $base . '/webhooks/focusnfe';
+
+        $eventos ??= $this->eventosAplicaveis($config);
+
+        // Remove os webhooks já cadastrados para essa empresa (estado limpo)
+        $cnpj = $this->cnpjLimpo($config->unidade->cnpj ?? $config->empresa->cnpj);
+        $existentes = $this->listarWebhooks($cnpj);
+        foreach ($existentes as $hook) {
+            if (! empty($hook['id'])) {
+                try {
+                    $this->removerWebhook((int) $hook['id']);
+                } catch (\Throwable $e) {
+                    Log::warning('[FocusEmpresa] falha ao remover webhook órfão', [
+                        'hook_id' => $hook['id'],
+                        'erro' => $e->getMessage(),
+                    ]);
+                }
+            }
+        }
+
+        // Cadastra um por um
+        $mapa = [];
+        foreach ($eventos as $evento) {
+            try {
+                $data = $this->cadastrarWebhook($config, $url, $evento);
+                if (! empty($data['id'])) {
+                    $mapa[$evento] = (int) $data['id'];
+                }
+            } catch (\Throwable $e) {
+                Log::error('[FocusEmpresa] falha cadastrando webhook', [
+                    'evento' => $evento,
+                    'erro' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        // Persiste mapa de hook IDs
+        $config->forceFill(['focus_webhook_ids' => $mapa])->save();
+
+        return $mapa;
+    }
+
+    /**
+     * Decide quais eventos cadastrar para uma unidade conforme as flags da
+     * ConfiguracaoFiscal (emite_nfe, emite_nfce, emite_nfse, etc).
+     *
+     * @return array<int, string>
+     */
+    public function eventosAplicaveis(ConfiguracaoFiscal $config): array
+    {
+        $eventos = [];
+
+        if ($config->emite_nfe) {
+            $eventos[] = 'nfe';
+            $eventos[] = 'nfe_recebida';
+        }
+        if ($config->emite_nfce) {
+            $eventos[] = 'nfce_contingencia';
+            $eventos[] = 'inutilizacao';
+        }
+        if ($config->emite_nfse) {
+            $eventos[] = 'nfse';
+            $eventos[] = 'nfse_recebida';
+        }
+
+        return array_values(array_unique($eventos));
     }
 
     /**

@@ -5,8 +5,10 @@ namespace App\Http\Controllers\Admin;
 use App\Enums\RegimeTributario;
 use App\Enums\StatusEmpresa;
 use App\Http\Controllers\Controller;
+use App\Jobs\ProvisionarEmpresaFocusJob;
 use App\Models\Empresa;
 use App\Models\Plano;
+use App\Services\FocusNFe\FocusNFeClient;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -84,9 +86,26 @@ class EmpresaController extends Controller
 
         $empresa = Empresa::create($validated);
 
+        // Auto-provisionar na Focus NFe se houver token master.
+        // Despacha job para cada unidade já criada (em CRUD comum, normalmente nenhuma ainda
+        // — a primeira chamada efetiva acontecerá no UnidadeController::store).
+        if (FocusNFeClient::masterDisponivel()) {
+            foreach ($empresa->unidades as $unidade) {
+                ProvisionarEmpresaFocusJob::dispatch(
+                    empresaId: $empresa->id,
+                    unidadeId: $unidade->id,
+                    flags: ['habilita_nfe' => true, 'habilita_nfce' => true, 'habilita_manifestacao' => true],
+                    solicitadoPor: $request->user()->id,
+                );
+            }
+        }
+
         return redirect()
             ->route('admin.empresas.show', $empresa)
-            ->with('success', 'Empresa cadastrada com sucesso.');
+            ->with('success', 'Empresa cadastrada com sucesso.'
+                . (FocusNFeClient::masterDisponivel()
+                    ? ' Provisionamento Focus NFe em segundo plano — você será notificado.'
+                    : ''));
     }
 
     public function show(Request $request, Empresa $empresa): View
