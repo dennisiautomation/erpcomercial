@@ -187,6 +187,67 @@
     </div>
 </div>
 
+{{-- Estoque por unidade (multi-loja) --}}
+@if(count($saldoPorUnidade) > 1)
+<x-erp.card title="Estoque por Unidade" icon="building">
+    <div class="d-flex justify-content-between mb-2">
+        <small class="text-muted">
+            @if($empresa->politica_estoque_inter_unidade === 'ver_e_vender')
+                <i class="bi bi-arrow-left-right text-success me-1"></i>
+                Política: <strong>vender e transferir</strong> entre unidades
+            @elseif($empresa->politica_estoque_inter_unidade === 'ver_apenas')
+                <i class="bi bi-eye text-info me-1"></i>
+                Política: <strong>somente visualização</strong> entre unidades
+            @else
+                <i class="bi bi-shield-lock text-muted me-1"></i>
+                Política: <strong>silos independentes</strong>
+            @endif
+        </small>
+        <span class="badge bg-primary">
+            Total: {{ number_format(array_sum(array_column($saldoPorUnidade, 'saldo')), 3, ',', '.') }}
+        </span>
+    </div>
+    <div class="table-responsive">
+        <table class="erp-table">
+            <thead>
+                <tr>
+                    <th>Unidade</th>
+                    <th>CNPJ</th>
+                    <th class="text-end">Saldo</th>
+                    <th class="text-center">Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach($saldoPorUnidade as $u)
+                    <tr class="{{ $u['eh_atual'] ? 'table-info' : '' }}">
+                        <td>
+                            <i class="bi bi-{{ $u['eh_atual'] ? 'geo-fill text-primary' : 'shop text-muted' }} me-2"></i>
+                            <strong>{{ $u['nome'] }}</strong>
+                            @if($u['eh_atual'])
+                                <span class="badge bg-info ms-2">atual</span>
+                            @endif
+                        </td>
+                        <td class="text-muted small">{{ $u['cnpj'] ?: '—' }}</td>
+                        <td class="text-end fw-bold {{ $u['saldo'] <= 0 ? 'text-danger' : '' }}">
+                            {{ number_format($u['saldo'], 3, ',', '.') }}
+                        </td>
+                        <td class="text-center">
+                            @if($u['saldo'] > ($produto->estoque_minimo ?? 0))
+                                <span class="badge bg-success">OK</span>
+                            @elseif($u['saldo'] > 0)
+                                <span class="badge bg-warning">baixo</span>
+                            @else
+                                <span class="badge bg-danger">zerado</span>
+                            @endif
+                        </td>
+                    </tr>
+                @endforeach
+            </tbody>
+        </table>
+    </div>
+</x-erp.card>
+@endif
+
 {{-- Movimentacoes de Estoque --}}
 <x-erp.card title="Ultimas Movimentacoes de Estoque" icon="arrow-left-right">
     <div class="d-flex justify-content-end mb-2">

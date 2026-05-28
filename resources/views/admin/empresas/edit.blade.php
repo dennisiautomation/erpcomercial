@@ -285,6 +285,43 @@
                 </div>
             </div>
 
+            {{-- Multi-loja / política de estoque entre unidades --}}
+            @if($empresa->unidades()->count() > 1)
+            <div class="card section-card shadow-sm mb-4">
+                <div class="card-header">
+                    <i class="bi bi-shop-window me-2"></i>
+                    <strong>Política multi-loja</strong> — visibilidade e venda de estoque entre unidades
+                </div>
+                <div class="card-body">
+                    @php $pol = old('politica_estoque_inter_unidade', $empresa->politica_estoque_inter_unidade ?? 'ver_e_vender'); @endphp
+                    <div class="row g-3">
+                        @foreach([
+                            'silos' => ['Silos independentes', 'shield-lock', 'secondary', 'Cada loja só vê o próprio estoque. Sem visibilidade entre unidades. Bom quando lojas têm gestão separada.'],
+                            'ver_apenas' => ['Visualizar apenas', 'eye', 'info', 'Lojas veem o saldo das outras unidades, mas precisam usar Transferência (com aprovação) para mover produto. Vendedor pode orientar cliente.'],
+                            'ver_e_vender' => ['Ver e vender', 'arrow-left-right', 'success', 'PDV pode vender produto de outra loja — sistema cria transferência automática origem→destino. Mais venda, menos cliente perdido.'],
+                        ] as $value => [$label, $icon, $color, $desc])
+                            <div class="col-md-4">
+                                <input type="radio" class="btn-check" name="politica_estoque_inter_unidade"
+                                       id="pol_{{ $value }}" value="{{ $value }}"
+                                       {{ $pol === $value ? 'checked' : '' }}>
+                                <label class="btn btn-outline-{{ $color }} w-100 h-100 text-start p-3" for="pol_{{ $value }}">
+                                    <div class="d-flex align-items-center mb-2">
+                                        <i class="bi bi-{{ $icon }} fs-3 me-2"></i>
+                                        <strong>{{ $label }}</strong>
+                                    </div>
+                                    <small class="text-muted d-block">{{ $desc }}</small>
+                                </label>
+                            </div>
+                        @endforeach
+                    </div>
+                    <small class="text-muted d-block mt-3">
+                        <i class="bi bi-info-circle me-1"></i>
+                        A mudança afeta o PDV de todas as unidades. Fiscalmente, cada unidade continua sendo CNPJ independente na Focus NFe.
+                    </small>
+                </div>
+            </div>
+            @endif
+
             {{-- Logo --}}
             <div class="card section-card shadow-sm mb-4">
                 <div class="card-header">

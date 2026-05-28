@@ -139,6 +139,7 @@ class EmpresaController extends Controller
             'ie'                => ['nullable', 'string', 'max:20'],
             'im'                => ['nullable', 'string', 'max:20'],
             'regime_tributario' => ['required', 'string'],
+            'politica_estoque_inter_unidade' => ['nullable', 'in:silos,ver_apenas,ver_e_vender'],
             'cep'               => ['nullable', 'string', 'max:10'],
             'logradouro'        => ['nullable', 'string', 'max:255'],
             'numero'            => ['nullable', 'string', 'max:20'],

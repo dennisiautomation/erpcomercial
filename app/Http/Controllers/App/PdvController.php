@@ -18,6 +18,7 @@ use App\Models\User;
 use App\Models\Venda;
 use App\Models\VendaItem;
 use App\Models\ConfiguracaoFiscal;
+use App\Services\EstoqueMultiUnidadeService;
 use App\Services\FocusNFe\FocusNFeClient;
 use App\Services\FocusNFe\NFCeService;
 use Illuminate\Http\Request;
@@ -58,20 +59,37 @@ class PdvController extends Controller
         return view('app.pdv.index', compact('caixa', 'unidade', 'configFiscal', 'operadores'));
     }
 
-    public function verificarEstoque(Request $request, $produtoId)
+    public function verificarEstoque(Request $request, $produtoId, EstoqueMultiUnidadeService $estoqueSvc)
     {
         $produto = Produto::find($produtoId);
+        $empresa = $request->user()->empresa;
+        $unidadeAtual = (int) session('unidade_id');
+
         $estoque = EstoqueMovimentacao::withoutGlobalScopes()
             ->where('produto_id', $produtoId)
-            ->where('unidade_id', session('unidade_id'))
+            ->where('unidade_id', $unidadeAtual)
             ->orderByDesc('id')
             ->first();
 
-        return response()->json([
+        $saldoAtual = $estoque ? (float) $estoque->quantidade_posterior : 0;
+
+        $response = [
             'produto_id' => $produtoId,
-            'estoque_atual' => $estoque ? $estoque->quantidade_posterior : 0,
+            'estoque_atual' => $saldoAtual,
             'estoque_minimo' => $produto->estoque_minimo ?? 0,
-        ]);
+            'pode_vender_remoto' => false,
+            'outras_unidades' => [],
+        ];
+
+        if ($empresa?->permiteVerEstoqueOutrasUnidades()) {
+            $response['outras_unidades'] = $estoqueSvc->outrasUnidadesComEstoque(
+                $empresa->id, (int) $produtoId, $unidadeAtual
+            );
+            $response['pode_vender_remoto'] = $empresa->permiteVenderEstoqueRemoto()
+                && count($response['outras_unidades']) > 0;
+        }
+
+        return response()->json($response);
     }
 
     public function buscarProduto(Request $request, $codigo)
@@ -112,6 +130,7 @@ class PdvController extends Controller
             'itens.*.quantidade'       => 'required|numeric|min:0.001',
             'itens.*.preco_unitario'   => 'required|numeric|min:0',
             'itens.*.desconto_valor'   => 'nullable|numeric|min:0',
+            'itens.*.unidade_origem_id'=> 'nullable|integer|exists:unidades,id',
             'pagamentos'               => 'required|array|min:1',
             'pagamentos.*.forma'       => 'required|string',
             'pagamentos.*.valor'       => 'required|numeric|min:0.01',
@@ -162,6 +181,8 @@ class PdvController extends Controller
                         'desconto_valor'     => $descontoValor,
                         'desconto_percentual'=> 0,
                         'total'              => $totalItem,
+                        // Venda remota: estoque vem de outra unidade da mesma empresa
+                        'unidade_origem_id'  => $item['unidade_origem_id'] ?? null,
                     ];
 
                     $subtotal += $totalItem;
@@ -206,19 +227,25 @@ class PdvController extends Controller
                     'tipo'                => 'pdv',
                 ]);
 
-                // Create VendaItens
-                foreach ($itensData as $itemData) {
-                    $venda->itens()->create($itemData);
-                }
+                // Create VendaItens + descarga de estoque (local OU remoto)
+                $estoqueRemoto = app(EstoqueMultiUnidadeService::class);
+                foreach ($itensData as $i => $itemData) {
+                    $vendaItem = $venda->itens()->create($itemData);
+                    $produtoId = $itemData['produto_id'];
+                    $qtd = $itemData['quantidade'];
+                    $origemRemota = $itemData['unidade_origem_id'] ?? null;
 
-                // Deduct estoque
-                foreach ($request->itens as $item) {
-                    if (!empty($item['produto_id'])) {
-                        $produto = Produto::find($item['produto_id']);
-                        if (!$produto) continue;
-
+                    if ($origemRemota && $origemRemota !== $unidadeId) {
+                        // Venda remota: baixa estoque da outra unidade + cria transferência
+                        $empresa = Venda::find($venda->id)->empresa;
+                        if (! $empresa?->permiteVenderEstoqueRemoto()) {
+                            throw new \Exception('Política da empresa não permite venda remota.');
+                        }
+                        $estoqueRemoto->registrarVendaRemota($venda, $vendaItem, $origemRemota, (int) auth()->id());
+                    } else {
+                        // Venda local — baixa direto na unidade ativa
                         $estoqueAnterior = EstoqueMovimentacao::withoutGlobalScopes()
-                            ->where('produto_id', $item['produto_id'])
+                            ->where('produto_id', $produtoId)
                             ->where('unidade_id', $unidadeId)
                             ->latest()
                             ->value('quantidade_posterior') ?? 0;
@@ -226,12 +253,12 @@ class PdvController extends Controller
                         EstoqueMovimentacao::create([
                             'empresa_id'           => $empresaId,
                             'unidade_id'           => $unidadeId,
-                            'produto_id'           => $item['produto_id'],
+                            'produto_id'           => $produtoId,
                             'tipo'                 => TipoMovimentacaoEstoque::Saida,
-                            'quantidade'           => $item['quantidade'],
+                            'quantidade'           => $qtd,
                             'quantidade_anterior'  => $estoqueAnterior,
-                            'quantidade_posterior'  => $estoqueAnterior - $item['quantidade'],
-                            'custo_unitario'       => $item['preco_unitario'],
+                            'quantidade_posterior' => $estoqueAnterior - $qtd,
+                            'custo_unitario'       => $itemData['preco_unitario'],
                             'origem_tipo'          => Venda::class,
                             'origem_id'            => $venda->id,
                             'user_id'              => auth()->id(),

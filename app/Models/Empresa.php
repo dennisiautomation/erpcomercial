@@ -21,6 +21,7 @@ class Empresa extends Model
         'ie',
         'im',
         'regime_tributario',
+        'politica_estoque_inter_unidade',
         'cep',
         'logradouro',
         'numero',
@@ -54,6 +55,18 @@ class Empresa extends Model
             'assinatura_fim'    => 'date',
             'em_trial'          => 'boolean',
         ];
+    }
+
+    /** Visualiza estoque de outras unidades da mesma empresa? */
+    public function permiteVerEstoqueOutrasUnidades(): bool
+    {
+        return in_array($this->politica_estoque_inter_unidade, ['ver_apenas', 'ver_e_vender'], true);
+    }
+
+    /** Pode vender produto cuja origem é outra unidade (gera transferência automática)? */
+    public function permiteVenderEstoqueRemoto(): bool
+    {
+        return $this->politica_estoque_inter_unidade === 'ver_e_vender';
     }
 
     /* ------------------------------------------------------------------ */

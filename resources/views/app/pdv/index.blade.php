@@ -1354,21 +1354,35 @@ const PDV = {
     },
 
     async addProduto(produto) {
-        // Check stock before adding
+        let estoqueData = null;
         try {
-            const estoqueResp = await fetch(`/app/pdv/estoque/${produto.id}`, {
+            const r = await fetch(`/app/pdv/estoque/${produto.id}`, {
                 headers: { 'X-Requested-With': 'XMLHttpRequest' }
             });
-            const estoqueData = await estoqueResp.json();
-            if (estoqueData.estoque_atual <= 0) {
+            estoqueData = await r.json();
+        } catch (err) { /* segue mesmo se falhar */ }
+
+        let unidadeOrigemId = null;
+
+        // Estoque local zerado mas tem em outra unidade da empresa?
+        if (estoqueData && estoqueData.estoque_atual <= 0
+            && estoqueData.pode_vender_remoto
+            && estoqueData.outras_unidades.length > 0) {
+            const escolha = await this.escolherUnidadeRemota(produto, estoqueData.outras_unidades);
+            if (escolha === null) return; // usuário cancelou
+            unidadeOrigemId = escolha;
+        } else if (estoqueData && estoqueData.estoque_atual <= 0) {
+            // Estoque local zerado e política não permite venda remota (ou nenhuma outra unidade tem)
+            const outras = estoqueData.outras_unidades || [];
+            if (outras.length > 0) {
+                const lista = outras.map(u => `${u.nome}: ${u.saldo}`).join(' · ');
+                this.showAlert(`Sem estoque local. Disponível em outras: ${lista}`, 'warning');
+            } else {
                 this.showAlert('Sem estoque para: ' + produto.descricao, 'warning');
             }
-        } catch (err) {
-            // Continue even if stock check fails
         }
 
-        // Check if product already exists, increment qty
-        const existing = this.itens.find(i => i.produto_id === produto.id);
+        const existing = this.itens.find(i => i.produto_id === produto.id && i.unidade_origem_id === unidadeOrigemId);
         if (existing) {
             existing.quantidade += 1;
             existing.total = round((existing.preco_unitario * existing.quantidade) - existing.desconto_valor, 2);
@@ -1382,11 +1396,64 @@ const PDV = {
                 quantidade: 1,
                 desconto_valor: 0,
                 total: parseFloat(produto.preco_venda),
+                unidade_origem_id: unidadeOrigemId,
+                unidade_origem_nome: unidadeOrigemId
+                    ? (estoqueData.outras_unidades.find(u => u.unidade_id === unidadeOrigemId)?.nome || '')
+                    : null,
             });
         }
         this.selectedItemIndex = this.itens.length - 1;
         this.renderItems();
         this.updateSummary();
+    },
+
+    // Modal de escolha de unidade remota (estoque vem de outra loja)
+    escolherUnidadeRemota(produto, outrasUnidades) {
+        return new Promise(resolve => {
+            const html = `
+                <div class="modal fade show d-block" style="background:rgba(0,0,0,.5)" tabindex="-1">
+                  <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                      <div class="modal-header bg-warning bg-opacity-25">
+                        <h6 class="modal-title">
+                          <i class="bi bi-arrow-left-right me-2"></i>Vender de outra loja?
+                        </h6>
+                      </div>
+                      <div class="modal-body">
+                        <p class="mb-2"><strong>${produto.descricao}</strong> está zerado nesta loja.</p>
+                        <p class="text-muted small mb-3">Selecione a unidade de origem — uma transferência automática será criada.</p>
+                        <div class="d-grid gap-2" id="modalEscolhaUnidades">
+                          ${outrasUnidades.map(u => `
+                            <button type="button" class="btn btn-outline-primary text-start" data-unidade="${u.unidade_id}">
+                              <div class="d-flex justify-content-between">
+                                <span><i class="bi bi-shop me-2"></i>${u.nome}</span>
+                                <strong>${u.saldo} disp.</strong>
+                              </div>
+                            </button>
+                          `).join('')}
+                        </div>
+                      </div>
+                      <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" id="btnCancelarEscolhaUnidade">Cancelar</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>`;
+            const wrap = document.createElement('div');
+            wrap.innerHTML = html;
+            document.body.appendChild(wrap);
+
+            const cleanup = () => wrap.remove();
+
+            wrap.querySelector('#btnCancelarEscolhaUnidade').onclick = () => { cleanup(); resolve(null); };
+            wrap.querySelectorAll('[data-unidade]').forEach(btn => {
+                btn.onclick = () => {
+                    const id = parseInt(btn.dataset.unidade, 10);
+                    cleanup();
+                    resolve(id);
+                };
+            });
+        });
     },
 
     // ===== RENDER ITEMS =====
@@ -1405,7 +1472,10 @@ const PDV = {
             <tr class="${idx === this.selectedItemIndex ? 'selected' : ''}" onclick="PDV.selectItem(${idx})">
                 <td class="col-seq">${idx + 1}</td>
                 <td class="col-code">${item.codigo_interno || item.codigo_barras || '-'}</td>
-                <td class="col-desc">${item.descricao}</td>
+                <td class="col-desc">
+                    ${item.descricao}
+                    ${item.unidade_origem_id ? `<span class="badge bg-warning text-dark ms-1" title="Estoque da unidade ${item.unidade_origem_nome}"><i class="bi bi-arrow-left-right"></i> ${item.unidade_origem_nome}</span>` : ''}
+                </td>
                 <td class="col-qty">
                     <div class="qty-control">
                         <button onclick="event.stopPropagation(); PDV.changeQty(${idx}, -1)">-</button>
@@ -1725,6 +1795,7 @@ const PDV = {
                     quantidade: i.quantidade,
                     preco_unitario: i.preco_unitario,
                     desconto_valor: i.desconto_valor,
+                    unidade_origem_id: i.unidade_origem_id || null,
                 })),
                 pagamentos: this.pagamentos,
                 cliente_id: this.clienteId,

@@ -6,6 +6,17 @@
 <div class="container-fluid">
     <x-erp.page-header title="Saúde Focus NFe" icon="shield-check"
         subtitle="{{ $empresa->razao_social }}">
+        @php
+            $pendentes = $unidades->filter(fn ($u) => ! $u['tem_focus'] || ! $u['tem_webhooks'])->count();
+        @endphp
+        @if($master_disponivel && $pendentes > 0)
+            <form method="POST" action="{{ route('admin.empresas.saude-focus.resincronizar', $empresa) }}" class="d-inline">
+                @csrf
+                <button class="btn btn-success" data-confirm="Provisionar/resincronizar {{ $pendentes }} unidade(s) na Focus NFe?">
+                    <i class="bi bi-magic me-1"></i> Provisionar {{ $pendentes }} pendente(s)
+                </button>
+            </form>
+        @endif
         <a href="{{ route('admin.empresas.show', $empresa) }}" class="btn btn-outline-secondary">
             <i class="bi bi-arrow-left"></i> Voltar
         </a>

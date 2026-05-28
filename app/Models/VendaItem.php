@@ -16,6 +16,7 @@ class VendaItem extends Model
         'venda_id',
         'produto_id',
         'servico_id',
+        'unidade_origem_id',
         'descricao',
         'quantidade',
         'preco_unitario',
@@ -104,5 +105,19 @@ class VendaItem extends Model
     public function servico(): BelongsTo
     {
         return $this->belongsTo(Servico::class);
+    }
+
+    /** Unidade de onde o produto saiu fisicamente (≠ unidade da venda em vendas remotas). */
+    public function unidadeOrigem(): BelongsTo
+    {
+        return $this->belongsTo(Unidade::class, 'unidade_origem_id');
+    }
+
+    /** True se este item foi vendido com estoque de outra unidade. */
+    public function isVendaRemota(): bool
+    {
+        return $this->unidade_origem_id
+            && $this->venda
+            && $this->unidade_origem_id !== $this->venda->unidade_id;
     }
 }

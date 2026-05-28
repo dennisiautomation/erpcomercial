@@ -136,13 +136,20 @@ class ProdutoController extends Controller
             ->with('success', 'Produto cadastrado com sucesso!');
     }
 
-    public function show(Produto $produto)
+    public function show(Produto $produto, \App\Services\EstoqueMultiUnidadeService $estoqueSvc)
     {
         $produto->load(['categoria:id,nome', 'estoqueMovimentacoes' => function ($q) {
             $q->latest()->limit(20);
         }]);
 
-        return view('app.produtos.show', compact('produto'));
+        $empresa = auth()->user()->empresa;
+        $saldoPorUnidade = $estoqueSvc->saldoPorUnidade(
+            $produto->empresa_id,
+            $produto->id,
+            (int) session('unidade_id')
+        );
+
+        return view('app.produtos.show', compact('produto', 'saldoPorUnidade', 'empresa'));
     }
 
     public function edit(Produto $produto)
