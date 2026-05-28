@@ -113,11 +113,13 @@ class EstoqueMultiUnidadeService
             $produtoId = $item->produto_id;
             $quantidade = (float) $item->quantidade;
 
-            // Saldo atual na origem
+            // Saldo atual na origem — lockForUpdate evita race entre vendas
+            // remotas concorrentes do mesmo produto na mesma unidade.
             $estoqueAnterior = (float) (EstoqueMovimentacao::withoutGlobalScopes()
                 ->where('empresa_id', $empresaId)
                 ->where('unidade_id', $unidadeOrigemId)
                 ->where('produto_id', $produtoId)
+                ->lockForUpdate()
                 ->latest('id')
                 ->value('quantidade_posterior') ?? 0);
 
@@ -128,7 +130,8 @@ class EstoqueMultiUnidadeService
                 );
             }
 
-            // Baixa estoque da origem
+            // Baixa estoque da origem — nomes de coluna corretos da tabela:
+            // origem_tipo/origem_id (rastreabilidade) + observacoes (motivo).
             EstoqueMovimentacao::create([
                 'empresa_id' => $empresaId,
                 'unidade_id' => $unidadeOrigemId,
@@ -137,27 +140,29 @@ class EstoqueMultiUnidadeService
                 'quantidade' => $quantidade,
                 'quantidade_anterior' => $estoqueAnterior,
                 'quantidade_posterior' => $estoqueAnterior - $quantidade,
-                'motivo' => 'venda_remota',
-                'referencia_tipo' => Venda::class,
-                'referencia_id' => $venda->id,
+                'custo_unitario' => $item->preco_unitario,
+                'origem_tipo' => Venda::class,
+                'origem_id' => $venda->id,
                 'user_id' => $userId,
                 'observacoes' => "Venda remota \u{2014} item #{$item->id} da venda #{$venda->id} "
-                    . "(unidade destino: {$venda->unidade_id})",
+                    . "(destino: unidade #{$venda->unidade_id})",
             ]);
 
             // Persiste origem no item
             $item->unidade_origem_id = $unidadeOrigemId;
             $item->save();
 
-            // Cria transferência registrada como concluída
+            // Status enum aceito pela tabela: 'concluida' (a observação
+            // identifica que foi venda remota — separação completa exigiria
+            // migration para estender o enum).
             $transferencia = TransferenciaEstoque::create([
                 'empresa_id' => $empresaId,
                 'unidade_origem_id' => $unidadeOrigemId,
                 'unidade_destino_id' => $venda->unidade_id,
                 'user_solicitante_id' => $userId,
                 'user_aprovador_id' => $userId,
-                'status' => 'concluida_venda_remota',
-                'observacoes' => "Venda remota \u{2014} venda #{$venda->id} (item #{$item->id})",
+                'status' => 'concluida',
+                'observacoes' => "[Venda remota] venda #{$venda->id} (item #{$item->id})",
             ]);
 
             TransferenciaEstoqueItem::create([

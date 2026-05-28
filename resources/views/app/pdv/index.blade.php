@@ -1407,46 +1407,88 @@ const PDV = {
         this.updateSummary();
     },
 
-    // Modal de escolha de unidade remota (estoque vem de outra loja)
+    // Modal de escolha de unidade remota (estoque vem de outra loja).
+    // Estrutura criada via DOM (não innerHTML) para garantir escape de
+    // produto.descricao e u.nome — dados vêm do banco da empresa.
     escolherUnidadeRemota(produto, outrasUnidades) {
         return new Promise(resolve => {
-            const html = `
-                <div class="modal fade show d-block" style="background:rgba(0,0,0,.5)" tabindex="-1">
-                  <div class="modal-dialog modal-dialog-centered">
-                    <div class="modal-content">
-                      <div class="modal-header bg-warning bg-opacity-25">
-                        <h6 class="modal-title">
-                          <i class="bi bi-arrow-left-right me-2"></i>Vender de outra loja?
-                        </h6>
-                      </div>
-                      <div class="modal-body">
-                        <p class="mb-2"><strong>${produto.descricao}</strong> está zerado nesta loja.</p>
-                        <p class="text-muted small mb-3">Selecione a unidade de origem — uma transferência automática será criada.</p>
-                        <div class="d-grid gap-2" id="modalEscolhaUnidades">
-                          ${outrasUnidades.map(u => `
-                            <button type="button" class="btn btn-outline-primary text-start" data-unidade="${u.unidade_id}">
-                              <div class="d-flex justify-content-between">
-                                <span><i class="bi bi-shop me-2"></i>${u.nome}</span>
-                                <strong>${u.saldo} disp.</strong>
-                              </div>
-                            </button>
-                          `).join('')}
-                        </div>
-                      </div>
-                      <div class="modal-footer">
-                        <button type="button" class="btn btn-outline-secondary" id="btnCancelarEscolhaUnidade">Cancelar</button>
-                      </div>
-                    </div>
-                  </div>
-                </div>`;
             const wrap = document.createElement('div');
-            wrap.innerHTML = html;
+            wrap.className = 'modal fade show d-block';
+            wrap.style.background = 'rgba(0,0,0,.5)';
+            wrap.tabIndex = -1;
+
+            const dialog = document.createElement('div');
+            dialog.className = 'modal-dialog modal-dialog-centered';
+            wrap.appendChild(dialog);
+
+            const content = document.createElement('div');
+            content.className = 'modal-content';
+            dialog.appendChild(content);
+
+            // Header
+            const header = document.createElement('div');
+            header.className = 'modal-header bg-warning bg-opacity-25';
+            const title = document.createElement('h6');
+            title.className = 'modal-title';
+            title.innerHTML = '<i class="bi bi-arrow-left-right me-2"></i>';
+            title.appendChild(document.createTextNode('Vender de outra loja?'));
+            header.appendChild(title);
+            content.appendChild(header);
+
+            // Body
+            const body = document.createElement('div');
+            body.className = 'modal-body';
+            const p1 = document.createElement('p');
+            p1.className = 'mb-2';
+            const strong = document.createElement('strong');
+            strong.textContent = produto.descricao;
+            p1.appendChild(strong);
+            p1.appendChild(document.createTextNode(' está zerado nesta loja.'));
+            body.appendChild(p1);
+
+            const p2 = document.createElement('p');
+            p2.className = 'text-muted small mb-3';
+            p2.textContent = 'Selecione a unidade de origem — uma transferência automática será criada.';
+            body.appendChild(p2);
+
+            const grid = document.createElement('div');
+            grid.className = 'd-grid gap-2';
+            outrasUnidades.forEach(u => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'btn btn-outline-primary text-start';
+                btn.dataset.unidade = String(u.unidade_id);
+
+                const flex = document.createElement('div');
+                flex.className = 'd-flex justify-content-between';
+                const left = document.createElement('span');
+                left.innerHTML = '<i class="bi bi-shop me-2"></i>';
+                left.appendChild(document.createTextNode(u.nome));
+                const right = document.createElement('strong');
+                right.textContent = `${u.saldo} disp.`;
+                flex.appendChild(left);
+                flex.appendChild(right);
+                btn.appendChild(flex);
+                grid.appendChild(btn);
+            });
+            body.appendChild(grid);
+            content.appendChild(body);
+
+            // Footer
+            const footer = document.createElement('div');
+            footer.className = 'modal-footer';
+            const cancelBtn = document.createElement('button');
+            cancelBtn.type = 'button';
+            cancelBtn.className = 'btn btn-outline-secondary';
+            cancelBtn.textContent = 'Cancelar';
+            footer.appendChild(cancelBtn);
+            content.appendChild(footer);
+
             document.body.appendChild(wrap);
 
             const cleanup = () => wrap.remove();
-
-            wrap.querySelector('#btnCancelarEscolhaUnidade').onclick = () => { cleanup(); resolve(null); };
-            wrap.querySelectorAll('[data-unidade]').forEach(btn => {
+            cancelBtn.onclick = () => { cleanup(); resolve(null); };
+            grid.querySelectorAll('[data-unidade]').forEach(btn => {
                 btn.onclick = () => {
                     const id = parseInt(btn.dataset.unidade, 10);
                     cleanup();
@@ -1454,6 +1496,17 @@ const PDV = {
                 };
             });
         });
+    },
+
+    // Escapa string p/ uso em template literal HTML — proteção XSS básica.
+    escHtml(s) {
+        if (s == null) return '';
+        return String(s)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
     },
 
     // ===== RENDER ITEMS =====
@@ -1468,13 +1521,14 @@ const PDV = {
         }
 
         empty.style.display = 'none';
+        const esc = (s) => this.escHtml(s);
         tbody.innerHTML = this.itens.map((item, idx) => `
             <tr class="${idx === this.selectedItemIndex ? 'selected' : ''}" onclick="PDV.selectItem(${idx})">
                 <td class="col-seq">${idx + 1}</td>
-                <td class="col-code">${item.codigo_interno || item.codigo_barras || '-'}</td>
+                <td class="col-code">${esc(item.codigo_interno || item.codigo_barras || '-')}</td>
                 <td class="col-desc">
-                    ${item.descricao}
-                    ${item.unidade_origem_id ? `<span class="badge bg-warning text-dark ms-1" title="Estoque da unidade ${item.unidade_origem_nome}"><i class="bi bi-arrow-left-right"></i> ${item.unidade_origem_nome}</span>` : ''}
+                    ${esc(item.descricao)}
+                    ${item.unidade_origem_id ? `<span class="badge bg-warning text-dark ms-1" title="Estoque da unidade ${esc(item.unidade_origem_nome)}"><i class="bi bi-arrow-left-right"></i> ${esc(item.unidade_origem_nome)}</span>` : ''}
                 </td>
                 <td class="col-qty">
                     <div class="qty-control">

@@ -170,9 +170,33 @@ class Empresa extends Model
         return $this->regime_cobranca?->ignoraLimitesPlano() ?? false;
     }
 
-    /** Estende o trial em N dias (botão "+30 dias" do admin). */
+    /**
+     * Estende o trial em N dias (botão "+30 dias" do admin).
+     *
+     * Para empresas em regime gratuito (cortesia/parceiro/pós-pago), não
+     * faz sentido — elas já não dependem do trial. Lança exceção pra falhar
+     * cedo em vez de gravar estado confuso.
+     *
+     * Para empresas com assinatura paga ativa, estende a assinatura em vez
+     * de regredir para trial (admin querendo "dar mais um tempo" a um
+     * cliente pago não deveria mudar o status para trial).
+     */
     public function estenderTrial(int $dias): void
     {
+        if ($this->ehGratuita()) {
+            throw new \DomainException(
+                'Empresa em regime ' . $this->regime_cobranca->label()
+                . ' não usa trial — já tem acesso liberado.'
+            );
+        }
+
+        // Assinatura paga ativa? Estende a assinatura, não regride para trial.
+        if ($this->assinatura_fim && $this->assinatura_fim->gte(Carbon::today())) {
+            $this->assinatura_fim = $this->assinatura_fim->copy()->addDays($dias);
+            $this->save();
+            return;
+        }
+
         $base = $this->trial_fim && $this->trial_fim->isFuture()
             ? $this->trial_fim
             : Carbon::today();

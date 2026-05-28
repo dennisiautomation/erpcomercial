@@ -150,8 +150,12 @@ class EmpresaController extends Controller
             'politica_estoque_inter_unidade' => ['nullable', 'in:silos,ver_apenas,ver_e_vender'],
             'regime_cobranca'   => ['nullable', 'in:padrao,cortesia,parceiro,pos_pago'],
             'cortesia_motivo'   => ['nullable', 'string', 'max:255', 'required_unless:regime_cobranca,padrao'],
-            'cortesia_concedida_em' => ['nullable', 'date'],
-            'cortesia_revisar_em' => ['nullable', 'date', 'after:cortesia_concedida_em'],
+            'cortesia_concedida_em' => ['nullable', 'date', 'required_unless:regime_cobranca,padrao'],
+            'cortesia_revisar_em' => [
+                'nullable', 'date',
+                'after_or_equal:today',
+                'after_or_equal:cortesia_concedida_em',
+            ],
             'cep'               => ['nullable', 'string', 'max:10'],
             'logradouro'        => ['nullable', 'string', 'max:255'],
             'numero'            => ['nullable', 'string', 'max:20'],
@@ -203,11 +207,20 @@ class EmpresaController extends Controller
             return back()->with('error', 'Período inválido (1-365 dias).');
         }
 
-        $empresa->estenderTrial($dias);
+        try {
+            $empresa->estenderTrial($dias);
+        } catch (\DomainException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        $fim = $empresa->assinatura_fim?->isFuture()
+            ? $empresa->assinatura_fim
+            : $empresa->trial_fim;
+        $tipo = $empresa->assinatura_fim?->isFuture() ? 'assinatura' : 'trial';
 
         return back()->with('success',
-            "Trial estendido em {$dias} dia(s). Novo término: "
-            . $empresa->trial_fim->format('d/m/Y') . '.'
+            ucfirst($tipo) . " estendida em {$dias} dia(s). Novo término: "
+            . $fim->format('d/m/Y') . '.'
         );
     }
 
