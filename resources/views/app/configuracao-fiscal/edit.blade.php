@@ -79,6 +79,68 @@
                     </div>
                 @endif
 
+                {{-- ═══ Checklist de prontidão para emissão ═══ --}}
+                @if(! empty($checklist))
+                    <div class="card border-0 shadow-sm mb-4" style="background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);">
+                        <div class="card-header bg-transparent border-bottom-0 d-flex align-items-center pb-0">
+                            <i class="bi bi-clipboard-check fs-4 text-primary me-2"></i>
+                            <div>
+                                <strong>O que falta para começar a emitir</strong>
+                                <div class="small text-muted">Checklist baseado nos tipos que você habilitou</div>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="row g-3">
+                                @foreach($checklist as $tipo => $info)
+                                    @php
+                                        $criticos = array_filter($info['itens'], fn($i) => $i['critico']);
+                                        $criticosOk = array_filter($criticos, fn($i) => $i['ok']);
+                                        $totalCriticos = count($criticos);
+                                        $okCriticos = count($criticosOk);
+                                        $pct = $totalCriticos > 0 ? round(($okCriticos / $totalCriticos) * 100) : 0;
+                                        $prontoCor = $pct === 100 ? 'success' : ($pct >= 60 ? 'warning' : 'danger');
+                                    @endphp
+                                    <div class="col-md-4">
+                                        <div class="border rounded-3 p-3 h-100">
+                                            <div class="d-flex align-items-center mb-2">
+                                                <i class="bi bi-{{ $info['icon'] }} fs-4 text-{{ $info['cor'] }} me-2"></i>
+                                                <strong class="flex-grow-1">{{ $info['titulo'] }}</strong>
+                                                <span class="badge bg-{{ $prontoCor }}">{{ $okCriticos }}/{{ $totalCriticos }}</span>
+                                            </div>
+                                            <div class="progress mb-2" style="height: 4px;">
+                                                <div class="progress-bar bg-{{ $prontoCor }}" role="progressbar" style="width: {{ $pct }}%"></div>
+                                            </div>
+                                            <ul class="list-unstyled small mb-0">
+                                                @foreach($info['itens'] as $item)
+                                                    <li class="mb-1 d-flex align-items-start">
+                                                        @if($item['ok'])
+                                                            <i class="bi bi-check-circle-fill text-success me-2 flex-shrink-0" style="margin-top:2px;"></i>
+                                                            <span class="text-success-emphasis">{{ $item['label'] }}</span>
+                                                        @else
+                                                            <i class="bi bi-{{ $item['critico'] ? 'x-circle-fill text-danger' : 'circle text-muted' }} me-2 flex-shrink-0" style="margin-top:2px;"></i>
+                                                            <span class="{{ $item['critico'] ? 'text-danger' : 'text-muted' }}">
+                                                                {{ $item['label'] }}
+                                                                @if(! $item['critico'])
+                                                                    <small class="text-muted">(opcional)</small>
+                                                                @endif
+                                                            </span>
+                                                        @endif
+                                                    </li>
+                                                @endforeach
+                                            </ul>
+                                            @if($pct === 100)
+                                                <div class="mt-2 small text-success fw-semibold">
+                                                    <i class="bi bi-check-circle-fill me-1"></i>Pronto para emitir!
+                                                </div>
+                                            @endif
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+                    </div>
+                @endif
+
                 {{-- Token e Ambiente --}}
                 <div class="row g-3 mb-3">
                     @if($gerenciadaPelaFocus)
@@ -316,7 +378,10 @@
                     <div class="card-body {{ old('emite_nfe', $config->emite_nfe ?? false) ? '' : 'd-none' }}" id="nfe_campos">
                         <div class="row g-3">
                             <div class="col-md-4">
-                                <label class="form-label fw-semibold">Série NF-e</label>
+                                <label class="form-label fw-semibold">
+                                    Série NF-e
+                                    <span class="badge bg-danger bg-opacity-10 text-danger small ms-1">★ obrigatório</span>
+                                </label>
                                 <input type="text" name="serie_nfe" class="form-control @error('serie_nfe') is-invalid @enderror"
                                        value="{{ old('serie_nfe', $config->serie_nfe ?? '1') }}" placeholder="1">
                                 @error('serie_nfe')<div class="invalid-feedback">{{ $message }}</div>@enderror
@@ -349,19 +414,30 @@
                     <div class="card-body {{ old('emite_nfce', $config->emite_nfce ?? false) ? '' : 'd-none' }}" id="nfce_campos">
                         <div class="row g-3">
                             <div class="col-md-3">
-                                <label class="form-label fw-semibold">Série NFC-e</label>
+                                <label class="form-label fw-semibold">
+                                    Série NFC-e
+                                    <span class="badge bg-danger bg-opacity-10 text-danger small ms-1">★ obrigatório</span>
+                                </label>
                                 <input type="text" name="serie_nfce" class="form-control @error('serie_nfce') is-invalid @enderror"
                                        value="{{ old('serie_nfce', $config->serie_nfce ?? '1') }}" placeholder="1">
                                 @error('serie_nfce')<div class="invalid-feedback">{{ $message }}</div>@enderror
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label fw-semibold">CSC (Código de Segurança) <x-erp.fiscal-tooltip field="csc" /></label>
+                                <label class="form-label fw-semibold">
+                                    CSC (Código de Segurança SEFAZ)
+                                    <span class="badge bg-danger bg-opacity-10 text-danger small ms-1">★ obrigatório</span>
+                                    <x-erp.fiscal-tooltip field="csc" />
+                                </label>
                                 <input type="text" name="csc_nfce" class="form-control @error('csc_nfce') is-invalid @enderror"
-                                       value="{{ old('csc_nfce', $config->csc_nfce) }}" placeholder="Obtido na SEFAZ do seu estado">
+                                       value="{{ old('csc_nfce', $config->csc_nfce) }}" placeholder="Obtido no portal SEFAZ do seu estado (ex: e-CAC)">
                                 @error('csc_nfce')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                                <small class="form-text">Sem CSC + ID, a SEFAZ rejeita NFC-e mesmo em homologação.</small>
                             </div>
                             <div class="col-md-3">
-                                <label class="form-label fw-semibold">ID CSC</label>
+                                <label class="form-label fw-semibold">
+                                    ID CSC
+                                    <span class="badge bg-danger bg-opacity-10 text-danger small ms-1">★ obrigatório</span>
+                                </label>
                                 <input type="text" name="csc_id_nfce" class="form-control @error('csc_id_nfce') is-invalid @enderror"
                                        value="{{ old('csc_id_nfce', $config->csc_id_nfce) }}" placeholder="1">
                                 @error('csc_id_nfce')<div class="invalid-feedback">{{ $message }}</div>@enderror
@@ -369,7 +445,7 @@
                         </div>
                         <small class="text-muted d-block mt-2">
                             <i class="bi bi-info-circle me-1"></i>
-                            Para usar NFC-e no PDV, selecione "NFC-e (Cupom Fiscal)" na opção acima.
+                            Como obter CSC: <strong>portal SEFAZ do seu estado</strong> (e-CAC ou similar) → menu "NFC-e" → "Gerar CSC". Você recebe o código e o ID (1 ou 2).
                         </small>
                     </div>
                 </div>
@@ -528,13 +604,14 @@
                 </div>
 
                 {{-- ═══ Responsável Técnico (NT 2018/003) ═══ --}}
-                <div class="erp-card mb-3 border">
+                <div class="erp-card mb-3 border border-danger border-opacity-25">
                     <div class="card-header bg-transparent d-flex align-items-center">
                         <i class="bi bi-person-badge fs-4 text-primary me-2"></i>
                         <div class="flex-grow-1">
                             <strong>Responsável técnico</strong>
+                            <span class="badge bg-danger bg-opacity-10 text-danger small ms-1">★ obrigatório</span>
                             <div class="small text-muted">
-                                Obrigatório na NF-e desde a NT 2018/003 — identifica a software house que emite a nota.
+                                Obrigatório na NF-e e NFC-e desde a NT 2018/003 — identifica a software house que emite a nota. SEFAZ rejeita sem isso.
                             </div>
                         </div>
                     </div>

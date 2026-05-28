@@ -35,12 +35,81 @@ class ConfiguracaoFiscalController extends Controller
         $modoRevenda = FocusNFeClient::masterDisponivel();
         $gerenciadaPelaFocus = $config->isGerenciadaPelaFocus();
 
+        // Checklist de prontidão para emissão fiscal — calcula o que está
+        // pronto e o que falta para cada tipo de nota.
+        $checklist = $this->montarChecklist($config, $modoRevenda);
+
         return view('app.configuracao-fiscal.edit', compact(
             'config',
             'ufSefaz',
             'modoRevenda',
-            'gerenciadaPelaFocus'
+            'gerenciadaPelaFocus',
+            'checklist'
         ));
+    }
+
+    /**
+     * Lista de pré-requisitos para emitir cada tipo de nota, com status
+     * (pronto/falta) — alimenta o widget de prontidão no topo da tela.
+     */
+    private function montarChecklist(ConfiguracaoFiscal $config, bool $modoRevenda): array
+    {
+        $temFocus = (bool) $config->focus_empresa_id;
+        $temTokens = $config->focus_token_producao || $config->focus_token_homologacao || $config->focus_token;
+        $temCert = $config->temCertificadoValido();
+        $temRespTec = $config->responsavel_tecnico_cnpj && $config->responsavel_tecnico_nome
+            && $config->responsavel_tecnico_email && $config->responsavel_tecnico_telefone;
+
+        // Geral (pré-req de todos os tipos)
+        $geral = [
+            ['label' => 'Empresa conectada à Focus NFe',     'ok' => $temFocus,   'critico' => true,  'campo' => null],
+            ['label' => 'Tokens emitidos (homolog/produção)', 'ok' => $temTokens,  'critico' => true,  'campo' => null],
+            ['label' => 'Certificado digital A1 (.pfx)',      'ok' => $temCert,    'critico' => true,  'campo' => 'certificado'],
+            ['label' => 'Responsável técnico (NT 2018/003)',  'ok' => $temRespTec, 'critico' => true,  'campo' => 'responsavel_tecnico_cnpj'],
+        ];
+
+        $checklist = [];
+
+        if ($config->emite_nfe) {
+            $checklist['nfe'] = [
+                'titulo' => 'NF-e (modelo 55)',
+                'icon' => 'file-earmark-text',
+                'cor' => 'primary',
+                'itens' => array_merge($geral, [
+                    ['label' => 'Série NF-e definida',     'ok' => (bool) $config->serie_nfe,  'critico' => true,  'campo' => 'serie_nfe'],
+                ]),
+            ];
+        }
+
+        if ($config->emite_nfce) {
+            $checklist['nfce'] = [
+                'titulo' => 'NFC-e (cupom fiscal — PDV)',
+                'icon' => 'receipt',
+                'cor' => 'success',
+                'itens' => array_merge($geral, [
+                    ['label' => 'Série NFC-e definida',          'ok' => (bool) $config->serie_nfce,    'critico' => true, 'campo' => 'serie_nfce'],
+                    ['label' => 'CSC (Código Segurança SEFAZ)',  'ok' => (bool) $config->csc_nfce,      'critico' => true, 'campo' => 'csc_nfce'],
+                    ['label' => 'ID do CSC',                      'ok' => (bool) $config->csc_id_nfce,   'critico' => true, 'campo' => 'csc_id_nfce'],
+                ]),
+            ];
+        }
+
+        if ($config->emite_nfse) {
+            $checklist['nfse'] = [
+                'titulo' => 'NFS-e (serviços)',
+                'icon' => 'briefcase',
+                'cor' => 'info',
+                'itens' => [
+                    // NFS-e Municipal não exige A1 nem resp.técnico (usa login da prefeitura)
+                    ['label' => 'Empresa conectada à Focus NFe', 'ok' => $temFocus, 'critico' => true, 'campo' => null],
+                    ['label' => 'Tokens emitidos',                'ok' => $temTokens, 'critico' => true, 'campo' => null],
+                    ['label' => 'Item da Lista LC 116',           'ok' => (bool) $config->nfse_item_lista_servico, 'critico' => true, 'campo' => 'nfse_item_lista_servico'],
+                    ['label' => 'Código tributação municipal',     'ok' => (bool) $config->nfse_codigo_tributacao, 'critico' => false, 'campo' => 'nfse_codigo_tributacao'],
+                ],
+            ];
+        }
+
+        return $checklist;
     }
 
     /* ------------------------------------------------------------------ */
@@ -351,9 +420,12 @@ class ConfiguracaoFiscalController extends Controller
             ->first();
 
         if (! $config || ! $config->tokenFocusAmbienteAtual()) {
+            $mensagem = FocusNFeClient::masterDisponivel()
+                ? 'Aguardando provisionamento Focus NFe — salve a configuração para conectar.'
+                : 'Token Focus NFe ainda não configurado nesta unidade.';
             return response()->json([
                 'situacao' => 'desconhecido',
-                'mensagem' => 'Token Focus NFe não configurado.',
+                'mensagem' => $mensagem,
             ]);
         }
 
