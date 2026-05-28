@@ -37,6 +37,14 @@ class EmpresaController extends Controller
             $query->where('plano', $plano);
         }
 
+        if ($regime = $request->input('regime_cobranca')) {
+            if ($regime === 'gratuitas') {
+                $query->whereIn('regime_cobranca', ['cortesia', 'parceiro', 'pos_pago']);
+            } else {
+                $query->where('regime_cobranca', $regime);
+            }
+        }
+
         $empresas = $query->withCount('unidades', 'users')
             ->orderBy('razao_social')
             ->paginate(15)
@@ -140,6 +148,10 @@ class EmpresaController extends Controller
             'im'                => ['nullable', 'string', 'max:20'],
             'regime_tributario' => ['required', 'string'],
             'politica_estoque_inter_unidade' => ['nullable', 'in:silos,ver_apenas,ver_e_vender'],
+            'regime_cobranca'   => ['nullable', 'in:padrao,cortesia,parceiro,pos_pago'],
+            'cortesia_motivo'   => ['nullable', 'string', 'max:255', 'required_unless:regime_cobranca,padrao'],
+            'cortesia_concedida_em' => ['nullable', 'date'],
+            'cortesia_revisar_em' => ['nullable', 'date', 'after:cortesia_concedida_em'],
             'cep'               => ['nullable', 'string', 'max:10'],
             'logradouro'        => ['nullable', 'string', 'max:255'],
             'numero'            => ['nullable', 'string', 'max:20'],
@@ -154,11 +166,49 @@ class EmpresaController extends Controller
             'observacoes'       => ['nullable', 'string'],
         ]);
 
+        // Auditar quem concedeu a cortesia
+        if (! empty($validated['regime_cobranca'])
+            && $validated['regime_cobranca'] !== 'padrao'
+            && $empresa->regime_cobranca?->value !== $validated['regime_cobranca']) {
+            $validated['cortesia_concedida_por'] = $request->user()->id;
+            if (empty($validated['cortesia_concedida_em'])) {
+                $validated['cortesia_concedida_em'] = now()->format('Y-m-d');
+            }
+        }
+        // Limpar campos de cortesia ao voltar para padrão
+        if (($validated['regime_cobranca'] ?? null) === 'padrao') {
+            $validated['cortesia_motivo'] = null;
+            $validated['cortesia_concedida_em'] = null;
+            $validated['cortesia_revisar_em'] = null;
+            $validated['cortesia_concedida_por'] = null;
+        }
+
         $empresa->update($validated);
 
         return redirect()
             ->route('admin.empresas.show', $empresa)
             ->with('success', 'Empresa atualizada com sucesso.');
+    }
+
+    /**
+     * Estende o trial de uma empresa em N dias (default 30).
+     * Útil para o admin dar "mais um tempo" sem mexer no regime de cobrança.
+     */
+    public function estenderTrial(Request $request, Empresa $empresa): RedirectResponse
+    {
+        abort_unless($request->user()->is_admin, 403);
+
+        $dias = (int) $request->input('dias', 30);
+        if ($dias <= 0 || $dias > 365) {
+            return back()->with('error', 'Período inválido (1-365 dias).');
+        }
+
+        $empresa->estenderTrial($dias);
+
+        return back()->with('success',
+            "Trial estendido em {$dias} dia(s). Novo término: "
+            . $empresa->trial_fim->format('d/m/Y') . '.'
+        );
     }
 
     public function destroy(Request $request, Empresa $empresa): RedirectResponse

@@ -285,6 +285,64 @@
                 </div>
             </div>
 
+            {{-- Regime de cobrança --}}
+            <div class="card section-card shadow-sm mb-4">
+                <div class="card-header">
+                    <i class="bi bi-credit-card-2-back me-2"></i>
+                    <strong>Regime de cobrança</strong> — como a IA365 fatura esta empresa
+                </div>
+                <div class="card-body">
+                    @php $regimeAtual = old('regime_cobranca', $empresa->regime_cobranca?->value ?? 'padrao'); @endphp
+                    <div class="row g-3">
+                        @foreach(\App\Enums\RegimeCobranca::cases() as $regime)
+                            <div class="col-md-6 col-lg-3">
+                                <input type="radio" class="btn-check" name="regime_cobranca"
+                                       id="rc_{{ $regime->value }}" value="{{ $regime->value }}"
+                                       {{ $regimeAtual === $regime->value ? 'checked' : '' }}>
+                                <label class="btn btn-outline-{{ $regime->color() }} w-100 h-100 text-start p-3"
+                                       for="rc_{{ $regime->value }}">
+                                    <div class="d-flex align-items-center mb-2">
+                                        <i class="bi bi-{{ $regime->icon() }} fs-3 me-2"></i>
+                                        <strong>{{ $regime->label() }}</strong>
+                                    </div>
+                                    <small class="text-muted d-block">{{ $regime->descricao() }}</small>
+                                </label>
+                            </div>
+                        @endforeach
+                    </div>
+
+                    <div id="cortesia-extras" class="mt-4 {{ $regimeAtual === 'padrao' ? 'd-none' : '' }}">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Motivo / contexto <span class="text-muted">(obrigatório)</span></label>
+                                <input type="text" name="cortesia_motivo"
+                                       class="form-control @error('cortesia_motivo') is-invalid @enderror"
+                                       value="{{ old('cortesia_motivo', $empresa->cortesia_motivo) }}"
+                                       placeholder="Ex: amigo do dono, parceria com X, beta tester, contrato anual..."
+                                       maxlength="255">
+                                @error('cortesia_motivo')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Concedida em</label>
+                                <input type="date" name="cortesia_concedida_em"
+                                       class="form-control"
+                                       value="{{ old('cortesia_concedida_em', $empresa->cortesia_concedida_em?->format('Y-m-d') ?? now()->format('Y-m-d')) }}">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Revisar em <span class="text-muted small">(opcional)</span></label>
+                                <input type="date" name="cortesia_revisar_em"
+                                       class="form-control"
+                                       value="{{ old('cortesia_revisar_em', $empresa->cortesia_revisar_em?->format('Y-m-d')) }}">
+                            </div>
+                        </div>
+                        <small class="text-muted d-block mt-3">
+                            <i class="bi bi-info-circle me-1"></i>
+                            Empresas fora do regime padrão nunca caem em "plano expirado". Você pode reverter para Padrão a qualquer momento.
+                        </small>
+                    </div>
+                </div>
+            </div>
+
             {{-- Multi-loja / política de estoque entre unidades --}}
             @if($empresa->unidades()->count() > 1)
             <div class="card section-card shadow-sm mb-4">
@@ -392,6 +450,17 @@
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function () {
+    // --- Toggle dos extras do regime de cobrança ---
+    const extras = document.getElementById('cortesia-extras');
+    if (extras) {
+        document.querySelectorAll('input[name="regime_cobranca"]').forEach(r => {
+            r.addEventListener('change', () => {
+                if (r.value === 'padrao') extras.classList.add('d-none');
+                else extras.classList.remove('d-none');
+            });
+        });
+    }
+
     // --- Masks ---
     function applyMask(input, maskFn) {
         input.addEventListener('input', function () {

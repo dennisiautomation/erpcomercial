@@ -19,6 +19,7 @@ class DashboardController extends Controller
         $totalUnidades  = Unidade::where('status', 'ativa')->count();
         $totalUsuarios  = User::where('is_admin', false)->count();
         $empresasEmTrial = Empresa::where('em_trial', true)->count();
+        $empresasGratuitas = Empresa::whereIn('regime_cobranca', ['cortesia', 'parceiro', 'pos_pago'])->count();
 
         $empresas = Empresa::latest()
             ->take(8)
@@ -29,6 +30,7 @@ class DashboardController extends Controller
             'totalUnidades',
             'totalUsuarios',
             'empresasEmTrial',
+            'empresasGratuitas',
             'empresas',
         ));
     }

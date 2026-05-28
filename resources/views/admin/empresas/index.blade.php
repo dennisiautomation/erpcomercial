@@ -133,7 +133,21 @@
                     @forelse($empresas as $empresa)
                     <tr class="empresa-row">
                         <td class="ps-3">
-                            <div class="fw-semibold">{{ $empresa->razao_social }}</div>
+                            <div class="fw-semibold d-flex align-items-center gap-2 flex-wrap">
+                                {{ $empresa->razao_social }}
+                                @if($empresa->regime_cobranca && $empresa->regime_cobranca->ehGratuito())
+                                    <span class="badge bg-{{ $empresa->regime_cobranca->color() }} bg-opacity-25 text-{{ $empresa->regime_cobranca->color() }}"
+                                          title="{{ $empresa->cortesia_motivo }}">
+                                        <i class="bi bi-{{ $empresa->regime_cobranca->icon() }} me-1"></i>
+                                        {{ ucfirst($empresa->regime_cobranca->value) }}
+                                    </span>
+                                @endif
+                                @if($empresa->em_trial)
+                                    <span class="badge bg-warning text-dark" title="Trial">
+                                        <i class="bi bi-clock-history me-1"></i>{{ $empresa->diasRestantesTrial() }}d
+                                    </span>
+                                @endif
+                            </div>
                             @if($empresa->nome_fantasia)
                                 <small class="text-muted">{{ $empresa->nome_fantasia }}</small>
                             @endif
@@ -171,6 +185,17 @@
                                    class="btn btn-outline-secondary" title="Editar">
                                     <i class="bi bi-pencil"></i>
                                 </a>
+                                @if($empresa->regime_cobranca?->value === 'padrao' || $empresa->regime_cobranca === null)
+                                    <form method="POST" action="{{ route('admin.empresas.estender-trial', $empresa) }}" class="d-inline">
+                                        @csrf
+                                        <input type="hidden" name="dias" value="30">
+                                        <button class="btn btn-outline-success"
+                                                data-confirm="Estender o trial desta empresa em 30 dias?"
+                                                title="+30 dias de trial">
+                                            <i class="bi bi-plus-circle"></i> 30d
+                                        </button>
+                                    </form>
+                                @endif
                             </div>
                             <x-delete-form :action="route('admin.empresas.destroy', $empresa)" />
                         </td>

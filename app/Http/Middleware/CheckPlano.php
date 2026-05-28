@@ -27,6 +27,11 @@ class CheckPlano
             return redirect()->route('app.plano-expirado');
         }
 
+        // Parceiros estratégicos ignoram o feature gate completamente.
+        if ($empresa->bypassaLimitesPlano()) {
+            return $next($request);
+        }
+
         // Check feature access
         if ($feature) {
             $plano = $empresa->getPlanoAtivo();

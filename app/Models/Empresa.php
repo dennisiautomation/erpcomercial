@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\RegimeCobranca;
 use App\Enums\RegimeTributario;
 use App\Enums\StatusEmpresa;
 use Carbon\Carbon;
@@ -39,6 +40,11 @@ class Empresa extends Model
         'assinatura_inicio',
         'assinatura_fim',
         'tipo_cobranca',
+        'regime_cobranca',
+        'cortesia_motivo',
+        'cortesia_concedida_em',
+        'cortesia_revisar_em',
+        'cortesia_concedida_por',
         'em_trial',
         'status',
         'observacoes',
@@ -48,6 +54,9 @@ class Empresa extends Model
     {
         return [
             'regime_tributario' => RegimeTributario::class,
+            'regime_cobranca'   => RegimeCobranca::class,
+            'cortesia_concedida_em' => 'date',
+            'cortesia_revisar_em'   => 'date',
             'status'            => StatusEmpresa::class,
             'trial_inicio'      => 'date',
             'trial_fim'         => 'date',
@@ -132,14 +141,45 @@ class Empresa extends Model
 
     /**
      * Check if the empresa has an active subscription (paid or trial).
+     *
+     * Empresas em regime cortesia/parceiro/pos_pago são sempre ativas —
+     * IA365 não cobra ou cobra fora do sistema.
      */
     public function isAssinaturaAtiva(): bool
     {
+        if ($this->regime_cobranca && $this->regime_cobranca->ehGratuito()) {
+            return true;
+        }
+
         if ($this->isTrialActive()) {
             return true;
         }
 
         return $this->assinatura_fim && $this->assinatura_fim->gte(Carbon::today());
+    }
+
+    /** True se IA365 não cobra essa empresa (cortesia/parceiro/pós-pago). */
+    public function ehGratuita(): bool
+    {
+        return $this->regime_cobranca?->ehGratuito() ?? false;
+    }
+
+    /** True se essa empresa ignora limites/features do plano (parceiro). */
+    public function bypassaLimitesPlano(): bool
+    {
+        return $this->regime_cobranca?->ignoraLimitesPlano() ?? false;
+    }
+
+    /** Estende o trial em N dias (botão "+30 dias" do admin). */
+    public function estenderTrial(int $dias): void
+    {
+        $base = $this->trial_fim && $this->trial_fim->isFuture()
+            ? $this->trial_fim
+            : Carbon::today();
+        $this->em_trial = true;
+        $this->trial_inicio = $this->trial_inicio ?? Carbon::today();
+        $this->trial_fim = $base->copy()->addDays($dias);
+        $this->save();
     }
 
     /**
@@ -168,9 +208,15 @@ class Empresa extends Model
 
     /**
      * Check if the limit for a resource has been reached.
+     *
+     * Parceiros estratégicos ignoram limites totalmente.
      */
     public function limiteAtingido(string $resource): bool
     {
+        if ($this->bypassaLimitesPlano()) {
+            return false;
+        }
+
         $plano = $this->getPlanoAtivo();
 
         if (! $plano) {

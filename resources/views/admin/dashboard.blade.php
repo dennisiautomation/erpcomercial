@@ -116,6 +116,21 @@
             </div>
         </div>
     </div>
+
+    <div class="col-sm-6 col-xl-3">
+        <a href="{{ route('admin.empresas.index', ['regime_cobranca' => 'gratuitas']) }}"
+           class="card stat-card shadow-sm h-100 text-decoration-none text-dark">
+            <div class="card-body d-flex align-items-center gap-3">
+                <div class="stat-icon bg-info bg-opacity-10 text-info">
+                    <i class="bi bi-gift"></i>
+                </div>
+                <div>
+                    <div class="stat-value text-dark">{{ $empresasGratuitas }}</div>
+                    <div class="stat-label">Cortesias / Parceiros</div>
+                </div>
+            </div>
+        </a>
+    </div>
 </div>
 
 {{-- Quick Actions + Recent Empresas --}}
