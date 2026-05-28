@@ -611,14 +611,28 @@
                             <strong>Responsável técnico</strong>
                             <span class="badge bg-danger bg-opacity-10 text-danger small ms-1">★ obrigatório</span>
                             <div class="small text-muted">
-                                Obrigatório na NF-e e NFC-e desde a NT 2018/003 — identifica a software house que emite a nota. SEFAZ rejeita sem isso.
+                                Dados de quem cuida da TI / cadastro fiscal da SUA empresa — vai na NF-e (NT 2018/003).
                             </div>
                         </div>
                     </div>
                     <div class="card-body">
+                        <div class="alert alert-info small d-flex mb-3">
+                            <i class="bi bi-info-circle me-2 fs-5"></i>
+                            <div>
+                                <strong>Quem preencher aqui?</strong>
+                                Geralmente o <strong>dono da empresa</strong>, o <strong>contador</strong>,
+                                ou a <strong>pessoa de TI</strong> que cuida do sistema fiscal.
+                                Esses dados ficam visíveis na NF-e, e a SEFAZ pode usar pra contato em caso de problema técnico.
+                                @auth
+                                    <button type="button" class="btn btn-sm btn-outline-primary mt-2 d-block" id="btn-usar-dados-dono">
+                                        <i class="bi bi-person-fill-check me-1"></i> Usar meus dados ({{ auth()->user()->name }})
+                                    </button>
+                                @endauth
+                            </div>
+                        </div>
                         <div class="row g-3">
                             <div class="col-md-4">
-                                <label class="form-label">CNPJ <span class="text-danger">*</span></label>
+                                <label class="form-label">CNPJ/CPF <span class="text-danger">*</span></label>
                                 <input type="text" name="responsavel_tecnico_cnpj" data-mask="cnpj"
                                        class="form-control @error('responsavel_tecnico_cnpj') is-invalid @enderror"
                                        value="{{ old('responsavel_tecnico_cnpj', $config->responsavel_tecnico_cnpj) }}"
@@ -668,6 +682,22 @@
 
 @push('scripts')
 <script>
+// Auto-preencher Responsável Técnico com dados do usuário logado
+(function() {
+    const btn = document.getElementById('btn-usar-dados-dono');
+    if (!btn) return;
+    btn.addEventListener('click', () => {
+        const empresaCnpj = @json(auth()->user()->empresa?->cnpj ?? '');
+        const nome = @json(auth()->user()->name);
+        const email = @json(auth()->user()->email);
+        const set = (n, v) => { const el = document.querySelector(`[name="${n}"]`); if (el && !el.value) el.value = v; };
+        set('responsavel_tecnico_cnpj', empresaCnpj);
+        set('responsavel_tecnico_nome', nome);
+        set('responsavel_tecnico_email', email);
+        // telefone: tenta usar o da empresa (não temos no scope JS); deixa vazio
+    });
+})();
+
 // Status SEFAZ — badge + auto-refresh a cada 60s
 (function() {
     const widget = document.getElementById('sefaz-status-widget');
