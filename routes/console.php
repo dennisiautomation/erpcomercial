@@ -49,3 +49,27 @@ Schedule::call(function () use ($configsFiscalAtivo) {
             }
         });
 })->cron('0 */6 * * *')->name('sincronizar-nfses-recebidas')->withoutOverlapping();
+
+// ──────────────────────────────────────────────────────────────────
+// Backup mensal de XMLs (Focus) — diário às 3h, com retenção 5 anos.
+// ──────────────────────────────────────────────────────────────────
+Schedule::command('fiscal:backup-xmls')
+    ->dailyAt('03:00')
+    ->name('backup-xmls-fiscais')
+    ->withoutOverlapping();
+
+// ──────────────────────────────────────────────────────────────────
+// Saúde dos webhooks Focus — toda segunda às 4h.
+// ──────────────────────────────────────────────────────────────────
+Schedule::command('fiscal:saude-webhooks')
+    ->weeklyOn(1, '04:00')
+    ->name('saude-webhooks-focus')
+    ->withoutOverlapping();
+
+// ──────────────────────────────────────────────────────────────────
+// Alerta certificado A1 vencendo — diariamente às 8h.
+// ──────────────────────────────────────────────────────────────────
+Schedule::command('fiscal:alertar-certificado')
+    ->dailyAt('08:00')
+    ->name('alertar-certificado-vencendo')
+    ->withoutOverlapping();

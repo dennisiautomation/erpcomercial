@@ -7,23 +7,25 @@ Sistema ERP SaaS multi-tenant para micro/pequenas/médias empresas. Admin (IA365
 Laravel 12 (PHP 8.4) | Blade + Bootstrap 5.3 (CDN) + Bootstrap Icons | MySQL 8.0 | Redis | Docker (app, mysql, redis, nginx) | Focus NFe (REST) | Chart.js | JsBarcode | spatie/laravel-activitylog
 
 ## Estado Atual
-- **272 rotas** registradas
-- **140 views** Blade
-- **162 testes** passando (490 assertions)
-- **22 commits** (main)
-- Integração Focus NFe: ~95% (falta apenas CT-e/MDF-e e backup mensal de XMLs)
+- **274+ rotas** registradas (após Fase 2 fiscal: +saude-focus, +fiscal.dashboard, +resincronizar)
+- **142+ views** Blade (saude-focus, fiscal/dashboard)
+- **162 testes** ainda na suite (não rodados após Fase 2 — phpunit fora do container prod)
+- **27 commits** + integração fiscal completa (Maio/2026)
+- Integração Focus NFe: ~99% (CT-e/MDF-e ainda fora de escopo)
 
-## Docker
+## Docker (produção atual)
+**Compose ativo:** `docker-compose.prod.yml` (não o `.yml` original).
 ```bash
-docker compose up -d
-docker compose exec app php artisan migrate:fresh --seed --force  # rebuild completo
-docker compose exec app php artisan test
+docker exec -i erp-com-app php artisan migrate --force
+docker exec -i erp-com-app php artisan schedule:list
+docker cp .env erp-com-app:/var/www/.env   # .env NÃO está bind-mounted em prod
+docker exec -i erp-com-app php artisan config:clear
 ```
 | Container | Porta host | Porta container |
 |---|---|---|
-| erp-nginx | 8080 | 80 |
-| erp-mysql | 3308 | 3306 |
-| erp-redis | 6379 | 6379 |
+| erp-com-app | 8091 | 80 |
+| erp-com-mysql | 3310 | 3306 |
+| erp-com-redis | 6381 | 6379 |
 
 **MySQL:** user=erp_user, pass=erp_password, db=erp_comercial, test_db=erp_comercial_test
 
@@ -330,8 +332,50 @@ POST /webhooks/focusnfe
 - **Gateway de pagamento real (PIX/cartão)**: hoje só strings estáticas ('pix'=>'17'). Sem integração Asaas/Mercado Pago.
 - **Boletos**: geração em placeholder, PDF fake.
 - **CT-e / MDF-e**: não implementados (fora de escopo atual).
-- **Backup mensal XMLs** (Focus): não integrado.
 - **Responsividade mobile/tablet**: só 1 `@media` em `erp.css`. PDV em tablet precisa revisão.
+
+## Integração Fiscal — Estado pós Maio/2026
+
+**Auto-provisionamento Focus NFe (Fase 1 do plano fiscal):**
+- `FOCUS_MASTER_TOKEN` no `.env` — usar `docker cp .env erp-com-app:/var/www/.env`
+- `EmpresaController::store` e `UnidadeController::store` despacham `ProvisionarEmpresaFocusJob` automaticamente
+- Job cria/atualiza empresa-filha na Focus (`POST/PUT /v2/empresas`) + sincroniza webhooks (1 POST `/v2/hooks` por evento — **NÃO** mandar array em `eventos`)
+- Eventos Focus suportados (constante `FocusEmpresaService::EVENTOS_SUPORTADOS`): `nfe, nfse, nfce_contingencia, nfe_recebida, nfse_recebida, inutilizacao, cte, mdfe`
+- Página `/admin/empresas/{id}/saude-focus` mostra status por unidade + botão Resincronizar (dispara o job)
+- IDs de webhook persistidos em `configuracoes_fiscais.focus_webhook_ids` (JSON, evento → hook_id)
+
+**Payloads completos (Fase 2):**
+- `FiscalPayloadBuilder` centraliza emitente, destinatário, itens, totais, formas de pagamento, troco, ST, DI, Reforma — usado por NFeService + NFCeService
+- **NF-e**: agora envia `local_destino`, `indicador_intermediario`, responsável técnico (NT 2018/003), totais ICMS/ST/FCP/IPI/PIS/COFINS, `valor_total_tributos` (IBPT — LC 165/2018), fatura+duplicatas quando pagamento a prazo
+- **NFC-e**: agora envia `valor_troco`, `local_destino`, `valor_total_tributos`
+- **NFS-e**: payload aninhado `prestador/tomador/servico` (canônico Focus), `codigo_municipio` IBGE, fix `cliente->im` (era `cliente->ie`)
+- **Pre-flight validation**: rejeita antes de chamar Focus se NCM `00000000`, CFOP vazio, endereço destinatário incompleto, ou resp.técnico não configurado
+
+**Inteligência fiscal (Fase 3):**
+- `ICMSCalculator::calcular` agora pluga no item NF-e/NFC-e quando CST de ST e UF origem ≠ destino — gera base ST, ICMS-ST, FCP-ST, MVA no payload
+- `ReformaTributariaCalculator::blocoPayload` agora pluga item-por-item em NF-e/NFC-e (antes só NFSe Nacional) — gated por `config.ibs_ativo/cbs_ativo/is_ativo`
+- **Snapshot fiscal automático** em `venda_itens` via `VendaItemObserver` — emissão lê `snapshot_*` com fallback no Produto. Imuniza histórico contra edição do produto
+- `FiscalAutoConfig` expandido: presets `cst_pis/cst_cofins/cst_ipi` por regime; dropdowns `cstPisCofinsOptions`, `cstIpiOptions`, `modalidadeBcOptions`, `modalidadeBcStOptions`
+
+**Robustez operacional (Fase 4):**
+- Cron diário 03h `fiscal:backup-xmls` → solicita backup mensal Focus, baixa para `storage/app/fiscal/backups/{cnpj}/{YYYY-MM}.zip` (retenção 5 anos)
+- Cron semanal seg 04h `fiscal:saude-webhooks` → compara `focus_webhook_ids` locais vs Focus remoto, recadastra ausentes, notifica dono
+- Cron diário 08h `fiscal:alertar-certificado` → janelas 30/15/7/1 dias antes do vencimento, notificação no sino
+- Dashboard `/app/fiscal/dashboard` — NF-es por status (30d), top 5 erros SEFAZ, série diária 14d (Chart.js), saúde por unidade, último backup, status SEFAZ por UF
+
+**Novas colunas (migrations 2026-05-28):**
+- `configuracoes_fiscais`: `focus_webhook_ids` JSON, `webhooks_sincronizados_em`, `responsavel_tecnico_*` (cnpj/nome/email/telefone)
+- `produtos`: `cst_pis`, `cst_cofins`, `cst_ipi`, `icms_modalidade_bc`, `icms_modalidade_bc_st`, `mva_st`, `percentual_tributos_ibpt`
+- `clientes`: `im` (Inscrição Municipal)
+- `venda_itens`: 13 campos `snapshot_*` (ncm/cest/cfop/cst_csosn/cst_pis/cst_cofins/cst_ipi/origem/icms/pis/cofins/ipi/unidade_medida)
+- `empresas`, `unidades`, `clientes`: `codigo_municipio` (IBGE 7 dígitos)
+
+**Arquivos críticos para entender o fluxo:**
+- `app/Services/FocusNFe/FiscalPayloadBuilder.php` — coração do payload
+- `app/Services/FocusNFe/FocusEmpresaService.php` — modelo revenda + webhooks (event singular!)
+- `app/Jobs/ProvisionarEmpresaFocusJob.php` — orquestração auto-provisionamento
+- `app/Observers/VendaItemObserver.php` — captura snapshot fiscal
+- `app/Http/Controllers/Admin/SaudeFocusController.php` — UI de saúde
 
 ## Commits (ordem cronológica inversa)
 ```
