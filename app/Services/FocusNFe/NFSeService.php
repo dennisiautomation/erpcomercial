@@ -276,134 +276,96 @@ class NFSeService
         }
     }
 
+    /**
+     * Monta payload NFS-e no formato aninhado oficial da Focus
+     * (prestador, tomador, servico). Mantém retrocompat com aliases para os
+     * municípios que ainda esperam payload flat (gateway interno da Focus
+     * normaliza, mas o aninhado é o canônico).
+     */
     private function buildPayload(array $dadosServico, ConfiguracaoFiscal $config, ?Cliente $cliente): array
     {
         $unidade = Unidade::with('empresa')->findOrFail($config->unidade_id);
         $empresa = $unidade->empresa;
 
-        $cnpjPrestador = preg_replace('/\D/', '', $unidade->cnpj ?: $empresa->cnpj);
-        $imPrestador = preg_replace('/\D/', '', $unidade->im ?: $empresa->im ?? '');
+        $digits = fn (?string $v) => preg_replace('/\D/', '', $v ?? '');
+        $fmt = fn ($v, int $c = 2) => number_format((float) $v, $c, '.', '');
+
+        $cnpjPrestador = $digits($unidade->cnpj ?: $empresa->cnpj);
+        $imPrestador = $digits($unidade->im ?: $empresa->im ?? '');
+        $codigoMunicipioPrestador = $unidade->codigo_municipio
+            ?? $empresa->codigo_municipio
+            ?? $dadosServico['codigo_municipio_prestador']
+            ?? null;
+
+        $prestador = array_filter([
+            'cnpj' => $cnpjPrestador,
+            'inscricao_municipal' => $imPrestador ?: null,
+            'codigo_municipio' => $codigoMunicipioPrestador,
+        ]);
+
+        $tomador = [];
+        if ($cliente) {
+            $cpfCnpj = $digits($cliente->cpf_cnpj);
+            $tomador = array_filter([
+                'cpf' => strlen($cpfCnpj) === 11 ? $cpfCnpj : null,
+                'cnpj' => strlen($cpfCnpj) === 14 ? $cpfCnpj : null,
+                'razao_social' => $cliente->nome_razao_social,
+                'email' => $cliente->email,
+                'telefone' => $digits($cliente->telefone) ?: null,
+                'inscricao_municipal' => $cliente->tipo_pessoa === 'juridica' && $cliente->im
+                    ? $digits($cliente->im)
+                    : null,
+                'endereco' => $cliente->logradouro ? array_filter([
+                    'logradouro' => $cliente->logradouro,
+                    'numero' => $cliente->numero ?: 'S/N',
+                    'complemento' => $cliente->complemento,
+                    'bairro' => $cliente->bairro,
+                    'codigo_municipio' => $cliente->codigo_municipio
+                        ?? $dadosServico['codigo_municipio_tomador']
+                        ?? null,
+                    'uf' => $cliente->uf,
+                    'cep' => $digits($cliente->cep) ?: null,
+                ]) : null,
+            ]);
+        }
+
+        $servico = array_filter([
+            'discriminacao' => $dadosServico['discriminacao'] ?? '',
+            'codigo_tributario_municipio' => $dadosServico['codigo_tributario_municipio'] ?? null,
+            'item_lista_servico' => $dadosServico['item_lista_servico'] ?? $config->nfse_item_lista_servico,
+            'valor_servicos' => $fmt($dadosServico['valor_servicos'] ?? 0),
+            'aliquota' => isset($dadosServico['aliquota_iss']) ? $fmt($dadosServico['aliquota_iss']) : null,
+            'valor_iss' => isset($dadosServico['valor_iss']) ? $fmt($dadosServico['valor_iss']) : null,
+            'valor_deducoes' => isset($dadosServico['valor_deducoes']) && (float) $dadosServico['valor_deducoes'] > 0
+                ? $fmt($dadosServico['valor_deducoes']) : null,
+            'valor_pis' => isset($dadosServico['valor_pis']) && (float) $dadosServico['valor_pis'] > 0
+                ? $fmt($dadosServico['valor_pis']) : null,
+            'valor_cofins' => isset($dadosServico['valor_cofins']) && (float) $dadosServico['valor_cofins'] > 0
+                ? $fmt($dadosServico['valor_cofins']) : null,
+            'valor_inss' => isset($dadosServico['valor_inss']) && (float) $dadosServico['valor_inss'] > 0
+                ? $fmt($dadosServico['valor_inss']) : null,
+            'valor_ir' => isset($dadosServico['valor_ir']) && (float) $dadosServico['valor_ir'] > 0
+                ? $fmt($dadosServico['valor_ir']) : null,
+            'valor_csll' => isset($dadosServico['valor_csll']) && (float) $dadosServico['valor_csll'] > 0
+                ? $fmt($dadosServico['valor_csll']) : null,
+            'iss_retido' => $dadosServico['iss_retido'] ?? 'false',
+            'codigo_cnae' => $dadosServico['codigo_cnae'] ?? null,
+            'codigo_municipio' => $dadosServico['codigo_municipio'] ?? $codigoMunicipioPrestador,
+            'natureza_operacao' => $dadosServico['natureza_operacao'] ?? null,
+            'regime_especial_tributacao' => $dadosServico['regime_especial_tributacao'] ?? $config->nfse_regime_especial,
+            'percentual_total_tributos' => $dadosServico['percentual_total_tributos'] ?? null,
+            'fonte_total_tributos' => $dadosServico['fonte_total_tributos'] ?? null,
+        ]);
 
         $payload = [
-            // Prestador
-            'razao_social_prestador' => $empresa->razao_social,
-            'cnpj_prestador' => $cnpjPrestador,
-            'inscricao_municipal_prestador' => $imPrestador,
-
-            // Serviço
-            'data_emissao' => now()->format('Y-m-d\TH:i:sP'),
-            'valor_servicos' => number_format((float) ($dadosServico['valor_servicos'] ?? 0), 2, '.', ''),
-            'iss_retido' => $dadosServico['iss_retido'] ?? 'false',
-            'item_lista_servico' => $dadosServico['item_lista_servico'] ?? '',
-            'discriminacao' => $dadosServico['discriminacao'] ?? '',
-            'codigo_tributario_municipio' => $dadosServico['codigo_tributario_municipio'] ?? '',
+            'data_emissao' => now()->format('Y-m-d\TH:i:s'),
+            'prestador' => $prestador,
+            'servico' => $servico,
+            'optante_simples_nacional' => $empresa->regime_tributario?->value === 'simples_nacional' ? 'true' : 'false',
+            'incentivador_cultural' => $dadosServico['incentivador_cultural'] ?? ($config->nfse_incentivador_cultural ? 'true' : 'false'),
         ];
-
-        // Alíquota ISS
-        if (isset($dadosServico['aliquota_iss'])) {
-            $payload['aliquota'] = number_format((float) $dadosServico['aliquota_iss'], 2, '.', '');
-        }
-
-        // Valor ISS
-        if (isset($dadosServico['valor_iss'])) {
-            $payload['valor_iss'] = number_format((float) $dadosServico['valor_iss'], 2, '.', '');
-        }
-
-        // Valor deduções
-        if (isset($dadosServico['valor_deducoes']) && (float) $dadosServico['valor_deducoes'] > 0) {
-            $payload['valor_deducoes'] = number_format((float) $dadosServico['valor_deducoes'], 2, '.', '');
-        }
-
-        // Valor PIS
-        if (isset($dadosServico['valor_pis']) && (float) $dadosServico['valor_pis'] > 0) {
-            $payload['valor_pis'] = number_format((float) $dadosServico['valor_pis'], 2, '.', '');
-        }
-
-        // Valor COFINS
-        if (isset($dadosServico['valor_cofins']) && (float) $dadosServico['valor_cofins'] > 0) {
-            $payload['valor_cofins'] = number_format((float) $dadosServico['valor_cofins'], 2, '.', '');
-        }
-
-        // Valor INSS
-        if (isset($dadosServico['valor_inss']) && (float) $dadosServico['valor_inss'] > 0) {
-            $payload['valor_inss'] = number_format((float) $dadosServico['valor_inss'], 2, '.', '');
-        }
-
-        // Valor IR
-        if (isset($dadosServico['valor_ir']) && (float) $dadosServico['valor_ir'] > 0) {
-            $payload['valor_ir'] = number_format((float) $dadosServico['valor_ir'], 2, '.', '');
-        }
-
-        // Valor CSLL
-        if (isset($dadosServico['valor_csll']) && (float) $dadosServico['valor_csll'] > 0) {
-            $payload['valor_csll'] = number_format((float) $dadosServico['valor_csll'], 2, '.', '');
-        }
-
-        // Natureza da operação / tributação
-        if (isset($dadosServico['natureza_operacao'])) {
-            $payload['natureza_operacao'] = $dadosServico['natureza_operacao'];
-        }
-
-        // Código CNAE
-        if (isset($dadosServico['codigo_cnae'])) {
-            $payload['codigo_cnae'] = $dadosServico['codigo_cnae'];
-        }
-
-        // Regime especial de tributação
-        if (isset($dadosServico['regime_especial_tributacao'])) {
-            $payload['regime_especial_tributacao'] = $dadosServico['regime_especial_tributacao'];
-        }
-
-        // Optante Simples Nacional
-        if ($empresa->regime_tributario?->value === 'simples_nacional') {
-            $payload['optante_simples_nacional'] = 'true';
-        } else {
-            $payload['optante_simples_nacional'] = 'false';
-        }
-
-        // Incentivador cultural
-        $payload['incentivador_cultural'] = $dadosServico['incentivador_cultural'] ?? 'false';
-
-        // ── Tomador (cliente) ────────────────────────────────────────────
-        if ($cliente) {
-            $cpfCnpj = preg_replace('/\D/', '', $cliente->cpf_cnpj ?? '');
-
-            if (strlen($cpfCnpj) === 11) {
-                $payload['cpf_tomador'] = $cpfCnpj;
-            } elseif (strlen($cpfCnpj) === 14) {
-                $payload['cnpj_tomador'] = $cpfCnpj;
-            }
-
-            if ($cliente->nome_razao_social) {
-                $payload['razao_social_tomador'] = $cliente->nome_razao_social;
-            }
-
-            if ($cliente->email) {
-                $payload['email_tomador'] = $cliente->email;
-            }
-
-            if ($cliente->telefone) {
-                $payload['telefone_tomador'] = preg_replace('/\D/', '', $cliente->telefone);
-            }
-
-            // Endereço do tomador
-            if ($cliente->logradouro) {
-                $payload['logradouro_tomador'] = $cliente->logradouro;
-                $payload['numero_tomador'] = $cliente->numero ?? 'S/N';
-                $payload['bairro_tomador'] = $cliente->bairro ?? '';
-                $payload['municipio_tomador'] = $cliente->cidade ?? '';
-                $payload['uf_tomador'] = $cliente->uf ?? '';
-                $payload['cep_tomador'] = preg_replace('/\D/', '', $cliente->cep ?? '');
-            }
-
-            if ($cliente->complemento) {
-                $payload['complemento_tomador'] = $cliente->complemento;
-            }
-
-            // Inscrição Municipal do tomador (se PJ)
-            if ($cliente->tipo_pessoa === 'juridica' && $cliente->ie) {
-                $payload['inscricao_municipal_tomador'] = preg_replace('/\D/', '', $cliente->ie);
-            }
+        if ($tomador) {
+            $payload['tomador'] = $tomador;
         }
 
         return $payload;

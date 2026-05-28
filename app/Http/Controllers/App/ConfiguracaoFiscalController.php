@@ -77,6 +77,11 @@ class ConfiguracaoFiscalController extends Controller
                 'is_ativo'                    => 'nullable|boolean',
                 'ibs_aliquota_padrao'         => 'nullable|numeric|min:0|max:100',
                 'cbs_aliquota_padrao'         => 'nullable|numeric|min:0|max:100',
+                // Responsável técnico (NT 2018/003)
+                'responsavel_tecnico_cnpj'     => 'nullable|string|max:18',
+                'responsavel_tecnico_nome'     => 'nullable|string|max:60',
+                'responsavel_tecnico_email'    => 'nullable|email|max:60',
+                'responsavel_tecnico_telefone' => 'nullable|string|max:14',
                 'tipo_cupom_pdv'       => 'required|in:fiscal,nao_fiscal',
             ];
         }

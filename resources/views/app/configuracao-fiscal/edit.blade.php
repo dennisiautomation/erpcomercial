@@ -477,6 +477,59 @@
                         </div>
                     </div>
                 </div>
+
+                {{-- ═══ Responsável Técnico (NT 2018/003) ═══ --}}
+                <div class="erp-card mb-3 border">
+                    <div class="card-header bg-transparent d-flex align-items-center">
+                        <i class="bi bi-person-badge fs-4 text-primary me-2"></i>
+                        <div class="flex-grow-1">
+                            <strong>Responsável técnico</strong>
+                            <div class="small text-muted">
+                                Obrigatório na NF-e desde a NT 2018/003 — identifica a software house que emite a nota.
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label class="form-label">CNPJ <span class="text-danger">*</span></label>
+                                <input type="text" name="responsavel_tecnico_cnpj" data-mask="cnpj"
+                                       class="form-control @error('responsavel_tecnico_cnpj') is-invalid @enderror"
+                                       value="{{ old('responsavel_tecnico_cnpj', $config->responsavel_tecnico_cnpj) }}"
+                                       placeholder="00.000.000/0000-00" maxlength="18">
+                                @error('responsavel_tecnico_cnpj')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                            </div>
+                            <div class="col-md-8">
+                                <label class="form-label">Nome do contato <span class="text-danger">*</span></label>
+                                <input type="text" name="responsavel_tecnico_nome"
+                                       class="form-control @error('responsavel_tecnico_nome') is-invalid @enderror"
+                                       value="{{ old('responsavel_tecnico_nome', $config->responsavel_tecnico_nome) }}"
+                                       maxlength="60">
+                                @error('responsavel_tecnico_nome')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">E-mail <span class="text-danger">*</span></label>
+                                <input type="email" name="responsavel_tecnico_email"
+                                       class="form-control @error('responsavel_tecnico_email') is-invalid @enderror"
+                                       value="{{ old('responsavel_tecnico_email', $config->responsavel_tecnico_email) }}"
+                                       maxlength="60">
+                                @error('responsavel_tecnico_email')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Telefone <span class="text-danger">*</span></label>
+                                <input type="text" name="responsavel_tecnico_telefone" data-mask="telefone"
+                                       class="form-control @error('responsavel_tecnico_telefone') is-invalid @enderror"
+                                       value="{{ old('responsavel_tecnico_telefone', $config->responsavel_tecnico_telefone) }}"
+                                       maxlength="14">
+                                @error('responsavel_tecnico_telefone')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                            </div>
+                        </div>
+                        <small class="d-block text-muted mt-3">
+                            <i class="bi bi-info-circle me-1"></i>
+                            Sem responsável técnico cadastrado, a SEFAZ rejeita a NF-e com erro 778 desde a NT 2018/003.
+                        </small>
+                    </div>
+                </div>
             </div>
 
             <div class="mt-4">

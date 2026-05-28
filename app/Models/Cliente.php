@@ -19,6 +19,7 @@ class Cliente extends Model
         'nome_razao_social',
         'nome_fantasia',
         'ie',
+        'im',
         'cep',
         'logradouro',
         'numero',

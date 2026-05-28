@@ -284,7 +284,8 @@ class NFCeService
     }
 
     /**
-     * Monta o payload completo da NFC-e a partir dos dados da Venda.
+     * Monta o payload completo da NFC-e (modelo 65, síncrona) a partir da Venda.
+     * Usa FiscalPayloadBuilder. Inclui local_destino, valor_troco e valor_total_tributos.
      */
     private function buildPayload(Venda $venda, ConfiguracaoFiscal $config): array
     {
@@ -292,238 +293,75 @@ class NFCeService
         $empresa = $unidade->empresa;
         $cliente = $venda->cliente;
 
-        $cnpjEmitente = preg_replace('/\D/', '', $unidade->cnpj ?: $empresa->cnpj);
+        $builder = new FiscalPayloadBuilder($empresa, $unidade, $config);
+        $builder->validarVendaParaNFCe($venda);
 
-        // ── Itens ────────────────────────────────────────────────────────
+        $reforma = ($config->ibs_ativo || $config->cbs_ativo || $config->is_ativo)
+            ? new ReformaTributariaCalculator($config)
+            : null;
+
+        // Itens
         $itens = [];
         $valorTotalProdutos = 0;
-
         foreach ($venda->itens as $index => $item) {
-            $produto = $item->produto;
-            $valorUnitario = number_format((float) $item->preco_unitario, 2, '.', '');
-            $quantidade = number_format((float) $item->quantidade, 3, '.', '');
-            $valorTotal = number_format((float) $item->total, 2, '.', '');
-            $valorDesconto = number_format((float) ($item->desconto_valor ?? 0), 2, '.', '');
-
+            $itens[] = $builder->itemNFCe($item, $index + 1, $reforma);
             $valorTotalProdutos += (float) $item->total;
-
-            $itemPayload = [
-                'numero_item' => $index + 1,
-                'codigo_produto' => $produto->codigo_interno ?? $produto->codigo_barras ?? (string) $produto->id,
-                'descricao' => $item->descricao ?: $produto->descricao,
-                'codigo_ncm' => $produto->ncm ?? '00000000',
-                'cfop' => $produto->cfop ?? '5102',
-                'unidade_comercial' => $produto->unidade_medida ?? 'UN',
-                'quantidade_comercial' => $quantidade,
-                'valor_unitario_comercial' => $valorUnitario,
-                'valor_bruto' => $valorTotal,
-                'unidade_tributavel' => $produto->unidade_medida ?? 'UN',
-                'quantidade_tributavel' => $quantidade,
-                'valor_unitario_tributavel' => $valorUnitario,
-                'origem' => $produto->origem ?? '0',
-                'inclui_no_total' => '1',
-            ];
-
-            if ((float) $valorDesconto > 0) {
-                $itemPayload['valor_desconto'] = $valorDesconto;
-            }
-
-            if ($produto->codigo_barras) {
-                $itemPayload['codigo_barras_comercial'] = $produto->codigo_barras;
-                $itemPayload['codigo_barras_tributavel'] = $produto->codigo_barras;
-            }
-
-            if ($produto->cest) {
-                $itemPayload['cest'] = $produto->cest;
-            }
-
-            // ICMS - usando CST/CSOSN do produto
-            $cstCsosn = $produto->cst_csosn ?? '102';
-            if ($empresa->regime_tributario?->value === 'simples_nacional') {
-                $itemPayload['icms_situacao_tributaria'] = $cstCsosn;
-                $itemPayload['icms_origem'] = $produto->origem ?? '0';
-            } else {
-                $itemPayload['icms_situacao_tributaria'] = $cstCsosn;
-                $itemPayload['icms_origem'] = $produto->origem ?? '0';
-                if ((float) ($produto->icms_aliquota ?? 0) > 0) {
-                    $itemPayload['icms_aliquota'] = number_format((float) $produto->icms_aliquota, 2, '.', '');
-                    $itemPayload['icms_base_calculo'] = $valorTotal;
-                    $itemPayload['icms_modalidade_base_calculo'] = '3';
-                }
-            }
-
-            // PIS
-            $itemPayload['pis_situacao_tributaria'] = '99';
-            $itemPayload['pis_base_calculo'] = $valorTotal;
-            $itemPayload['pis_aliquota_porcentual'] = number_format((float) ($produto->pis_aliquota ?? 0), 2, '.', '');
-            $itemPayload['pis_valor'] = number_format((float) $item->total * ((float) ($produto->pis_aliquota ?? 0) / 100), 2, '.', '');
-
-            // COFINS
-            $itemPayload['cofins_situacao_tributaria'] = '99';
-            $itemPayload['cofins_base_calculo'] = $valorTotal;
-            $itemPayload['cofins_aliquota_porcentual'] = number_format((float) ($produto->cofins_aliquota ?? 0), 2, '.', '');
-            $itemPayload['cofins_valor'] = number_format((float) $item->total * ((float) ($produto->cofins_aliquota ?? 0) / 100), 2, '.', '');
-
-            $itens[] = $itemPayload;
         }
 
-        // ── Payload principal ────────────────────────────────────────────
-        $payload = [
-            'natureza_operacao' => 'Venda ao Consumidor',
-            'data_emissao' => now()->format('Y-m-d\TH:i:sP'),
-            'tipo_documento' => '1', // Saída
-            'presenca_comprador' => '1', // Operação presencial
-            'consumidor_final' => '1',
-            'finalidade_emissao' => '1', // Normal
-            'modelo' => '65',
+        $payload = array_merge(
+            [
+                'natureza_operacao' => 'Venda ao Consumidor',
+                'data_emissao' => now()->format('Y-m-d\TH:i:sP'),
+                'tipo_documento' => '1',
+                'local_destino' => $builder->localDestino($cliente?->uf),
+                'presenca_comprador' => '1',
+                'consumidor_final' => '1',
+                'finalidade_emissao' => '1',
+                'modelo' => '65',
+                'modalidade_frete' => '9',
+            ],
+            $builder->emitentePayload(),
+            $builder->destinatarioNFCePayload($cliente),
+            ['items' => $itens],
+            // Totais (NFC-e usa subset)
+            ['valor_produtos' => number_format($valorTotalProdutos, 2, '.', '')],
+            ['valor_total' => number_format((float) $venda->total, 2, '.', '')],
+        );
 
-            // Emitente
-            'cnpj_emitente' => $cnpjEmitente,
-            'nome_emitente' => $empresa->razao_social,
-            'nome_fantasia_emitente' => $empresa->nome_fantasia ?? $empresa->razao_social,
-            'inscricao_estadual_emitente' => preg_replace('/\D/', '', $unidade->ie ?: $empresa->ie ?? ''),
-            'logradouro_emitente' => $unidade->logradouro ?: $empresa->logradouro,
-            'numero_emitente' => $unidade->numero ?: $empresa->numero,
-            'bairro_emitente' => $unidade->bairro ?: $empresa->bairro,
-            'municipio_emitente' => $unidade->cidade ?: $empresa->cidade,
-            'uf_emitente' => $unidade->uf ?: $empresa->uf,
-            'cep_emitente' => preg_replace('/\D/', '', $unidade->cep ?: $empresa->cep ?? ''),
-            'regime_tributario_emitente' => $this->mapRegimeTributario($empresa->regime_tributario?->value),
+        // ICMS totais (a Focus aceita opcional, mas SEFAZ valida coerência)
+        $totais = $builder->totaisPorItens($itens, $venda);
+        $payload['icms_base_calculo'] = $totais['icms_base_calculo'];
+        $payload['icms_valor_total'] = $totais['icms_valor_total'];
 
-            // Itens
-            'items' => $itens,
-
-            // Totais
-            'valor_produtos' => number_format($valorTotalProdutos, 2, '.', ''),
-            'valor_total' => number_format((float) $venda->total, 2, '.', ''),
-        ];
-
-        // Complemento endereço emitente
-        $complemento = $unidade->complemento ?: $empresa->complemento;
-        if ($complemento) {
-            $payload['complemento_emitente'] = $complemento;
+        // IBPT — LC 165/2018: rodapé do cupom precisa do valor aproximado
+        $valorTributos = $builder->valorTotalTributos($itens);
+        if ($valorTributos > 0) {
+            $payload['valor_total_tributos'] = number_format($valorTributos, 2, '.', '');
         }
 
-        // Telefone emitente
-        $telefone = $unidade->telefone ?: $empresa->telefone;
-        if ($telefone) {
-            $payload['telefone_emitente'] = preg_replace('/\D/', '', $telefone);
+        // Troco — quando dinheiro recebido > total
+        $troco = $builder->valorTroco($venda);
+        if ($troco > 0) {
+            $payload['valor_troco'] = number_format($troco, 2, '.', '');
         }
 
-        // Inscrição Municipal
-        $im = $unidade->im ?: $empresa->im;
-        if ($im) {
-            $payload['inscricao_municipal_emitente'] = preg_replace('/\D/', '', $im);
-        }
-
-        // ── Destinatário (opcional na NFC-e) ─────────────────────────────
-        if ($cliente) {
-            $cpfCnpj = preg_replace('/\D/', '', $cliente->cpf_cnpj ?? '');
-
-            if (strlen($cpfCnpj) === 11) {
-                $payload['cpf_destinatario'] = $cpfCnpj;
-            } elseif (strlen($cpfCnpj) === 14) {
-                $payload['cnpj_destinatario'] = $cpfCnpj;
-            }
-
-            if ($cliente->nome_razao_social) {
-                $payload['nome_destinatario'] = $cliente->nome_razao_social;
-            }
-        }
-
-        // ── Desconto global ──────────────────────────────────────────────
+        // Desconto global
         $descontoGlobal = (float) ($venda->desconto_valor ?? 0);
         if ($descontoGlobal > 0) {
             $payload['valor_desconto'] = number_format($descontoGlobal, 2, '.', '');
         }
 
-        // ── Formas de Pagamento ──────────────────────────────────────────
-        $payload['formas_pagamento'] = $this->buildFormasPagamento($venda);
+        // Formas de pagamento
+        $payload['formas_pagamento'] = $builder->formasPagamento($venda);
 
-        // ── Informações adicionais ───────────────────────────────────────
-        $informacoesAdicionais = [];
+        // Informações adicionais
         if ($venda->observacoes) {
-            $informacoesAdicionais[] = $venda->observacoes;
+            $payload['informacoes_adicionais_contribuinte'] = $venda->observacoes;
         }
-        if (count($informacoesAdicionais) > 0) {
-            $payload['informacoes_adicionais_contribuinte'] = implode(' | ', $informacoesAdicionais);
-        }
+
+        // Responsável técnico se configurado (opcional na NFC-e mas recomendado)
+        $payload = array_merge($payload, $builder->responsavelTecnicoPayload());
 
         return $payload;
-    }
-
-    /**
-     * Mapeia as formas de pagamento da venda para o formato da API.
-     */
-    private function buildFormasPagamento(Venda $venda): array
-    {
-        $formas = [];
-
-        // Se tem detalhes de pagamento, usar os detalhes
-        if (is_array($venda->pagamento_detalhes) && count($venda->pagamento_detalhes) > 0) {
-            foreach ($venda->pagamento_detalhes as $pagamento) {
-                $forma = [
-                    'forma_pagamento' => $this->mapFormaPagamento($pagamento['forma'] ?? $venda->forma_pagamento),
-                    'valor_pagamento' => number_format((float) ($pagamento['valor'] ?? $venda->total), 2, '.', ''),
-                ];
-
-                // Bandeira e CNPJ para cartões
-                if (in_array($pagamento['forma'] ?? '', ['credito', 'debito', 'cartao_credito', 'cartao_debito'])) {
-                    $forma['bandeira_operadora'] = $pagamento['bandeira'] ?? '99';
-                    if (isset($pagamento['cnpj_credenciadora'])) {
-                        $forma['cnpj_credenciadora'] = preg_replace('/\D/', '', $pagamento['cnpj_credenciadora']);
-                    }
-                    if (isset($pagamento['autorizacao'])) {
-                        $forma['numero_autorizacao'] = $pagamento['autorizacao'];
-                    }
-                }
-
-                $formas[] = $forma;
-            }
-        } else {
-            // Forma de pagamento simples
-            $formas[] = [
-                'forma_pagamento' => $this->mapFormaPagamento($venda->forma_pagamento),
-                'valor_pagamento' => number_format((float) $venda->total, 2, '.', ''),
-            ];
-        }
-
-        return $formas;
-    }
-
-    /**
-     * Mapeia forma de pagamento interna para código SEFAZ.
-     */
-    private function mapFormaPagamento(?string $forma): string
-    {
-        return match ($forma) {
-            'dinheiro' => '01',
-            'cheque' => '02',
-            'cartao_credito', 'credito' => '03',
-            'cartao_debito', 'debito' => '04',
-            'crediario', 'credito_loja' => '05',
-            'vale_alimentacao' => '10',
-            'vale_refeicao' => '11',
-            'vale_presente' => '12',
-            'vale_combustivel' => '13',
-            'pix' => '17',
-            'transferencia', 'deposito' => '18',
-            'boleto' => '15',
-            'sem_pagamento' => '90',
-            default => '99', // Outros
-        };
-    }
-
-    /**
-     * Mapeia regime tributário para código Focus NFe.
-     */
-    private function mapRegimeTributario(?string $regime): string
-    {
-        return match ($regime) {
-            'simples_nacional' => '1',
-            'lucro_presumido' => '3',
-            'lucro_real' => '3',
-            default => '1',
-        };
     }
 }
