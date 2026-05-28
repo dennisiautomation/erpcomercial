@@ -322,17 +322,26 @@
                                        maxlength="255">
                                 @error('cortesia_motivo')<div class="invalid-feedback">{{ $message }}</div>@enderror
                             </div>
+                            @php
+                                // Defensivo: o cast pode não estar aplicado se a view rodar antes
+                                // do autoload recarregar o model. Aceita Carbon, DateTime ou string.
+                                $fmtDate = function ($v, $default = null) {
+                                    if (! $v) return $default;
+                                    if ($v instanceof \DateTimeInterface) return $v->format('Y-m-d');
+                                    return substr((string) $v, 0, 10);
+                                };
+                            @endphp
                             <div class="col-md-3">
                                 <label class="form-label">Concedida em</label>
                                 <input type="date" name="cortesia_concedida_em"
                                        class="form-control"
-                                       value="{{ old('cortesia_concedida_em', $empresa->cortesia_concedida_em?->format('Y-m-d') ?? now()->format('Y-m-d')) }}">
+                                       value="{{ old('cortesia_concedida_em', $fmtDate($empresa->cortesia_concedida_em, now()->format('Y-m-d'))) }}">
                             </div>
                             <div class="col-md-3">
                                 <label class="form-label">Revisar em <span class="text-muted small">(opcional)</span></label>
                                 <input type="date" name="cortesia_revisar_em"
                                        class="form-control"
-                                       value="{{ old('cortesia_revisar_em', $empresa->cortesia_revisar_em?->format('Y-m-d')) }}">
+                                       value="{{ old('cortesia_revisar_em', $fmtDate($empresa->cortesia_revisar_em)) }}">
                             </div>
                         </div>
                         <small class="text-muted d-block mt-3">
