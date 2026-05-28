@@ -89,7 +89,7 @@ class FocusEmpresaService
      * @param  array<string, bool>  $flags
      * @return array<string, mixed>
      */
-    public function atualizar(Empresa $empresa, Unidade $unidade, array $flags = []): array
+    public function atualizar(Empresa $empresa, Unidade $unidade, array $flags = [], array $extras = []): array
     {
         $config = $this->configOuFalha($empresa, $unidade);
 
@@ -100,6 +100,13 @@ class FocusEmpresaService
         }
 
         $payload = $this->montarPayload($empresa, $unidade, $flags);
+
+        // Campos não-flag (ex: csc_nfce_*, id_token_nfce_*, discrimina_impostos)
+        foreach ($extras as $k => $v) {
+            if ($v !== null && $v !== '') {
+                $payload[$k] = $v;
+            }
+        }
 
         $response = $this->master->put("/v2/empresas/{$config->focus_empresa_id}", $payload);
 
@@ -264,7 +271,7 @@ class FocusEmpresaService
         foreach ($existentes as $hook) {
             if (! empty($hook['id'])) {
                 try {
-                    $this->removerWebhook((int) $hook['id']);
+                    $this->removerWebhook((string) $hook['id']);
                 } catch (\Throwable $e) {
                     Log::warning('[FocusEmpresa] falha ao remover webhook órfão', [
                         'hook_id' => $hook['id'],
@@ -279,8 +286,10 @@ class FocusEmpresaService
         foreach ($eventos as $evento) {
             try {
                 $data = $this->cadastrarWebhook($config, $url, $evento);
+                // ID do hook é STRING alfanumérica na Focus (ex: "Y5P0na15"),
+                // não inteiro — não fazer cast int.
                 if (! empty($data['id'])) {
-                    $mapa[$evento] = (int) $data['id'];
+                    $mapa[$evento] = (string) $data['id'];
                 }
             } catch (\Throwable $e) {
                 Log::error('[FocusEmpresa] falha cadastrando webhook', [
@@ -323,9 +332,9 @@ class FocusEmpresaService
     }
 
     /**
-     * Remove webhook por id.
+     * Remove webhook por id (string alfanumérico da Focus, ex: "Y5P0na15").
      */
-    public function removerWebhook(int $hookId): void
+    public function removerWebhook(string $hookId): void
     {
         $response = $this->master->delete("/v2/hooks/{$hookId}");
 

@@ -111,6 +111,29 @@ class UnidadeController extends Controller
 
         $unidade->update($validated);
 
+        // Sincroniza com Focus se já provisionada (mudança de endereço,
+        // CNPJ, IE, IM, telefone, etc. exige update na Focus).
+        if (FocusNFeClient::masterDisponivel()) {
+            $cfg = \App\Models\ConfiguracaoFiscal::withoutGlobalScopes()
+                ->where('empresa_id', $unidade->empresa_id)
+                ->where('unidade_id', $unidade->id)
+                ->whereNotNull('focus_empresa_id')
+                ->first();
+            if ($cfg) {
+                ProvisionarEmpresaFocusJob::dispatch(
+                    empresaId: $unidade->empresa_id,
+                    unidadeId: $unidade->id,
+                    flags: [
+                        'habilita_nfe' => (bool) $cfg->emite_nfe,
+                        'habilita_nfce' => (bool) $cfg->emite_nfce,
+                        'habilita_nfse' => (bool) $cfg->emite_nfse,
+                        'habilita_manifestacao' => true,
+                    ],
+                    solicitadoPor: $request->user()->id,
+                );
+            }
+        }
+
         return redirect()
             ->route('admin.unidades.show', $unidade)
             ->with('success', 'Unidade atualizada com sucesso.');

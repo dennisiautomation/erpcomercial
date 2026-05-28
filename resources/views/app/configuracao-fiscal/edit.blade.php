@@ -82,14 +82,63 @@
                 {{-- Token e Ambiente --}}
                 <div class="row g-3 mb-3">
                     @if($gerenciadaPelaFocus)
+                        @php
+                            $webhooksCount = is_array($config->focus_webhook_ids) ? count($config->focus_webhook_ids) : 0;
+                            $temToken = $config->focus_token_producao || $config->focus_token_homologacao;
+                        @endphp
                         <div class="col-md-8">
-                            <label class="form-label fw-semibold">Status da integração</label>
-                            <div class="form-control-plaintext small">
-                                <span class="badge bg-success"><i class="bi bi-check2-circle me-1"></i>Conectada à Focus NFe</span>
-                                @if($config->focus_sincronizado_em)
-                                    <span class="text-muted ms-2">sincronizado em {{ $config->focus_sincronizado_em->format('d/m/Y H:i') }}</span>
+                            <label class="form-label fw-semibold">Status da integração Focus NFe</label>
+                            <div class="border rounded p-3 bg-light">
+                                <div class="d-flex flex-wrap gap-2 mb-2">
+                                    <span class="badge bg-success">
+                                        <i class="bi bi-check2-circle me-1"></i>Empresa #{{ $config->focus_empresa_id }}
+                                    </span>
+                                    @if($config->focus_token_homologacao)
+                                        <span class="badge bg-info">homologação ✓</span>
+                                    @endif
+                                    @if($config->focus_token_producao)
+                                        <span class="badge bg-success">produção ✓</span>
+                                    @endif
+                                    @if($webhooksCount > 0)
+                                        <span class="badge bg-primary">
+                                            <i class="bi bi-broadcast me-1"></i>{{ $webhooksCount }} webhooks
+                                        </span>
+                                    @else
+                                        <span class="badge bg-warning text-dark">sem webhooks</span>
+                                    @endif
+                                </div>
+                                <small class="text-muted d-block">
+                                    Cadastro gerenciado automaticamente — não é mais necessário colar token.
+                                    @if($config->focus_sincronizado_em)
+                                        Sincronizado em {{ $config->focus_sincronizado_em->format('d/m/Y H:i') }}.
+                                    @endif
+                                </small>
+                                @if(auth()->user()->is_admin)
+                                    <a href="{{ route('admin.empresas.saude-focus', $config->empresa_id) }}"
+                                       class="btn btn-sm btn-outline-secondary mt-2">
+                                        <i class="bi bi-shield-check me-1"></i>Saúde Focus detalhada
+                                    </a>
                                 @endif
                             </div>
+                        </div>
+                    @elseif($modoRevenda)
+                        <div class="col-md-8">
+                            <label class="form-label fw-semibold">Integração Focus NFe</label>
+                            <div class="alert alert-warning small mb-0">
+                                <i class="bi bi-exclamation-triangle me-1"></i>
+                                <strong>Ainda não conectada.</strong> A plataforma está em modo automático —
+                                ao salvar essa configuração, a empresa será criada na Focus NFe e os tokens
+                                serão emitidos para você. Não precisa colar nenhum token manualmente.
+                            </div>
+                            @if(auth()->user()->is_admin)
+                                <form method="POST" action="{{ route('admin.empresas.saude-focus.resincronizar', $config->empresa_id) }}" class="mt-2">
+                                    @csrf
+                                    <input type="hidden" name="unidade_id" value="{{ $config->unidade_id }}">
+                                    <button class="btn btn-sm btn-success" data-confirm="Provisionar essa unidade na Focus NFe agora?">
+                                        <i class="bi bi-magic me-1"></i>Provisionar agora
+                                    </button>
+                                </form>
+                            @endif
                         </div>
                     @else
                         <div class="col-md-8">

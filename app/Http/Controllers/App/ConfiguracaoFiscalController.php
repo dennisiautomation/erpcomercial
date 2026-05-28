@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ConfiguracaoFiscal;
 use App\Models\Empresa;
 use App\Services\FocusNFe\CertificadoDigitalService;
+use App\Services\FocusNFe\FocusEmpresaService;
 use App\Services\FocusNFe\FocusNFeClient;
 use App\Services\FocusNFe\SefazStatusService;
 use Illuminate\Http\Request;
@@ -136,8 +137,21 @@ class ConfiguracaoFiscalController extends Controller
             ->where('unidade_id', $unidadeId)
             ->value('id');
 
+        // Diff: capturar valores ANTES do save para detectar mudanças que
+        // exigem sincronização com a Focus (habilita_*, CSC, ambiente).
+        $configAntes = $configId
+            ? ConfiguracaoFiscal::withoutGlobalScopes()->findOrFail($configId)
+            : null;
+        $flagsAntes = $configAntes ? [
+            'emite_nfe' => (bool) $configAntes->emite_nfe,
+            'emite_nfce' => (bool) $configAntes->emite_nfce,
+            'emite_nfse' => (bool) $configAntes->emite_nfse,
+            'csc_nfce' => $configAntes->csc_nfce,
+            'csc_id_nfce' => $configAntes->csc_id_nfce,
+        ] : null;
+
         if ($configId) {
-            $config = ConfiguracaoFiscal::withoutGlobalScopes()->findOrFail($configId);
+            $config = $configAntes;
             $config->fill($data)->save();
         } else {
             $config = new ConfiguracaoFiscal();
@@ -147,9 +161,78 @@ class ConfiguracaoFiscalController extends Controller
             $config->save();
         }
 
+        // Auto-sincronização com Focus quando há master token + empresa já provisionada
+        $msgExtra = '';
+        if (FocusNFeClient::masterDisponivel() && $config->focus_empresa_id) {
+            $mudouHabilita = $flagsAntes && (
+                $flagsAntes['emite_nfe'] !== (bool) $config->emite_nfe
+                || $flagsAntes['emite_nfce'] !== (bool) $config->emite_nfce
+                || $flagsAntes['emite_nfse'] !== (bool) $config->emite_nfse
+            );
+            $mudouCsc = $flagsAntes && (
+                $flagsAntes['csc_nfce'] !== $config->csc_nfce
+                || $flagsAntes['csc_id_nfce'] !== $config->csc_id_nfce
+            );
+
+            if ($mudouHabilita || $mudouCsc || ! $configAntes) {
+                try {
+                    $svc = FocusEmpresaService::make();
+                    $empresa = $user->empresa;
+                    $unidade = \App\Models\Unidade::withoutGlobalScopes()->find($unidadeId);
+
+                    $flags = [
+                        'habilita_nfe' => (bool) $config->emite_nfe,
+                        'habilita_nfce' => (bool) $config->emite_nfce,
+                        'habilita_nfse' => (bool) $config->emite_nfse,
+                        'habilita_manifestacao' => true,
+                    ];
+
+                    $extras = [];
+                    if ($mudouCsc && $config->csc_nfce) {
+                        $extras = [
+                            'csc_nfce_producao' => $config->csc_nfce,
+                            'id_token_nfce_producao' => $config->csc_id_nfce,
+                            'csc_nfce_homologacao' => $config->csc_nfce,
+                            'id_token_nfce_homologacao' => $config->csc_id_nfce,
+                        ];
+                    }
+
+                    $svc->atualizar($empresa, $unidade, $flags, $extras);
+
+                    // Webhooks só precisam ser recriados se os emite_* mudaram
+                    if ($mudouHabilita) {
+                        $svc->sincronizarWebhooks($config);
+                        $config->webhooks_sincronizados_em = now();
+                        $config->save();
+                    }
+                    $msgExtra = ' Sincronizado com Focus NFe ✓';
+                } catch (\Throwable $e) {
+                    Log::error('[ConfigFiscal] falha ao sincronizar com Focus', [
+                        'config_id' => $config->id,
+                        'erro' => $e->getMessage(),
+                    ]);
+                    $msgExtra = ' (Configuração salva, mas falhou ao sincronizar com Focus: ' . $e->getMessage() . ')';
+                }
+            }
+        } elseif (FocusNFeClient::masterDisponivel() && ! $config->focus_empresa_id) {
+            // Ainda não criada na Focus — dispara o job para criar agora.
+            \App\Jobs\ProvisionarEmpresaFocusJob::dispatch(
+                empresaId: $empresaId,
+                unidadeId: $unidadeId,
+                flags: [
+                    'habilita_nfe' => (bool) $config->emite_nfe,
+                    'habilita_nfce' => (bool) $config->emite_nfce,
+                    'habilita_nfse' => (bool) $config->emite_nfse,
+                    'habilita_manifestacao' => true,
+                ],
+                solicitadoPor: $user->id,
+            );
+            $msgExtra = ' Provisionamento na Focus NFe em segundo plano.';
+        }
+
         return redirect()
             ->route('app.configuracao-fiscal.edit')
-            ->with('success', 'Configuracao fiscal salva com sucesso!');
+            ->with('success', 'Configuração fiscal salva com sucesso!' . $msgExtra);
     }
 
     /* ------------------------------------------------------------------ */

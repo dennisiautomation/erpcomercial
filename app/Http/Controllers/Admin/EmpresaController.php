@@ -189,6 +189,29 @@ class EmpresaController extends Controller
 
         $empresa->update($validated);
 
+        // Sincroniza com Focus para todas unidades já provisionadas
+        // (mudança de endereço/IE/IM/razão_social/regime → afeta o cadastro
+        // na Focus). Despacha jobs em background para não travar o save.
+        if (FocusNFeClient::masterDisponivel()) {
+            $configs = \App\Models\ConfiguracaoFiscal::withoutGlobalScopes()
+                ->where('empresa_id', $empresa->id)
+                ->whereNotNull('focus_empresa_id')
+                ->get();
+            foreach ($configs as $cfg) {
+                ProvisionarEmpresaFocusJob::dispatch(
+                    empresaId: $empresa->id,
+                    unidadeId: $cfg->unidade_id,
+                    flags: [
+                        'habilita_nfe' => (bool) $cfg->emite_nfe,
+                        'habilita_nfce' => (bool) $cfg->emite_nfce,
+                        'habilita_nfse' => (bool) $cfg->emite_nfse,
+                        'habilita_manifestacao' => true,
+                    ],
+                    solicitadoPor: $request->user()->id,
+                );
+            }
+        }
+
         return redirect()
             ->route('admin.empresas.show', $empresa)
             ->with('success', 'Empresa atualizada com sucesso.');
