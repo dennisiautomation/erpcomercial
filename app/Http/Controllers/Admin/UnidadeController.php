@@ -94,13 +94,14 @@ class UnidadeController extends Controller
         abort_unless($request->user()->is_admin, 403);
 
         $unidade->load('empresa');
+        $empresa = $unidade->empresa;
 
         $gerentes = User::where('empresa_id', $unidade->empresa_id)
             ->where('status', 'ativo')
             ->orderBy('name')
             ->get();
 
-        return view('admin.unidades.edit', compact('unidade', 'gerentes'));
+        return view('admin.unidades.edit', compact('unidade', 'gerentes', 'empresa'));
     }
 
     public function update(Request $request, Unidade $unidade): RedirectResponse

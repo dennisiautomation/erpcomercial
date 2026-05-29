@@ -13,7 +13,7 @@
     </a>
 </div>
 
-<form action="{{ route('admin.empresas.unidades.update', [$empresa, $unidade]) }}" method="POST">
+<form action="{{ route('admin.unidades.update', $unidade) }}" method="POST">
     @csrf
     @method('PUT')
 
