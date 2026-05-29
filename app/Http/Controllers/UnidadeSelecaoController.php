@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\Perfil;
 use App\Models\Unidade;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -24,8 +25,8 @@ class UnidadeSelecaoController extends Controller
                 ->orderBy('nome')
                 ->get();
         }
-        // Dono ve todas as unidades da empresa
-        elseif ($user->isDono()) {
+        // Dono e Admin do cliente veem todas as unidades da empresa
+        elseif ($user->isDono() || $user->perfil === Perfil::Admin) {
             $unidades = Unidade::withoutGlobalScopes()
                 ->where('empresa_id', $user->empresa_id)
                 ->where('status', 'ativa')
@@ -63,7 +64,8 @@ class UnidadeSelecaoController extends Controller
         $unidadeId = $request->input('unidade_id');
 
         // Verificar se o usuario tem acesso a esta unidade
-        if (! $user->is_admin && ! $user->isDono()) {
+        // (Dono e Admin do cliente têm acesso a todas as unidades da empresa)
+        if (! $user->is_admin && ! $user->isDono() && $user->perfil !== Perfil::Admin) {
             $hasAccess = $user->unidades()->where('unidades.id', $unidadeId)->exists();
 
             if (! $hasAccess) {
