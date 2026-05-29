@@ -20,7 +20,7 @@ class VendaController extends Controller
     {
         $query = Venda::where('empresa_id', session('empresa_id'))
             ->where('unidade_id', session('unidade_id'))
-            ->with(['cliente:id,nome_razao_social,cpf_cnpj', 'vendedor:id,name']);
+            ->with(['cliente:id,nome_razao_social,cpf_cnpj', 'vendedor:id,name', 'caixa:id,numero_caixa']);
 
         if ($request->filled('busca')) {
             $busca = $request->busca;

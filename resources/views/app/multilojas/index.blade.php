@@ -101,6 +101,8 @@
                         <th class="text-end">Faturamento</th>
                         <th class="text-center">Vendas</th>
                         <th class="text-end">Ticket Medio</th>
+                        <th class="text-end">Comissao</th>
+                        <th class="text-center">Vendedores</th>
                         <th class="text-center">Estoque Critico</th>
                         <th class="text-center">Status</th>
                     </tr>
@@ -126,6 +128,8 @@
                             <td class="text-end fw-bold">R$ {{ number_format($dados['faturamento'], 2, ',', '.') }}</td>
                             <td class="text-center">{{ $dados['total_vendas'] }}</td>
                             <td class="text-end">R$ {{ number_format($dados['ticket_medio'], 2, ',', '.') }}</td>
+                            <td class="text-end">R$ {{ number_format($dados['comissao'] ?? 0, 2, ',', '.') }}</td>
+                            <td class="text-center">{{ $dados['operadores'] ?? 0 }}</td>
                             <td class="text-center">
                                 @if($dados['estoque_critico'] > 0)
                                     <span class="badge-status cancelado">{{ $dados['estoque_critico'] }}</span>
@@ -139,7 +143,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7">
+                            <td colspan="9">
                                 <div class="empty-state">
                                     <i class="bi bi-shop-window d-block"></i>
                                     <h5>Nenhuma unidade encontrada</h5>

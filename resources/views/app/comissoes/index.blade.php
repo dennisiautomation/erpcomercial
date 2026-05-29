@@ -83,6 +83,15 @@
                 @endforeach
             </select>
         </div>
+        <div class="col-md-3">
+            <label for="unidade_id" class="form-label">Loja</label>
+            <select name="unidade_id" id="unidade_id" class="form-select">
+                <option value="">Todas</option>
+                @foreach($unidades as $u)
+                    <option value="{{ $u->id }}" {{ request('unidade_id') == $u->id ? 'selected' : '' }}>{{ $u->nome }}</option>
+                @endforeach
+            </select>
+        </div>
         <div class="col-md-2">
             <label for="status" class="form-label">Status</label>
             <select name="status" id="status" class="form-select">
@@ -107,6 +116,22 @@
     </form>
 </div>
 
+@if($porLoja->count() > 0)
+<div class="erp-card mb-3">
+    <div class="card-header"><span>Comissao por loja (mes atual)</span></div>
+    <div class="card-body d-flex flex-wrap gap-3">
+        @foreach($unidades as $u)
+            @if(($porLoja[$u->id] ?? 0) > 0)
+                <div class="border rounded px-3 py-2">
+                    <div class="small text-muted">{{ $u->nome }}</div>
+                    <div class="fw-bold">R$ {{ number_format($porLoja[$u->id] ?? 0, 2, ',', '.') }}</div>
+                </div>
+            @endif
+        @endforeach
+    </div>
+</div>
+@endif
+
 {{-- Table with bulk pay --}}
 <form method="POST" action="{{ route('app.comissoes.pagar') }}" id="formPagar">
     @csrf
@@ -128,6 +153,7 @@
                                 <input type="checkbox" class="form-check-input" id="selectAll" onclick="toggleAll(this)">
                             </th>
                             <th>Vendedor</th>
+                            <th>Loja</th>
                             <th>Venda</th>
                             <th class="text-end">Valor Venda</th>
                             <th class="text-end">%</th>
@@ -145,6 +171,7 @@
                                     @endif
                                 </td>
                                 <td>{{ $comissao->vendedor->name ?? '-' }}</td>
+                                <td><span class="text-muted small">{{ $comissao->unidade->nome ?? '-' }}</span></td>
                                 <td>
                                     @if($comissao->venda)
                                         <a href="{{ route('app.vendas.show', $comissao->venda_id) }}" class="text-decoration-none">
@@ -164,7 +191,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="8">
+                                <td colspan="9">
                                     <div class="empty-state">
                                         <i class="bi bi-percent d-block"></i>
                                         <h5>Nenhuma comissao encontrada</h5>

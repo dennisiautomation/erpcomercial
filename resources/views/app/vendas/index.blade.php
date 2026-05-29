@@ -151,6 +151,7 @@
                     <th>Data/Hora</th>
                     <th>Cliente</th>
                     <th>Vendedor</th>
+                    <th class="text-center">Caixa</th>
                     <th class="text-center">Tipo</th>
                     <th>Forma Pgto</th>
                     <th class="text-end">Total</th>
@@ -171,6 +172,7 @@
                             <div class="fw-semibold">{{ Str::limit($venda->cliente->nome_razao_social ?? 'Consumidor Final', 28) }}</div>
                         </td>
                         <td class="text-muted small">{{ $venda->vendedor->name ?? '-' }}</td>
+                        <td class="text-center small">{{ $venda->caixa ? '#'.($venda->caixa->numero_caixa ?? $venda->caixa->id) : '-' }}</td>
                         <td class="text-center">
                             @php
                                 $tipoColors = ['pdv' => 'info', 'balcao' => 'primary', 'online' => 'success'];
@@ -225,7 +227,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="9" class="text-center py-5">
+                        <td colspan="10" class="text-center py-5">
                             <div class="text-muted">
                                 <i class="bi bi-bag fs-1 d-block mb-2"></i>
                                 Nenhuma venda encontrada.

@@ -7,6 +7,7 @@ use App\Models\Categoria;
 use App\Models\Comissao;
 use App\Models\ContaPagar;
 use App\Models\Produto;
+use App\Models\Unidade;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -18,11 +19,15 @@ class ComissaoController extends Controller
     {
         $empresaId = auth()->user()->empresa_id;
 
-        $query = Comissao::with(['vendedor', 'venda'])
+        $query = Comissao::with(['vendedor', 'venda', 'unidade'])
             ->where('empresa_id', $empresaId);
 
         if ($request->filled('vendedor_id')) {
             $query->where('user_id', $request->vendedor_id);
+        }
+
+        if ($request->filled('unidade_id')) {
+            $query->where('unidade_id', $request->unidade_id);
         }
 
         if ($request->filled('status')) {
@@ -59,8 +64,20 @@ class ComissaoController extends Controller
             ->orderBy('name')
             ->get(['id', 'name']);
 
+        $unidades = Unidade::where('empresa_id', $empresaId)
+            ->orderBy('nome')
+            ->get(['id', 'nome']);
+
+        // Subtotal de comissão por loja no mês corrente
+        $porLoja = Comissao::where('empresa_id', $empresaId)
+            ->whereMonth('created_at', now()->month)
+            ->whereYear('created_at', now()->year)
+            ->selectRaw('unidade_id, SUM(valor_comissao) as total')
+            ->groupBy('unidade_id')
+            ->pluck('total', 'unidade_id');
+
         return view('app.comissoes.index', compact(
-            'comissoes', 'totalPendente', 'pagoMes', 'totalMes', 'vendedores'
+            'comissoes', 'totalPendente', 'pagoMes', 'totalMes', 'vendedores', 'unidades', 'porLoja'
         ));
     }
 
