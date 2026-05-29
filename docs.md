@@ -2,7 +2,7 @@
 
 > SaaS ERP multi-tenant para PMEs. Admin (IA365) gerencia a plataforma; cada empresa-cliente tem múltiplas unidades com fiscal, estoque e caixa independentes. Integração 100% Focus NFe (NF-e, NFC-e, NFS-e, CC-e, manifestação do destinatário, backup XMLs).
 
-**Última revisão:** 2026-05-28 · **Estado:** integração fiscal Fase 1-4 + multi-loja + regime de cobrança + auto-sync Focus + UX config fiscal — concluídos
+**Última revisão:** 2026-05-29 · **Estado:** integração fiscal Fase 1-4 + multi-loja + regime de cobrança + auto-sync Focus + UX config fiscal — concluídos. **2026-05-29:** auditoria de bugs (branch `fix/auditoria-bugs-mai2026`) + visões por loja (comissão / vendas / painel multilojas) + seletor de vendedor no PDV — concluídos. Metas individuais — pendente (Incremento 2).
 
 ---
 
@@ -479,6 +479,45 @@ docker exec -i erp-com-app php artisan schedule:list
 18. **Focus webhook é 1 evento por chamada** — payload `{event: "nfe", ...}` singular. Mandar `{eventos: [...]}` falha silenciosamente (corrigido em `cadastrarWebhook`).
 19. **Migration de campos NFS-e (`codigo_municipio`)** assume tabelas `empresas/unidades/clientes` — usuário precisa preencher manualmente ou via autocomplete `/app/focus-autocomplete/municipio`.
 20. **Snapshot fiscal só é aplicado em `creating`** do VendaItem — itens criados antes da migration 2026-05-28 não têm snapshot (caem no fallback `produto->*`).
+21. **Categoria.status é `ativa/inativa`** (feminino, como Unidade) — NÃO `ativo/inativo`.
+22. **`lang/pt_BR` é obrigatório** — o skeleton do Laravel 12 não o traz; sem ele as mensagens de validação aparecem como chave crua (`validation.required`). `APP_LOCALE`/`APP_FALLBACK_LOCALE = pt_BR`.
+23. **`is_admin` (flag de plataforma) ≠ `perfil` (papel no tenant)** — a área `/admin` gateia por `is_admin`. O helper `User::isAdmin()` = `is_admin || perfil===Admin`; não confundir. Admin do cliente (`perfil=Admin`) **não** é admin de plataforma.
+24. **`ContaReceber` usa `pago_em` e `vencimento`** — NÃO `data_pagamento`/`data_vencimento`.
+25. **Resource `empresas.unidades` é `shallow()`** — `show/edit/update/destroy` são `admin.unidades.*` (param `{unidade}`), NÃO `admin.empresas.unidades.*`. Só `index/create/store` são nested.
+26. **`UnidadeScope` é ignorado para `perfil` admin/dono** — eles veem todas as unidades; o filtro por unidade ativa só vale para perfis operacionais. Telas que precisam isolar por unidade para admin/dono devem filtrar explicitamente (ex.: `VendaController::index` faz `where('unidade_id', session(...))`).
+27. **PDV `registrarVenda` exige pagamento ≥ total** (rejeita 422). Comissão usa `User.comissao_percentual` — sem percentual configurado, não gera comissão.
+
+---
+
+## Auditoria de bugs + visões por loja (2026-05-29)
+
+Lote de correções na branch `fix/auditoria-bugs-mai2026`, após varredura de schema / rotas / permissão (vários eram 500 mascarados):
+
+| Área | Correção |
+|---|---|
+| Categorias | enum `ativa/inativa` (corrige 500 ao cadastrar) |
+| Validação pt-BR | criados `lang/pt_BR/{validation,auth,passwords,pagination}.php` |
+| Multilojas | 403 (`$user->papel` inexistente → `isDono()/isAdmin()`) + 500 (`pago_em`/`vencimento`) |
+| Sessão | `session('empresa_id')` gravado no middleware `EnsureUnidadeSelected` (era lido em ~70 pontos, só `unidade_id` era setado no login) |
+| PDV | busca por nome/código/SKU/cód. barras; bloqueio de pagamento insuficiente (422); comissão pelo `comissao_percentual` do vendedor; `lockForUpdate` em nº da venda e estoque; `exists` de `unidade_origem_id` com escopo de empresa; seletor de vendedor lista todos os funcionários ativos |
+| Funcionários | removido campo morto `email_pessoal` |
+| Transferências | empty-state quando só há 1 unidade |
+| Caixa/abrir | banner de integração PIX/Asaas (parceiro) |
+| admin/unidades | `show` redireciona p/ `edit`; `edit` passa `$empresa` e usa rota `admin.unidades.update` (corrige 500 ao editar/adicionar) |
+| Seleção de unidade | admin do cliente (`perfil=Admin`) vê/troca todas as unidades da empresa (antes só Dono) |
+| Produtos | filtro de categorias usava status `ativo` (vazio) → `ativa` |
+| Clientes | estatísticas usavam venda `finalizada` → `concluida` |
+| OS→Venda | enums inválidos (`venda`/`finalizada`) + coluna `desconto` → `balcao`/`concluida`/`desconto_valor` |
+
+### Visões por loja
+- **Comissões** (`/app/comissoes`): filtro por loja + coluna Loja + subtotal de comissão por loja (mês).
+- **Painel Multilojas** (`/app/multilojas`): colunas Comissão (mês) e nº de Vendedores por loja — serve como **relatório consolidado por loja** (faturamento, vendas, ticket, comissão, vendedores, estoque crítico).
+- **Vendas**: coluna Caixa na listagem + campo Loja no detalhe.
+
+### O que é por unidade × por empresa
+- **Por unidade** (`UnidadeScope` + `unidade_id`): `Caixa`, `MovimentacaoCaixa`, `Venda`, `EstoqueMovimentacao`, `ContaReceber`, `Comissao`, `Orcamento`, `Pedido`, `OrdemServico`, `NotaFiscal`, `ConfiguracaoFiscal`.
+- **Por empresa** (compartilhado entre lojas): `Produto`, `Cliente`, `Servico`, `Categoria`, `Fornecedor`.
+- **Funcionários (`User`)**: pertencem à empresa; atribuídos a unidades via pivot `unidade_user` (controla acesso/login, não cria folha separada por loja).
 
 ---
 
@@ -489,6 +528,8 @@ docker exec -i erp-com-app php artisan schedule:list
 - **Autocomplete `/v2/municipios`** na edição de empresa/unidade/cliente para popular `codigo_municipio` IBGE automaticamente.
 - **Detector de mudança de regime tributário**: ao trocar `empresa.regime_tributario`, abrir modal "N produtos têm CST não compatível — revisar?" (M3 do plano original).
 - **Responsividade mobile/tablet**: revisão do PDV em tablet (só 1 `@media` em `erp.css`).
+- **Metas individuais (Incremento 2 — pendente)**: tabela `metas` (por vendedor e por loja, métrica = valor R$ vendido, período personalizado) + tela `/app/metas` para cadastro + acompanhamento do atingido (barra de progresso atingido × meta).
+- **Reconciliação de venda com pagamento parcial já gravada** (anterior ao fix do PDV): ajustar manualmente movimento de caixa / conta a receber das vendas afetadas.
 
 ---
 
