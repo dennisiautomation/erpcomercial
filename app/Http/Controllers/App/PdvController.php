@@ -22,6 +22,7 @@ use App\Services\EstoqueMultiUnidadeService;
 use App\Services\FocusNFe\FocusNFeClient;
 use App\Services\FocusNFe\NFCeService;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -94,14 +95,26 @@ class PdvController extends Controller
 
     public function buscarProduto(Request $request, $codigo)
     {
+        $termo = trim($codigo);
+
         $produtos = Produto::where('empresa_id', session('empresa_id'))
             ->where('status', 'ativo')
-            ->where(function ($q) use ($codigo) {
-                $q->where('codigo_barras', $codigo)
-                  ->orWhere('codigo_interno', $codigo)
-                  ->orWhere('descricao', 'like', "%{$codigo}%");
+            ->where(function ($q) use ($termo) {
+                // Busca ampla: nome, código interno, SKU e código de barras
+                $q->where('descricao', 'like', "%{$termo}%")
+                  ->orWhere('descricao_detalhada', 'like', "%{$termo}%")
+                  ->orWhere('codigo_interno', 'like', "%{$termo}%")
+                  ->orWhere('sku', 'like', "%{$termo}%")
+                  ->orWhere('codigo_barras', 'like', "%{$termo}%");
             })
-            ->select('id', 'codigo_interno', 'codigo_barras', 'descricao', 'preco_venda', 'unidade_medida')
+            // Match exato (leitura de scanner / código digitado) vem primeiro,
+            // garantindo auto-add quando o termo bate certinho num código.
+            ->orderByRaw(
+                'CASE WHEN codigo_barras = ? OR codigo_interno = ? OR sku = ? THEN 0 ELSE 1 END',
+                [$termo, $termo, $termo]
+            )
+            ->orderBy('descricao')
+            ->select('id', 'codigo_interno', 'codigo_barras', 'sku', 'descricao', 'preco_venda', 'unidade_medida')
             ->limit(20)
             ->get();
 
@@ -130,7 +143,7 @@ class PdvController extends Controller
             'itens.*.quantidade'       => 'required|numeric|min:0.001',
             'itens.*.preco_unitario'   => 'required|numeric|min:0',
             'itens.*.desconto_valor'   => 'nullable|numeric|min:0',
-            'itens.*.unidade_origem_id'=> 'nullable|integer|exists:unidades,id',
+            'itens.*.unidade_origem_id'=> ['nullable', 'integer', Rule::exists('unidades', 'id')->where('empresa_id', session('empresa_id'))],
             'pagamentos'               => 'required|array|min:1',
             'pagamentos.*.forma'       => 'required|string',
             'pagamentos.*.valor'       => 'required|numeric|min:0.01',
@@ -158,6 +171,7 @@ class PdvController extends Controller
 
                 $ultimoNumero = Venda::withoutGlobalScopes()
                     ->where('empresa_id', $empresaId)
+                    ->lockForUpdate()
                     ->max('numero');
                 $numero = $ultimoNumero ? $ultimoNumero + 1 : 1;
 
@@ -207,6 +221,19 @@ class PdvController extends Controller
                 $pagamentos = $request->pagamentos;
                 $formaPrincipal = $pagamentos[0]['forma'];
                 $totalPago = collect($pagamentos)->sum('valor');
+
+                // Pagamento precisa cobrir o total da venda. O PDV finaliza tudo como
+                // pago à vista (ContaReceber 'paga' + valor cheio no caixa); aceitar um
+                // valor menor gera furo de caixa silencioso (R$ esperado ≠ R$ recebido).
+                if (round($totalPago, 2) < round($total, 2)) {
+                    $falta = round($total - $totalPago, 2);
+                    throw new \DomainException(
+                        'Pagamento insuficiente: o total da venda é R$ ' . number_format($total, 2, ',', '.')
+                        . ' e foi informado apenas R$ ' . number_format($totalPago, 2, ',', '.')
+                        . ' (faltam R$ ' . number_format($falta, 2, ',', '.') . ').'
+                    );
+                }
+
                 $troco = max(0, round($totalPago - $total, 2));
 
                 $venda = Venda::create([
@@ -247,6 +274,7 @@ class PdvController extends Controller
                         $estoqueAnterior = EstoqueMovimentacao::withoutGlobalScopes()
                             ->where('produto_id', $produtoId)
                             ->where('unidade_id', $unidadeId)
+                            ->lockForUpdate()
                             ->latest()
                             ->value('quantidade_posterior') ?? 0;
 
@@ -298,10 +326,14 @@ class PdvController extends Controller
                     ]);
                 }
 
-                // Calculate and create Comissao for vendedor
+                // Comissão do vendedor — usa o percentual configurado no cadastro do
+                // funcionário (User.comissao_percentual). Sem percentual definido, NÃO
+                // gera comissão (nada de percentual fixo "mágico").
                 $vendedorId = $request->vendedor_id ?? auth()->id();
-                if ($vendedorId) {
-                    $percentualComissao = 5;
+                $vendedor = $vendedorId ? User::find($vendedorId) : null;
+                $percentualComissao = (float) ($vendedor->comissao_percentual ?? 0);
+
+                if ($vendedorId && $percentualComissao > 0) {
                     $valorComissao = round($total * ($percentualComissao / 100), 2);
 
                     Comissao::create([
@@ -362,6 +394,9 @@ class PdvController extends Controller
                 'tipo_cupom'  => $deveEmitirNfce ? 'fiscal' : 'nao_fiscal',
             ]);
 
+        } catch (\DomainException $e) {
+            // Erro de regra de negócio (ex.: pagamento insuficiente) — não é falha técnica.
+            return response()->json(['error' => $e->getMessage()], 422);
         } catch (\Throwable $e) {
             Log::error('[PDV] Erro ao registrar venda.', [
                 'error' => $e->getMessage(),

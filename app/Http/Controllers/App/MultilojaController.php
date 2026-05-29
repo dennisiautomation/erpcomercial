@@ -20,7 +20,7 @@ class MultilojaController extends Controller
         $empresaId = session('empresa_id');
 
         // Only Dono/Admin can access
-        if (!in_array($user->papel, ['dono', 'admin'])) {
+        if (! $user->isDono() && ! $user->isAdmin()) {
             abort(403, 'Acesso restrito ao Dono/Administrador.');
         }
 
@@ -92,8 +92,8 @@ class MultilojaController extends Controller
 
         // Contas vencidas
         $contasVencidas = ContaReceber::where('empresa_id', $empresaId)
-            ->whereNull('data_pagamento')
-            ->where('data_vencimento', '<', now())
+            ->whereNull('pago_em')
+            ->where('vencimento', '<', now())
             ->count();
 
         if ($contasVencidas > 0) {
@@ -132,7 +132,7 @@ class MultilojaController extends Controller
         $user = auth()->user();
         $empresaId = session('empresa_id');
 
-        if (!in_array($user->papel, ['dono', 'admin'])) {
+        if (! $user->isDono() && ! $user->isAdmin()) {
             abort(403, 'Acesso restrito ao Dono/Administrador.');
         }
 

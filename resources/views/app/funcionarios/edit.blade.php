@@ -153,16 +153,6 @@
                     </div>
                     @error('telefone') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
                 </div>
-
-                <div class="col-md-6">
-                    <label for="email_pessoal" class="form-label">E-mail Pessoal <span class="text-muted fw-normal">(opcional)</span></label>
-                    <div class="input-group">
-                        <span class="input-group-text bg-white"><i class="bi bi-envelope text-muted"></i></span>
-                        <input type="email" name="email_pessoal" id="email_pessoal"
-                               class="form-control"
-                               value="{{ old('email_pessoal') }}" placeholder="pessoal@email.com">
-                    </div>
-                </div>
             </div>
         </div>
 

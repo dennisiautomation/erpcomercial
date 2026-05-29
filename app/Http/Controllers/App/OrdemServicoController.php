@@ -296,10 +296,10 @@ class OrdemServicoController extends Controller
                 'cliente_id' => $ordemServico->cliente_id,
                 'vendedor_id' => $ordemServico->vendedor_id,
                 'numero' => $ultimoNumero + 1,
-                'tipo' => 'venda',
-                'status' => 'finalizada',
+                'tipo' => 'balcao',
+                'status' => 'concluida',
                 'subtotal' => $ordemServico->valor_produtos + $ordemServico->valor_servicos,
-                'desconto' => $ordemServico->desconto,
+                'desconto_valor' => $ordemServico->desconto,
                 'total' => $ordemServico->total,
                 'forma_pagamento' => 'dinheiro',
                 'observacoes' => 'Gerada a partir da OS #' . $ordemServico->numero,
@@ -312,7 +312,7 @@ class OrdemServicoController extends Controller
                     'descricao' => $item->descricao,
                     'quantidade' => $item->quantidade,
                     'preco_unitario' => $item->preco_unitario,
-                    'desconto' => 0,
+                    'desconto_valor' => 0,
                     'total' => $item->total,
                 ]);
             }

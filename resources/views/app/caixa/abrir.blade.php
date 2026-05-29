@@ -233,6 +233,22 @@
             <i class="bi bi-arrow-left"></i> Voltar ao Dashboard
         </a>
     </form>
+
+    {{-- Oferta de integração PIX via Asaas (parceiro IA365) --}}
+    <div style="margin-top:24px; padding:16px; border:1px solid rgba(59,130,246,0.35); background:rgba(59,130,246,0.10); border-radius:12px;">
+        <div style="display:flex; align-items:center; gap:8px; font-weight:700; font-size:0.95rem; margin-bottom:6px;">
+            <i class="bi bi-qr-code" style="color:var(--accent-blue);"></i> Receba PIX automático
+        </div>
+        <p style="color:var(--text-secondary); font-size:0.82rem; line-height:1.45; margin-bottom:12px;">
+            Integre o sistema ao <strong>Asaas</strong> e receba PIX direto na conta do banco,
+            com baixa automática no caixa e <strong>sem confirmação manual</strong>.
+            Disponível via parceiro IA365.
+        </p>
+        <a href="https://www.asaas.com/parceiros/iautomation" target="_blank" rel="noopener"
+           style="display:inline-flex; align-items:center; gap:6px; background:var(--accent-blue); color:#fff; padding:9px 14px; border-radius:10px; font-size:0.85rem; font-weight:700; text-decoration:none;">
+            <i class="bi bi-box-arrow-up-right"></i> Conhecer a integração Asaas
+        </a>
+    </div>
 </div>
 
 </body>

@@ -9,6 +9,19 @@
     </a>
 </x-erp.page-header>
 
+@if($unidades->isEmpty())
+    <x-erp.empty-state
+        icon="buildings"
+        title="Você só tem uma unidade cadastrada"
+        description="Transferência move produtos entre unidades (lojas) diferentes — por isso é preciso ter ao menos 2 unidades. O estoque de cada unidade não é cadastrado à parte: ele é alimentado em Estoque → Movimentações (entrada / saída / ajuste), e a Transferência apenas move o saldo de uma unidade para outra."
+        :actionUrl="auth()->user()->is_admin ? route('admin.empresas.index') : route('app.estoque.movimentacoes.index')"
+        :actionLabel="auth()->user()->is_admin ? 'Gerenciar empresas e unidades' : 'Ir para Movimentações de Estoque'" />
+    @unless(auth()->user()->is_admin)
+        <p class="text-muted text-center small mt-2">
+            Para criar novas unidades (lojas), solicite ao administrador da IA365.
+        </p>
+    @endunless
+@else
 <div class="row">
     <div class="col-lg-9">
         <form method="POST" action="{{ route('app.transferencias.store') }}" id="form-transferencia">
@@ -108,10 +121,12 @@
         </x-erp.card>
     </div>
 </div>
+@endif
 @endsection
 
 @push('scripts')
 <script>
+if (document.getElementById('itens-container')) {
     let itemIndex = 1;
     const container = document.getElementById('itens-container');
     const produtos = @json($produtos);
@@ -176,5 +191,6 @@
             row.querySelector('.item-number').textContent = i + 1;
         });
     }
+}
 </script>
 @endpush

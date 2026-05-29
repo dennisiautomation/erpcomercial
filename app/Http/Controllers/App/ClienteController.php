@@ -129,9 +129,9 @@ class ClienteController extends Controller
         }]);
 
         // Estatisticas do cliente
-        $totalCompras = $cliente->vendas->where('status', 'finalizada')->count();
-        $valorTotalCompras = $cliente->vendas->where('status', 'finalizada')->sum('total');
-        $ultimaCompra = $cliente->vendas->where('status', 'finalizada')->first();
+        $totalCompras = $cliente->vendas->where('status', 'concluida')->count();
+        $valorTotalCompras = $cliente->vendas->where('status', 'concluida')->sum('total');
+        $ultimaCompra = $cliente->vendas->where('status', 'concluida')->first();
         $saldoDevedor = $cliente->contasReceber->where('status', 'pendente')->sum('valor');
 
         return view('app.clientes.show', compact(

@@ -80,13 +80,13 @@ class UnidadeController extends Controller
         ];
     }
 
-    public function show(Request $request, Unidade $unidade): View
+    public function show(Request $request, Unidade $unidade): RedirectResponse
     {
         abort_unless($request->user()->is_admin, 403);
 
-        $unidade->load('empresa', 'gerente');
-
-        return view('admin.unidades.show', compact('unidade'));
+        // Não existe tela própria de visualização de unidade — a edição já exibe
+        // todos os dados. Redireciona para evitar "View [admin.unidades.show] not found" (500).
+        return redirect()->route('admin.unidades.edit', $unidade);
     }
 
     public function edit(Request $request, Unidade $unidade): View
