@@ -49,10 +49,12 @@ class PdvController extends Controller
             ->where('unidade_id', session('unidade_id'))
             ->first();
 
-        // Operadores (caixa/vendedor) for vendedor selection
+        // Vendedores selecionáveis no PDV: qualquer funcionário ativo da empresa
+        // (não só perfis caixa/vendedor — dono, gerente, admin do cliente também vendem).
+        // Exclui admin de plataforma (is_admin).
         $operadores = User::where('empresa_id', session('empresa_id'))
             ->where('status', 'ativo')
-            ->whereIn('perfil', ['caixa', 'vendedor'])
+            ->where('is_admin', false)
             ->select('id', 'name', 'perfil')
             ->orderBy('name')
             ->get();
