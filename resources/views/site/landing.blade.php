@@ -512,6 +512,13 @@
         </ul>
       </div>
     </div>
+    <div class="foot__map">
+      <iframe
+        title="Localização IA365 — Alameda Santos, 200, Bela Vista, São Paulo/SP"
+        src="https://www.google.com/maps?q=Alameda+Santos+200,+Bela+Vista,+S%C3%A3o+Paulo+-+SP,+01418-000&output=embed"
+        width="100%" height="240" style="border:0;border-radius:12px;display:block"
+        loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+    </div>
     <div class="foot__bar">
       <span>© <span id="ano">2026</span> IA365 · ERP Comercial. Todos os direitos reservados.</span>
       <span>Emissão fiscal via Focus NFe. NF-e, NFC-e e NFS-e.</span>
