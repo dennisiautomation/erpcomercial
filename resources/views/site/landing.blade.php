@@ -423,20 +423,35 @@
 <section class="section cta" id="demo">
   <div class="wrap cta__grid">
     <div class="reveal">
-      <h2>Veja na sua operação, sem compromisso</h2>
-      <p class="cta__lede">Marque uma demonstração e a gente mostra o sistema com o cenário da sua empresa: número de lojas, tipo de nota e o que mais importa para você.</p>
+      <span class="cta__eyebrow">Demonstração gratuita</span>
+      <h2>Veja o ERP rodando na sua operação</h2>
+      <p class="cta__lede">Em cerca de 30 minutos mostramos o sistema com o cenário da sua empresa — número de lojas, tipo de nota fiscal e o que mais pesa no seu dia a dia. Sem compromisso e sem instalar nada.</p>
       <ul class="cta__list">
-        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> Demonstração guiada de cerca de 30 minutos</li>
-        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> Tiramos suas dúvidas de nota fiscal na hora</li>
-        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> Sem instalar nada para a conversa</li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> Demonstração guiada e no seu cenário real</li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> Dúvidas de NF-e, NFC-e e NFS-e tiradas na hora</li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> Nada para instalar — é só entrar na chamada</li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> Proposta sob medida para o seu número de lojas</li>
       </ul>
+      <div class="cta__map reveal">
+        <iframe
+          title="Localização IA365 — Alameda Santos, 200, Bela Vista, São Paulo/SP"
+          src="https://www.google.com/maps?q=Alameda+Santos+200,+Bela+Vista,+S%C3%A3o+Paulo+-+SP,+01418-000&output=embed"
+          loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+        <div class="cta__map-bar">
+          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg> <strong>IA365</strong> · Alameda Santos, 200 — 9º andar, Bela Vista, São Paulo/SP</span>
+          <a href="https://www.google.com/maps/search/?api=1&query=Alameda+Santos+200+9%C2%BA+andar+Bela+Vista+S%C3%A3o+Paulo+SP+01418-000" target="_blank" rel="noopener">Como chegar →</a>
+        </div>
+      </div>
     </div>
 
     <form class="form" id="demoForm" action="{{ route('site.demo.store') }}" method="POST" novalidate>
       @csrf
       <input type="text" name="site" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px" aria-hidden="true">
-      <h3>Agendar demonstração</h3>
-      <p>Preencha e a gente entra em contato para marcar o melhor horário.</p>
+      <div class="form__head">
+        <span class="form__badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7v5l3 2"/><circle cx="12" cy="12" r="9"/></svg> Resposta em até 1 dia útil</span>
+        <h3>Agendar demonstração</h3>
+        <p>Preencha e a gente entra em contato para marcar o melhor horário.</p>
+      </div>
       <div class="field">
         <label for="nome">Seu nome</label>
         <input id="nome" name="nome" type="text" autocomplete="name" placeholder="Como podemos te chamar" required>
@@ -465,9 +480,10 @@
         </select>
       </div>
       <button class="btn btn-primary btn-block" type="submit">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
         Quero agendar a demonstração
       </button>
-      <p class="form__fine">Resposta em até 1 dia útil. Seus dados são usados só para esse contato.</p>
+      <p class="form__fine"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg> Seus dados são usados só para este contato. Sem spam.</p>
       <p id="formMsg" class="form__feedback" hidden role="status"></p>
       <p class="form__alt">Prefere agora? <a href="https://wa.me/5511917120940?text=Quero%20uma%20demonstra%C3%A7%C3%A3o%20do%20ERP%20Comercial" target="_blank" rel="noopener">Chamar no WhatsApp</a></p>
     </form>
@@ -511,13 +527,6 @@
           <li><a href="https://www.google.com/maps/search/?api=1&query=Alameda+Santos+200+9%C2%BA+andar+Bela+Vista+S%C3%A3o+Paulo+SP+01418-000" target="_blank" rel="noopener">Alameda Santos, 200 — 9º andar<br>Bela Vista, São Paulo/SP · 01418-000</a></li>
         </ul>
       </div>
-    </div>
-    <div class="foot__map">
-      <iframe
-        title="Localização IA365 — Alameda Santos, 200, Bela Vista, São Paulo/SP"
-        src="https://www.google.com/maps?q=Alameda+Santos+200,+Bela+Vista,+S%C3%A3o+Paulo+-+SP,+01418-000&output=embed"
-        width="100%" height="240" style="border:0;border-radius:12px;display:block"
-        loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
     </div>
     <div class="foot__bar">
       <span>© <span id="ano">2026</span> IA365 · ERP Comercial. Todos os direitos reservados.</span>

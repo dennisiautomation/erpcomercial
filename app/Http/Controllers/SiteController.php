@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\NovaSolicitacaoDemonstracao;
 use App\Models\SolicitacaoDemonstracao;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 
 /**
  * Site público de divulgação (landing) + captura de leads de demonstração.
@@ -66,6 +68,22 @@ class SiteController extends Controller
             'empresa' => $lead->empresa,
             'email'   => $lead->email,
         ]);
+
+        // Notifica o comercial, com o próprio cliente em cópia.
+        // Falha de e-mail não pode quebrar a captura do lead.
+        try {
+            $destino = config('mail.from.address');
+            if ($destino) {
+                Mail::to($destino)
+                    ->cc($lead->email)
+                    ->send(new NovaSolicitacaoDemonstracao($lead));
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Falha ao enviar e-mail de demonstração', [
+                'lead_id' => $lead->id,
+                'erro'    => $e->getMessage(),
+            ]);
+        }
 
         if ($request->expectsJson() || $request->ajax()) {
             return response()->json([
