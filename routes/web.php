@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Route;
 /*  Public                                                             */
 /* ------------------------------------------------------------------ */
 
-Route::get('/', fn () => redirect()->route('login'));
+Route::get('/', fn () => view('site.home'))->name('site.home');
 
 /* ------------------------------------------------------------------ */
 /*  Auth                                                               */
