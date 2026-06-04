@@ -402,6 +402,9 @@ p { text-wrap: pretty; }
 .form__fine { font-size: 0.78rem; color: var(--ink-muted); margin-top: 0.9rem; text-align: center; }
 .form__alt { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--line); text-align: center; font-size: 0.88rem; color: var(--ink-soft); }
 .form__alt a { color: var(--ok-deep); font-weight: 600; }
+.form__feedback { font-size: 0.9rem; padding: 0.75rem 0.85rem; border-radius: var(--r-sm); margin-top: 1rem; }
+.form__feedback.is-ok { background: var(--ok-wash); color: var(--ok-deep); border: 1px solid oklch(86% 0.06 158); }
+.form__feedback.is-err { background: oklch(96% 0.04 25); color: oklch(48% 0.16 25); border: 1px solid oklch(86% 0.08 25); }
 @media (max-width: 860px) { .cta__grid { grid-template-columns: 1fr; } .field--row { grid-template-columns: 1fr; } }
 
 /* ── Footer ──────────────────────────────────────────────── */
@@ -883,7 +886,7 @@ p { text-wrap: pretty; }
         Quero agendar a demonstração
       </button>
       <p class="form__fine">Resposta em até 1 dia útil. Seus dados são usados só para esse contato.</p>
-      <p class="form__alt">Prefere agora? <a href="https://wa.me/5500000000000?text=Quero%20uma%20demonstra%C3%A7%C3%A3o%20do%20ERP%20Comercial" target="_blank" rel="noopener">Chamar no WhatsApp</a></p>
+      <p class="form__alt">Prefere agora? <a href="https://wa.me/5511917120940?text=Quero%20uma%20demonstra%C3%A7%C3%A3o%20do%20ERP%20Comercial" target="_blank" rel="noopener">Chamar no WhatsApp</a></p>
     </form>
   </div>
 </section>
@@ -920,7 +923,7 @@ p { text-wrap: pretty; }
         <h4>Contato</h4>
         <ul>
           <li><a href="#demo">Agendar demonstração</a></li>
-          <li><a href="https://wa.me/5500000000000" target="_blank" rel="noopener">WhatsApp</a></li>
+          <li><a href="https://wa.me/5511917120940" target="_blank" rel="noopener">WhatsApp</a></li>
           <li><a href="mailto:contato@ia365.com.br">contato@ia365.com.br</a></li>
         </ul>
       </div>
@@ -978,7 +981,7 @@ p { text-wrap: pretty; }
   // Formulário de demonstração: monta a mensagem e abre WhatsApp (sem backend).
   var form = document.getElementById("demoForm");
   if (form) {
-    var WHATS = "5500000000000"; // trocar pelo número comercial real
+    var WHATS = "5511917120940"; // trocar pelo número comercial real
     form.addEventListener("submit", function (ev) {
       ev.preventDefault();
       if (!form.reportValidity()) return;

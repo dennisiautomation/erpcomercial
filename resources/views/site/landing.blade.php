@@ -469,7 +469,7 @@
       </button>
       <p class="form__fine">Resposta em até 1 dia útil. Seus dados são usados só para esse contato.</p>
       <p id="formMsg" class="form__feedback" hidden role="status"></p>
-      <p class="form__alt">Prefere agora? <a href="https://wa.me/5500000000000?text=Quero%20uma%20demonstra%C3%A7%C3%A3o%20do%20ERP%20Comercial" target="_blank" rel="noopener">Chamar no WhatsApp</a></p>
+      <p class="form__alt">Prefere agora? <a href="https://wa.me/5511917120940?text=Quero%20uma%20demonstra%C3%A7%C3%A3o%20do%20ERP%20Comercial" target="_blank" rel="noopener">Chamar no WhatsApp</a></p>
     </form>
   </div>
 </section>
@@ -506,7 +506,7 @@
         <h4>Contato</h4>
         <ul>
           <li><a href="#demo">Agendar demonstração</a></li>
-          <li><a href="https://wa.me/5500000000000" target="_blank" rel="noopener">WhatsApp</a></li>
+          <li><a href="https://wa.me/5511917120940" target="_blank" rel="noopener">WhatsApp</a></li>
           <li><a href="mailto:contato@ia365.com.br">contato@ia365.com.br</a></li>
         </ul>
       </div>

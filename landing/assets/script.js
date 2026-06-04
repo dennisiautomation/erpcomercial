@@ -43,7 +43,7 @@
   // Formulário de demonstração: monta a mensagem e abre WhatsApp (sem backend).
   var form = document.getElementById("demoForm");
   if (form) {
-    var WHATS = "5500000000000"; // trocar pelo número comercial real
+    var WHATS = "5511917120940"; // trocar pelo número comercial real
     form.addEventListener("submit", function (ev) {
       ev.preventDefault();
       if (!form.reportValidity()) return;
