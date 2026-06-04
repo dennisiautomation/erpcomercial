@@ -11,7 +11,10 @@ use Illuminate\Support\Facades\Route;
 /*  Public                                                             */
 /* ------------------------------------------------------------------ */
 
-Route::get('/', fn () => redirect()->route('login'));
+Route::get('/', [\App\Http\Controllers\SiteController::class, 'index'])->name('site.home');
+Route::post('/agendar-demonstracao', [\App\Http\Controllers\SiteController::class, 'storeDemo'])
+    ->middleware('throttle:10,1')
+    ->name('site.demo.store');
 
 /* ------------------------------------------------------------------ */
 /*  Auth                                                               */
@@ -56,6 +59,10 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
     Route::resource('empresas.unidades', Admin\UnidadeController::class)->shallow();
     Route::resource('usuarios', Admin\UsuarioController::class);
     Route::resource('planos', Admin\PlanoController::class);
+
+    // Leads de demonstração (capturados pela landing pública)
+    Route::get('/demonstracoes', [Admin\DemonstracaoController::class, 'index'])->name('demonstracoes.index');
+    Route::patch('/demonstracoes/{demonstracao}', [Admin\DemonstracaoController::class, 'updateStatus'])->name('demonstracoes.status');
 
     // Onboarding
     Route::prefix('onboarding')->name('onboarding.')->group(function () {

@@ -666,6 +666,13 @@
                             <span class="nav-text">Planos</span>
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ request()->routeIs('admin.demonstracoes.*') ? 'active' : '' }}"
+                           href="{{ route('admin.demonstracoes.index') }}">
+                            <i class="bi bi-calendar-check nav-icon"></i>
+                            <span class="nav-text">Demonstracoes</span>
+                        </a>
+                    </li>
                 </ul>
             @else
                 {{-- ======================================================
