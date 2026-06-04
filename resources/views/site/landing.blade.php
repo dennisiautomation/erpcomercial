@@ -13,7 +13,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="{{ asset('site/styles.css') }}">
+<link rel="stylesheet" href="{{ asset('site/styles.css') }}?v={{ @filemtime(public_path('site/styles.css')) ?: '1' }}">
 </head>
 <body>
 <a class="skip" href="#main">Pular para o conteúdo</a>
@@ -535,6 +535,6 @@
   </div>
 </footer>
 
-<script src="{{ asset('site/landing.js') }}" defer></script>
+<script src="{{ asset('site/landing.js') }}?v={{ @filemtime(public_path('site/landing.js')) ?: '1' }}" defer></script>
 </body>
 </html>

@@ -30,7 +30,11 @@ class SiteController extends Controller
             return redirect()->route('app.dashboard');
         }
 
-        return view('site.landing');
+        // no-cache no HTML: garante que o navegador sempre pegue a versão atual
+        // do formulário (evita ficar preso em markup antigo após deploys).
+        return response()
+            ->view('site.landing')
+            ->header('Cache-Control', 'no-cache, no-store, must-revalidate');
     }
 
     /**
