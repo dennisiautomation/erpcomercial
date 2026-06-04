@@ -452,7 +452,7 @@
         </div>
         <div>
           <label for="whats">WhatsApp</label>
-          <input id="whats" name="whats" type="tel" inputmode="tel" autocomplete="tel" placeholder="(11) 90000-0000" required>
+          <input id="whats" name="whatsapp" type="tel" inputmode="tel" autocomplete="tel" placeholder="(11) 90000-0000" required>
         </div>
       </div>
       <div class="field">
