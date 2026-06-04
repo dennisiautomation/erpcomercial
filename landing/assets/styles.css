@@ -345,6 +345,7 @@ p { text-wrap: pretty; }
 .plan__desc { font-size: 0.88rem; color: var(--ink-muted); margin-bottom: 1.1rem; min-height: 2.4em; }
 .plan__price { display: flex; align-items: baseline; gap: 0.3rem; margin-bottom: 1.25rem; }
 .plan__price b { font-family: var(--font-display); font-size: 2.4rem; letter-spacing: -0.04em; }
+.plan__price .quote { font-size: 1.5rem; color: var(--brand-strong); letter-spacing: -0.03em; }
 .plan__price .cur { font-size: 1.1rem; font-weight: 700; color: var(--ink-soft); }
 .plan__price .per { font-size: 0.85rem; color: var(--ink-muted); }
 .plan ul { list-style: none; padding: 0; display: grid; gap: 0.6rem; margin-bottom: 1.5rem; }
