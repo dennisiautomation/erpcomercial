@@ -508,6 +508,7 @@
           <li><a href="#demo">Agendar demonstração</a></li>
           <li><a href="https://wa.me/5511917120940" target="_blank" rel="noopener">WhatsApp</a></li>
           <li><a href="mailto:contato@ia365.com.br">contato@ia365.com.br</a></li>
+          <li><a href="https://www.google.com/maps/search/?api=1&query=Alameda+Santos+200+9%C2%BA+andar+Bela+Vista+S%C3%A3o+Paulo+SP+01418-000" target="_blank" rel="noopener">Alameda Santos, 200 — 9º andar<br>Bela Vista, São Paulo/SP · 01418-000</a></li>
         </ul>
       </div>
     </div>
