@@ -134,15 +134,15 @@
             @if(isset($emiteNfse) && $emiteNfse)
                 <div class="row g-3">
                     <div class="col-md-5">
-                        <label for="codigo_servico_municipal" class="form-label">
+                        <label for="codigo_lc116" class="form-label">
                             Codigo LC 116
                             <i class="bi bi-info-circle info-tooltip" data-bs-toggle="tooltip" data-bs-placement="top"
                                title="Codigo da Lista de Servicos (Lei Complementar 116). Define a classificacao do servico para fins de ISS."></i>
                         </label>
-                        <input type="text" name="codigo_servico_municipal" id="codigo_servico_municipal"
-                               class="form-control @error('codigo_servico_municipal') is-invalid @enderror"
-                               value="{{ old('codigo_servico_municipal', $servico->codigo_servico_municipal) }}" placeholder="Ex: 14.01">
-                        @error('codigo_servico_municipal') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
+                        <input type="text" name="codigo_lc116" id="codigo_lc116"
+                               class="form-control @error('codigo_lc116') is-invalid @enderror"
+                               value="{{ old('codigo_lc116', $servico->codigo_lc116) }}" placeholder="Ex: 14.01">
+                        @error('codigo_lc116') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
                     </div>
                     <div class="col-md-4">
                         <label for="cnae_busca" class="form-label">CNAE</label>

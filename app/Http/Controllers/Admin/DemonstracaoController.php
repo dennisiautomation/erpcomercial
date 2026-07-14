@@ -13,6 +13,8 @@ class DemonstracaoController extends Controller
 {
     public function index(Request $request)
     {
+        abort_unless($request->user()->is_admin, 403);
+
         $status = $request->query('status');
 
         $leads = SolicitacaoDemonstracao::query()
@@ -33,6 +35,8 @@ class DemonstracaoController extends Controller
 
     public function updateStatus(Request $request, SolicitacaoDemonstracao $demonstracao)
     {
+        abort_unless($request->user()->is_admin, 403);
+
         $data = $request->validate([
             'status' => ['required', 'in:novo,contatado,convertido,descartado'],
         ]);

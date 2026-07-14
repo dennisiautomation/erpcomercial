@@ -403,6 +403,10 @@
         .btn-pay.pay-credito i { color: var(--accent-yellow); }
         .btn-pay.pay-debito i { color: var(--accent-cyan); }
         .btn-pay.pay-pix i { color: var(--accent-purple); }
+        .btn-pay.pay-boleto i { color: var(--accent-orange, #fd7e14); }
+        .btn-pay.pay-crediario i { color: var(--accent-red, #dc3545); }
+        .btn-pay.pay-transferencia i { color: var(--accent-blue, #0d6efd); }
+        .btn-pay.pay-vale i { color: var(--accent-teal, #20c997); }
 
         /* Split payments list */
         .split-payments {
@@ -860,6 +864,18 @@
             </button>
             <button class="btn-pay pay-pix" data-forma="pix" title="PIX">
                 <i class="bi bi-qr-code"></i> PIX
+            </button>
+            <button class="btn-pay pay-boleto" data-forma="boleto" title="Boleto">
+                <i class="bi bi-upc-scan"></i> Boleto
+            </button>
+            <button class="btn-pay pay-crediario" data-forma="crediario" title="Crediario / Fiado">
+                <i class="bi bi-journal-text"></i> Crediario
+            </button>
+            <button class="btn-pay pay-transferencia" data-forma="transferencia" title="Transferencia / TED">
+                <i class="bi bi-bank"></i> Transf.
+            </button>
+            <button class="btn-pay pay-vale" data-forma="vale" title="Vale / Voucher">
+                <i class="bi bi-ticket-perforated"></i> Vale
             </button>
         </div>
 
@@ -1662,7 +1678,11 @@ const PDV = {
             'dinheiro': 'Dinheiro',
             'cartao_credito': 'Cartao de Credito',
             'cartao_debito': 'Cartao de Debito',
-            'pix': 'PIX'
+            'pix': 'PIX',
+            'boleto': 'Boleto',
+            'crediario': 'Crediario',
+            'transferencia': 'Transferencia',
+            'vale': 'Vale'
         };
 
         document.getElementById('modalPagamentoTitle').textContent = 'Pagamento - ' + (formaLabels[forma] || forma);
@@ -1775,7 +1795,9 @@ const PDV = {
         container.style.display = 'block';
         const formaLabels = {
             'dinheiro': 'Dinheiro', 'cartao_credito': 'Credito',
-            'cartao_debito': 'Debito', 'pix': 'PIX'
+            'cartao_debito': 'Debito', 'pix': 'PIX',
+            'boleto': 'Boleto', 'crediario': 'Crediario',
+            'transferencia': 'Transf.', 'vale': 'Vale'
         };
 
         list.innerHTML = this.pagamentos.map((p, idx) => `

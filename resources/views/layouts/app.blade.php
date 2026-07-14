@@ -934,8 +934,12 @@
                             <div class="collapse {{ request()->routeIs('app.multilojas.*', 'app.plano-contas.*', 'app.centros-custo.*') ? 'show' : '' }}" id="menuGestao">
                                 <ul class="nav flex-column submenu">
                                     <li class="nav-item">
-                                        <a class="nav-link {{ request()->routeIs('app.multilojas.*') ? 'active' : '' }}"
+                                        <a class="nav-link {{ request()->routeIs('app.multilojas.index', 'app.multilojas.comparar') ? 'active' : '' }}"
                                            href="{{ route('app.multilojas.index') }}">Multilojas</a>
+                                    </li>
+                                    <li class="nav-item">
+                                        <a class="nav-link {{ request()->routeIs('app.multilojas.estoque') ? 'active' : '' }}"
+                                           href="{{ route('app.multilojas.estoque') }}">Estoque por Loja</a>
                                     </li>
                                     <li class="nav-item">
                                         <a class="nav-link {{ request()->routeIs('app.plano-contas.*') ? 'active' : '' }}"

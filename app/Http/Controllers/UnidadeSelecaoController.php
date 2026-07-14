@@ -24,8 +24,8 @@ class UnidadeSelecaoController extends Controller
                 ->orderBy('nome')
                 ->get();
         }
-        // Dono ve todas as unidades da empresa
-        elseif ($user->isDono()) {
+        // Dono e Admin da empresa veem todas as unidades da empresa
+        elseif ($user->isDono() || $user->isAdmin()) {
             $unidades = Unidade::withoutGlobalScopes()
                 ->where('empresa_id', $user->empresa_id)
                 ->where('status', 'ativa')
@@ -62,8 +62,22 @@ class UnidadeSelecaoController extends Controller
         $user = $request->user();
         $unidadeId = $request->input('unidade_id');
 
-        // Verificar se o usuario tem acesso a esta unidade
-        if (! $user->is_admin && ! $user->isDono()) {
+        // Admin da PLATAFORMA pode selecionar qualquer unidade; todos os
+        // demais (inclusive dono/admin da empresa) só unidades da própria
+        // empresa — evita ler dados fiscais de outro tenant via sessão.
+        if (! $user->is_admin) {
+            $daEmpresa = Unidade::withoutGlobalScopes()
+                ->where('id', $unidadeId)
+                ->where('empresa_id', $user->empresa_id)
+                ->exists();
+
+            if (! $daEmpresa) {
+                return back()->withErrors(['unidade_id' => 'Voce nao tem acesso a esta unidade.']);
+            }
+        }
+
+        // Perfis restritos: precisa também estar vinculado à unidade
+        if (! $user->is_admin && ! $user->isDono() && ! $user->isAdmin()) {
             $hasAccess = $user->unidades()->where('unidades.id', $unidadeId)->exists();
 
             if (! $hasAccess) {

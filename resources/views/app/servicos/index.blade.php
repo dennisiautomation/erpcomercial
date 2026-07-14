@@ -107,7 +107,7 @@
                         <td><code>{{ $servico->codigo ?: '-' }}</code></td>
                         <td><strong>{{ $servico->descricao }}</strong></td>
                         <td class="text-end fw-semibold">R$ {{ number_format($servico->valor_padrao, 2, ',', '.') }}</td>
-                        <td class="text-muted">{{ $servico->codigo_servico_municipal ?: '-' }}</td>
+                        <td class="text-muted">{{ $servico->codigo_lc116 ?: '-' }}</td>
                         <td>{{ $servico->iss_aliquota ? number_format($servico->iss_aliquota, 2, ',', '.') . '%' : '-' }}</td>
                         <td class="text-center">
                             <span class="badge-status {{ $servico->status }}">

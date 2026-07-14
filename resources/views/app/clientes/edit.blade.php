@@ -554,19 +554,22 @@
             </div>
         </div>
 
-        {{-- Delete button below wizard --}}
+        {{-- Delete button below wizard — o form real fica FORA do form principal
+             (forms aninhados são descartados pelo navegador e o botão passava
+             a submeter o UPDATE em vez do DELETE) --}}
         <div class="text-center mt-4 pt-3" style="border-top: 1px solid var(--border);">
-            <form method="POST" action="{{ route('app.clientes.destroy', $cliente) }}" class="d-inline"
-                  data-confirm="Tem certeza que deseja excluir este cliente? Esta acao nao pode ser desfeita.">
-                @csrf
-                @method('DELETE')
-                <button type="submit" class="btn btn-link text-danger btn-sm">
-                    <i class="bi bi-trash me-1"></i> Excluir este cliente
-                </button>
-            </form>
+            <button type="submit" form="formDeleteCliente" class="btn btn-link text-danger btn-sm"
+                    data-confirm="Tem certeza que deseja excluir este cliente? Esta acao nao pode ser desfeita.">
+                <i class="bi bi-trash me-1"></i> Excluir este cliente
+            </button>
         </div>
 
     </div>
+</form>
+
+<form id="formDeleteCliente" method="POST" action="{{ route('app.clientes.destroy', $cliente) }}" class="d-none">
+    @csrf
+    @method('DELETE')
 </form>
 @endsection
 

@@ -5,6 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Etiquetas - Impressao</title>
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+    @php
+        $ehTermica = str_starts_with($formato, 'termica-');
+        // largura x altura da MÍDIA (página) por formato térmico
+        $termicaPage = [
+            'termica-40x25' => ['w' => '40mm', 'h' => '25mm'],
+            'termica-50x30' => ['w' => '50mm', 'h' => '30mm'],
+            'termica-60x40' => ['w' => '60mm', 'h' => '40mm'],
+            'termica-33x22' => ['w' => '70mm', 'h' => '22mm'], // bobina 2 colunas
+        ];
+    @endphp
     <style>
         * {
             margin: 0;
@@ -18,9 +28,16 @@
             background: #fff;
         }
 
+        @if($ehTermica)
+        @page {
+            size: {{ $termicaPage[$formato]['w'] }} {{ $termicaPage[$formato]['h'] }};
+            margin: 0;
+        }
+        @else
         @page {
             margin: 5mm;
         }
+        @endif
 
         .page {
             width: 210mm;
@@ -132,6 +149,42 @@
 
         .formato-4x10 .etiqueta .codigo {
             font-size: 5pt;
+        }
+
+        /* ---- Formatos térmicos (bobina) — cada página = 1 etiqueta ---- */
+        .page[class*="formato-termica"] {
+            width: auto;
+            min-height: 0;
+            margin: 0;
+            display: grid;
+            gap: 0;
+        }
+
+        .page.formato-termica-40x25 { width: 40mm; height: 25mm; grid-template-columns: 1fr; }
+        .page.formato-termica-50x30 { width: 50mm; height: 30mm; grid-template-columns: 1fr; }
+        .page.formato-termica-60x40 { width: 60mm; height: 40mm; grid-template-columns: 1fr; }
+        .page.formato-termica-33x22 { width: 70mm; height: 22mm; grid-template-columns: 1fr 1fr; gap: 0 2mm; }
+
+        [class*="formato-termica"] .etiqueta { border: none; padding: 1mm; }
+        [class*="formato-termica"] .etiqueta .empresa { font-size: 5pt; }
+        [class*="formato-termica"] .etiqueta .descricao { font-size: 6pt; max-height: 1.6em; -webkit-line-clamp: 1; }
+        [class*="formato-termica"] .etiqueta .preco { font-size: 9pt; }
+        [class*="formato-termica"] .etiqueta .codigo { display: none; }
+        .formato-termica-40x25 .etiqueta .barcode-container svg { height: 9mm; }
+        .formato-termica-50x30 .etiqueta .barcode-container svg { height: 12mm; }
+        .formato-termica-60x40 .etiqueta .barcode-container svg { height: 16mm; }
+        .formato-termica-33x22 .etiqueta .barcode-container svg { height: 8mm; }
+
+        .formato-termica-60x40 .etiqueta .empresa { font-size: 6pt; }
+        .formato-termica-60x40 .etiqueta .descricao { font-size: 8pt; -webkit-line-clamp: 2; max-height: 2.4em; }
+        .formato-termica-60x40 .etiqueta .preco { font-size: 12pt; }
+        .formato-termica-33x22 .etiqueta .empresa { display: none; }
+
+        @media screen {
+            .page[class*="formato-termica"] {
+                outline: 1px dashed #bbb;
+                margin: 0 auto 8px;
+            }
         }
 
         /* Etiqueta base */
@@ -264,7 +317,7 @@
             {{ count($itens) }} etiqueta(s) | Formato: {{ $formato }}
         </div>
         <div>
-            <button onclick="window.print()"><i class="bi bi-printer"></i> Imprimir</button>
+            <button onclick="window.print()">🖨️ Imprimir</button>
         </div>
     </div>
 
@@ -273,6 +326,11 @@
             '2x5' => ['cols' => 2, 'rows' => 5, 'per_page' => 10],
             '3x7' => ['cols' => 3, 'rows' => 7, 'per_page' => 21],
             '4x10' => ['cols' => 4, 'rows' => 10, 'per_page' => 40],
+            // térmicas: 1 etiqueta por página (2 no formato de 2 colunas)
+            'termica-40x25' => ['cols' => 1, 'rows' => 1, 'per_page' => 1],
+            'termica-50x30' => ['cols' => 1, 'rows' => 1, 'per_page' => 1],
+            'termica-60x40' => ['cols' => 1, 'rows' => 1, 'per_page' => 1],
+            'termica-33x22' => ['cols' => 2, 'rows' => 1, 'per_page' => 2],
         ];
         $config = $formatos[$formato];
         $pages = array_chunk($itens, $config['per_page']);

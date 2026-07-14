@@ -22,7 +22,7 @@
     </div>
     <div class="col-md-6">
         <x-erp.card title="Dados Fiscais" icon="file-earmark-text">
-            <p class="mb-1"><strong>Cod. Servico Municipal:</strong> {{ $servico->codigo_servico_municipal ?: '-' }}</p>
+            <p class="mb-1"><strong>Cod. Servico Municipal:</strong> {{ $servico->codigo_lc116 ?: '-' }}</p>
             <p class="mb-1"><strong>CNAE:</strong> {{ $servico->cnae ?: '-' }}</p>
             <p class="mb-0"><strong>ISS:</strong> {{ $servico->iss_aliquota ? number_format($servico->iss_aliquota, 2, ',', '.') . '%' : '-' }}</p>
         </x-erp.card>

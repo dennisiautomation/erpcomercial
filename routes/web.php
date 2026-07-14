@@ -93,9 +93,12 @@ Route::middleware(['auth', 'unidade'])->prefix('app')->name('app.')->group(funct
 
     /* ------ Importação CSV ------ */
     Route::prefix('import')->name('import.')->group(function () {
-        Route::post('/clientes', [App\ImportController::class, 'clientes'])->name('clientes');
-        Route::post('/produtos', [App\ImportController::class, 'produtos'])->name('produtos');
-        Route::post('/fornecedores', [App\ImportController::class, 'fornecedores'])->name('fornecedores');
+        Route::post('/clientes', [App\ImportController::class, 'clientes'])->name('clientes')
+            ->middleware('permission:clientes,criar');
+        Route::post('/produtos', [App\ImportController::class, 'produtos'])->name('produtos')
+            ->middleware('permission:produtos,criar');
+        Route::post('/fornecedores', [App\ImportController::class, 'fornecedores'])->name('fornecedores')
+            ->middleware('permission:produtos,criar');
         Route::get('/template/{tipo}', [App\ImportController::class, 'template'])->name('template');
     });
 
@@ -146,10 +149,15 @@ Route::middleware(['auth', 'unidade'])->prefix('app')->name('app.')->group(funct
         ->middleware('permission:vendas,criar');
 
     /* ------ Caixa ------ */
-    Route::match(['get', 'post'], '/caixa/abrir', [App\CaixaController::class, 'abrir'])->name('caixa.abrir');
-    Route::match(['get', 'post'], '/caixa/fechar', [App\CaixaController::class, 'fechar'])->name('caixa.fechar');
-    Route::post('/caixa/sangria', [App\CaixaController::class, 'sangria'])->name('caixa.sangria');
-    Route::post('/caixa/suprimento', [App\CaixaController::class, 'suprimento'])->name('caixa.suprimento');
+    // permission:vendas,criar — mesmo gate do PDV (caixa/vendedor operam; consulta não)
+    Route::match(['get', 'post'], '/caixa/abrir', [App\CaixaController::class, 'abrir'])->name('caixa.abrir')
+        ->middleware('permission:vendas,criar');
+    Route::match(['get', 'post'], '/caixa/fechar', [App\CaixaController::class, 'fechar'])->name('caixa.fechar')
+        ->middleware('permission:vendas,criar');
+    Route::post('/caixa/sangria', [App\CaixaController::class, 'sangria'])->name('caixa.sangria')
+        ->middleware('permission:vendas,criar');
+    Route::post('/caixa/suprimento', [App\CaixaController::class, 'suprimento'])->name('caixa.suprimento')
+        ->middleware('permission:vendas,criar');
 
     /* ------ Estoque ------ */
     Route::resource('estoque/movimentacoes', App\EstoqueMovimentacaoController::class)
@@ -211,9 +219,13 @@ Route::middleware(['auth', 'unidade'])->prefix('app')->name('app.')->group(funct
     Route::prefix('comissoes')->name('comissoes.')->middleware('permission:vendas')->group(function () {
         Route::get('/', [App\ComissaoController::class, 'index'])->name('index');
         Route::get('/relatorio', [App\ComissaoController::class, 'relatorio'])->name('relatorio');
-        Route::post('/pagar', [App\ComissaoController::class, 'pagar'])->name('pagar');
-        Route::get('/configurar', [App\ComissaoController::class, 'configurar'])->name('configurar');
-        Route::post('/configurar', [App\ComissaoController::class, 'salvarConfiguracao'])->name('configurar.store');
+        // pagar/configurar mexem em dinheiro e percentuais — só financeiro/dono
+        Route::post('/pagar', [App\ComissaoController::class, 'pagar'])->name('pagar')
+            ->middleware('permission:financeiro,editar');
+        Route::get('/configurar', [App\ComissaoController::class, 'configurar'])->name('configurar')
+            ->middleware('permission:financeiro,editar');
+        Route::post('/configurar', [App\ComissaoController::class, 'salvarConfiguracao'])->name('configurar.store')
+            ->middleware('permission:financeiro,editar');
     });
 
     /* ------ Conciliação Bancária ------ */
@@ -305,6 +317,8 @@ Route::middleware(['auth', 'unidade'])->prefix('app')->name('app.')->group(funct
     Route::prefix('multilojas')->name('multilojas.')->middleware('plano:multilojas')->group(function () {
         Route::get('/', [App\MultilojaController::class, 'index'])->name('index');
         Route::get('/comparar', [App\MultilojaController::class, 'comparar'])->name('comparar');
+        Route::get('/estoque', [App\MultilojaController::class, 'estoque'])->name('estoque');
+        Route::post('/estoque/ajustar', [App\MultilojaController::class, 'ajustarEstoque'])->name('estoque.ajustar');
     });
 
     /* ------ Fiscal — Dashboard ------ */
@@ -364,12 +378,18 @@ Route::middleware(['auth', 'unidade'])->prefix('app')->name('app.')->group(funct
 
     /* ------ Exportacao CSV ------ */
     Route::prefix('export')->name('export.')->group(function () {
-        Route::get('/clientes', [App\ExportController::class, 'clientes'])->name('clientes');
-        Route::get('/produtos', [App\ExportController::class, 'produtos'])->name('produtos');
-        Route::get('/fornecedores', [App\ExportController::class, 'fornecedores'])->name('fornecedores');
-        Route::get('/vendas', [App\ExportController::class, 'vendas'])->name('vendas');
-        Route::get('/contas-receber', [App\ExportController::class, 'contasReceber'])->name('contas-receber');
-        Route::get('/contas-pagar', [App\ExportController::class, 'contasPagar'])->name('contas-pagar');
+        Route::get('/clientes', [App\ExportController::class, 'clientes'])->name('clientes')
+            ->middleware('permission:clientes');
+        Route::get('/produtos', [App\ExportController::class, 'produtos'])->name('produtos')
+            ->middleware('permission:produtos');
+        Route::get('/fornecedores', [App\ExportController::class, 'fornecedores'])->name('fornecedores')
+            ->middleware('permission:produtos');
+        Route::get('/vendas', [App\ExportController::class, 'vendas'])->name('vendas')
+            ->middleware('permission:vendas');
+        Route::get('/contas-receber', [App\ExportController::class, 'contasReceber'])->name('contas-receber')
+            ->middleware('permission:financeiro');
+        Route::get('/contas-pagar', [App\ExportController::class, 'contasPagar'])->name('contas-pagar')
+            ->middleware('permission:financeiro');
     });
 
     /* ------ Ordens de Servico ------ */

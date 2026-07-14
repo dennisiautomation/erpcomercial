@@ -16,14 +16,6 @@ class EnsureUnidadeSelected
             return redirect()->route('login');
         }
 
-        // Mantém session('empresa_id') sincronizada com o usuário logado.
-        // Vários controllers (PDV, Vendas, Pedidos, Multilojas, etc.) usam
-        // session('empresa_id') diretamente; sem isto ela fica NULL até o
-        // usuário abrir a config fiscal, e as listagens vêm vazias.
-        if ($user->empresa_id) {
-            session(['empresa_id' => $user->empresa_id]);
-        }
-
         // Admin não precisa de unidade selecionada
         if ($user->is_admin) {
             return $next($request);

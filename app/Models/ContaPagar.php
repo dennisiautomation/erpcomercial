@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Traits\BelongsToEmpresa;
+use App\Traits\BelongsToUnidade;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -10,7 +11,9 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class ContaPagar extends Model
 {
-    use BelongsToEmpresa, SoftDeletes;
+    // BelongsToUnidade: contas a pagar por loja, igual às contas a receber.
+    // Perfis restritos veem só a loja ativa; dono/admin veem todas.
+    use BelongsToEmpresa, BelongsToUnidade, SoftDeletes;
 
     protected $table = 'contas_pagar';
 

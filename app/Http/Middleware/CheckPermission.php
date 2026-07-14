@@ -63,6 +63,7 @@ class CheckPermission
             'admin' => ['ver', 'criar', 'editar', 'excluir'],
             'dono' => ['ver', 'criar', 'editar', 'excluir'],
             'gerente' => ['ver', 'criar', 'editar', 'excluir'],
+            'vendedor' => ['ver', 'criar'],
             'caixa' => ['ver', 'criar'],
             'consulta' => ['ver'],
         ],
@@ -107,7 +108,7 @@ class CheckPermission
         ],
     ];
 
-    public function handle(Request $request, Closure $next, string $modulo, string $acao = 'ver'): Response
+    public function handle(Request $request, Closure $next, string $modulo, string $acao = ''): Response
     {
         $user = $request->user();
 
@@ -118,6 +119,18 @@ class CheckPermission
         // Admin da plataforma tem acesso total
         if ($user->is_admin) {
             return $next($request);
+        }
+
+        // Sem ação explícita na rota, deriva do verbo HTTP — assim rotas
+        // resource com apenas `permission:modulo` exigem a ação certa em
+        // POST/PUT/DELETE em vez de liberar tudo com "ver".
+        if ($acao === '') {
+            $acao = match ($request->method()) {
+                'POST' => 'criar',
+                'PUT', 'PATCH' => 'editar',
+                'DELETE' => 'excluir',
+                default => 'ver',
+            };
         }
 
         $perfil = $user->perfil instanceof \App\Enums\Perfil ? $user->perfil->value : $user->perfil;

@@ -45,6 +45,45 @@
                     </div>
                 </div>
             </div>
+            <hr class="my-3">
+            <h6 class="mb-2"><i class="bi bi-printer me-1"></i>Impressora Térmica (bobina — Tomate, Elgin, Zebra...)</h6>
+            <div class="row g-2">
+                <div class="col-md-3">
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="formato" id="formatoT4025" value="termica-40x25">
+                        <label class="form-check-label" for="formatoT4025">
+                            <strong>40 × 25 mm</strong> — 1 coluna
+                        </label>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="formato" id="formatoT5030" value="termica-50x30">
+                        <label class="form-check-label" for="formatoT5030">
+                            <strong>50 × 30 mm</strong> — 1 coluna
+                        </label>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="formato" id="formatoT6040" value="termica-60x40">
+                        <label class="form-check-label" for="formatoT6040">
+                            <strong>60 × 40 mm</strong> — 1 coluna
+                        </label>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="formato" id="formatoT3322" value="termica-33x22">
+                        <label class="form-check-label" for="formatoT3322">
+                            <strong>33 × 22 mm</strong> — 2 colunas
+                        </label>
+                    </div>
+                </div>
+            </div>
+            <p class="text-muted small mt-2 mb-0">
+                <i class="bi bi-info-circle me-1"></i>Na impressão, selecione a impressora térmica e desative margens ("Margens: Nenhuma") no diálogo do navegador.
+            </p>
         </div>
     </div>
 

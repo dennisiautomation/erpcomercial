@@ -43,6 +43,12 @@ class UnidadeController extends Controller
 
         $validated = $request->validate(self::validationRules(), self::validationMessages());
 
+        if (self::nomeDuplicado($empresa->id, $validated['nome'])) {
+            return back()
+                ->withInput()
+                ->withErrors(['nome' => 'Já existe uma unidade com este nome nesta empresa. Use um nome diferente (ex: "Filial Centro", "Filial 2").']);
+        }
+
         $validated['empresa_id'] = $empresa->id;
 
         $unidade = Unidade::create($validated);
@@ -94,13 +100,14 @@ class UnidadeController extends Controller
         abort_unless($request->user()->is_admin, 403);
 
         $unidade->load('empresa');
+        $empresa = $unidade->empresa;
 
         $gerentes = User::where('empresa_id', $unidade->empresa_id)
             ->where('status', 'ativo')
             ->orderBy('name')
             ->get();
 
-        return view('admin.unidades.edit', compact('unidade', 'gerentes'));
+        return view('admin.unidades.edit', compact('unidade', 'empresa', 'gerentes'));
     }
 
     public function update(Request $request, Unidade $unidade): RedirectResponse
@@ -108,6 +115,12 @@ class UnidadeController extends Controller
         abort_unless($request->user()->is_admin, 403);
 
         $validated = $request->validate(self::validationRules(), self::validationMessages());
+
+        if (self::nomeDuplicado($unidade->empresa_id, $validated['nome'], $unidade->id)) {
+            return back()
+                ->withInput()
+                ->withErrors(['nome' => 'Já existe outra unidade com este nome nesta empresa. Use um nome diferente.']);
+        }
 
         $unidade->update($validated);
 
@@ -137,6 +150,19 @@ class UnidadeController extends Controller
         return redirect()
             ->route('admin.unidades.show', $unidade)
             ->with('success', 'Unidade atualizada com sucesso.');
+    }
+
+    /**
+     * Já existe unidade com o mesmo nome (case-insensitive, espaços
+     * ignorados) nesta empresa? Evita cadastros duplicados.
+     */
+    private static function nomeDuplicado(int $empresaId, string $nome, ?int $ignorarId = null): bool
+    {
+        return Unidade::withoutGlobalScopes()
+            ->where('empresa_id', $empresaId)
+            ->whereRaw('LOWER(TRIM(nome)) = ?', [mb_strtolower(trim($nome))])
+            ->when($ignorarId, fn ($q) => $q->where('id', '!=', $ignorarId))
+            ->exists();
     }
 
     /**

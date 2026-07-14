@@ -8,6 +8,9 @@ use App\Models\Venda;
 use App\Models\Produto;
 use App\Models\ContaReceber;
 use App\Models\Caixa;
+use App\Models\EstoqueMovimentacao;
+use App\Enums\TipoMovimentacaoEstoque;
+use App\Services\EstoqueMultiUnidadeService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
@@ -17,10 +20,10 @@ class MultilojaController extends Controller
     public function index(Request $request)
     {
         $user = auth()->user();
-        $empresaId = session('empresa_id');
+        $empresaId = $user->empresa_id;
 
         // Only Dono/Admin can access
-        if (!in_array($user->papel, ['dono', 'admin'])) {
+        if (! $user->isDono() && ! $user->isAdmin()) {
             abort(403, 'Acesso restrito ao Dono/Administrador.');
         }
 
@@ -92,8 +95,8 @@ class MultilojaController extends Controller
 
         // Contas vencidas
         $contasVencidas = ContaReceber::where('empresa_id', $empresaId)
-            ->whereNull('data_pagamento')
-            ->where('data_vencimento', '<', now())
+            ->whereNull('pago_em')
+            ->where('vencimento', '<', now())
             ->count();
 
         if ($contasVencidas > 0) {
@@ -130,9 +133,9 @@ class MultilojaController extends Controller
     public function comparar(Request $request)
     {
         $user = auth()->user();
-        $empresaId = session('empresa_id');
+        $empresaId = $user->empresa_id;
 
-        if (!in_array($user->papel, ['dono', 'admin'])) {
+        if (! $user->isDono() && ! $user->isAdmin()) {
             abort(403, 'Acesso restrito ao Dono/Administrador.');
         }
 
@@ -188,5 +191,145 @@ class MultilojaController extends Controller
             'dataFim',
             'unidadesSelecionadas'
         ));
+    }
+
+    /**
+     * Estoque consolidado: matriz produto x loja com saldo por unidade.
+     * Permite editar (ajustar) o saldo de cada loja direto na tela.
+     */
+    public function estoque(Request $request, EstoqueMultiUnidadeService $svc)
+    {
+        $user = auth()->user();
+        $empresaId = $user->empresa_id;
+
+        if (! $user->isDono() && ! $user->isAdmin()) {
+            abort(403, 'Acesso restrito ao Dono/Administrador.');
+        }
+
+        $unidades = Unidade::where('empresa_id', $empresaId)
+            ->where('status', 'ativa')
+            ->orderBy('nome')
+            ->get();
+
+        $busca = trim((string) $request->input('q', ''));
+
+        $produtos = Produto::where('empresa_id', $empresaId)
+            ->when($busca !== '', function ($query) use ($busca) {
+                $query->where(function ($w) use ($busca) {
+                    $w->where('descricao', 'like', "%{$busca}%")
+                        ->orWhere('codigo_interno', 'like', "%{$busca}%")
+                        ->orWhere('codigo_barras', 'like', "%{$busca}%")
+                        ->orWhere('sku', 'like', "%{$busca}%");
+                });
+            })
+            ->orderBy('descricao')
+            ->limit(300)
+            ->get();
+
+        $matriz = [];
+        foreach ($produtos as $produto) {
+            $saldos = collect($svc->saldoPorUnidade($empresaId, $produto->id))
+                ->keyBy('unidade_id');
+
+            $linha = ['produto' => $produto, 'saldos' => [], 'total' => 0.0];
+            foreach ($unidades as $unidade) {
+                $saldo = (float) ($saldos[$unidade->id]['saldo'] ?? 0);
+                $linha['saldos'][$unidade->id] = $saldo;
+                $linha['total'] += $saldo;
+            }
+            $matriz[] = $linha;
+        }
+
+        return view('app.multilojas.estoque', compact('unidades', 'matriz', 'busca'));
+    }
+
+    /**
+     * Aplica ajustes manuais de estoque em lote: recebe a matriz inteira
+     * saldos[produto_id][unidade_id] e cria uma movimentacao tipo Ajuste
+     * apenas para as celulas cujo saldo mudou.
+     */
+    public function ajustarEstoque(Request $request)
+    {
+        $user = auth()->user();
+        $empresaId = $user->empresa_id;
+
+        if (! $user->isDono() && ! $user->isAdmin()) {
+            abort(403, 'Acesso restrito ao Dono/Administrador.');
+        }
+
+        $validated = $request->validate([
+            'saldos'     => ['required', 'array'],
+            'saldos.*'   => ['array'],
+            'saldos.*.*' => ['nullable', 'numeric', 'min:0'],
+        ]);
+
+        $produtos = Produto::where('empresa_id', $empresaId)
+            ->whereIn('id', array_keys($validated['saldos']))
+            ->get()
+            ->keyBy('id');
+
+        $unidadesValidas = Unidade::where('empresa_id', $empresaId)
+            ->where('status', 'ativa')
+            ->pluck('id')
+            ->all();
+
+        $ajustes = 0;
+        $produtosAlterados = [];
+
+        DB::transaction(function () use ($validated, $produtos, $empresaId, $unidadesValidas, &$ajustes, &$produtosAlterados) {
+            foreach ($validated['saldos'] as $produtoId => $porUnidade) {
+                $produto = $produtos[(int) $produtoId] ?? null;
+
+                if (! $produto || ! is_array($porUnidade)) {
+                    continue;
+                }
+
+                foreach ($porUnidade as $unidadeId => $novoSaldo) {
+                    $unidadeId = (int) $unidadeId;
+
+                    if (! in_array($unidadeId, $unidadesValidas, true)
+                        || $novoSaldo === null || $novoSaldo === '') {
+                        continue;
+                    }
+
+                    $novoSaldo = (float) $novoSaldo;
+
+                    $anterior = (float) (EstoqueMovimentacao::withoutGlobalScopes()
+                        ->where('empresa_id', $empresaId)
+                        ->where('produto_id', $produto->id)
+                        ->where('unidade_id', $unidadeId)
+                        ->latest('id')
+                        ->value('quantidade_posterior') ?? 0);
+
+                    if (abs($novoSaldo - $anterior) < 0.0001) {
+                        continue; // nada mudou nesta celula
+                    }
+
+                    EstoqueMovimentacao::create([
+                        'empresa_id'           => $empresaId,
+                        'unidade_id'           => $unidadeId,
+                        'produto_id'           => $produto->id,
+                        'tipo'                 => TipoMovimentacaoEstoque::Ajuste,
+                        'quantidade'           => abs($novoSaldo - $anterior),
+                        'quantidade_anterior'  => $anterior,
+                        'quantidade_posterior' => $novoSaldo,
+                        'custo_unitario'       => $produto->preco_custo ?? 0,
+                        'user_id'              => auth()->id(),
+                        'observacoes'          => 'Ajuste manual (Estoque por Loja)',
+                    ]);
+
+                    $ajustes++;
+                    $produtosAlterados[$produto->id] = true;
+                }
+            }
+        });
+
+        if ($ajustes === 0) {
+            return back()->with('success', 'Nenhuma alteração detectada — estoque já estava atualizado.');
+        }
+
+        $nProdutos = count($produtosAlterados);
+
+        return back()->with('success', "Estoque atualizado — {$ajustes} ajuste(s) em {$nProdutos} produto(s).");
     }
 }

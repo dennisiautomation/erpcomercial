@@ -79,6 +79,9 @@
                     <option value="cartao_debito" {{ old('forma_pagamento') === 'cartao_debito' ? 'selected' : '' }}>Cartao de Debito</option>
                     <option value="pix" {{ old('forma_pagamento') === 'pix' ? 'selected' : '' }}>PIX</option>
                     <option value="boleto" {{ old('forma_pagamento') === 'boleto' ? 'selected' : '' }}>Boleto</option>
+                    <option value="crediario" {{ old('forma_pagamento') === 'crediario' ? 'selected' : '' }}>Crediario</option>
+                    <option value="transferencia" {{ old('forma_pagamento') === 'transferencia' ? 'selected' : '' }}>Transferencia</option>
+                    <option value="vale" {{ old('forma_pagamento') === 'vale' ? 'selected' : '' }}>Vale</option>
                 </select>
                 @error('forma_pagamento') <div class="invalid-feedback">{{ $message }}</div> @enderror
             </div>

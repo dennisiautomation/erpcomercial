@@ -276,6 +276,7 @@
             <div class="card-body">
                 @if($venda->notasFiscais->count())
                     {{-- Show existing notas --}}
+                    <div class="table-responsive">
                     <table class="erp-table">
                         <thead><tr><th>Tipo</th><th>Numero</th><th>Status</th><th>Acoes</th></tr></thead>
                         <tbody>
@@ -292,6 +293,7 @@
                         @endforeach
                         </tbody>
                     </table>
+                    </div>
                 @else
                     {{-- No notas yet — show emit buttons --}}
                     <p class="text-muted mb-3">Nenhuma nota fiscal emitida para esta venda.</p>

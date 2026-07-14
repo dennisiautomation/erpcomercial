@@ -107,6 +107,14 @@ class ConciliacaoBancariaController extends Controller
 
     public function conciliar(Request $request, ExtratoBancario $extrato)
     {
+        // ExtratoBancario não tem empresa_id próprio — valida via conciliação
+        // para impedir acesso cross-tenant por ID.
+        abort_unless(
+            $extrato->conciliacao
+                && (int) $extrato->conciliacao->empresa_id === (int) auth()->user()->empresa_id,
+            404
+        );
+
         $validated = $request->validate([
             'conta_receber_id' => 'nullable|exists:contas_receber,id',
             'conta_pagar_id' => 'nullable|exists:contas_pagar,id',

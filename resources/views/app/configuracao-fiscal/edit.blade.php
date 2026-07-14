@@ -193,13 +193,11 @@
                                 serão emitidos para você. Não precisa colar nenhum token manualmente.
                             </div>
                             @if(auth()->user()->is_admin)
-                                <form method="POST" action="{{ route('admin.empresas.saude-focus.resincronizar', $config->empresa_id) }}" class="mt-2">
-                                    @csrf
-                                    <input type="hidden" name="unidade_id" value="{{ $config->unidade_id }}">
-                                    <button class="btn btn-sm btn-success" data-confirm="Provisionar essa unidade na Focus NFe agora?">
-                                        <i class="bi bi-magic me-1"></i>Provisionar agora
-                                    </button>
-                                </form>
+                                {{-- form real declarado fora do form principal (forms não podem aninhar) --}}
+                                <button class="btn btn-sm btn-success mt-2" type="submit" form="formProvisionarFocus"
+                                        data-confirm="Provisionar essa unidade na Focus NFe agora?">
+                                    <i class="bi bi-magic me-1"></i>Provisionar agora
+                                </button>
                             @endif
                         </div>
                     @else
@@ -303,20 +301,20 @@
                             </div>
                         @endif
 
-                        <form action="{{ route('app.configuracao-fiscal.certificado') }}" method="POST" enctype="multipart/form-data" class="row g-3">
-                            @csrf
+                        {{-- inputs apontam para formCertificado (declarado fora do form principal) --}}
+                        <div class="row g-3">
                             <div class="col-md-7">
                                 <label class="form-label small fw-semibold">Arquivo do certificado (.pfx)</label>
-                                <input type="file" name="certificado" accept=".pfx,.p12,application/x-pkcs12" class="form-control">
+                                <input type="file" name="certificado" form="formCertificado" accept=".pfx,.p12,application/x-pkcs12" class="form-control">
                                 <div class="form-text">Apenas certificado A1 em formato PKCS#12. Máximo 2MB.</div>
                             </div>
                             <div class="col-md-3">
                                 <label class="form-label small fw-semibold">Senha</label>
-                                <input type="password" name="certificado_senha" class="form-control" autocomplete="off">
+                                <input type="password" name="certificado_senha" form="formCertificado" class="form-control" autocomplete="off">
                                 <div class="form-text">Senha definida na emissão do certificado.</div>
                             </div>
                             <div class="col-md-2 d-flex align-items-end">
-                                <button type="submit" class="btn btn-primary w-100">
+                                <button type="submit" form="formCertificado" class="btn btn-primary w-100">
                                     <i class="bi bi-upload me-1"></i> Enviar
                                 </button>
                             </div>
@@ -327,7 +325,7 @@
                                     A senha também não é gravada.
                                 </small>
                             </div>
-                        </form>
+                        </div>
                     </div>
                 </div>
 
@@ -678,6 +676,19 @@
         </div>
     </div>
 </form>
+
+{{-- Forms auxiliares — declarados FORA do form principal (HTML não permite
+     forms aninhados; aninhados o navegador descarta a tag interna e o botão
+     passa a submeter o form errado). Os botões/inputs referenciam via form="". --}}
+<form id="formCertificado" action="{{ route('app.configuracao-fiscal.certificado') }}" method="POST" enctype="multipart/form-data" class="d-none">
+    @csrf
+</form>
+@if(auth()->user()->is_admin)
+    <form id="formProvisionarFocus" method="POST" action="{{ route('admin.empresas.saude-focus.resincronizar', $config->empresa_id) }}" class="d-none">
+        @csrf
+        <input type="hidden" name="unidade_id" value="{{ $config->unidade_id }}">
+    </form>
+@endif
 @endsection
 
 @push('scripts')

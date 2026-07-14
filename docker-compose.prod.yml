@@ -1,6 +1,6 @@
 # Docker Compose de PRODUÇÃO — prefixo erp-com- para não colidir com outros apps.
-# Porta pública única: APP_PORT (default 8091) — atrás do Caddy que está no host.
-# Rede externa caddy-proxy_default para que o Caddy ache o container pelo nome.
+# Servidor sp1-sd-iautomation-1: app escuta só em 127.0.0.1:${APP_PORT} e o nginx
+# do host faz TLS/proxy por domínio (padrão do servidor — ver /root/CLAUDE.md).
 
 name: erp-comercial-prod
 
@@ -22,10 +22,9 @@ services:
     volumes:
       - app_storage:/var/www/storage
     ports:
-      - "${APP_PORT:-8091}:80"
+      - "127.0.0.1:${APP_PORT:-8091}:80"
     networks:
       - erpcom-internal
-      - caddy-proxy_default
 
   mysql:
     image: mysql:8.0
@@ -63,8 +62,6 @@ services:
 networks:
   erpcom-internal:
     driver: bridge
-  caddy-proxy_default:
-    external: true
 
 volumes:
   mysql_data:
