@@ -21,9 +21,31 @@ class MovimentacaoCaixa extends Model
         'caixa_id',
         'tipo',
         'valor',
+        'forma_pagamento',
         'descricao',
         'user_id',
     ];
+
+    /** Labels pt-BR das formas de pagamento usadas no PDV. */
+    public const FORMAS_LABELS = [
+        'dinheiro'       => 'Dinheiro',
+        'pix'            => 'PIX',
+        'cartao_credito' => 'Cartão de Crédito',
+        'cartao_debito'  => 'Cartão de Débito',
+        'boleto'         => 'Boleto',
+        'crediario'      => 'Crediário',
+        'transferencia'  => 'Transferência',
+        'vale'           => 'Vale',
+    ];
+
+    public function formaLabel(): ?string
+    {
+        if ($this->forma_pagamento === null) {
+            return null;
+        }
+
+        return self::FORMAS_LABELS[$this->forma_pagamento] ?? ucfirst($this->forma_pagamento);
+    }
 
     protected function casts(): array
     {

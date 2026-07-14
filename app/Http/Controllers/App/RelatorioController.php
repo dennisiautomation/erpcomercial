@@ -92,14 +92,23 @@ class RelatorioController extends Controller
             ->orderBy('descricao')
             ->get();
 
-        // For each product, get the latest stock position
-        $produtos->each(function ($produto) use ($empresaId) {
-            $ultima = EstoqueMovimentacao::where('produto_id', $produto->id)
-                ->where('empresa_id', $empresaId)
-                ->orderByDesc('id')
-                ->first();
+        // Saldo atual = soma do saldo de CADA unidade (última movimentação
+        // por produto+unidade). Pegar só a última da empresa misturava
+        // unidades e mostrava saldo errado em empresas multi-loja.
+        $saldosPorProduto = EstoqueMovimentacao::withoutGlobalScopes()
+            ->where('empresa_id', $empresaId)
+            ->whereIn('id', function ($q) use ($empresaId) {
+                $q->selectRaw('MAX(id)')
+                    ->from('estoque_movimentacoes')
+                    ->where('empresa_id', $empresaId)
+                    ->groupBy('produto_id', 'unidade_id');
+            })
+            ->get(['produto_id', 'unidade_id', 'quantidade_posterior'])
+            ->groupBy('produto_id');
 
-            $produto->estoque_atual = $ultima ? (float) $ultima->quantidade_posterior : 0;
+        $produtos->each(function ($produto) use ($saldosPorProduto) {
+            $produto->estoque_atual = (float) ($saldosPorProduto[$produto->id] ?? collect())
+                ->sum('quantidade_posterior');
             $produto->estoque_status = 'ok';
 
             if ($produto->estoque_minimo && $produto->estoque_atual <= 0) {

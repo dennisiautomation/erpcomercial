@@ -12,6 +12,91 @@ use Illuminate\Support\Facades\DB;
 
 class CaixaController extends Controller
 {
+    /**
+     * Resumo financeiro do caixa separado por forma de pagamento.
+     * Movimentações de venda antigas (sem forma_pagamento) são tratadas
+     * como dinheiro para não quebrar a conferência de caixas legados.
+     */
+    private function resumoCaixa(Caixa $caixa): array
+    {
+        $movs = $caixa->movimentacoes;
+
+        $vendas = $movs->where('tipo', TipoMovimentacaoCaixa::Venda);
+
+        $porForma = $vendas
+            ->groupBy(fn ($mov) => $mov->forma_pagamento ?? 'dinheiro')
+            ->map(fn ($grupo) => (float) $grupo->sum('valor'))
+            ->sortDesc();
+
+        $vendasDinheiro = (float) ($porForma['dinheiro'] ?? 0);
+        $suprimentos = (float) $movs->where('tipo', TipoMovimentacaoCaixa::Suprimento)->sum('valor');
+        $sangrias = (float) $movs->where('tipo', TipoMovimentacaoCaixa::Sangria)->sum('valor');
+        $abertura = (float) $caixa->valor_abertura;
+
+        return [
+            'abertura'          => $abertura,
+            'vendas'            => (float) $vendas->sum('valor'),
+            'vendas_dinheiro'   => $vendasDinheiro,
+            'vendas_por_forma'  => $porForma,
+            'suprimentos'       => $suprimentos,
+            'sangrias'          => $sangrias,
+            'esperado_dinheiro' => round($abertura + $vendasDinheiro + $suprimentos - $sangrias, 2),
+        ];
+    }
+
+    /** Histórico de caixas da unidade (dono/admin/gerente veem todos; demais só os seus). */
+    public function index(Request $request)
+    {
+        $user = auth()->user();
+
+        $query = Caixa::with(['operador', 'unidade'])
+            ->withCount('movimentacoes')
+            ->orderByDesc('aberto_em');
+
+        // Operador comum só enxerga os próprios caixas
+        $veTodos = $user->is_admin
+            || in_array($user->perfil->value, ['admin', 'dono', 'gerente', 'financeiro'], true);
+
+        if (! $veTodos) {
+            $query->where('user_id', $user->id);
+        }
+
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        if ($request->filled('data_inicio')) {
+            $query->whereDate('aberto_em', '>=', $request->data_inicio);
+        }
+
+        if ($request->filled('data_fim')) {
+            $query->whereDate('aberto_em', '<=', $request->data_fim);
+        }
+
+        $caixas = $query->paginate(20)->withQueryString();
+
+        return view('app.caixa.index', compact('caixas', 'veTodos'));
+    }
+
+    /** Detalhe de um caixa: resumo por forma de pagamento + extrato de movimentações. */
+    public function show(Caixa $caixa)
+    {
+        $user = auth()->user();
+
+        $veTodos = $user->is_admin
+            || in_array($user->perfil->value, ['admin', 'dono', 'gerente', 'financeiro'], true);
+
+        if (! $veTodos && $caixa->user_id !== $user->id) {
+            abort(403, 'Você só pode ver os próprios caixas.');
+        }
+
+        $caixa->load(['operador', 'unidade', 'movimentacoes.user']);
+
+        $resumo = $this->resumoCaixa($caixa);
+
+        return view('app.caixa.show', compact('caixa', 'resumo'));
+    }
+
     public function abrir(Request $request)
     {
         if ($request->isMethod('get')) {
@@ -122,18 +207,15 @@ class CaixaController extends Controller
         }
 
         if ($request->isMethod('get')) {
-            $valorEsperado = $caixa->movimentacoes->reduce(function ($carry, $mov) {
-                return $carry + ($mov->valor * $mov->tipo->sinal());
-            }, 0);
+            $resumo = $this->resumoCaixa($caixa);
 
-            $resumo = [
-                'vendas'      => $caixa->movimentacoes->where('tipo', TipoMovimentacaoCaixa::Venda)->sum('valor'),
-                'sangrias'    => $caixa->movimentacoes->where('tipo', TipoMovimentacaoCaixa::Sangria)->sum('valor'),
-                'suprimentos' => $caixa->movimentacoes->where('tipo', TipoMovimentacaoCaixa::Suprimento)->sum('valor'),
-                'abertura'    => $caixa->valor_abertura,
-            ];
-
-            return view('app.caixa.fechar', compact('caixa', 'valorEsperado', 'resumo'));
+            return view('app.caixa.fechar', [
+                'caixa'         => $caixa,
+                'resumo'        => $resumo,
+                // Só o que fica fisicamente na gaveta precisa bater:
+                // abertura + vendas em dinheiro + suprimentos - sangrias.
+                'valorEsperado' => $resumo['esperado_dinheiro'],
+            ]);
         }
 
         $request->validate([
@@ -141,9 +223,7 @@ class CaixaController extends Controller
         ]);
 
         DB::transaction(function () use ($request, $caixa) {
-            $valorEsperado = $caixa->movimentacoes->reduce(function ($carry, $mov) {
-                return $carry + ($mov->valor * $mov->tipo->sinal());
-            }, 0);
+            $valorEsperado = $this->resumoCaixa($caixa)['esperado_dinheiro'];
 
             $caixa->update([
                 'status'           => StatusCaixa::Fechado,

@@ -93,9 +93,12 @@ class EstoqueMovimentacaoController extends Controller
         DB::transaction(function () use ($validated) {
             $produto = Produto::lockForUpdate()->findOrFail($validated['produto_id']);
 
-            // Calculate current stock from last movimentacao
-            $ultimaMovimentacao = EstoqueMovimentacao::where('produto_id', $produto->id)
+            // Saldo atual DA UNIDADE ATIVA (a cadeia anterior→posterior é
+            // por unidade; misturar unidades corrompia o histórico)
+            $ultimaMovimentacao = EstoqueMovimentacao::withoutGlobalScopes()
+                ->where('produto_id', $produto->id)
                 ->where('empresa_id', auth()->user()->empresa_id)
+                ->where('unidade_id', session('unidade_id'))
                 ->orderByDesc('id')
                 ->first();
 

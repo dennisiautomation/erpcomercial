@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\StatusCaixa;
+use App\Traits\AuditableModel;
 use App\Traits\BelongsToEmpresa;
 use App\Traits\BelongsToUnidade;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -13,7 +14,13 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Caixa extends Model
 {
-    use HasFactory, SoftDeletes, BelongsToEmpresa, BelongsToUnidade;
+    use HasFactory, SoftDeletes, AuditableModel, BelongsToEmpresa, BelongsToUnidade;
+
+    /** Trilha de auditoria: abertura/fechamento e valores conferidos. */
+    protected $auditFields = [
+        'numero_caixa', 'valor_abertura', 'valor_fechamento',
+        'valor_esperado', 'status', 'aberto_em', 'fechado_em', 'observacoes',
+    ];
 
     protected $fillable = [
         'empresa_id',

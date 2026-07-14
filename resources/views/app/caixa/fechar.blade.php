@@ -113,6 +113,44 @@
             color: var(--accent-blue);
             font-variant-numeric: tabular-nums;
         }
+        .valor-esperado .hint {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        /* Vendas por forma de pagamento */
+        .formas-box {
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 12px 14px;
+            margin-bottom: 20px;
+        }
+        .formas-title {
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+        }
+        .forma-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 0;
+            font-size: 0.9rem;
+            border-top: 1px dashed var(--bg-tertiary);
+        }
+        .forma-row:first-of-type { border-top: none; }
+        .forma-row .fw { font-weight: 700; font-variant-numeric: tabular-nums; }
+        .forma-row.destaque { color: var(--accent-green); }
+        .forma-row.destaque .fw { color: var(--accent-green); }
+        .forma-row .nao-confere {
+            color: var(--text-muted);
+            font-size: 0.7rem;
+            margin-left: 6px;
+        }
 
         /* Form */
         .form-group { margin-bottom: 16px; }
@@ -267,7 +305,7 @@
             <div class="value">R$ {{ number_format($resumo['abertura'], 2, ',', '.') }}</div>
         </div>
         <div class="resumo-item vendas">
-            <div class="label"><i class="bi bi-bag-check me-1"></i> Vendas</div>
+            <div class="label"><i class="bi bi-bag-check me-1"></i> Vendas (total)</div>
             <div class="value">+ R$ {{ number_format($resumo['vendas'], 2, ',', '.') }}</div>
         </div>
         <div class="resumo-item suprimentos">
@@ -280,10 +318,29 @@
         </div>
     </div>
 
-    {{-- Valor esperado --}}
+    {{-- Vendas por forma de pagamento --}}
+    @if($resumo['vendas_por_forma']->isNotEmpty())
+    <div class="formas-box">
+        <div class="formas-title"><i class="bi bi-credit-card me-1"></i> Vendas por forma de pagamento</div>
+        @foreach($resumo['vendas_por_forma'] as $forma => $valor)
+            @php $labels = \App\Models\MovimentacaoCaixa::FORMAS_LABELS; @endphp
+            <div class="forma-row {{ $forma === 'dinheiro' ? 'destaque' : '' }}">
+                <span>
+                    @if($forma === 'dinheiro')<i class="bi bi-cash-coin me-1"></i>@endif
+                    {{ $labels[$forma] ?? ucfirst($forma) }}
+                    @if($forma !== 'dinheiro')<small class="nao-confere">não entra na gaveta</small>@endif
+                </span>
+                <span class="fw">R$ {{ number_format($valor, 2, ',', '.') }}</span>
+            </div>
+        @endforeach
+    </div>
+    @endif
+
+    {{-- Valor esperado em dinheiro --}}
     <div class="valor-esperado">
-        <div class="label">Valor Esperado no Caixa</div>
+        <div class="label">Valor Esperado em Dinheiro (gaveta)</div>
         <div class="amount">R$ {{ number_format($valorEsperado, 2, ',', '.') }}</div>
+        <div class="hint">Abertura + vendas em dinheiro + suprimentos − sangrias. PIX e cartão não contam aqui.</div>
     </div>
 
     {{-- Formulario --}}
@@ -291,7 +348,7 @@
         @csrf
 
         <div class="form-group">
-            <label>Valor Contado (em caixa)</label>
+            <label>Valor Contado em Dinheiro (gaveta)</label>
             <div class="input-prefix">
                 <span>R$</span>
                 <input type="number" name="valor_contado" id="valorContado"

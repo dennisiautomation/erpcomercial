@@ -267,16 +267,31 @@ class PdvController extends Controller
                     }
                 }
 
-                // Create MovimentacaoCaixa (venda)
-                MovimentacaoCaixa::create([
-                    'empresa_id'  => $empresaId,
-                    'unidade_id'  => $unidadeId,
-                    'caixa_id'    => $caixa->id,
-                    'tipo'        => TipoMovimentacaoCaixa::Venda,
-                    'valor'       => $total,
-                    'descricao'   => "Venda #{$venda->numero}",
-                    'user_id'     => auth()->id(),
-                ]);
+                // Create MovimentacaoCaixa (venda) — uma por forma de pagamento,
+                // para a conferência do fechamento bater só o que fica na gaveta.
+                // Troco sai do dinheiro: desconta do valor em espécie recebido.
+                $trocoRestante = $troco;
+                foreach ($pagamentos as $pgto) {
+                    $valorMov = (float) $pgto['valor'];
+                    if ($pgto['forma'] === 'dinheiro' && $trocoRestante > 0) {
+                        $abate = min($valorMov, $trocoRestante);
+                        $valorMov -= $abate;
+                        $trocoRestante -= $abate;
+                    }
+                    if ($valorMov <= 0) {
+                        continue;
+                    }
+                    MovimentacaoCaixa::create([
+                        'empresa_id'      => $empresaId,
+                        'unidade_id'      => $unidadeId,
+                        'caixa_id'        => $caixa->id,
+                        'tipo'            => TipoMovimentacaoCaixa::Venda,
+                        'valor'           => $valorMov,
+                        'forma_pagamento' => $pgto['forma'],
+                        'descricao'       => "Venda #{$venda->numero}",
+                        'user_id'         => auth()->id(),
+                    ]);
+                }
 
                 // Create ContaReceber entries
                 foreach ($pagamentos as $pgto) {

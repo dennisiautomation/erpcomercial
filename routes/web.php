@@ -149,6 +149,10 @@ Route::middleware(['auth', 'unidade'])->prefix('app')->name('app.')->group(funct
         ->middleware('permission:vendas,criar');
 
     /* ------ Caixa ------ */
+    // Histórico de caixas (extrato + conferência) — leitura
+    Route::get('/caixa', [App\CaixaController::class, 'index'])->name('caixa.index')
+        ->middleware('permission:vendas');
+
     // permission:vendas,criar — mesmo gate do PDV (caixa/vendedor operam; consulta não)
     Route::match(['get', 'post'], '/caixa/abrir', [App\CaixaController::class, 'abrir'])->name('caixa.abrir')
         ->middleware('permission:vendas,criar');
@@ -158,6 +162,9 @@ Route::middleware(['auth', 'unidade'])->prefix('app')->name('app.')->group(funct
         ->middleware('permission:vendas,criar');
     Route::post('/caixa/suprimento', [App\CaixaController::class, 'suprimento'])->name('caixa.suprimento')
         ->middleware('permission:vendas,criar');
+    // Wildcard por último para não capturar /caixa/abrir|fechar
+    Route::get('/caixa/{caixa}', [App\CaixaController::class, 'show'])->name('caixa.show')
+        ->middleware('permission:vendas');
 
     /* ------ Estoque ------ */
     Route::resource('estoque/movimentacoes', App\EstoqueMovimentacaoController::class)

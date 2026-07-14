@@ -775,6 +775,15 @@
                         </a>
                     </li>
 
+                    {{-- Historico de Caixas --}}
+                    <li class="nav-item">
+                        <a class="nav-link {{ request()->routeIs('app.caixa.index', 'app.caixa.show') ? 'active' : '' }}"
+                           href="{{ route('app.caixa.index') }}">
+                            <i class="bi bi-cash-stack nav-icon"></i>
+                            <span class="nav-text">Caixas</span>
+                        </a>
+                    </li>
+
                     {{-- ---- Estoque ---- --}}
                     <li class="sidebar-heading">Estoque</li>
                     <li class="nav-item">

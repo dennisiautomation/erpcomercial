@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\TipoMovimentacaoEstoque;
+use App\Traits\AuditableModel;
 use App\Traits\BelongsToEmpresa;
 use App\Traits\BelongsToUnidade;
 use Illuminate\Database\Eloquent\Model;
@@ -11,7 +12,13 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 class EstoqueMovimentacao extends Model
 {
-    use BelongsToEmpresa, BelongsToUnidade;
+    use AuditableModel, BelongsToEmpresa, BelongsToUnidade;
+
+    /** Trilha de auditoria: cada movimentação (balanço/ajuste/venda) vira activity. */
+    protected $auditFields = [
+        'unidade_id', 'produto_id', 'tipo', 'quantidade',
+        'quantidade_anterior', 'quantidade_posterior', 'observacoes',
+    ];
 
     protected $table = 'estoque_movimentacoes';
 
