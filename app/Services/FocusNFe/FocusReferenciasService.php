@@ -60,6 +60,24 @@ class FocusReferenciasService
         });
     }
 
+    /** Nomenclatura de um NCM específico (cache de 30 dias — tabela estática). */
+    public function ncmDescricao(string $codigo): ?string
+    {
+        $codigo = preg_replace('/\D/', '', $codigo);
+        if ($codigo === '') {
+            return null;
+        }
+
+        $chave = self::CACHE_PREFIX . ':ncm:cod:' . $codigo;
+
+        return Cache::remember($chave, self::TTL_MUNICIPIO, function () use ($codigo) {
+            $response = $this->safeGet('/v2/ncms', ['codigo' => $codigo]);
+            $lista = $this->normalizarLista($response, 'codigo', 'descricao_completa', 1);
+
+            return $lista[0]['descricao'] ?? null;
+        });
+    }
+
     // ─── CFOP ──────────────────────────────────────────────────────────
 
     /**

@@ -28,6 +28,8 @@ class FocusAutocompleteController extends Controller
             $empresaId = auth()->user()->empresa_id
                 ?? (session('empresa_id') ? (int) session('empresa_id') : null);
 
+            $svc = FocusNFeClient::masterDisponivel() ? FocusReferenciasService::make() : null;
+
             $usados = \App\Models\Produto::withoutGlobalScopes()
                 ->where('empresa_id', $empresaId)
                 ->whereNotNull('ncm')
@@ -37,10 +39,17 @@ class FocusAutocompleteController extends Controller
                 ->orderByDesc('qtd')
                 ->limit(10)
                 ->get()
-                ->map(fn ($r) => [
-                    'codigo'    => $r->ncm,
-                    'descricao' => "{$r->ncm} — já usado em {$r->qtd} produto(s)",
-                ])
+                ->map(function ($r) use ($svc) {
+                    $nomenclatura = $svc?->ncmDescricao($r->ncm);
+                    $sufixo = $nomenclatura
+                        ? \Illuminate\Support\Str::limit(strip_tags($nomenclatura), 90)
+                        : "já usado em {$r->qtd} produto(s)";
+
+                    return [
+                        'codigo'    => $r->ncm,
+                        'descricao' => "{$r->ncm} — {$sufixo}",
+                    ];
+                })
                 ->values();
 
             return response()->json($usados);
