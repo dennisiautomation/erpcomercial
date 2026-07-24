@@ -192,10 +192,10 @@
 <x-erp.card title="Estoque por Unidade" icon="building">
     <div class="d-flex justify-content-between mb-2">
         <small class="text-muted">
-            @if($empresa->politica_estoque_inter_unidade === 'ver_e_vender')
+            @if($empresa?->politica_estoque_inter_unidade === 'ver_e_vender')
                 <i class="bi bi-arrow-left-right text-success me-1"></i>
                 Política: <strong>vender e transferir</strong> entre unidades
-            @elseif($empresa->politica_estoque_inter_unidade === 'ver_apenas')
+            @elseif($empresa?->politica_estoque_inter_unidade === 'ver_apenas')
                 <i class="bi bi-eye text-info me-1"></i>
                 Política: <strong>somente visualização</strong> entre unidades
             @else

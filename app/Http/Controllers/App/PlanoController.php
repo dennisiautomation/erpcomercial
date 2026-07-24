@@ -4,17 +4,31 @@ namespace App\Http\Controllers\App;
 
 use App\Http\Controllers\Controller;
 use App\Models\Plano;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class PlanoController extends Controller
 {
     /**
+     * Plano é um conceito da empresa — admin da plataforma (empresa_id null)
+     * não tem plano próprio; gerencia os planos das empresas em /admin.
+     */
+    private function redirectSemEmpresa(): RedirectResponse
+    {
+        return redirect()->route('admin.dashboard')
+            ->with('warning', 'Seu usuário não está vinculado a uma empresa. Planos das empresas são gerenciados em Admin > Empresas.');
+    }
+
+    /**
      * Show current plan info + upgrade options.
      */
-    public function index(Request $request): View
+    public function index(Request $request): View|RedirectResponse
     {
         $empresa = $request->user()->empresa;
+        if (! $empresa) {
+            return $this->redirectSemEmpresa();
+        }
         $planoAtual = $empresa->getPlanoAtivo();
         $planos = Plano::ativo()->orderBy('ordem')->get();
 
@@ -44,9 +58,12 @@ class PlanoController extends Controller
     /**
      * Show "plan expired" page.
      */
-    public function expirado(Request $request): View
+    public function expirado(Request $request): View|RedirectResponse
     {
         $empresa = $request->user()->empresa;
+        if (! $empresa) {
+            return $this->redirectSemEmpresa();
+        }
         $planos = Plano::ativo()->orderBy('ordem')->get();
 
         return view('app.plano.expirado', compact('empresa', 'planos'));
@@ -55,9 +72,12 @@ class PlanoController extends Controller
     /**
      * Show plan comparison page (pricing table).
      */
-    public function comparar(Request $request): View
+    public function comparar(Request $request): View|RedirectResponse
     {
         $empresa = $request->user()->empresa;
+        if (! $empresa) {
+            return $this->redirectSemEmpresa();
+        }
         $planoAtual = $empresa->getPlanoAtivo();
         $planos = Plano::ativo()->orderBy('ordem')->get();
 

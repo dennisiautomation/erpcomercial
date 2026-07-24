@@ -41,7 +41,13 @@ class ProdutoController extends Controller
 
     public function create()
     {
+        // Admin da plataforma não tem empresa vinculada (empresa_id null)
         $empresa = auth()->user()->empresa;
+        if (! $empresa) {
+            return redirect()->route('app.produtos.index')
+                ->with('warning', 'Seu usuário não está vinculado a uma empresa. Produtos pertencem a uma empresa — acesse com um usuário da empresa para cadastrar.');
+        }
+
         $regime = $empresa->regime_tributario instanceof \App\Enums\RegimeTributario
             ? $empresa->regime_tributario->value
             : $empresa->regime_tributario;
@@ -62,6 +68,11 @@ class ProdutoController extends Controller
 
     public function store(Request $request)
     {
+        if (! auth()->user()->empresa) {
+            return redirect()->route('app.produtos.index')
+                ->with('warning', 'Seu usuário não está vinculado a uma empresa. Produtos pertencem a uma empresa — acesse com um usuário da empresa para cadastrar.');
+        }
+
         $validated = $request->validate([
             'codigo_barras'      => 'nullable|string|max:50',
             'sku'                => 'nullable|string|max:50',
@@ -150,7 +161,8 @@ class ProdutoController extends Controller
             $q->latest()->limit(20);
         }]);
 
-        $empresa = auth()->user()->empresa;
+        // Admin sem empresa vinculada usa a empresa do próprio produto
+        $empresa = auth()->user()->empresa ?? $produto->empresa;
         $saldoPorUnidade = $estoqueSvc->saldoPorUnidade(
             $produto->empresa_id,
             $produto->id,
@@ -162,7 +174,8 @@ class ProdutoController extends Controller
 
     public function edit(Produto $produto)
     {
-        $empresa = auth()->user()->empresa;
+        // Admin sem empresa vinculada usa a empresa do próprio produto
+        $empresa = auth()->user()->empresa ?? $produto->empresa;
         $regime = $empresa->regime_tributario instanceof \App\Enums\RegimeTributario
             ? $empresa->regime_tributario->value
             : $empresa->regime_tributario;
