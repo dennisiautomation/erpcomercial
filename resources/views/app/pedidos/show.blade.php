@@ -148,18 +148,32 @@
                                 <div class="text-muted small">Comprovante não fiscal, pronto para impressão.</div>
                             </span>
                         </label>
-                        <label class="list-group-item d-flex gap-2 align-items-start">
-                            <input class="form-check-input mt-1" type="radio" name="documento" value="cupom_fiscal">
+                        <label class="list-group-item d-flex gap-2 align-items-start {{ $fiscalPedido['nfce_ok'] ? '' : 'bg-light' }}">
+                            <input class="form-check-input mt-1" type="radio" name="documento" value="cupom_fiscal"
+                                   @disabled(! $fiscalPedido['nfce_ok'])>
                             <span>
                                 <strong>Cupom Fiscal (NFC-e)</strong>
-                                <div class="text-muted small">Emitido na hora via SEFAZ. Exige NFC-e habilitada na Configuração Fiscal.</div>
+                                @if($fiscalPedido['nfce_ok'])
+                                    <div class="text-muted small">Emitido na hora via SEFAZ.</div>
+                                @else
+                                    <span class="badge bg-warning text-dark ms-1">indisponível</span>
+                                    <div class="text-danger small">Falta: {{ implode(' · ', $fiscalPedido['faltas_nfce']) }} —
+                                        <a href="{{ route('app.configuracao-fiscal.edit') }}">resolver na Configuração Fiscal</a></div>
+                                @endif
                             </span>
                         </label>
-                        <label class="list-group-item d-flex gap-2 align-items-start">
-                            <input class="form-check-input mt-1" type="radio" name="documento" value="nota_fiscal">
+                        <label class="list-group-item d-flex gap-2 align-items-start {{ $fiscalPedido['nfe_ok'] ? '' : 'bg-light' }}">
+                            <input class="form-check-input mt-1" type="radio" name="documento" value="nota_fiscal"
+                                   @disabled(! $fiscalPedido['nfe_ok'])>
                             <span>
                                 <strong>Nota Fiscal (NF-e — "nota grande")</strong>
-                                <div class="text-muted small">DANFE mod. 55, enviada para autorização. XML + DANFE vão por e-mail ao cliente após autorizar. Exige cliente com endereço completo.</div>
+                                @if($fiscalPedido['nfe_ok'])
+                                    <div class="text-muted small">DANFE mod. 55, enviada para autorização. XML + DANFE vão por e-mail ao cliente após autorizar. Exige cliente com endereço completo.</div>
+                                @else
+                                    <span class="badge bg-warning text-dark ms-1">indisponível</span>
+                                    <div class="text-danger small">Falta: {{ implode(' · ', $fiscalPedido['faltas_nfe']) }} —
+                                        <a href="{{ route('app.configuracao-fiscal.edit') }}">resolver na Configuração Fiscal</a></div>
+                                @endif
                             </span>
                         </label>
                         <label class="list-group-item d-flex gap-2 align-items-start">

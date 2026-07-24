@@ -169,7 +169,48 @@ class PedidoController extends Controller
     {
         $pedido->load(['cliente', 'vendedor', 'itens.produto', 'itens.servico', 'orcamento', 'venda']);
 
-        return view('app.pedidos.show', compact('pedido'));
+        // Prontidão fiscal da unidade do pedido — o modal de faturamento
+        // mostra o que falta para NFC-e/NF-e em vez de falhar depois.
+        $config = ConfiguracaoFiscal::withoutGlobalScopes()
+            ->where('empresa_id', $pedido->empresa_id)
+            ->where('unidade_id', $pedido->unidade_id)
+            ->first();
+
+        $faltasComuns = [];
+        if (! $config || ! $config->emissao_fiscal_ativa) {
+            $faltasComuns[] = 'ativar a emissão fiscal';
+        } else {
+            if (! $config->certificado_validade) {
+                $faltasComuns[] = 'certificado digital A1';
+            }
+            if (! $config->responsavel_tecnico_cnpj) {
+                $faltasComuns[] = 'responsável técnico';
+            }
+        }
+
+        $faltasNfe = $faltasComuns;
+        if ($config && $config->emissao_fiscal_ativa && ! $config->emite_nfe) {
+            $faltasNfe[] = 'habilitar NF-e na Configuração Fiscal';
+        }
+
+        $faltasNfce = $faltasComuns;
+        if ($config && $config->emissao_fiscal_ativa) {
+            if (! $config->emite_nfce) {
+                $faltasNfce[] = 'habilitar NFC-e na Configuração Fiscal';
+            }
+            if (! $config->csc_nfce) {
+                $faltasNfce[] = 'CSC da NFC-e (portal SEFAZ)';
+            }
+        }
+
+        $fiscalPedido = [
+            'nfe_ok'      => empty($faltasNfe),
+            'nfce_ok'     => empty($faltasNfce),
+            'faltas_nfe'  => $faltasNfe,
+            'faltas_nfce' => $faltasNfce,
+        ];
+
+        return view('app.pedidos.show', compact('pedido', 'fiscalPedido'));
     }
 
     public function edit(Pedido $pedido)
