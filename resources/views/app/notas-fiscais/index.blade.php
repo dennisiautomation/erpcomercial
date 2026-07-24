@@ -3,16 +3,27 @@
 @section('title', 'Notas Fiscais')
 
 @section('content')
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div class="d-flex justify-content-between align-items-center mb-3">
     <h4 class="mb-0"><i class="bi bi-file-earmark-text me-2"></i>Notas Fiscais</h4>
     <div class="d-flex gap-2">
-        <a href="{{ route('app.notas-fiscais.emitir-nfse') }}" class="btn btn-primary btn-sm">
+        <a href="{{ route('app.vendas.index') }}" class="btn btn-primary btn-sm">
+            <i class="bi bi-file-earmark-text me-1"></i> Emitir NF-e (DANFE)
+        </a>
+        <a href="{{ route('app.notas-fiscais.emitir-nfse') }}" class="btn btn-outline-primary btn-sm">
             <i class="bi bi-plus-lg me-1"></i> Emitir NFS-e
         </a>
         <a href="{{ route('app.notas-fiscais.inutilizar') }}" class="btn btn-outline-secondary btn-sm">
             <i class="bi bi-slash-circle me-1"></i> Inutilizar
         </a>
     </div>
+</div>
+
+<div class="alert alert-light border small mb-4">
+    <i class="bi bi-info-circle me-1"></i>
+    <strong>Onde cada nota é emitida:</strong>
+    <span class="ms-1"><strong>NF-e (DANFE, mod. 55)</strong>: abra a <a href="{{ route('app.vendas.index') }}">venda</a> e clique em "Emitir NF-e (DANFE)" — ou fature um <a href="{{ route('app.pedidos.index') }}">pedido</a> escolhendo "Nota Fiscal".</span>
+    <span class="ms-1"><strong>NFC-e (cupom)</strong>: sai pelo PDV na finalização.</span>
+    <span class="ms-1"><strong>NFS-e (serviço)</strong>: pelo botão "Emitir NFS-e" acima.</span>
 </div>
 
 {{-- Type Explanation Cards --}}
