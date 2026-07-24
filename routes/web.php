@@ -126,9 +126,15 @@ Route::middleware(['auth', 'unidade'])->prefix('app')->name('app.')->group(funct
     Route::post('pedidos/{pedido}/status', [App\PedidoController::class, 'updateStatus'])
         ->name('pedidos.update-status')
         ->middleware('permission:pedidos');
+    Route::post('pedidos/{pedido}/faturar', [App\PedidoController::class, 'faturar'])
+        ->name('pedidos.faturar')
+        ->middleware('permission:pedidos');
     Route::post('orcamentos/{orcamento}/status', [App\OrcamentoController::class, 'updateStatus'])
         ->name('orcamentos.update-status')
         ->middleware('permission:orcamentos');
+    Route::get('vendas/{venda}/recibo', [App\VendaController::class, 'recibo'])
+        ->name('vendas.recibo')
+        ->middleware('permission:vendas');
     Route::resource('vendas', App\VendaController::class)->middleware('permission:vendas');
 
     /* ------ PDV ------ */

@@ -56,6 +56,29 @@ class NotaFiscal extends Model
         ];
     }
 
+    protected static function booted(): void
+    {
+        // NF-e de faturamento de pedido autorizada (webhook ou polling):
+        // envia XML + DANFE por e-mail ao cliente automaticamente.
+        static::updated(function (NotaFiscal $nota) {
+            if (! $nota->wasChanged('status')
+                || $nota->status?->value !== 'autorizada'
+                || $nota->tipo?->value !== 'nfe') {
+                return;
+            }
+
+            $venda = $nota->venda()->withoutGlobalScopes()->first();
+            if ($venda?->tipo !== 'pedido') {
+                return;
+            }
+
+            $email = $venda->cliente()->withoutGlobalScopes()->value('email');
+            if ($email) {
+                \App\Jobs\EnviarEmailNotaFiscalJob::dispatch($nota->id, $email);
+            }
+        });
+    }
+
     /* ------------------------------------------------------------------ */
     /*  Relationships                                                      */
     /* ------------------------------------------------------------------ */

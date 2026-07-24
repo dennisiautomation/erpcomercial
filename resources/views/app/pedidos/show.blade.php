@@ -99,13 +99,9 @@
                 @endif
 
                 @if($pedido->status->value === 'confirmado')
-                    <form method="POST" action="{{ route('app.pedidos.update-status', $pedido) }}" class="d-inline">
-                        @csrf
-                        <input type="hidden" name="status" value="faturado">
-                        <button type="submit" class="btn btn-info text-white" data-confirm="Faturar este pedido? O estoque sera baixado automaticamente.">
-                            <i class="bi bi-receipt me-1"></i> Faturar Pedido
-                        </button>
-                    </form>
+                    <button type="button" class="btn btn-info text-white" data-bs-toggle="modal" data-bs-target="#modalFaturar">
+                        <i class="bi bi-receipt me-1"></i> Faturar Pedido
+                    </button>
                 @endif
 
                 @if($pedido->status->value === 'faturado')
@@ -130,6 +126,59 @@
             </div>
         </div>
     </div>
+
+    {{-- Modal Faturar: escolha do documento --}}
+    @if($pedido->status->value === 'confirmado')
+    <div class="modal fade" id="modalFaturar" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <form method="POST" action="{{ route('app.pedidos.faturar', $pedido) }}" class="modal-content">
+                @csrf
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-receipt me-1"></i> Faturar Pedido #{{ $pedido->numero }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted mb-3">O estoque será baixado automaticamente. Qual documento deseja emitir?</p>
+
+                    <div class="list-group">
+                        <label class="list-group-item d-flex gap-2 align-items-start">
+                            <input class="form-check-input mt-1" type="radio" name="documento" value="recibo" checked>
+                            <span>
+                                <strong>Recibo</strong>
+                                <div class="text-muted small">Comprovante não fiscal, pronto para impressão.</div>
+                            </span>
+                        </label>
+                        <label class="list-group-item d-flex gap-2 align-items-start">
+                            <input class="form-check-input mt-1" type="radio" name="documento" value="cupom_fiscal">
+                            <span>
+                                <strong>Cupom Fiscal (NFC-e)</strong>
+                                <div class="text-muted small">Emitido na hora via SEFAZ. Exige NFC-e habilitada na Configuração Fiscal.</div>
+                            </span>
+                        </label>
+                        <label class="list-group-item d-flex gap-2 align-items-start">
+                            <input class="form-check-input mt-1" type="radio" name="documento" value="nota_fiscal">
+                            <span>
+                                <strong>Nota Fiscal (NF-e — "nota grande")</strong>
+                                <div class="text-muted small">DANFE mod. 55, enviada para autorização. XML + DANFE vão por e-mail ao cliente após autorizar. Exige cliente com endereço completo.</div>
+                            </span>
+                        </label>
+                        <label class="list-group-item d-flex gap-2 align-items-start">
+                            <input class="form-check-input mt-1" type="radio" name="documento" value="nenhum">
+                            <span>
+                                <strong>Nenhum documento agora</strong>
+                                <div class="text-muted small">Só fatura (baixa estoque). Documentos podem ser emitidos depois pela venda gerada.</div>
+                            </span>
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-info text-white"><i class="bi bi-check-lg me-1"></i> Faturar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    @endif
 @endif
 
 <div class="row g-4">

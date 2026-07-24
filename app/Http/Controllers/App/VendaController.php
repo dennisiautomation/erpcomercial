@@ -253,6 +253,20 @@ class VendaController extends Controller
         return view('app.vendas.show', compact('venda'));
     }
 
+    /** Recibo/cupom imprimível da venda (com dados fiscais quando houver NFC-e). */
+    public function recibo(Venda $venda)
+    {
+        $venda->load(['itens.produto', 'cliente', 'vendedor', 'empresa']);
+
+        $notaFiscal = $venda->notasFiscais()
+            ->where('tipo', 'nfce')
+            ->whereNotIn('status', ['cancelada', 'rejeitada'])
+            ->latest()
+            ->first();
+
+        return view('app.pdv.cupom-nao-fiscal', compact('venda', 'notaFiscal'));
+    }
+
     public function destroy(Venda $venda)
     {
         if ($venda->status === StatusVenda::Cancelada) {

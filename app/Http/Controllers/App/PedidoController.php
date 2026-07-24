@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\App;
 
 use App\Enums\StatusPedido;
+use App\Enums\StatusVenda;
 use App\Enums\TipoMovimentacaoEstoque;
 use App\Http\Controllers\Controller;
+use App\Models\ConfiguracaoFiscal;
 use App\Models\ContaReceber;
 use App\Models\EstoqueMovimentacao;
 use App\Models\Pedido;
@@ -14,8 +16,12 @@ use App\Models\Servico;
 use App\Models\User;
 use App\Models\Venda;
 use App\Models\VendaItem;
+use App\Services\FocusNFe\FocusNFeClient;
+use App\Services\FocusNFe\NFCeService;
+use App\Services\FocusNFe\NFeService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class PedidoController extends Controller
 {
@@ -305,36 +311,177 @@ class PedidoController extends Controller
 
             // When faturado, deduct estoque
             if ($novoStatus === StatusPedido::Faturado) {
-                foreach ($pedido->itens as $item) {
-                    if ($item->produto_id) {
-                        $produto = Produto::find($item->produto_id);
-                        $estoqueAnterior = $produto->estoqueMovimentacoes()
-                            ->where('unidade_id', $pedido->unidade_id)
-                            ->latest()
-                            ->value('quantidade_posterior') ?? 0;
-
-                        EstoqueMovimentacao::create([
-                            'empresa_id'          => $pedido->empresa_id,
-                            'unidade_id'          => $pedido->unidade_id,
-                            'produto_id'          => $item->produto_id,
-                            'tipo'                => TipoMovimentacaoEstoque::Saida,
-                            'quantidade'          => $item->quantidade,
-                            'quantidade_anterior' => $estoqueAnterior,
-                            'quantidade_posterior' => $estoqueAnterior - $item->quantidade,
-                            'custo_unitario'      => $item->preco_unitario,
-                            'origem_tipo'         => Pedido::class,
-                            'origem_id'           => $pedido->id,
-                            'user_id'             => auth()->id(),
-                            'observacoes'         => "Faturamento Pedido #{$pedido->numero}",
-                        ]);
-                    }
-                }
+                $this->baixarEstoquePedido($pedido);
             }
 
             $pedido->update(['status' => $novoStatus]);
         });
 
         return back()->with('success', "Status do pedido atualizado para {$novoStatus->label()}!");
+    }
+
+    /**
+     * Fatura o pedido escolhendo o documento: nenhum, recibo, cupom fiscal
+     * (NFC-e) ou nota fiscal (NF-e mod. 55 — "nota grande"). Gera uma Venda
+     * (tipo 'pedido') que carrega o documento e alimenta os relatórios.
+     */
+    public function faturar(Request $request, Pedido $pedido)
+    {
+        $request->validate([
+            'documento' => 'required|in:nenhum,recibo,cupom_fiscal,nota_fiscal',
+        ]);
+
+        if ($pedido->status->value !== 'confirmado') {
+            return back()->with('error', 'Apenas pedidos confirmados podem ser faturados.');
+        }
+
+        $documento = $request->documento;
+
+        // Pré-requisitos fiscais antes de mexer em estoque/status
+        $config = null;
+        if (in_array($documento, ['cupom_fiscal', 'nota_fiscal'], true)) {
+            $config = ConfiguracaoFiscal::withoutGlobalScopes()
+                ->where('empresa_id', $pedido->empresa_id)
+                ->where('unidade_id', $pedido->unidade_id)
+                ->first();
+
+            $habilitado = $config && $config->emissao_fiscal_ativa
+                && ($documento === 'cupom_fiscal' ? $config->emite_nfce : $config->emite_nfe);
+
+            if (! $habilitado) {
+                return back()->with('error', 'Emissão fiscal não está ativa (ou o tipo de nota não está habilitado) nesta unidade. Verifique a Configuração Fiscal.');
+            }
+
+            if ($documento === 'nota_fiscal' && ! $pedido->cliente_id) {
+                return back()->with('error', 'NF-e exige cliente informado no pedido (com endereço completo).');
+            }
+        }
+
+        $venda = DB::transaction(function () use ($pedido) {
+            $ultimoNumero = Venda::withoutGlobalScopes()
+                ->where('empresa_id', $pedido->empresa_id)
+                ->max('numero');
+
+            $formaPagamento = $pedido->condicao_pagamento ?: 'a_definir';
+
+            $venda = Venda::create([
+                'empresa_id'          => $pedido->empresa_id,
+                'unidade_id'          => $pedido->unidade_id,
+                'pedido_id'           => $pedido->id,
+                'cliente_id'          => $pedido->cliente_id,
+                'vendedor_id'         => $pedido->vendedor_id ?? auth()->id(),
+                'numero'              => $ultimoNumero ? $ultimoNumero + 1 : 1,
+                'subtotal'            => $pedido->subtotal,
+                'desconto_percentual' => $pedido->desconto_percentual ?? 0,
+                'desconto_valor'      => $pedido->desconto_valor ?? 0,
+                'total'               => $pedido->total,
+                'forma_pagamento'     => $formaPagamento,
+                'pagamento_detalhes'  => [['forma' => $formaPagamento, 'valor' => (float) $pedido->total]],
+                'troco'               => 0,
+                'status'              => StatusVenda::Concluida,
+                'tipo'                => 'pedido',
+                'observacoes'         => "Faturamento do Pedido #{$pedido->numero}",
+            ]);
+
+            foreach ($pedido->itens as $item) {
+                $venda->itens()->create([
+                    'produto_id'          => $item->produto_id,
+                    'servico_id'          => $item->servico_id,
+                    'descricao'           => $item->descricao,
+                    'quantidade'          => $item->quantidade,
+                    'preco_unitario'      => $item->preco_unitario,
+                    'desconto_percentual' => $item->desconto_percentual ?? 0,
+                    'desconto_valor'      => $item->desconto_valor ?? 0,
+                    'total'               => $item->total,
+                ]);
+            }
+
+            // Estoque sai como faturamento do pedido (mesma origem de antes)
+            $this->baixarEstoquePedido($pedido);
+
+            $pedido->update(['status' => StatusPedido::Faturado]);
+
+            return $venda;
+        });
+
+        // Emissão fora da transaction: falha fiscal não desfaz o faturamento
+        switch ($documento) {
+            case 'recibo':
+                return redirect()->route('app.vendas.recibo', $venda)
+                    ->with('success', "Pedido #{$pedido->numero} faturado! Recibo pronto para impressão.");
+
+            case 'cupom_fiscal':
+                try {
+                    $client = FocusNFeClient::fromConfig($config);
+                    $nota = (new NFCeService($client))->emitir($venda->load(['itens.produto', 'cliente', 'empresa']), $config);
+
+                    return redirect()->route('app.vendas.recibo', $venda)
+                        ->with('success', "Pedido #{$pedido->numero} faturado com NFC-e emitida!");
+                } catch (\Throwable $e) {
+                    Log::error('[Pedido] Erro ao emitir NFC-e no faturamento.', [
+                        'pedido_id' => $pedido->id,
+                        'venda_id'  => $venda->id,
+                        'error'     => $e->getMessage(),
+                    ]);
+
+                    return redirect()->route('app.vendas.recibo', $venda)
+                        ->with('error', 'Pedido faturado, mas a NFC-e falhou: ' . $e->getMessage() . ' — o recibo está disponível.');
+                }
+
+            case 'nota_fiscal':
+                try {
+                    $client = FocusNFeClient::fromConfig($config);
+                    $nota = (new NFeService($client))->emitir($venda->load(['itens.produto', 'cliente', 'empresa']), $config);
+
+                    $avisoEmail = $pedido->cliente?->email
+                        ? ' XML e DANFE serão enviados por e-mail ao cliente após a autorização.'
+                        : '';
+
+                    return redirect()->route('app.notas-fiscais.show', $nota)
+                        ->with('success', "Pedido #{$pedido->numero} faturado! NF-e enviada para autorização." . $avisoEmail);
+                } catch (\Throwable $e) {
+                    Log::error('[Pedido] Erro ao emitir NF-e no faturamento.', [
+                        'pedido_id' => $pedido->id,
+                        'venda_id'  => $venda->id,
+                        'error'     => $e->getMessage(),
+                    ]);
+
+                    return redirect()->route('app.pedidos.show', $pedido)
+                        ->with('error', 'Pedido faturado, mas a NF-e falhou: ' . $e->getMessage());
+                }
+        }
+
+        return redirect()->route('app.pedidos.show', $pedido)
+            ->with('success', "Pedido #{$pedido->numero} faturado com sucesso!");
+    }
+
+    /** Baixa o estoque dos itens do pedido (chamado no faturamento). */
+    private function baixarEstoquePedido(Pedido $pedido): void
+    {
+        foreach ($pedido->itens as $item) {
+            if ($item->produto_id) {
+                $produto = Produto::find($item->produto_id);
+                $estoqueAnterior = $produto->estoqueMovimentacoes()
+                    ->where('unidade_id', $pedido->unidade_id)
+                    ->latest()
+                    ->value('quantidade_posterior') ?? 0;
+
+                EstoqueMovimentacao::create([
+                    'empresa_id'          => $pedido->empresa_id,
+                    'unidade_id'          => $pedido->unidade_id,
+                    'produto_id'          => $item->produto_id,
+                    'tipo'                => TipoMovimentacaoEstoque::Saida,
+                    'quantidade'          => $item->quantidade,
+                    'quantidade_anterior' => $estoqueAnterior,
+                    'quantidade_posterior' => $estoqueAnterior - $item->quantidade,
+                    'custo_unitario'      => $item->preco_unitario,
+                    'origem_tipo'         => Pedido::class,
+                    'origem_id'           => $pedido->id,
+                    'user_id'             => auth()->id(),
+                    'observacoes'         => "Faturamento Pedido #{$pedido->numero}",
+                ]);
+            }
+        }
     }
 
     public function destroy(Pedido $pedido)

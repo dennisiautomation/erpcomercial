@@ -152,6 +152,7 @@ class PdvController extends Controller
             'desconto_percentual'      => 'nullable|numeric|min:0|max:100',
             'vendedor_id'              => 'nullable|exists:users,id',
             'tabela_precos'            => 'nullable|boolean',
+            'documento'                => 'nullable|in:recibo,cupom_fiscal',
         ]);
 
         $caixaId = session('caixa_id');
@@ -382,6 +383,25 @@ class PdvController extends Controller
             $deveEmitirNfce = $config
                 && $config->emissao_fiscal_ativa
                 && ($config->emite_nfce ?? $config->tipo_cupom_pdv === 'fiscal');
+
+            // Escolha manual do operador prevalece; sem escolha, vale a
+            // parametrização das Configurações da Loja (cartão automático,
+            // CPF→fiscal, padrão de impressão). Loja sem registro de config
+            // mantém o comportamento antigo: fiscal ativo = sempre NFC-e.
+            $escolhaOperador = $request->input('documento');
+            $configLojaEmissao = ConfiguracaoLoja::daUnidade($empresaId, $unidadeId);
+
+            if ($escolhaOperador === 'recibo') {
+                $deveEmitirNfce = false;
+            } elseif ($escolhaOperador !== 'cupom_fiscal' && $deveEmitirNfce && $configLojaEmissao->exists) {
+                $formas = array_column($request->pagamentos, 'forma');
+                $temCartao = (bool) array_intersect($formas, ['cartao_credito', 'cartao_debito']);
+
+                $deveEmitirNfce =
+                    ($configLojaEmissao->cupom_automatico_cartao && $temCartao)
+                    || ($configLojaEmissao->cpf_emite_fiscal && $request->cliente_id)
+                    || $configLojaEmissao->padrao_impressao === 'cupom_fiscal';
+            }
 
             if ($deveEmitirNfce) {
                 try {

@@ -459,6 +459,22 @@
         .troco-display .troco-value { font-size: 1.6rem; font-weight: 800; color: var(--accent-green); }
 
         /* Finalizar button */
+        .btn-doc {
+            background: var(--bg-tertiary, #2a2a35);
+            color: var(--text-muted, #9a9ab0);
+            border: 1px solid var(--border-color, #3a3a48);
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.15s;
+        }
+
+        .btn-doc.active {
+            background: var(--accent-blue, #3b82f6);
+            border-color: var(--accent-blue, #3b82f6);
+            color: #fff;
+        }
+
         .btn-finalizar {
             width: 100%;
             padding: 16px;
@@ -913,6 +929,15 @@
         </div>
 
         {{-- Finalizar --}}
+        {{-- Documento na finalização: automático (parametrizado) ou escolha manual --}}
+        <div id="docChoice" style="display:flex; gap:4px; margin-bottom:6px;">
+            <button type="button" class="btn-doc active" data-doc="" title="Segue a parametrização das Configurações da Loja"
+                    style="flex:1; font-size:0.72rem; padding:4px 2px;">Auto</button>
+            <button type="button" class="btn-doc" data-doc="recibo" title="Força recibo (não fiscal)"
+                    style="flex:1; font-size:0.72rem; padding:4px 2px;">Recibo</button>
+            <button type="button" class="btn-doc" data-doc="cupom_fiscal" title="Força cupom fiscal (NFC-e)"
+                    style="flex:1; font-size:0.72rem; padding:4px 2px;">Cupom Fiscal</button>
+        </div>
         <button class="btn-finalizar" id="btnFinalizar" disabled onclick="PDV.finalizarVenda()">
             <i class="bi bi-check-circle"></i> FINALIZAR VENDA <kbd>F12</kbd>
         </button>
@@ -1135,6 +1160,8 @@ const PDV = {
     // Tabelas de preço por forma de pagamento (Configurações da Loja)
     precosCache: {},
     tabelaAtiva: 'dinheiro_pix',
+    // Documento na finalização: null = automático (parametrização da loja)
+    documentoEscolhido: null,
     configLoja: {!! json_encode([
         'regra_split' => $configLoja->regra_preco_split ?? 'cartao_maior',
     ]) !!},
@@ -1154,6 +1181,15 @@ const PDV = {
         // Modal de pagamento fechado sem confirmar: volta à tabela das formas confirmadas
         document.getElementById('modalPagamento')?.addEventListener('hidden.bs.modal', () => {
             this.repriceItens();
+        });
+
+        // Escolha manual do documento (Auto / Recibo / Cupom Fiscal)
+        document.querySelectorAll('#docChoice .btn-doc').forEach(btn => {
+            btn.addEventListener('click', () => {
+                this.documentoEscolhido = btn.dataset.doc || null;
+                document.querySelectorAll('#docChoice .btn-doc').forEach(b =>
+                    b.classList.toggle('active', b === btn));
+            });
         });
         this.bindSearchInput();
         this.bindPaymentButtons();
@@ -1941,6 +1977,7 @@ const PDV = {
         try {
             const payload = {
                 tabela_precos: 1,
+                documento: this.documentoEscolhido,
                 itens: this.itens.map(i => ({
                     produto_id: i.produto_id,
                     quantidade: i.quantidade,
@@ -2019,6 +2056,9 @@ const PDV = {
         this.lastCupomHtml = '';
         this.tabelaAtiva = 'dinheiro_pix';
         this.updateTabelaBadge();
+        this.documentoEscolhido = null;
+        document.querySelectorAll('#docChoice .btn-doc').forEach(b =>
+            b.classList.toggle('active', !b.dataset.doc));
 
         // Reset UI
         this.renderItems();
