@@ -2,7 +2,7 @@
 
 > SaaS ERP multi-tenant para PMEs. Admin (IA365) gerencia a plataforma; cada empresa-cliente tem múltiplas unidades com fiscal, estoque e caixa independentes. Integração 100% Focus NFe (NF-e, NFC-e, NFS-e, CC-e, manifestação do destinatário, backup XMLs).
 
-**Última revisão:** 2026-05-28 · **Estado:** integração fiscal Fase 1-4 + multi-loja + regime de cobrança + auto-sync Focus + UX config fiscal — concluídos
+**Última revisão:** 2026-07-24 · **Estado:** integração fiscal Fase 1-4 + multi-loja + regime de cobrança + auto-sync Focus + UX config fiscal + caixa por forma de pagamento (14/07) + Configurações da Loja/tabelas de preço/emissão parametrizada/adquirentes (24/07) — concluídos
 
 ---
 
@@ -12,6 +12,7 @@
 3. [Integração fiscal Focus NFe](#integração-fiscal-focus-nfe)
 4. [Multi-loja — política de estoque](#multi-loja--política-de-estoque)
 5. [Regime de cobrança](#regime-de-cobrança--cortesiaparceiropós-pago-commit-a2121bf)
+5b. [Configurações da Loja, tabelas de preço, emissão e caixa (Julho/2026)](#configurações-da-loja-tabelas-de-preço-emissão-e-caixa-julho2026)
 6. [Schema essencial](#schema-essencial)
 7. [Comandos artisan](#comandos-artisan)
 8. [Crons agendados](#crons-agendados)
@@ -320,6 +321,93 @@ Admin (IA365) pode liberar empresas-cliente do funil normal de trial+pago sem ga
 
 ---
 
+## Configurações da Loja, tabelas de preço, emissão e caixa (Julho/2026)
+
+> Branch `feat/config-loja-precos-caixa` (24/07/2026). Origem: doc de melhorias do Dennis.
+> **Todos os comportamentos novos nascem desligados/neutros** — loja sem registro em
+> `configuracoes_loja` opera exatamente como antes.
+
+### Central de Configurações da Loja (`/app/configuracoes`)
+
+Tabela `configuracoes_loja` (unique `empresa_id+unidade_id`, mesma regra da config fiscal:
+NUNCA `updateOrCreate`). Model `ConfiguracaoLoja::daUnidade()` devolve instância não persistida
+com defaults quando a loja nunca salvou (checar `->exists` para distinguir). Parâmetros:
+
+| Campo | Default | Efeito |
+|---|---|---|
+| `vendedor_responsavel_caixa` | off | vendedor do PDV vira `user_id` das MovimentacaoCaixa da venda |
+| `regra_preco_split` | `cartao_maior` | split: `cartao_maior` = maior tabela entre as formas presentes; `sempre_menor`; `sempre_maior` |
+| `percentual_debito` / `percentual_credito` | 0 | regra geral das tabelas de preço (acréscimo % sobre o base) |
+| `max_parcelas` | 6 | parcelas do crédito no PDV + parcela exibida na etiqueta |
+| `cupom_automatico_cartao` | off | venda com cartão emite NFC-e automaticamente |
+| `cpf_emite_fiscal` | off | cliente informado na venda → NFC-e na hora |
+| `padrao_impressao` | `recibo` | documento default nas demais vendas |
+
+### Tabelas de preço por forma de pagamento
+
+- Base (`produtos.preco_venda`) = tabela **Dinheiro/PIX**. Débito/crédito saem da regra geral
+  (percentuais acima) com **override por produto** em `produto_precos`
+  (produto_id+modalidade unique; modalidades `dinheiro_pix|debito|credito`).
+- `TabelaPrecoService`: `precosDoProduto()` e `modalidadeDosPagamentos()` (venda simples segue
+  a forma; split segue `regra_preco_split`). Boleto/crediário/transferência/vale usam a base.
+- **PDV**: reprecifica os itens ao escolher a forma (hook em `openPagamento`, reverte se o modal
+  fechar sem confirmar), badge "Tabela: Débito/Crédito" no resumo. O servidor recalcula o preço
+  autoritativo em `registrarVenda` **somente quando o payload traz `tabela_precos: 1`** (abas do
+  PDV abertas antes do deploy continuam funcionando com preço do cliente).
+- **Cadastro de produto** (create/edit): campos "Preço no Débito/Crédito" (vazio = regra geral).
+  Import/export CSV: colunas opcionais `preco_debito`/`preco_credito`.
+- **Etiquetas**: quando tabela crédito > base, sai "6x R$ 59,90 / ou R$ 300,00 no PIX"
+  (parcelas = `max_parcelas`); sem configuração a etiqueta fica como sempre foi.
+
+### Emissão parametrizada
+
+- **PDV**: seletor Auto/Recibo/Cupom Fiscal acima do FINALIZAR (escolha manual prevalece).
+  Modo Auto (só quando a loja TEM registro de config): cartão+`cupom_automatico_cartao` → NFC-e;
+  cliente+`cpf_emite_fiscal` → NFC-e; senão `padrao_impressao`. Sem registro → comportamento
+  antigo (fiscal ativo = sempre NFC-e). Falha de NFC-e continua caindo no recibo.
+- **Pedidos**: "Faturar Pedido" abre modal com **recibo / cupom fiscal (NFC-e) / nota fiscal
+  (NF-e mod. 55) / nenhum**. Faturamento gera `Venda` (tipo `'pedido'`, `vendas.pedido_id`) que
+  carrega o documento e aparece nos relatórios. NF-e autorizada (webhook OU polling — hook em
+  `NotaFiscal::booted`) dispara `EnviarEmailNotaFiscalJob` → XML+DANFE por e-mail ao cliente
+  via Focus `/v2/nfe/{ref}/email`. Rota `vendas/{venda}/recibo` imprime o cupom de qualquer venda.
+
+### Caixa
+
+- **Fechamento**: além do dinheiro (único que fecha gaveta), campos de conferência para
+  PIX/débito/crédito e demais formas com movimento — resultado em `caixas.conferencia` JSON
+  `{forma: {esperado, contado, diferenca}}`, exibido no extrato (`/app/caixa/{id}`).
+- **Comprovantes**: uploads opcionais no fechamento (máquina/crédito/débito) em `caixa_anexos`
+  (storage local `caixas/{id}/`, download em `/app/caixa/anexo/{anexo}` com a mesma
+  visibilidade do caixa).
+
+### Financeiro — máquinas de cartão (`/app/adquirentes`)
+
+- `adquirente_taxas`: nome, forma (`cartao_debito|credito`), faixa de parcelas, taxa %, prazo D+N.
+  `AdquirenteTaxa::paraPagamento()` escolhe a regra ativa mais específica.
+- **PDV**: crédito pergunta parcelas (até `max_parcelas`). Cartão com regra cadastrada gera
+  ContaReceber **pendente** por parcela (1ª em D+prazo, demais +30d cada) com `taxa_percentual`
+  e `valor_liquido`; **sem regra → comportamento antigo** (conta paga à vista, valor cheio).
+- Relatório `/app/adquirentes/recebiveis`: bruto × taxas × líquido por período.
+
+### Miudezas
+
+- Relatório de vendas: filtro **Origem** (Vendas PDV/balcão × Pedidos faturados).
+- Movimentação de estoque: multi-itens no padrão visual da transferência (o `store` agora recebe
+  `itens[]`; a movimentação continua 1 registro por produto).
+
+### Armadilhas novas
+
+1. `ConfiguracaoLoja::daUnidade()` retorna instância **não salva** quando a loja nunca configurou —
+   usar `->exists` para diferenciar "sem config" (comportamento legado) de "configurado".
+2. Repricing do PDV é gated pelo flag `tabela_precos` no payload — não remover, protege abas antigas.
+3. Split no modo `cartao_maior` usa a **maior** tabela entre as formas presentes (débito+PIX →
+   débito; crédito em qualquer split → crédito).
+4. ContaReceber de cartão pendente tem `valor_pago = 0` e `pago_em = null` — relatórios que
+   assumiam PDV = sempre pago precisam considerar isso quando houver regras de adquirente.
+5. E-mail automático de NF-e só para vendas `tipo='pedido'` (hook no model NotaFiscal).
+
+---
+
 ## Schema essencial
 
 ### Tabelas-chave (campos relevantes)
@@ -484,6 +572,8 @@ docker exec -i erp-com-app php artisan schedule:list
 
 ## Próximos passos
 
+- **Validar em produção (24/07)**: tabelas de preço no PDV com produto piloto; 1º fechamento de
+  caixa com conferência completa; 1º pedido faturado com NF-e + e-mail automático.
 - **Fase 5 (opcional)**: CT-e + MDF-e (transportadoras) — `CTeService`, `MDFeService`, UI gated por plano.
 - **NF-e de transferência automática** entre unidades em vendas remotas (CFOP 5152/6152) — hoje é registro interno; emitir nota torna o fluxo 100% fiscal.
 - **Autocomplete `/v2/municipios`** na edição de empresa/unidade/cliente para popular `codigo_municipio` IBGE automaticamente.
