@@ -121,7 +121,7 @@
                         <label for="preco_venda" class="form-label fw-semibold">Preço à vista (Dinheiro/PIX) <span class="text-danger">*</span></label>
                         <div class="input-group input-group-lg">
                             <span class="input-group-text text-success fw-bold">R$</span>
-                            <input type="number" name="preco_venda" id="preco_venda" class="form-control form-control-lg fw-bold @error('preco_venda') is-invalid @enderror" value="{{ old('preco_venda', $produto->preco_venda) }}" step="0.01" min="0" required>
+                            <input type="text" inputmode="numeric" data-mask="money" name="preco_venda" id="preco_venda" class="form-control form-control-lg fw-bold @error('preco_venda') is-invalid @enderror" value="{{ old('preco_venda', $produto->preco_venda) }}" placeholder="0,00" required>
                             @error('preco_venda') <div class="invalid-feedback">{{ $message }}</div> @enderror
                         </div>
                     </div>
@@ -131,7 +131,7 @@
                         <label for="preco_custo" class="form-label">Preco de custo <span class="text-muted fw-normal">(opcional)</span></label>
                         <div class="input-group">
                             <span class="input-group-text">R$</span>
-                            <input type="number" name="preco_custo" id="preco_custo" class="form-control @error('preco_custo') is-invalid @enderror" value="{{ old('preco_custo', $produto->preco_custo) }}" step="0.01" min="0">
+                            <input type="text" inputmode="numeric" data-mask="money" name="preco_custo" id="preco_custo" class="form-control @error('preco_custo') is-invalid @enderror" value="{{ old('preco_custo', $produto->preco_custo) }}" placeholder="0,00">
                             @error('preco_custo') <div class="invalid-feedback">{{ $message }}</div> @enderror
                         </div>
                     </div>
@@ -157,7 +157,7 @@
                                     <label for="preco_cartao" class="form-label">Preço no Cartão (Crédito e Débito)</label>
                                     <div class="input-group">
                                         <span class="input-group-text">R$</span>
-                                        <input type="number" name="preco_cartao" id="preco_cartao" class="form-control @error('preco_cartao') is-invalid @enderror" value="{{ old('preco_cartao', $precoCartaoAtual) }}" step="0.01" min="0" placeholder="regra geral">
+                                        <input type="text" inputmode="numeric" data-mask="money" name="preco_cartao" id="preco_cartao" class="form-control @error('preco_cartao') is-invalid @enderror" value="{{ old('preco_cartao', $precoCartaoAtual) }}" placeholder="regra geral">
                                         @error('preco_cartao') <div class="invalid-feedback">{{ $message }}</div> @enderror
                                     </div>
                                 </div>
@@ -806,8 +806,8 @@ document.addEventListener('DOMContentLoaded', function () {
     const precoVenda = document.getElementById('preco_venda');
 
     function calcMarkup() {
-        const custo = parseFloat(precoCusto.value) || 0;
-        const venda = parseFloat(precoVenda.value) || 0;
+        const custo = ERP.moneyToDecimal(precoCusto.value);
+        const venda = ERP.moneyToDecimal(precoVenda.value);
         if (custo > 0 && venda > custo) {
             markup.value = (((venda - custo) / custo) * 100).toFixed(2);
         } else {

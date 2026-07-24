@@ -55,7 +55,8 @@ class FocusReferenciasService
 
         return Cache::remember($chave, self::TTL_NCM, function () use ($busca, $limit) {
             $response = $this->safeGet('/v2/ncms', ['descricao' => $busca]);
-            return $this->normalizarLista($response, 'codigo', 'descricao', $limit);
+            // Focus devolve a nomenclatura em descricao_completa (não descricao)
+            return $this->normalizarLista($response, 'codigo', 'descricao_completa', $limit);
         });
     }
 
@@ -239,7 +240,7 @@ class FocusReferenciasService
 
         $out = array_map(fn ($item) => [
             'codigo' => (string) ($item[$chaveCodigo] ?? ''),
-            'descricao' => (string) ($item[$chaveDesc] ?? ''),
+            'descricao' => (string) ($item[$chaveDesc] ?? $item['descricao'] ?? ''),
         ], $raw);
 
         return array_slice($out, 0, $limit);

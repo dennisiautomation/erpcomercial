@@ -15,6 +15,12 @@ const ERP = {
         ncm(v) { return v.replace(/\D/g,'').replace(/(\d{4})(\d)/,'$1.$2').replace(/(\d{2})(\d)/,'$1.$2').slice(0,10); },
     },
 
+    // "1.500,00" → 1500.00 (para cálculos e envio ao servidor)
+    moneyToDecimal(v) {
+        const n = parseFloat(String(v).replace(/\./g, '').replace(',', '.'));
+        return isNaN(n) ? 0 : n;
+    },
+
     initMasks() {
         document.querySelectorAll('[data-mask]').forEach(el => {
             const mask = el.dataset.mask;
@@ -26,8 +32,20 @@ const ERP = {
                     const diff = el.value.length - prev;
                     el.setSelectionRange(pos + diff, pos + diff);
                 });
+
+                // Formata o valor inicial (ex.: 150.00 do banco → 150,00)
+                if (mask === 'money' && el.value !== '') {
+                    el.value = ERP.masks.money(el.value);
+                }
             }
         });
+
+        // No submit, campos money voltam para decimal (1.500,00 → 1500.00)
+        document.addEventListener('submit', (e) => {
+            e.target.querySelectorAll?.('[data-mask="money"]').forEach(el => {
+                el.value = el.value === '' ? '' : ERP.moneyToDecimal(el.value).toFixed(2);
+            });
+        }, true);
     },
 
     // ─── VIACEP ─────────────────────────────────────────────

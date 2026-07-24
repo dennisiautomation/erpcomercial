@@ -105,7 +105,7 @@
                         <label for="preco_venda" class="form-label fw-semibold">Preço à vista (Dinheiro/PIX) <span class="text-danger">*</span></label>
                         <div class="input-group input-group-lg">
                             <span class="input-group-text text-success fw-bold">R$</span>
-                            <input type="number" name="preco_venda" id="preco_venda" class="form-control form-control-lg fw-bold @error('preco_venda') is-invalid @enderror" value="{{ old('preco_venda', '0.00') }}" step="0.01" min="0" required>
+                            <input type="text" inputmode="numeric" data-mask="money" name="preco_venda" id="preco_venda" class="form-control form-control-lg fw-bold @error('preco_venda') is-invalid @enderror" value="{{ old('preco_venda', '0.00') }}" placeholder="0,00" required>
                             @error('preco_venda') <div class="invalid-feedback">{{ $message }}</div> @enderror
                         </div>
                     </div>
@@ -115,7 +115,7 @@
                         <label for="preco_custo" class="form-label">Preco de custo <span class="text-muted fw-normal">(opcional)</span></label>
                         <div class="input-group">
                             <span class="input-group-text">R$</span>
-                            <input type="number" name="preco_custo" id="preco_custo" class="form-control @error('preco_custo') is-invalid @enderror" value="{{ old('preco_custo', '0.00') }}" step="0.01" min="0">
+                            <input type="text" inputmode="numeric" data-mask="money" name="preco_custo" id="preco_custo" class="form-control @error('preco_custo') is-invalid @enderror" value="{{ old('preco_custo', '0.00') }}" placeholder="0,00">
                             @error('preco_custo') <div class="invalid-feedback">{{ $message }}</div> @enderror
                         </div>
                     </div>
@@ -137,7 +137,7 @@
                                     <label for="preco_cartao" class="form-label">Preço no Cartão (Crédito e Débito)</label>
                                     <div class="input-group">
                                         <span class="input-group-text">R$</span>
-                                        <input type="number" name="preco_cartao" id="preco_cartao" class="form-control @error('preco_cartao') is-invalid @enderror" value="{{ old('preco_cartao') }}" step="0.01" min="0" placeholder="regra geral">
+                                        <input type="text" inputmode="numeric" data-mask="money" name="preco_cartao" id="preco_cartao" class="form-control @error('preco_cartao') is-invalid @enderror" value="{{ old('preco_cartao') }}" placeholder="regra geral">
                                         @error('preco_cartao') <div class="invalid-feedback">{{ $message }}</div> @enderror
                                     </div>
                                 </div>
@@ -196,8 +196,8 @@
                         <div class="form-text">
                             <i class="bi bi-info-circle me-1"></i>
                             Se o produto já tem EAN impresso (industrializados), escaneie com o leitor.
-                            Se não tem, deixe em branco — você poderá gerar etiquetas com o código interno
-                            pelo menu <strong>Produtos → Etiquetas</strong>.
+                            Se não tem, deixe em branco: <strong>geramos um código de barras interno
+                            automaticamente</strong>, pronto para as etiquetas e para o leitor do PDV.
                         </div>
                     </div>
 
@@ -208,7 +208,7 @@
                         </label>
                         <input type="text" name="sku" id="sku" class="form-control @error('sku') is-invalid @enderror" value="{{ old('sku') }}" placeholder="Ex: CAM-AZU-M">
                         @error('sku') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                        <div class="form-text"><i class="bi bi-info-circle me-1"></i>Codigo interno para seu controle. Opcional.</div>
+                        <div class="form-text"><i class="bi bi-info-circle me-1"></i>Deixe vazio: geramos um SKU sequencial automaticamente.</div>
                     </div>
 
                     {{-- Foto --}}
@@ -820,8 +820,8 @@ document.addEventListener('DOMContentLoaded', function () {
     const precoVenda = document.getElementById('preco_venda');
 
     function calcMarkup() {
-        const custo = parseFloat(precoCusto.value) || 0;
-        const venda = parseFloat(precoVenda.value) || 0;
+        const custo = ERP.moneyToDecimal(precoCusto.value);
+        const venda = ERP.moneyToDecimal(precoVenda.value);
         if (custo > 0 && venda > custo) {
             markup.value = (((venda - custo) / custo) * 100).toFixed(2);
         } else {

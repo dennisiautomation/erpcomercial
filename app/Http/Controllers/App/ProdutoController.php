@@ -147,6 +147,24 @@ class ProdutoController extends Controller
         $validated['codigo_interno'] = str_pad($proximo, 6, '0', STR_PAD_LEFT);
         $validated['status'] = 'ativo';
 
+        // SKU sequencial automático quando não informado
+        if (empty($validated['sku'])) {
+            $validated['sku'] = 'SKU-' . $validated['codigo_interno'];
+        }
+
+        // Código de barras automático: EAN-13 de uso interno (prefixo 2,
+        // reservado pelo GS1 para in-store) — 2 + empresa(3) + sequencial(8) + DV
+        if (empty($validated['codigo_barras'])) {
+            $base = '2'
+                . str_pad((string) ($empresaId % 1000), 3, '0', STR_PAD_LEFT)
+                . str_pad($validated['codigo_interno'], 8, '0', STR_PAD_LEFT);
+            $soma = 0;
+            foreach (str_split($base) as $i => $digito) {
+                $soma += (int) $digito * ($i % 2 === 0 ? 1 : 3);
+            }
+            $validated['codigo_barras'] = $base . ((10 - ($soma % 10)) % 10);
+        }
+
         // Handle foto upload
         if ($request->hasFile('foto')) {
             $validated['foto'] = $request->file('foto')->store('produtos', 'public');
