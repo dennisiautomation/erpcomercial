@@ -1172,7 +1172,8 @@
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <!-- ERP Core Intelligence -->
-    <script src="{{ asset('js/erp-core.js') }}"></script>
+    {{-- cache-busting pela data do arquivo: navegador pega o JS novo a cada deploy --}}
+    <script src="{{ asset('js/erp-core.js') }}?v={{ @filemtime(public_path('js/erp-core.js')) ?: '1' }}"></script>
     <script>
         /**
          * Toggle sidebar visibility (mobile)

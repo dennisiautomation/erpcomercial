@@ -143,11 +143,10 @@ const ERP = {
             }
 
             let debounce;
-            el.addEventListener('input', () => {
-                clearTimeout(debounce);
-                const q = el.value.trim();
-                if (q.length < 2) { dropdown.innerHTML = ''; dropdown.style.display = 'none'; return; }
+            // data-autocomplete-focus: lista sugestões ao focar, sem digitar
+            const listaAoFocar = el.dataset.autocompleteFocus !== undefined;
 
+            const executarBusca = (q) => {
                 dropdown.innerHTML = '<div class="autocomplete-empty"><span class="spinner-border spinner-border-sm me-2"></span>Buscando...</div>';
                 dropdown.style.display = 'block';
 
@@ -191,6 +190,25 @@ const ERP = {
                         dropdown.innerHTML = '<div class="autocomplete-empty text-danger">Erro ao buscar. Tente novamente.</div>';
                     }
                 }, 300);
+            };
+
+            el.addEventListener('input', () => {
+                clearTimeout(debounce);
+                const q = el.value.trim();
+                if (q.length < 2) {
+                    if (listaAoFocar) { executarBusca(''); return; }
+                    dropdown.innerHTML = '';
+                    dropdown.style.display = 'none';
+                    return;
+                }
+                executarBusca(q);
+            });
+
+            el.addEventListener('focus', () => {
+                if (listaAoFocar && el.value.trim().length < 2) {
+                    clearTimeout(debounce);
+                    executarBusca('');
+                }
             });
 
             // Fechar dropdown ao clicar fora

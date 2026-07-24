@@ -350,8 +350,9 @@
                                 NCM <x-erp.fiscal-tooltip field="ncm" />
                             </label>
                             <input type="text" id="ncm_busca" class="form-control" value="{{ old('ncm') }}"
-                                   placeholder="Digite para buscar NCM (ex: leite, arroz, software)"
+                                   placeholder="Clique para ver os já usados ou digite (ex: leite, arroz)"
                                    data-autocomplete="{{ route('app.focus-autocomplete.ncm') }}"
+                                   data-autocomplete-focus
                                    data-autocomplete-target="ncm"
                                    data-autocomplete-display="descricao"
                                    data-autocomplete-value="codigo">

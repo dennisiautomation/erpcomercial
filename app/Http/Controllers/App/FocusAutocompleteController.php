@@ -22,6 +22,30 @@ class FocusAutocompleteController extends Controller
     {
         $q = (string) $request->input('q', '');
 
+        // Sem termo: sugere os NCMs que a empresa já usa nos produtos
+        // (o caso comum é cadastrar produto parecido com um existente)
+        if (mb_strlen(trim($q)) < 2) {
+            $empresaId = auth()->user()->empresa_id
+                ?? (session('empresa_id') ? (int) session('empresa_id') : null);
+
+            $usados = \App\Models\Produto::withoutGlobalScopes()
+                ->where('empresa_id', $empresaId)
+                ->whereNotNull('ncm')
+                ->where('ncm', '!=', '')
+                ->selectRaw('ncm, count(*) as qtd')
+                ->groupBy('ncm')
+                ->orderByDesc('qtd')
+                ->limit(10)
+                ->get()
+                ->map(fn ($r) => [
+                    'codigo'    => $r->ncm,
+                    'descricao' => "{$r->ncm} — já usado em {$r->qtd} produto(s)",
+                ])
+                ->values();
+
+            return response()->json($usados);
+        }
+
         if (! FocusNFeClient::masterDisponivel()) {
             return response()->json([]);
         }

@@ -339,8 +339,9 @@
                                 <i class="bi bi-question-circle text-muted ms-1" data-bs-toggle="tooltip" data-bs-placement="top" title="Codigo de 8 digitos que classifica seu produto. Digite pelo menos 2 letras da descrição para buscar."></i>
                             </label>
                             <input type="text" id="ncm_busca" class="form-control" value="{{ old('ncm', $produto->ncm) }}"
-                                   placeholder="Digite para buscar NCM (ex: leite, arroz, software)"
+                                   placeholder="Clique para ver os já usados ou digite (ex: leite, arroz)"
                                    data-autocomplete="{{ route('app.focus-autocomplete.ncm') }}"
+                                   data-autocomplete-focus
                                    data-autocomplete-target="ncm"
                                    data-autocomplete-display="descricao"
                                    data-autocomplete-value="codigo">
