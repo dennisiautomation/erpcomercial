@@ -399,6 +399,53 @@ com defaults quando a loja nunca salvou (checar `->exists` para distinguir). Par
 - Movimentação de estoque: multi-itens no padrão visual da transferência (o `store` agora recebe
   `itens[]`; a movimentação continua 1 registro por produto).
 
+### Ajustes do teste ao vivo do Dennis (24/07, tarde — commits `2926af0..7dc58b9`)
+
+**PDV / emissão**
+- Modal **"Qual documento imprimir?"** (Cupom Fiscal × Recibo) na finalização quando o modo Auto
+  não tem regra automática decidindo; padrão da loja destacado, Enter confirma. Cartão/CPF com
+  flags ligadas seguem emitindo direto, sem pergunta.
+- Modal **Faturar Pedido** mostra a prontidão fiscal: opções NFC-e/NF-e desabilitadas com badge
+  "indisponível" + lista do que falta (emissão ativa, certificado A1, resp. técnico, CSC,
+  habilitar o tipo) + link para a Configuração Fiscal (`PedidoController::show` monta
+  `$fiscalPedido`).
+- Listagem `/app/notas-fiscais`: botão **Emitir NF-e (DANFE)** (→ vendas) + guia de onde cada
+  tipo de nota é emitido (NF-e na venda/pedido, NFC-e no PDV, NFS-e ali).
+
+**Produto**
+- Campo único **"Preço no Cartão (Crédito e Débito)"** — grava o mesmo valor nas duas
+  modalidades de `produto_precos`; preço base renomeado "Preço à vista (Dinheiro/PIX)".
+  Controller ainda aceita `preco_debito`/`preco_credito` (import/integrações).
+- **Máscara de dinheiro** nos preços (`data-mask="money"` em input text): formata 1.500,00 ao
+  digitar e converte para decimal no submit (listener global em `initMasks`);
+  `ERP.moneyToDecimal()` para cálculos (markup usa).
+- **SKU sequencial automático** (`SKU-<codigo_interno>`) e **código de barras EAN-13 interno**
+  (prefixo 2/in-store: `2 + empresa%1000 (3) + codigo_interno (8) + DV`) quando os campos vêm
+  vazios no cadastro.
+- **NCM com lista ao clicar**: novo atributo `data-autocomplete-focus` no erp-core lista
+  sugestões ao focar sem digitar; endpoint NCM sem termo devolve os NCMs já usados pela empresa
+  com a **nomenclatura oficial** (`FocusReferenciasService::ncmDescricao`, cache 30d, nível
+  específico da hierarquia; fallback "usado em N produtos" sem cache). Digitando: busca oficial
+  — Focus manda a nomenclatura em `descricao_completa` (não `descricao`).
+
+**Pedidos**
+- Autocomplete de produto/serviço lista os primeiros ao focar (search `?q=` vazio) e filtra ao
+  digitar. Bugs corrigidos: URL era `app/pdv/buscar-produto` (**404 desde sempre**, engolido sem
+  catch) — a rota real é `app/pdv/produto/{codigo}`; e o dropdown `position:fixed` perdia para
+  as classes Bootstrap `position-absolute`/`w-100` (**!important**) — são removidas ao abrir.
+
+**Infra/UX geral**
+- `SearchController`: admin da plataforma (empresa_id null) busca pela **empresa da sessão** —
+  antes clientes/produtos/fornecedores/vendedores/global voltavam vazios para o admin.
+- **Paginação**: `Paginator::useBootstrapFive()` no AppServiceProvider (a view Tailwind padrão
+  sem Tailwind renderizava seta SVG gigante) + traduções em `resources/lang/pt_BR/pagination.php`
+  e `resources/lang/pt_BR.json` (langPath apontado para `resources/lang` — raiz é root-owned).
+- Fechamento de caixa: **2 colunas no desktop** (cabe na tela) + responsivo mobile + inputs
+  numéricos sem spinner.
+- `erp-core.js` com **cache-busting** por `filemtime` no layout.
+- Pedido **#3 é de teste** (Carla Menezes Souza, produto teste) — criado na validação, pode
+  ser cancelado.
+
 ### Armadilhas novas
 
 1. `ConfiguracaoLoja::daUnidade()` retorna instância **não salva** quando a loja nunca configurou —
@@ -412,6 +459,14 @@ com defaults quando a loja nunca salvou (checar `->exists` para distinguir). Par
 6. **Admin da plataforma não tem empresa** (`empresa_id` null): Produto e Plano ganharam guards
    (redirect com aviso) em 24/07 — commit `c160b9b`. Toda tela `/app/*` nova precisa tratar
    `auth()->user()->empresa` null, senão 500 para o admin.
+7. **Classes utilitárias do Bootstrap têm `!important`** (`position-absolute`, `w-100`...) e
+   vencem estilo inline via JS — remover a classe antes de posicionar por style.
+8. **Dropdowns dentro de `.table-responsive` são clipados** pelo overflow — usar
+   `position: fixed` ancorado no input (padrão dos pedidos) para escapar.
+9. **Campos com `data-mask="money"` devem ser `type="text"`** — o submit converte
+   "1.500,00" → "1500.00" automaticamente; não usar type=number com a máscara.
+10. **Assets em `public/` exigem cache-busting** — o layout versiona `erp-core.js` por
+    `filemtime`; JS/CSS novos sem isso ficam presos no cache do navegador do cliente.
 
 ---
 
