@@ -237,6 +237,12 @@
             margin-top: 1px;
         }
 
+        .etiqueta .preco-pix {
+            font-size: 80%;
+            font-weight: 600;
+            color: #333;
+        }
+
         .etiqueta .codigo {
             color: #777;
             margin-top: 1px;
@@ -349,7 +355,13 @@
                              data-format="{{ $produto->codigo_barras && strlen($produto->codigo_barras) == 13 ? 'EAN13' : ($produto->codigo_barras && strlen($produto->codigo_barras) == 8 ? 'EAN8' : 'CODE128') }}">
                         </svg>
                     </div>
-                    <div class="preco">R$ {{ number_format($produto->preco_venda, 2, ',', '.') }}</div>
+                    @php $pe = $precosEtiqueta[$produto->id] ?? null; @endphp
+                    @if($pe && $pe['dual'])
+                        <div class="preco">{{ $pe['parcelas'] }}x R$ {{ number_format($pe['parcela_valor'], 2, ',', '.') }}</div>
+                        <div class="preco-pix">ou R$ {{ number_format($pe['base'], 2, ',', '.') }} no PIX</div>
+                    @else
+                        <div class="preco">R$ {{ number_format($produto->preco_venda, 2, ',', '.') }}</div>
+                    @endif
                     <div class="codigo">{{ $produto->codigo_interno }}</div>
                 </div>
             @endforeach

@@ -18,9 +18,11 @@ use App\Models\User;
 use App\Models\Venda;
 use App\Models\VendaItem;
 use App\Models\ConfiguracaoFiscal;
+use App\Models\ConfiguracaoLoja;
 use App\Services\EstoqueMultiUnidadeService;
 use App\Services\FocusNFe\FocusNFeClient;
 use App\Services\FocusNFe\NFCeService;
+use App\Services\TabelaPrecoService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -56,7 +58,9 @@ class PdvController extends Controller
             ->orderBy('name')
             ->get();
 
-        return view('app.pdv.index', compact('caixa', 'unidade', 'configFiscal', 'operadores'));
+        $configLoja = ConfiguracaoLoja::daUnidade();
+
+        return view('app.pdv.index', compact('caixa', 'unidade', 'configFiscal', 'operadores', 'configLoja'));
     }
 
     public function verificarEstoque(Request $request, $produtoId, EstoqueMultiUnidadeService $estoqueSvc)
@@ -92,7 +96,7 @@ class PdvController extends Controller
         return response()->json($response);
     }
 
-    public function buscarProduto(Request $request, $codigo)
+    public function buscarProduto(Request $request, $codigo, TabelaPrecoService $tabelaPrecos)
     {
         $produtos = Produto::where('empresa_id', session('empresa_id'))
             ->where('status', 'ativo')
@@ -102,8 +106,17 @@ class PdvController extends Controller
                   ->orWhere('descricao', 'like', "%{$codigo}%");
             })
             ->select('id', 'codigo_interno', 'codigo_barras', 'descricao', 'preco_venda', 'unidade_medida')
+            ->with('precos:id,produto_id,modalidade,valor')
             ->limit(20)
             ->get();
+
+        // Tabelas de preço por forma de pagamento (dinheiro_pix/debito/credito)
+        $configLoja = ConfiguracaoLoja::daUnidade();
+        $produtos = $produtos->map(function ($p) use ($tabelaPrecos, $configLoja) {
+            $dados = $p->only(['id', 'codigo_interno', 'codigo_barras', 'descricao', 'preco_venda', 'unidade_medida']);
+            $dados['precos'] = $tabelaPrecos->precosDoProduto($p, $configLoja);
+            return $dados;
+        });
 
         return response()->json($produtos);
     }
@@ -138,6 +151,7 @@ class PdvController extends Controller
             'desconto_valor'           => 'nullable|numeric|min:0',
             'desconto_percentual'      => 'nullable|numeric|min:0|max:100',
             'vendedor_id'              => 'nullable|exists:users,id',
+            'tabela_precos'            => 'nullable|boolean',
         ]);
 
         $caixaId = session('caixa_id');
@@ -161,6 +175,19 @@ class PdvController extends Controller
                     ->max('numero');
                 $numero = $ultimoNumero ? $ultimoNumero + 1 : 1;
 
+                // Tabela de preço por forma de pagamento: o servidor é a autoridade.
+                // Gated pelo flag tabela_precos (front novo) para não repricear payloads
+                // de abas do PDV abertas antes do deploy.
+                $tabelaPrecos = null;
+                $modalidade = null;
+                $configLoja = null;
+                if ($request->boolean('tabela_precos')) {
+                    $tabelaPrecos = app(TabelaPrecoService::class);
+                    $configLoja = ConfiguracaoLoja::daUnidade($empresaId, $unidadeId);
+                    $formas = array_column($request->pagamentos, 'forma');
+                    $modalidade = $tabelaPrecos->modalidadeDosPagamentos($formas, $configLoja);
+                }
+
                 $subtotal = 0;
                 $itensData = [];
 
@@ -169,6 +196,9 @@ class PdvController extends Controller
                     if (!$produto) continue;
 
                     $precoUnit = $item['preco_unitario'];
+                    if ($modalidade !== null) {
+                        $precoUnit = $tabelaPrecos->precosDoProduto($produto, $configLoja)[$modalidade];
+                    }
                     $qtd = $item['quantidade'];
                     $descontoValor = $item['desconto_valor'] ?? 0;
                     $totalItem = round(($precoUnit * $qtd) - $descontoValor, 2);

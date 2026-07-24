@@ -26,8 +26,8 @@ class ExportController extends Controller
     {
         return $this->export(
             'produtos',
-            Produto::where('empresa_id', auth()->user()->empresa_id)->get(),
-            ['codigo_interno', 'codigo_barras', 'descricao', 'unidade_medida', 'preco_custo', 'preco_venda', 'ncm', 'cfop', 'status']
+            Produto::where('empresa_id', auth()->user()->empresa_id)->with('precos')->get(),
+            ['codigo_interno', 'codigo_barras', 'descricao', 'unidade_medida', 'preco_custo', 'preco_venda', 'preco_debito', 'preco_credito', 'ncm', 'cfop', 'status']
         );
     }
 

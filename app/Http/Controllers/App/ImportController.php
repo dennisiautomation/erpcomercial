@@ -56,7 +56,7 @@ class ImportController extends Controller
                 $codigoInterno = str_pad(($last ? intval($last) + 1 : 1), 6, '0', STR_PAD_LEFT);
             }
 
-            return Produto::updateOrCreate(
+            $produto = Produto::updateOrCreate(
                 ['empresa_id' => $empresaId, 'codigo_interno' => $codigoInterno],
                 [
                     'codigo_barras'    => $row['codigo_barras'] ?? $row['ean'] ?? $row['barcode'] ?? null,
@@ -80,6 +80,26 @@ class ImportController extends Controller
                     'status'           => 'ativo',
                 ]
             );
+
+            // Tabelas de preço por forma de pagamento (colunas opcionais de override)
+            foreach (['debito' => 'preco_debito', 'credito' => 'preco_credito'] as $modalidade => $coluna) {
+                if (! isset($row[$coluna]) || $row[$coluna] === '') {
+                    continue;
+                }
+                $registro = $produto->precos()->where('modalidade', $modalidade)->first();
+                $valor = $this->parseNumber($row[$coluna]);
+                if ($registro) {
+                    $registro->update(['valor' => $valor]);
+                } else {
+                    $produto->precos()->create([
+                        'empresa_id' => $empresaId,
+                        'modalidade' => $modalidade,
+                        'valor'      => $valor,
+                    ]);
+                }
+            }
+
+            return $produto;
         });
     }
 
@@ -116,7 +136,7 @@ class ImportController extends Controller
     {
         $templates = [
             'clientes' => "cpf_cnpj;nome;nome_fantasia;cep;logradouro;numero;bairro;cidade;uf;telefone;email\n12345678901;João Silva;;01001000;Rua Exemplo;100;Centro;São Paulo;SP;11999999999;joao@email.com",
-            'produtos' => "descricao;codigo_barras;unidade;preco_custo;markup;preco_venda;ncm;cfop;icms;pis;cofins\nNotebook Dell;;UN;3500;42.86;4999.90;84713012;5102;18;1.65;7.6",
+            'produtos' => "descricao;codigo_barras;unidade;preco_custo;markup;preco_venda;preco_debito;preco_credito;ncm;cfop;icms;pis;cofins\nNotebook Dell;;UN;3500;42.86;4999.90;;5199.90;84713012;5102;18;1.65;7.6",
             'fornecedores' => "cnpj;razao_social;nome_fantasia;cep;logradouro;numero;bairro;cidade;uf;telefone;email;contato\n12345678000190;Distribuidora Exemplo;Dist Ex;01001000;Rua Teste;200;Centro;São Paulo;SP;1143211234;contato@dist.com;João",
         ];
 

@@ -847,6 +847,7 @@
             <div class="summary-total">
                 <span class="label">TOTAL</span>
                 <span class="amount" id="summaryTotal">R$ 0,00</span>
+                <div id="tabelaPrecoBadge" style="display:none; font-size:0.72rem; font-weight:600; color:var(--accent-yellow, #ffc107); text-align:right;"></div>
             </div>
             <div class="items-count" id="itemsCount">0 itens</div>
         </div>
@@ -1131,6 +1132,12 @@ const PDV = {
     descontoValor: 0,
     descontoPercentual: 0,
     pagamentos: [],
+    // Tabelas de preço por forma de pagamento (Configurações da Loja)
+    precosCache: {},
+    tabelaAtiva: 'dinheiro_pix',
+    configLoja: {!! json_encode([
+        'regra_split' => $configLoja->regra_preco_split ?? 'cartao_maior',
+    ]) !!},
     pagamentoAtual: null,
     selectedItemIndex: -1,
     barcodeBuffer: '',
@@ -1143,6 +1150,11 @@ const PDV = {
         this.updateClock();
         setInterval(() => this.updateClock(), 1000);
         this.bindKeyboardShortcuts();
+
+        // Modal de pagamento fechado sem confirmar: volta à tabela das formas confirmadas
+        document.getElementById('modalPagamento')?.addEventListener('hidden.bs.modal', () => {
+            this.repriceItens();
+        });
         this.bindSearchInput();
         this.bindPaymentButtons();
         this.bindBarcodeDetection();
@@ -1275,6 +1287,7 @@ const PDV = {
                 headers: { 'X-Requested-With': 'XMLHttpRequest' }
             });
             const produtos = await resp.json();
+            this.cachePrecos(produtos);
             if (produtos.length === 1) {
                 this.addProduto(produtos[0]);
             } else if (produtos.length > 1) {
@@ -1331,10 +1344,17 @@ const PDV = {
                 headers: { 'X-Requested-With': 'XMLHttpRequest' }
             });
             const produtos = await resp.json();
+            this.cachePrecos(produtos);
             this.showSearchResults(produtos);
         } catch (err) {
             console.error('Search error:', err);
         }
+    },
+
+    cachePrecos(produtos) {
+        (produtos || []).forEach(p => {
+            if (p && p.precos) this.precosCache[p.id] = p.precos;
+        });
     },
 
     showSearchResults(produtos) {
@@ -1403,12 +1423,14 @@ const PDV = {
             existing.quantidade += 1;
             existing.total = round((existing.preco_unitario * existing.quantidade) - existing.desconto_valor, 2);
         } else {
+            const precos = produto.precos || this.precosCache[produto.id] || null;
             this.itens.push({
                 produto_id: produto.id,
                 descricao: produto.descricao,
                 codigo_interno: produto.codigo_interno || '',
                 codigo_barras: produto.codigo_barras || '',
                 preco_unitario: parseFloat(produto.preco_venda),
+                precos: precos,
                 quantidade: 1,
                 desconto_valor: 0,
                 total: parseFloat(produto.preco_venda),
@@ -1419,8 +1441,56 @@ const PDV = {
             });
         }
         this.selectedItemIndex = this.itens.length - 1;
+        this.repriceItens();
+    },
+
+    // ===== TABELAS DE PREÇO POR FORMA DE PAGAMENTO =====
+    modalidadeDaForma(forma) {
+        return ({
+            dinheiro: 'dinheiro_pix', pix: 'dinheiro_pix',
+            cartao_debito: 'debito', cartao_credito: 'credito',
+        })[forma] || 'dinheiro_pix';
+    },
+
+    // Modalidade aplicável às formas escolhidas (+ uma forma em análise no modal)
+    modalidadeAtual(formaExtra = null) {
+        const formas = this.pagamentos.map(p => p.forma);
+        if (formaExtra) formas.push(formaExtra);
+        if (formas.length === 0) return 'dinheiro_pix';
+
+        const mods = formas.map(f => this.modalidadeDaForma(f));
+        if (formas.length === 1) return mods[0];
+
+        const regra = this.configLoja.regra_split;
+        if (regra === 'sempre_menor') return 'dinheiro_pix';
+        if (regra === 'sempre_maior') return 'credito';
+        // cartao_maior: a maior tabela entre as formas presentes
+        const peso = { dinheiro_pix: 0, debito: 1, credito: 2 };
+        return mods.sort((a, b) => peso[b] - peso[a])[0];
+    },
+
+    // Reaplica a tabela de preço da modalidade vigente em todos os itens
+    repriceItens(formaExtra = null) {
+        const mod = this.modalidadeAtual(formaExtra);
+        this.itens.forEach(item => {
+            if (item.precos && item.precos[mod] !== undefined) {
+                item.preco_unitario = parseFloat(item.precos[mod]);
+            }
+            item.total = round((item.preco_unitario * item.quantidade) - item.desconto_valor, 2);
+        });
+        this.tabelaAtiva = mod;
         this.renderItems();
         this.updateSummary();
+        this.updateTabelaBadge();
+    },
+
+    updateTabelaBadge() {
+        const badge = document.getElementById('tabelaPrecoBadge');
+        if (!badge) return;
+        const labels = { dinheiro_pix: null, debito: 'Tabela: Débito', credito: 'Tabela: Crédito' };
+        const texto = labels[this.tabelaAtiva];
+        badge.style.display = texto ? 'block' : 'none';
+        badge.textContent = texto || '';
     },
 
     // Modal de escolha de unidade remota (estoque vem de outra loja).
@@ -1663,6 +1733,9 @@ const PDV = {
             return;
         }
 
+        // Preço depende da forma: reaplica a tabela antes de mostrar o total
+        this.repriceItens(forma);
+
         const total = this.getTotal();
         const jaAdicionado = this.pagamentos.reduce((s, p) => s + p.valor, 0);
         const restante = round(total - jaAdicionado, 2);
@@ -1834,6 +1907,7 @@ const PDV = {
 
     removeSplitPayment(idx) {
         this.pagamentos.splice(idx, 1);
+        this.repriceItens();
         this.renderSplitPayments();
         document.getElementById('trocoDisplay').style.display = 'none';
     },
@@ -1866,6 +1940,7 @@ const PDV = {
 
         try {
             const payload = {
+                tabela_precos: 1,
                 itens: this.itens.map(i => ({
                     produto_id: i.produto_id,
                     quantidade: i.quantidade,
@@ -1942,6 +2017,8 @@ const PDV = {
         this.pagamentoAtual = null;
         this.selectedItemIndex = -1;
         this.lastCupomHtml = '';
+        this.tabelaAtiva = 'dinheiro_pix';
+        this.updateTabelaBadge();
 
         // Reset UI
         this.renderItems();

@@ -101,7 +101,14 @@ class ProdutoController extends Controller
             'di_valor_afrmm'         => 'nullable|numeric|min:0',
             'di_forma_importacao'    => 'nullable|integer|in:1,2,3',
             'di_adicao_numero'       => 'nullable|string|max:10',
+            // Tabelas de preço por forma de pagamento (override da regra geral)
+            'preco_debito'           => 'nullable|numeric|min:0',
+            'preco_credito'          => 'nullable|numeric|min:0',
         ]);
+
+        $precoDebito  = $validated['preco_debito'] ?? null;
+        $precoCredito = $validated['preco_credito'] ?? null;
+        unset($validated['preco_debito'], $validated['preco_credito']);
 
         // Fill empty fiscal fields with defaults based on regime tributario
         if (empty($validated['cst_csosn'] ?? null)) {
@@ -130,7 +137,8 @@ class ProdutoController extends Controller
             $validated['foto'] = $request->file('foto')->store('produtos', 'public');
         }
 
-        Produto::create($validated);
+        $produto = Produto::create($validated);
+        $this->salvarPrecosPorForma($produto, $precoDebito, $precoCredito);
 
         return redirect()->route('app.produtos.index')
             ->with('success', 'Produto cadastrado com sucesso!');
@@ -214,7 +222,14 @@ class ProdutoController extends Controller
             'di_forma_importacao'    => 'nullable|integer|in:1,2,3',
             'di_adicao_numero'       => 'nullable|string|max:10',
             'status'             => 'required|in:ativo,inativo',
+            // Tabelas de preço por forma de pagamento (override da regra geral)
+            'preco_debito'           => 'nullable|numeric|min:0',
+            'preco_credito'          => 'nullable|numeric|min:0',
         ]);
+
+        $precoDebito  = $validated['preco_debito'] ?? null;
+        $precoCredito = $validated['preco_credito'] ?? null;
+        unset($validated['preco_debito'], $validated['preco_credito']);
 
         // Handle foto upload
         if ($request->hasFile('foto')) {
@@ -226,9 +241,36 @@ class ProdutoController extends Controller
         }
 
         $produto->update($validated);
+        $this->salvarPrecosPorForma($produto, $precoDebito, $precoCredito);
 
         return redirect()->route('app.produtos.index')
             ->with('success', 'Produto atualizado com sucesso!');
+    }
+
+    /**
+     * Persiste/remove os overrides de preço por forma de pagamento.
+     * Campo vazio = sem override (vale a regra geral das Configurações da Loja).
+     */
+    private function salvarPrecosPorForma(Produto $produto, $precoDebito, $precoCredito): void
+    {
+        foreach (['debito' => $precoDebito, 'credito' => $precoCredito] as $modalidade => $valor) {
+            $registro = $produto->precos()->where('modalidade', $modalidade)->first();
+
+            if ($valor === null || $valor === '') {
+                $registro?->delete();
+                continue;
+            }
+
+            if ($registro) {
+                $registro->update(['valor' => $valor]);
+            } else {
+                $produto->precos()->create([
+                    'empresa_id' => $produto->empresa_id,
+                    'modalidade' => $modalidade,
+                    'valor'      => $valor,
+                ]);
+            }
+        }
     }
 
     public function destroy(Produto $produto)

@@ -113,4 +113,22 @@ class Produto extends Model
     {
         return $this->hasMany(EstoqueMovimentacao::class);
     }
+
+    /** Overrides de preço por forma de pagamento (tabelas dinheiro_pix/debito/credito). */
+    public function precos(): HasMany
+    {
+        return $this->hasMany(ProdutoPreco::class);
+    }
+
+    /** Override de preço no débito (null = vale a regra geral da loja). Usado no export CSV. */
+    public function getPrecoDebitoAttribute(): ?string
+    {
+        return $this->precos->firstWhere('modalidade', 'debito')?->valor;
+    }
+
+    /** Override de preço no crédito (null = vale a regra geral da loja). Usado no export CSV. */
+    public function getPrecoCreditoAttribute(): ?string
+    {
+        return $this->precos->firstWhere('modalidade', 'credito')?->valor;
+    }
 }

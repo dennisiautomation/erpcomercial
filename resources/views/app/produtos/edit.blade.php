@@ -142,6 +142,35 @@
                             <span class="input-group-text">%</span>
                         </div>
                     </div>
+
+                    {{-- Tabelas de preço por forma de pagamento (opcional) --}}
+                    @php
+                        $precosForma = $produto->precos->pluck('valor', 'modalidade');
+                    @endphp
+                    <div class="col-12">
+                        <div class="border rounded p-3 bg-light-subtle">
+                            <div class="fw-semibold mb-1"><i class="bi bi-tags me-1"></i> Preços por forma de pagamento <span class="text-muted fw-normal">(opcional)</span></div>
+                            <div class="text-muted small mb-3">O preço de venda acima vale para Dinheiro/PIX. Deixe em branco para usar a regra geral das <a href="{{ route('app.configuracoes.edit') }}" target="_blank">Configurações da Loja</a>.</div>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label for="preco_debito" class="form-label">Preço no Débito</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">R$</span>
+                                        <input type="number" name="preco_debito" id="preco_debito" class="form-control @error('preco_debito') is-invalid @enderror" value="{{ old('preco_debito', $precosForma['debito'] ?? '') }}" step="0.01" min="0" placeholder="regra geral">
+                                        @error('preco_debito') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="preco_credito" class="form-label">Preço no Crédito</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">R$</span>
+                                        <input type="number" name="preco_credito" id="preco_credito" class="form-control @error('preco_credito') is-invalid @enderror" value="{{ old('preco_credito', $precosForma['credito'] ?? '') }}" step="0.01" min="0" placeholder="regra geral">
+                                        @error('preco_credito') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
