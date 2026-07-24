@@ -278,6 +278,17 @@ document.addEventListener('DOMContentLoaded', function() {
         const descricaoInput = row.querySelector('.item-descricao');
         let searchTimeout;
 
+        // position:fixed escapa do overflow da tabela (senão o dropdown fica cortado)
+        function abrirResultados() {
+            const rect = buscaInput.getBoundingClientRect();
+            resultadosDiv.style.position = 'fixed';
+            resultadosDiv.style.top = (rect.bottom + 2) + 'px';
+            resultadosDiv.style.left = rect.left + 'px';
+            resultadosDiv.style.width = rect.width + 'px';
+            resultadosDiv.style.zIndex = '2000';
+            resultadosDiv.style.display = 'block';
+        }
+
         function buscarProdutos(termo) {
                 // Sem termo digitado: lista os primeiros produtos automaticamente
                 fetch(termo.length >= 2
@@ -290,7 +301,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     resultadosDiv.innerHTML = '';
                     if (produtos.length === 0) {
                         resultadosDiv.innerHTML = '<div class="list-group-item text-muted small py-2">Nenhum produto encontrado</div>';
-                        resultadosDiv.style.display = 'block';
+                        abrirResultados();
                         return;
                     }
                     produtos.forEach(p => {
@@ -315,7 +326,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         });
                         resultadosDiv.appendChild(item);
                     });
-                    resultadosDiv.style.display = 'block';
+                    abrirResultados();
                 });
         }
 
@@ -420,6 +431,13 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!e.target.closest('.produto-busca') && !e.target.closest('.produto-resultados')) document.querySelectorAll('.produto-resultados').forEach(d => d.style.display = 'none');
         if (!e.target.closest('#clienteBusca') && !e.target.closest('#clienteResultados')) clienteResultados.style.display = 'none';
     });
+
+    // Dropdown é position:fixed — fecha ao rolar a página para não ficar deslocado
+    // (rolagem dentro do próprio dropdown não fecha)
+    window.addEventListener('scroll', function(e) {
+        if (e.target && e.target.closest && e.target.closest('.produto-resultados')) return;
+        document.querySelectorAll('.produto-resultados').forEach(d => d.style.display = 'none');
+    }, true);
 });
 </script>
 @endpush

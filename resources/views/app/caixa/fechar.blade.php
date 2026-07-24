@@ -277,13 +277,36 @@
         }
         .time-info .value { color: var(--text-primary); font-weight: 600; }
 
-        /* Conferência das demais formas: sem spinner e sem estourar no mobile */
+        /* Inputs numéricos sem spinner (e sem estourar no mobile) */
         .contado-forma::-webkit-outer-spin-button,
-        .contado-forma::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-        .contado-forma { -moz-appearance: textfield; appearance: textfield; }
+        .contado-forma::-webkit-inner-spin-button,
+        .form-group input[type="number"]::-webkit-outer-spin-button,
+        .form-group input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        .contado-forma,
+        .form-group input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 
         .forma-row { flex-wrap: wrap; row-gap: 6px; }
         .forma-row > span:first-child { min-width: 140px; }
+
+        /* Desktop: duas colunas para o fechamento caber na tela */
+        .fechar-grid { display: grid; gap: 0; }
+
+        @media (min-width: 920px) {
+            .fechar-card { max-width: 1100px; padding: 26px 32px; }
+            .fechar-grid { grid-template-columns: 1fr 1fr; gap: 28px; align-items: start; }
+            .fechar-header { margin-bottom: 14px; }
+            .fechar-header i { width: 52px; height: 52px; font-size: 2rem; margin-bottom: 8px; }
+            .time-info { margin-bottom: 14px; }
+            .resumo-grid { margin-bottom: 12px; }
+            .formas-box { margin-bottom: 12px; }
+            .valor-esperado { margin-bottom: 0; }
+            .valor-esperado .amount { font-size: 1.9rem; }
+            .form-group { margin-bottom: 12px; }
+            .form-group input, .form-group textarea { padding: 10px 14px; }
+            .diferenca-box { margin-bottom: 12px; padding: 10px; }
+            .btn-fechar { padding: 13px; }
+            .btn-voltar { margin-top: 10px; }
+        }
 
         @media (max-width: 560px) {
             body { padding: 10px; }
@@ -320,6 +343,8 @@
         </div>
     @endif
 
+    <div class="fechar-grid">
+    <div class="fechar-col">
     {{-- Resumo de movimentacoes --}}
     <div class="resumo-grid">
         <div class="resumo-item abertura">
@@ -364,7 +389,9 @@
         <div class="amount">R$ {{ number_format($valorEsperado, 2, ',', '.') }}</div>
         <div class="hint">Abertura + vendas em dinheiro + suprimentos − sangrias. PIX e cartão não contam aqui.</div>
     </div>
+    </div>
 
+    <div class="fechar-col">
     {{-- Formulario --}}
     <form method="POST" action="{{ route('app.caixa.fechar') }}" enctype="multipart/form-data" data-confirm="Confirmar fechamento do caixa?">
         @csrf
@@ -441,6 +468,8 @@
             <i class="bi bi-arrow-left"></i> Voltar ao PDV
         </a>
     </form>
+    </div>
+    </div>
 </div>
 
 <script>
