@@ -263,6 +263,7 @@
 document.addEventListener('DOMContentLoaded', function() {
     let itemIndex = 0;
     const produtosBuscarUrl = '{{ url("app/pdv/buscar-produto") }}';
+    const produtosListarUrl = '{{ route("app.search.produtos") }}';
     const clientesBuscarUrl = '{{ route("app.search.clientes") }}';
     const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
 
@@ -327,12 +328,11 @@ document.addEventListener('DOMContentLoaded', function() {
         const descricaoInput = row.querySelector('.item-descricao');
         let searchTimeout;
 
-        buscaInput.addEventListener('input', function() {
-            clearTimeout(searchTimeout);
-            const termo = this.value.trim();
-            if (termo.length < 2) { resultadosDiv.style.display = 'none'; return; }
-            searchTimeout = setTimeout(() => {
-                fetch(`${produtosBuscarUrl}/${encodeURIComponent(termo)}`, {
+        function buscarProdutos(termo) {
+                // Sem termo digitado: lista os primeiros produtos automaticamente
+                fetch(termo.length >= 2
+                        ? `${produtosBuscarUrl}/${encodeURIComponent(termo)}`
+                        : `${produtosListarUrl}?q=${encodeURIComponent(termo)}`, {
                     headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': csrfToken }
                 })
                 .then(r => r.json())
@@ -370,7 +370,15 @@ document.addEventListener('DOMContentLoaded', function() {
                     });
                     resultadosDiv.style.display = 'block';
                 });
-            }, 300);
+        }
+
+        buscaInput.addEventListener('focus', function() {
+            if (!this.value.trim()) buscarProdutos('');
+        });
+        buscaInput.addEventListener('input', function() {
+            clearTimeout(searchTimeout);
+            const termo = this.value.trim();
+            searchTimeout = setTimeout(() => buscarProdutos(termo), 250);
         });
 
         row.querySelectorAll('.item-qtd, .item-preco, .item-desc-perc').forEach(input => {

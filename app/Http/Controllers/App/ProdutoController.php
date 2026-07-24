@@ -112,14 +112,18 @@ class ProdutoController extends Controller
             'di_valor_afrmm'         => 'nullable|numeric|min:0',
             'di_forma_importacao'    => 'nullable|integer|in:1,2,3',
             'di_adicao_numero'       => 'nullable|string|max:10',
-            // Tabelas de preço por forma de pagamento (override da regra geral)
+            // Preço no cartão (crédito e débito) — override da regra geral
+            'preco_cartao'           => 'nullable|numeric|min:0',
             'preco_debito'           => 'nullable|numeric|min:0',
             'preco_credito'          => 'nullable|numeric|min:0',
         ]);
 
-        $precoDebito  = $validated['preco_debito'] ?? null;
-        $precoCredito = $validated['preco_credito'] ?? null;
-        unset($validated['preco_debito'], $validated['preco_credito']);
+        // Preço no Cartão (form) vale para as duas modalidades; os campos
+        // individuais seguem aceitos para import/integracões.
+        $precoCartao  = $validated['preco_cartao'] ?? null;
+        $precoDebito  = $precoCartao ?? $validated['preco_debito'] ?? null;
+        $precoCredito = $precoCartao ?? $validated['preco_credito'] ?? null;
+        unset($validated['preco_cartao'], $validated['preco_debito'], $validated['preco_credito']);
 
         // Fill empty fiscal fields with defaults based on regime tributario
         if (empty($validated['cst_csosn'] ?? null)) {
@@ -235,14 +239,18 @@ class ProdutoController extends Controller
             'di_forma_importacao'    => 'nullable|integer|in:1,2,3',
             'di_adicao_numero'       => 'nullable|string|max:10',
             'status'             => 'required|in:ativo,inativo',
-            // Tabelas de preço por forma de pagamento (override da regra geral)
+            // Preço no cartão (crédito e débito) — override da regra geral
+            'preco_cartao'           => 'nullable|numeric|min:0',
             'preco_debito'           => 'nullable|numeric|min:0',
             'preco_credito'          => 'nullable|numeric|min:0',
         ]);
 
-        $precoDebito  = $validated['preco_debito'] ?? null;
-        $precoCredito = $validated['preco_credito'] ?? null;
-        unset($validated['preco_debito'], $validated['preco_credito']);
+        // Preço no Cartão (form) vale para as duas modalidades; os campos
+        // individuais seguem aceitos para import/integracões.
+        $precoCartao  = $validated['preco_cartao'] ?? null;
+        $precoDebito  = $precoCartao ?? $validated['preco_debito'] ?? null;
+        $precoCredito = $precoCartao ?? $validated['preco_credito'] ?? null;
+        unset($validated['preco_cartao'], $validated['preco_debito'], $validated['preco_credito']);
 
         // Handle foto upload
         if ($request->hasFile('foto')) {

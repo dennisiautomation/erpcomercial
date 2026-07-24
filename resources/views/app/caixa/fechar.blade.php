@@ -276,6 +276,28 @@
             color: var(--text-muted);
         }
         .time-info .value { color: var(--text-primary); font-weight: 600; }
+
+        /* Conferência das demais formas: sem spinner e sem estourar no mobile */
+        .contado-forma::-webkit-outer-spin-button,
+        .contado-forma::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        .contado-forma { -moz-appearance: textfield; appearance: textfield; }
+
+        .forma-row { flex-wrap: wrap; row-gap: 6px; }
+        .forma-row > span:first-child { min-width: 140px; }
+
+        @media (max-width: 560px) {
+            body { padding: 10px; }
+            .fechar-card { padding: 20px 16px; border-radius: 14px; }
+            .resumo-grid { grid-template-columns: 1fr 1fr; gap: 6px; }
+            .valor-esperado .amount { font-size: 1.7rem; }
+            .time-info { flex-direction: column; gap: 4px; align-items: center; }
+
+            .forma-row { align-items: flex-start; }
+            .forma-row > span:first-child { flex: 1 1 100%; min-width: 0; }
+            .forma-row .contado-forma { flex: 1 1 auto; width: auto !important; }
+            .forma-row .diff-forma { width: auto !important; }
+            .forma-row input[type="file"] { max-width: 100% !important; width: 100%; font-size: 0.75rem; }
+        }
     </style>
 </head>
 <body>

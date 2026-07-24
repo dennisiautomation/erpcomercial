@@ -475,6 +475,27 @@
             color: #fff;
         }
 
+        .btn-doc-escolha {
+            flex: 1;
+            padding: 16px 8px;
+            background: var(--bg-tertiary, #2a2a35);
+            color: var(--text-primary, #f1f5f9);
+            border: 2px solid var(--border-color, #3a3a48);
+            border-radius: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .btn-doc-escolha:hover {
+            border-color: var(--accent-blue, #3b82f6);
+        }
+
+        .btn-doc-escolha.btn-doc-default {
+            border-color: var(--accent-green, #22c55e);
+            box-shadow: 0 0 0 3px rgba(34,197,94,0.18);
+        }
+
         .btn-finalizar {
             width: 100%;
             padding: 16px;
@@ -1117,6 +1138,32 @@
 </div>
 
 {{-- Modal: Sucesso venda --}}
+{{-- Pergunta de documento na finalização (modo Auto sem regra automática) --}}
+<div class="modal fade" id="modalDocumento" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 430px;">
+        <div class="modal-content">
+            <div class="modal-body text-center" style="padding: 28px;">
+                <div style="font-size:1.1rem; font-weight:700; margin-bottom:16px;">
+                    <i class="bi bi-printer me-1"></i> Qual documento imprimir?
+                </div>
+                <div class="d-flex gap-2">
+                    <button type="button" id="btnDocCupom" class="btn-doc-escolha" onclick="PDV.confirmarDocumento('cupom_fiscal')">
+                        <i class="bi bi-receipt-cutoff d-block fs-3 mb-1"></i> Cupom Fiscal
+                        <div style="font-size:0.68rem; opacity:0.75;">NFC-e na SEFAZ</div>
+                    </button>
+                    <button type="button" id="btnDocRecibo" class="btn-doc-escolha" onclick="PDV.confirmarDocumento('recibo')">
+                        <i class="bi bi-file-text d-block fs-3 mb-1"></i> Recibo
+                        <div style="font-size:0.68rem; opacity:0.75;">Não fiscal</div>
+                    </button>
+                </div>
+                <div style="font-size:0.7rem; color:var(--text-muted, #9a9ab0); margin-top:12px;">
+                    Enter confirma o destacado · para não perguntar, escolha Recibo/Cupom antes de finalizar
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="modal fade" id="modalSucesso" tabindex="-1" data-bs-backdrop="static">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content" style="text-align:center;">
@@ -1168,8 +1215,15 @@ const PDV = {
     // Documento na finalização: null = automático (parametrização da loja)
     documentoEscolhido: null,
     configLoja: {!! json_encode([
-        'regra_split'  => $configLoja->regra_preco_split ?? 'cartao_maior',
-        'max_parcelas' => (int) ($configLoja->max_parcelas ?? 6),
+        'regra_split'             => $configLoja->regra_preco_split ?? 'cartao_maior',
+        'max_parcelas'            => (int) ($configLoja->max_parcelas ?? 6),
+        'exists'                  => $configLoja->exists,
+        'cupom_automatico_cartao' => (bool) ($configLoja->cupom_automatico_cartao ?? false),
+        'cpf_emite_fiscal'        => (bool) ($configLoja->cpf_emite_fiscal ?? false),
+        'padrao_impressao'        => $configLoja->padrao_impressao ?? 'recibo',
+        'fiscal_ativo'            => (bool) ($configFiscal
+            && $configFiscal->emissao_fiscal_ativa
+            && ($configFiscal->emite_nfce ?? ($configFiscal->tipo_cupom_pdv === 'fiscal'))),
     ]) !!},
     pagamentoAtual: null,
     selectedItemIndex: -1,
@@ -1196,6 +1250,14 @@ const PDV = {
                 document.querySelectorAll('#docChoice .btn-doc').forEach(b =>
                     b.classList.toggle('active', b === btn));
             });
+        });
+
+        // Modal "Qual documento imprimir?": Enter confirma o destacado
+        document.getElementById('modalDocumento')?.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                this.confirmarDocumento(this._docPadrao || 'cupom_fiscal');
+            }
         });
         this.bindSearchInput();
         this.bindPaymentButtons();
@@ -1975,8 +2037,35 @@ const PDV = {
         document.getElementById('trocoDisplay').style.display = 'none';
     },
 
+    // ===== DOCUMENTO NA FINALIZAÇÃO =====
+    // Escolha manual > regras automáticas (cartão/CPF) > perguntar ao operador
+    decidirDocumento() {
+        const cfg = this.configLoja;
+        if (!cfg.fiscal_ativo) return 'recibo';
+
+        const formas = this.pagamentos.map(p => p.forma);
+        const temCartao = formas.includes('cartao_credito') || formas.includes('cartao_debito');
+
+        if (cfg.exists && cfg.cupom_automatico_cartao && temCartao) return 'auto';
+        if (cfg.exists && cfg.cpf_emite_fiscal && this.clienteId) return 'auto';
+
+        return 'perguntar';
+    },
+
+    mostrarPerguntaDocumento() {
+        this._docPadrao = this.configLoja.exists ? this.configLoja.padrao_impressao : 'cupom_fiscal';
+        document.getElementById('btnDocCupom').classList.toggle('btn-doc-default', this._docPadrao === 'cupom_fiscal');
+        document.getElementById('btnDocRecibo').classList.toggle('btn-doc-default', this._docPadrao === 'recibo');
+        new bootstrap.Modal(document.getElementById('modalDocumento')).show();
+    },
+
+    confirmarDocumento(doc) {
+        bootstrap.Modal.getInstance(document.getElementById('modalDocumento'))?.hide();
+        this.finalizarVenda(doc);
+    },
+
     // ===== FINALIZAR VENDA =====
-    async finalizarVenda() {
+    async finalizarVenda(docConfirmado = null) {
         if (this.itens.length === 0) {
             this.showAlert('Adicione itens a venda', 'warning');
             return;
@@ -1998,13 +2087,20 @@ const PDV = {
             return;
         }
 
+        // Documento desta venda: escolha manual, regra automática ou pergunta
+        const documento = docConfirmado || this.documentoEscolhido || this.decidirDocumento();
+        if (documento === 'perguntar') {
+            this.mostrarPerguntaDocumento();
+            return;
+        }
+
         // Show loading
         document.getElementById('loadingOverlay').classList.add('show');
 
         try {
             const payload = {
                 tabela_precos: 1,
-                documento: this.documentoEscolhido,
+                documento: documento === 'auto' ? null : documento,
                 itens: this.itens.map(i => ({
                     produto_id: i.produto_id,
                     quantidade: i.quantidade,
