@@ -329,6 +329,10 @@ Admin (IA365) pode liberar empresas-cliente do funil normal de trial+pago sem ga
 
 ### Central de Configurações da Loja (`/app/configuracoes`)
 
+> Tela escrita para lojista leigo (24/07): aviso "nada muda até salvar", comportamento
+> ligado×desligado por opção, exemplo numérico das 3 tabelas de preço, exemplos de split por
+> combinação de formas, ordem de decisão do documento no PDV e mapa "onde isso aparece".
+
 Tabela `configuracoes_loja` (unique `empresa_id+unidade_id`, mesma regra da config fiscal:
 NUNCA `updateOrCreate`). Model `ConfiguracaoLoja::daUnidade()` devolve instância não persistida
 com defaults quando a loja nunca salvou (checar `->exists` para distinguir). Parâmetros:
@@ -405,6 +409,9 @@ com defaults quando a loja nunca salvou (checar `->exists` para distinguir). Par
 4. ContaReceber de cartão pendente tem `valor_pago = 0` e `pago_em = null` — relatórios que
    assumiam PDV = sempre pago precisam considerar isso quando houver regras de adquirente.
 5. E-mail automático de NF-e só para vendas `tipo='pedido'` (hook no model NotaFiscal).
+6. **Admin da plataforma não tem empresa** (`empresa_id` null): Produto e Plano ganharam guards
+   (redirect com aviso) em 24/07 — commit `c160b9b`. Toda tela `/app/*` nova precisa tratar
+   `auth()->user()->empresa` null, senão 500 para o admin.
 
 ---
 
@@ -542,6 +549,9 @@ docker exec -i erp-com-app php artisan schedule:list
 | Gerente | gerente@demo.com | gerente123 |
 | Vendedor | vendedor@demo.com | vendedor123 |
 | Caixa | caixa@demo.com | caixa123 |
+
+> ⚠️ Em **produção** só o Admin funciona (verificado 24/07/2026) — os usuários `@demo.com`
+> valem para o seed de desenvolvimento (`migrate:fresh --seed`).
 
 ---
 

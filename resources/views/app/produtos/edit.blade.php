@@ -294,7 +294,8 @@
     {{-- STEP 3: Dados Fiscais --}}
     {{-- ============================================================ --}}
     @php
-        $empresa = auth()->user()->empresa;
+        // Admin da plataforma não tem empresa — usa a do produto
+        $empresa = auth()->user()->empresa ?? $produto->empresa;
         $unidadeId = session('unidade_id');
         $configFiscal = $unidadeId ? \App\Models\ConfiguracaoFiscal::withoutGlobalScopes()->where('unidade_id', $unidadeId)->first() : null;
         $emiteFiscal = $configFiscal && $configFiscal->emissao_fiscal_ativa;
