@@ -328,8 +328,10 @@ document.addEventListener('DOMContentLoaded', function() {
         const descricaoInput = row.querySelector('.item-descricao');
         let searchTimeout;
 
-        // position:fixed escapa do overflow da tabela (senão o dropdown fica cortado)
+        // position:fixed escapa do overflow da tabela (senão o dropdown fica cortado).
+        // As classes Bootstrap position-absolute/w-100 têm !important e venceriam o inline.
         function abrirResultados() {
+            resultadosDiv.classList.remove('position-absolute', 'w-100');
             const rect = buscaInput.getBoundingClientRect();
             resultadosDiv.style.position = 'fixed';
             resultadosDiv.style.top = (rect.bottom + 2) + 'px';
