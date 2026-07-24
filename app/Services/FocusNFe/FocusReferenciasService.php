@@ -70,12 +70,21 @@ class FocusReferenciasService
 
         $chave = self::CACHE_PREFIX . ':ncm:cod:' . $codigo;
 
-        return Cache::remember($chave, self::TTL_MUNICIPIO, function () use ($codigo) {
-            $response = $this->safeGet('/v2/ncms', ['codigo' => $codigo]);
-            $lista = $this->normalizarLista($response, 'codigo', 'descricao_completa', 1);
+        $cached = Cache::get($chave);
+        if ($cached !== null) {
+            return $cached;
+        }
 
-            return $lista[0]['descricao'] ?? null;
-        });
+        $response = $this->safeGet('/v2/ncms', ['codigo' => $codigo]);
+        $lista = $this->normalizarLista($response, 'codigo', 'descricao_completa', 1);
+        $descricao = $lista[0]['descricao'] ?? null;
+
+        // Falha/não encontrado NÃO fica preso no cache — tenta de novo depois
+        if ($descricao !== null && $descricao !== '') {
+            Cache::put($chave, $descricao, self::TTL_MUNICIPIO);
+        }
+
+        return $descricao;
     }
 
     // ─── CFOP ──────────────────────────────────────────────────────────

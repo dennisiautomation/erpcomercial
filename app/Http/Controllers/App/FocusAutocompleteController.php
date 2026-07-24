@@ -41,9 +41,16 @@ class FocusAutocompleteController extends Controller
                 ->get()
                 ->map(function ($r) use ($svc) {
                     $nomenclatura = $svc?->ncmDescricao($r->ncm);
-                    $sufixo = $nomenclatura
-                        ? \Illuminate\Support\Str::limit(strip_tags($nomenclatura), 90)
-                        : "já usado em {$r->qtd} produto(s)";
+
+                    if ($nomenclatura) {
+                        // A descrição completa concatena a hierarquia com " - ";
+                        // o último nível é o específico (mais útil na lista)
+                        $partes = array_map('trim', explode(' - ', strip_tags($nomenclatura)));
+                        $especifico = end($partes) ?: $nomenclatura;
+                        $sufixo = \Illuminate\Support\Str::limit($especifico, 90);
+                    } else {
+                        $sufixo = "já usado em {$r->qtd} produto(s)";
+                    }
 
                     return [
                         'codigo'    => $r->ncm,
