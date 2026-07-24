@@ -25,11 +25,19 @@
                 <label class="form-label small fw-semibold">Data Fim</label>
                 <input type="date" name="data_fim" class="form-control form-control-sm" value="{{ $dataFim->format('Y-m-d') }}">
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
+                <label class="form-label small fw-semibold">Origem</label>
+                <select name="origem" class="form-select form-select-sm">
+                    <option value="">Todas</option>
+                    <option value="vendas" @selected(request('origem') === 'vendas')>Vendas (PDV/balcão)</option>
+                    <option value="pedidos" @selected(request('origem') === 'pedidos')>Pedidos faturados</option>
+                </select>
+            </div>
+            <div class="col-md-2">
                 <label class="form-label small fw-semibold">Vendedor</label>
                 <input type="text" name="vendedor_id" class="form-control form-control-sm" value="{{ request('vendedor_id') }}" placeholder="ID do vendedor">
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <label class="form-label small fw-semibold">Cliente</label>
                 <input type="text" name="cliente_id" class="form-control form-control-sm" value="{{ request('cliente_id') }}" placeholder="ID do cliente">
             </div>

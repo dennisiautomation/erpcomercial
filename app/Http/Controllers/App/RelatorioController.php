@@ -31,6 +31,13 @@ class RelatorioController extends Controller
             ->where('empresa_id', $empresaId)
             ->whereBetween('created_at', [$dataInicio, $dataFim->endOfDay()]);
 
+        // Origem: vendas diretas (PDV/balcão) × pedidos faturados
+        if ($request->origem === 'pedidos') {
+            $query->where('tipo', 'pedido');
+        } elseif ($request->origem === 'vendas') {
+            $query->where(fn ($q) => $q->where('tipo', '!=', 'pedido')->orWhereNull('tipo'));
+        }
+
         if ($request->filled('vendedor_id')) {
             $query->where('vendedor_id', $request->vendedor_id);
         }

@@ -83,57 +83,63 @@ class EstoqueMovimentacaoController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'produto_id'     => 'required|exists:produtos,id',
-            'tipo'           => 'required|in:ajuste,perda,bonificacao,entrada',
-            'quantidade'     => 'required|numeric|min:0.001',
-            'custo_unitario' => 'nullable|numeric|min:0',
-            'observacoes'    => 'nullable|string|max:500',
+            'tipo'                    => 'required|in:ajuste,perda,bonificacao,entrada',
+            'itens'                   => 'required|array|min:1',
+            'itens.*.produto_id'      => 'required|exists:produtos,id',
+            'itens.*.quantidade'      => 'required|numeric|min:0.001',
+            'itens.*.custo_unitario'  => 'nullable|numeric|min:0',
+            'observacoes'             => 'nullable|string|max:500',
         ]);
 
         DB::transaction(function () use ($validated) {
-            $produto = Produto::lockForUpdate()->findOrFail($validated['produto_id']);
-
-            // Saldo atual DA UNIDADE ATIVA (a cadeia anterior→posterior é
-            // por unidade; misturar unidades corrompia o histórico)
-            $ultimaMovimentacao = EstoqueMovimentacao::withoutGlobalScopes()
-                ->where('produto_id', $produto->id)
-                ->where('empresa_id', auth()->user()->empresa_id)
-                ->where('unidade_id', session('unidade_id'))
-                ->orderByDesc('id')
-                ->first();
-
-            $estoqueAnterior = $ultimaMovimentacao
-                ? (float) $ultimaMovimentacao->quantidade_posterior
-                : 0;
-
             $tipo = TipoMovimentacaoEstoque::from($validated['tipo']);
-            $quantidade = (float) $validated['quantidade'];
 
-            // Determine stock change based on type
-            $delta = match ($tipo) {
-                TipoMovimentacaoEstoque::Entrada, TipoMovimentacaoEstoque::Ajuste => $quantidade,
-                TipoMovimentacaoEstoque::Perda, TipoMovimentacaoEstoque::Bonificacao => -$quantidade,
-                default => $quantidade,
-            };
+            foreach ($validated['itens'] as $item) {
+                $produto = Produto::lockForUpdate()->findOrFail($item['produto_id']);
 
-            $estoquePosterior = $estoqueAnterior + $delta;
+                // Saldo atual DA UNIDADE ATIVA (a cadeia anterior→posterior é
+                // por unidade; misturar unidades corrompia o histórico)
+                $ultimaMovimentacao = EstoqueMovimentacao::withoutGlobalScopes()
+                    ->where('produto_id', $produto->id)
+                    ->where('empresa_id', auth()->user()->empresa_id)
+                    ->where('unidade_id', session('unidade_id'))
+                    ->orderByDesc('id')
+                    ->first();
 
-            EstoqueMovimentacao::create([
-                'empresa_id'          => auth()->user()->empresa_id,
-                'unidade_id'          => session('unidade_id'),
-                'produto_id'          => $produto->id,
-                'tipo'                => $validated['tipo'],
-                'quantidade'          => $quantidade,
-                'quantidade_anterior' => $estoqueAnterior,
-                'quantidade_posterior' => $estoquePosterior,
-                'custo_unitario'      => $validated['custo_unitario'] ?? 0,
-                'user_id'             => auth()->id(),
-                'observacoes'         => $validated['observacoes'] ?? null,
-            ]);
+                $estoqueAnterior = $ultimaMovimentacao
+                    ? (float) $ultimaMovimentacao->quantidade_posterior
+                    : 0;
+
+                $quantidade = (float) $item['quantidade'];
+
+                // Determine stock change based on type
+                $delta = match ($tipo) {
+                    TipoMovimentacaoEstoque::Entrada, TipoMovimentacaoEstoque::Ajuste => $quantidade,
+                    TipoMovimentacaoEstoque::Perda, TipoMovimentacaoEstoque::Bonificacao => -$quantidade,
+                    default => $quantidade,
+                };
+
+                EstoqueMovimentacao::create([
+                    'empresa_id'          => auth()->user()->empresa_id,
+                    'unidade_id'          => session('unidade_id'),
+                    'produto_id'          => $produto->id,
+                    'tipo'                => $validated['tipo'],
+                    'quantidade'          => $quantidade,
+                    'quantidade_anterior' => $estoqueAnterior,
+                    'quantidade_posterior' => $estoqueAnterior + $delta,
+                    'custo_unitario'      => $item['custo_unitario'] ?? 0,
+                    'user_id'             => auth()->id(),
+                    'observacoes'         => $validated['observacoes'] ?? null,
+                ]);
+            }
         });
 
+        $qtd = count($validated['itens']);
+
         return redirect()->route('app.movimentacoes.index')
-            ->with('success', 'Movimentacao registrada com sucesso!');
+            ->with('success', $qtd > 1
+                ? "{$qtd} movimentações registradas com sucesso!"
+                : 'Movimentacao registrada com sucesso!');
     }
 
     public function show(EstoqueMovimentacao $movimentacao)
