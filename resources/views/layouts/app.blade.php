@@ -812,15 +812,15 @@
                     {{-- ---- Financeiro ---- --}}
                     <li class="sidebar-heading">Financeiro</li>
                     <li class="nav-item">
-                        <a class="nav-link nav-toggle {{ request()->routeIs('app.contas-receber.*', 'app.contas-pagar.*', 'app.financeiro.*', 'app.boletos.*', 'app.conciliacao.*', 'app.contratos.*') ? '' : 'collapsed' }}"
+                        <a class="nav-link nav-toggle {{ request()->routeIs('app.contas-receber.*', 'app.contas-pagar.*', 'app.financeiro.*', 'app.adquirentes.*', 'app.boletos.*', 'app.conciliacao.*', 'app.contratos.*') ? '' : 'collapsed' }}"
                            data-bs-toggle="collapse" href="#menuFinanceiro" role="button"
-                           aria-expanded="{{ request()->routeIs('app.contas-receber.*', 'app.contas-pagar.*', 'app.financeiro.*', 'app.boletos.*', 'app.conciliacao.*', 'app.contratos.*') ? 'true' : 'false' }}"
+                           aria-expanded="{{ request()->routeIs('app.contas-receber.*', 'app.contas-pagar.*', 'app.financeiro.*', 'app.adquirentes.*', 'app.boletos.*', 'app.conciliacao.*', 'app.contratos.*') ? 'true' : 'false' }}"
                            aria-controls="menuFinanceiro">
                             <i class="bi bi-wallet2 nav-icon"></i>
                             <span class="nav-text">Financeiro</span>
                             <i class="bi bi-chevron-right toggle-icon"></i>
                         </a>
-                        <div class="collapse {{ request()->routeIs('app.contas-receber.*', 'app.contas-pagar.*', 'app.financeiro.*', 'app.boletos.*', 'app.conciliacao.*', 'app.contratos.*') ? 'show' : '' }}" id="menuFinanceiro">
+                        <div class="collapse {{ request()->routeIs('app.contas-receber.*', 'app.contas-pagar.*', 'app.financeiro.*', 'app.adquirentes.*', 'app.boletos.*', 'app.conciliacao.*', 'app.contratos.*') ? 'show' : '' }}" id="menuFinanceiro">
                             <ul class="nav flex-column submenu">
                                 <li class="nav-item">
                                     <a class="nav-link {{ request()->routeIs('app.contas-receber.*') ? 'active' : '' }}"
@@ -833,6 +833,10 @@
                                 <li class="nav-item">
                                     <a class="nav-link {{ request()->routeIs('app.financeiro.fluxo-caixa') ? 'active' : '' }}"
                                        href="{{ route('app.financeiro.fluxo-caixa') }}">Fluxo de Caixa</a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link {{ request()->routeIs('app.adquirentes.*') ? 'active' : '' }}"
+                                       href="{{ route('app.adquirentes.index') }}">Máquinas de Cartão</a>
                                 </li>
                                 <li class="nav-item">
                                     <a class="nav-link {{ request()->routeIs('app.boletos.*') ? 'active' : '' }}"

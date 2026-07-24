@@ -982,6 +982,11 @@
                     <input type="number" class="form-control modal-valor-input" id="valorRecebido"
                         step="0.01" min="0" placeholder="0,00">
                 </div>
+                <div class="mb-3" id="parcelasWrap" style="display:none;">
+                    <label class="form-label">Parcelas</label>
+                    <select class="form-select" id="parcelasSelect"
+                            style="background:var(--bg-primary); color:var(--text-primary); border-color:var(--border-color, #3a3a48);"></select>
+                </div>
                 <div id="modalTrocoWrap" style="display:none;" class="text-center mt-3">
                     <div style="color:var(--text-muted); font-size:0.85rem;">TROCO</div>
                     <div style="font-size:2rem; font-weight:800; color:var(--accent-green);" id="modalTroco">R$ 0,00</div>
@@ -1163,7 +1168,8 @@ const PDV = {
     // Documento na finalização: null = automático (parametrização da loja)
     documentoEscolhido: null,
     configLoja: {!! json_encode([
-        'regra_split' => $configLoja->regra_preco_split ?? 'cartao_maior',
+        'regra_split'  => $configLoja->regra_preco_split ?? 'cartao_maior',
+        'max_parcelas' => (int) ($configLoja->max_parcelas ?? 6),
     ]) !!},
     pagamentoAtual: null,
     selectedItemIndex: -1,
@@ -1816,6 +1822,23 @@ const PDV = {
         document.getElementById('splitCheck').style.display = this.pagamentos.length === 0 ? 'block' : 'none';
         document.getElementById('isSplitPayment').checked = this.pagamentos.length > 0;
 
+        // Parcelas: só para cartão de crédito
+        const parcelasWrap = document.getElementById('parcelasWrap');
+        if (forma === 'cartao_credito') {
+            const sel = document.getElementById('parcelasSelect');
+            const max = this.configLoja.max_parcelas || 6;
+            sel.innerHTML = '';
+            for (let i = 1; i <= max; i++) {
+                const opt = document.createElement('option');
+                opt.value = i;
+                opt.textContent = i === 1 ? 'À vista (1x)' : i + 'x';
+                sel.appendChild(opt);
+            }
+            parcelasWrap.style.display = 'block';
+        } else {
+            parcelasWrap.style.display = 'none';
+        }
+
         // Troco calculation for dinheiro
         valorInput.oninput = () => {
             if (forma === 'dinheiro') {
@@ -1858,9 +1881,13 @@ const PDV = {
             return;
         }
 
+        const parcelas = forma === 'cartao_credito'
+            ? parseInt(document.getElementById('parcelasSelect')?.value || '1', 10)
+            : 1;
+
         if (isSplit) {
             // Split payment - add to list
-            this.pagamentos.push({ forma, valor: Math.min(valor, restante) });
+            this.pagamentos.push({ forma, valor: Math.min(valor, restante), parcelas });
             this.renderSplitPayments();
 
             const novoRestante = round(total - this.pagamentos.reduce((s, p) => s + p.valor, 0), 2);
@@ -1874,7 +1901,7 @@ const PDV = {
             }
         } else {
             // Single payment
-            this.pagamentos = [{ forma, valor }];
+            this.pagamentos = [{ forma, valor, parcelas }];
             bootstrap.Modal.getInstance(document.getElementById('modalPagamento'))?.hide();
 
             // Calculate troco for display

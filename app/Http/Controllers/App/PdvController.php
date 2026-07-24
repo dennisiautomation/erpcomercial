@@ -6,6 +6,7 @@ use App\Enums\StatusVenda;
 use App\Enums\TipoMovimentacaoCaixa;
 use App\Enums\TipoMovimentacaoEstoque;
 use App\Http\Controllers\Controller;
+use App\Models\AdquirenteTaxa;
 use App\Models\Caixa;
 use App\Models\Cliente;
 use App\Models\Comissao;
@@ -147,6 +148,7 @@ class PdvController extends Controller
             'pagamentos'               => 'required|array|min:1',
             'pagamentos.*.forma'       => 'required|string',
             'pagamentos.*.valor'       => 'required|numeric|min:0.01',
+            'pagamentos.*.parcelas'    => 'nullable|integer|min:1|max:24',
             'cliente_id'               => 'nullable|exists:clientes,id',
             'desconto_valor'           => 'nullable|numeric|min:0',
             'desconto_percentual'      => 'nullable|numeric|min:0|max:100',
@@ -330,20 +332,60 @@ class PdvController extends Controller
                     ]);
                 }
 
-                // Create ContaReceber entries
+                // Create ContaReceber entries. Cartão com regra de adquirente
+                // cadastrada vira recebível pendente com data prevista (D+prazo,
+                // parcelas seguintes a cada 30d) e valor líquido descontada a taxa.
                 foreach ($pagamentos as $pgto) {
                     $valorPgto = min($pgto['valor'], $total);
+                    $forma = $pgto['forma'];
+                    $parcelas = max(1, (int) ($pgto['parcelas'] ?? 1));
+
+                    $regra = in_array($forma, ['cartao_credito', 'cartao_debito'], true)
+                        ? AdquirenteTaxa::paraPagamento((int) $empresaId, $forma, $parcelas)
+                        : null;
+
+                    if ($regra) {
+                        $valorParcela = round($valorPgto / $parcelas, 2);
+                        $acumulado = 0;
+                        for ($i = 1; $i <= $parcelas; $i++) {
+                            $valorEsta = $i === $parcelas
+                                ? round($valorPgto - $acumulado, 2)
+                                : $valorParcela;
+                            $acumulado = round($acumulado + $valorEsta, 2);
+
+                            ContaReceber::create([
+                                'empresa_id'         => $empresaId,
+                                'unidade_id'         => $unidadeId,
+                                'cliente_id'         => $request->cliente_id,
+                                'venda_id'           => $venda->id,
+                                'descricao'          => "Venda PDV #{$venda->numero} - " . ucfirst(str_replace('_', ' ', $forma)) . " {$i}/{$parcelas} ({$regra->nome})",
+                                'valor'              => $valorEsta,
+                                'valor_pago'         => 0,
+                                'vencimento'         => now()->addDays($regra->prazo_dias + 30 * ($i - 1)),
+                                'pago_em'            => null,
+                                'forma_pagamento'    => $forma,
+                                'adquirente_taxa_id' => $regra->id,
+                                'taxa_percentual'    => $regra->taxa_percentual,
+                                'valor_liquido'      => round($valorEsta * (1 - ((float) $regra->taxa_percentual) / 100), 2),
+                                'parcela'            => $i,
+                                'total_parcelas'     => $parcelas,
+                                'status'             => 'pendente',
+                            ]);
+                        }
+                        continue;
+                    }
+
                     ContaReceber::create([
                         'empresa_id'      => $empresaId,
                         'unidade_id'      => $unidadeId,
                         'cliente_id'      => $request->cliente_id,
                         'venda_id'        => $venda->id,
-                        'descricao'       => "Venda PDV #{$venda->numero} - " . ucfirst($pgto['forma']),
+                        'descricao'       => "Venda PDV #{$venda->numero} - " . ucfirst($forma),
                         'valor'           => $valorPgto,
                         'valor_pago'      => $valorPgto,
                         'vencimento'      => now(),
                         'pago_em'         => now(),
-                        'forma_pagamento' => $pgto['forma'],
+                        'forma_pagamento' => $forma,
                         'parcela'         => 1,
                         'total_parcelas'  => 1,
                         'status'          => 'paga',

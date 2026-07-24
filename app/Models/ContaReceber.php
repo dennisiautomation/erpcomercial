@@ -26,6 +26,9 @@ class ContaReceber extends Model
         'vencimento',
         'pago_em',
         'forma_pagamento',
+        'adquirente_taxa_id',
+        'taxa_percentual',
+        'valor_liquido',
         'parcela',
         'total_parcelas',
         'status',
@@ -37,6 +40,8 @@ class ContaReceber extends Model
         return [
             'valor' => 'decimal:2',
             'valor_pago' => 'decimal:2',
+            'taxa_percentual' => 'decimal:2',
+            'valor_liquido' => 'decimal:2',
             'vencimento' => 'date',
             'pago_em' => 'date',
         ];
@@ -45,6 +50,11 @@ class ContaReceber extends Model
     /* ------------------------------------------------------------------ */
     /*  Relationships                                                      */
     /* ------------------------------------------------------------------ */
+
+    public function adquirenteTaxa()
+    {
+        return $this->belongsTo(AdquirenteTaxa::class);
+    }
 
     public function empresa(): BelongsTo
     {

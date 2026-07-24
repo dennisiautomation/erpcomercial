@@ -197,6 +197,18 @@ Route::middleware(['auth', 'unidade'])->prefix('app')->name('app.')->group(funct
     Route::post('financeiro/contas-pagar/{contas_pagar}/baixar', [App\ContaPagarController::class, 'baixar'])
         ->name('contas-pagar.baixar')
         ->middleware('permission:financeiro');
+    /* ------ Adquirentes (máquinas de cartão: taxas e prazos) ------ */
+    Route::prefix('adquirentes')->name('adquirentes.')->middleware('permission:financeiro')->group(function () {
+        Route::get('/', [App\AdquirenteController::class, 'index'])->name('index');
+        Route::get('/recebiveis', [App\AdquirenteController::class, 'recebiveis'])->name('recebiveis');
+        Route::post('/', [App\AdquirenteController::class, 'store'])->name('store')
+            ->middleware('permission:financeiro,criar');
+        Route::put('/{adquirente}', [App\AdquirenteController::class, 'update'])->name('update')
+            ->middleware('permission:financeiro,editar');
+        Route::delete('/{adquirente}', [App\AdquirenteController::class, 'destroy'])->name('destroy')
+            ->middleware('permission:financeiro,excluir');
+    });
+
     Route::get('/financeiro/fluxo-caixa', [App\FluxoCaixaController::class, 'index'])
         ->name('financeiro.fluxo-caixa')
         ->middleware('permission:financeiro');
