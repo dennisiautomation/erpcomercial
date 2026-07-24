@@ -13,11 +13,22 @@ use Illuminate\Http\Request;
 
 class SearchController extends Controller
 {
+    /**
+     * Empresa do usuário ou, para o admin da plataforma (empresa_id null),
+     * a empresa da unidade selecionada na sessão — senão as buscas do
+     * admin voltavam sempre vazias.
+     */
+    private function empresaId(): ?int
+    {
+        return auth()->user()->empresa_id
+            ?? (session('empresa_id') ? (int) session('empresa_id') : null);
+    }
+
     public function clientes(Request $request): JsonResponse
     {
         $q = $request->input('q', '');
 
-        $clientes = Cliente::where('empresa_id', auth()->user()->empresa_id)
+        $clientes = Cliente::where('empresa_id', $this->empresaId())
             ->where(function ($query) use ($q) {
                 $query->where('nome_razao_social', 'like', "%{$q}%")
                       ->orWhere('cpf_cnpj', 'like', "%{$q}%")
@@ -35,7 +46,7 @@ class SearchController extends Controller
     {
         $q = $request->input('q', '');
 
-        $produtos = Produto::where('empresa_id', auth()->user()->empresa_id)
+        $produtos = Produto::where('empresa_id', $this->empresaId())
             ->where(function ($query) use ($q) {
                 $query->where('descricao', 'like', "%{$q}%")
                       ->orWhere('codigo_interno', 'like', "%{$q}%")
@@ -54,7 +65,7 @@ class SearchController extends Controller
     {
         $q = $request->input('q', '');
 
-        $fornecedores = Fornecedor::where('empresa_id', auth()->user()->empresa_id)
+        $fornecedores = Fornecedor::where('empresa_id', $this->empresaId())
             ->where(function ($query) use ($q) {
                 $query->where('razao_social', 'like', "%{$q}%")
                       ->orWhere('cpf_cnpj', 'like', "%{$q}%");
@@ -70,7 +81,7 @@ class SearchController extends Controller
     {
         $q = $request->input('q', '');
 
-        $users = User::where('empresa_id', auth()->user()->empresa_id)
+        $users = User::where('empresa_id', $this->empresaId())
             ->where('name', 'like', "%{$q}%")
             ->whereIn('perfil', ['vendedor', 'gerente', 'dono'])
             ->where('status', 'ativo')
@@ -84,7 +95,7 @@ class SearchController extends Controller
     public function global(Request $request): JsonResponse
     {
         $q = $request->input('q', '');
-        $empresaId = auth()->user()->empresa_id;
+        $empresaId = $this->empresaId();
 
         $clientes = Cliente::where('empresa_id', $empresaId)
             ->where(fn ($query) => $query->where('nome_razao_social', 'like', "%{$q}%")->orWhere('cpf_cnpj', 'like', "%{$q}%"))

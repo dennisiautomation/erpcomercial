@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Models\VendaItem;
 use App\Observers\VendaItemObserver;
+use Illuminate\Pagination\Paginator;
 use Illuminate\Support\ServiceProvider;
 use Spatie\Activitylog\Models\Activity;
 
@@ -11,11 +12,16 @@ class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        //
+        // Traduções em resources/lang (o diretório lang/ na raiz não existe)
+        $this->app->useLangPath(resource_path('lang'));
     }
 
     public function boot(): void
     {
+        // Paginação com markup Bootstrap 5 (a view padrão do Laravel é
+        // Tailwind — sem Tailwind na página, as setas SVG saem gigantes)
+        Paginator::useBootstrapFive();
+
         // Snapshot fiscal automático: copia NCM/CFOP/CST/alíquotas do produto
         // para o venda_item na criação. Imuniza histórico contra edições do produto.
         VendaItem::observe(VendaItemObserver::class);

@@ -262,7 +262,7 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     let itemIndex = 0;
-    const produtosBuscarUrl = '{{ url("app/pdv/buscar-produto") }}';
+    const produtosBuscarUrl = '{{ url("app/pdv/produto") }}'; // rota real do buscador (era buscar-produto: 404 silencioso)
     const produtosListarUrl = '{{ route("app.search.produtos") }}';
     const clientesBuscarUrl = '{{ route("app.search.clientes") }}';
     const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
@@ -348,6 +348,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 })
                 .then(r => r.json())
                 .then(produtos => {
+                    if (!Array.isArray(produtos)) produtos = [];
                     resultadosDiv.innerHTML = '';
                     if (produtos.length === 0) {
                         resultadosDiv.innerHTML = '<div class="list-group-item text-muted small py-2">Nenhum produto encontrado</div>';
@@ -379,6 +380,10 @@ document.addEventListener('DOMContentLoaded', function() {
                         });
                         resultadosDiv.appendChild(item);
                     });
+                    abrirResultados();
+                })
+                .catch(() => {
+                    resultadosDiv.innerHTML = '<div class="list-group-item text-danger small py-2">Erro ao buscar produtos</div>';
                     abrirResultados();
                 });
         }
