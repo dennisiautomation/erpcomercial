@@ -344,7 +344,7 @@
     </div>
 
     {{-- Formulario --}}
-    <form method="POST" action="{{ route('app.caixa.fechar') }}" data-confirm="Confirmar fechamento do caixa?">
+    <form method="POST" action="{{ route('app.caixa.fechar') }}" enctype="multipart/form-data" data-confirm="Confirmar fechamento do caixa?">
         @csrf
 
         <div class="form-group">
@@ -364,6 +364,46 @@
             <div class="label">Diferenca</div>
             <div class="value" id="diferencaValue">R$ 0,00</div>
             <div class="detail" id="diferencaDetail">Informe o valor contado</div>
+        </div>
+
+        {{-- Conferência das demais formas (informativa — não entra na gaveta) --}}
+        @php $labels = \App\Models\MovimentacaoCaixa::FORMAS_LABELS; @endphp
+        <div class="formas-box">
+            <div class="formas-title"><i class="bi bi-check2-square me-1"></i> Conferência das demais formas (opcional)</div>
+            @foreach($formasConferencia as $forma)
+                @php $esperadoForma = (float) ($resumo['vendas_por_forma'][$forma] ?? 0); @endphp
+                <div class="forma-row" style="gap:10px;">
+                    <span style="flex:1;">
+                        {{ $labels[$forma] ?? ucfirst($forma) }}
+                        <small class="nao-confere">esperado R$ {{ number_format($esperadoForma, 2, ',', '.') }}</small>
+                    </span>
+                    <input type="number" name="contado[{{ $forma }}]" step="0.01" min="0"
+                           class="contado-forma" data-esperado="{{ $esperadoForma }}"
+                           placeholder="contado"
+                           style="width:130px; background:var(--bg-secondary); border:1px solid var(--border); color:var(--text-primary); border-radius:8px; padding:6px 10px; text-align:right; font-weight:600;">
+                    <span class="fw diff-forma" style="width:90px; text-align:right; font-size:0.8rem;"></span>
+                </div>
+            @endforeach
+        </div>
+
+        {{-- Comprovantes (máquina / cartões) --}}
+        <div class="formas-box">
+            <div class="formas-title"><i class="bi bi-paperclip me-1"></i> Comprovantes (opcional — JPG, PNG ou PDF)</div>
+            <div class="forma-row" style="gap:10px;">
+                <span style="flex:1;">Fechamento da máquina</span>
+                <input type="file" name="anexo_maquina" accept=".jpg,.jpeg,.png,.pdf"
+                       style="max-width:230px; font-size:0.78rem; color:var(--text-secondary);">
+            </div>
+            <div class="forma-row" style="gap:10px;">
+                <span style="flex:1;">Comprovante cartão de crédito</span>
+                <input type="file" name="anexo_credito" accept=".jpg,.jpeg,.png,.pdf"
+                       style="max-width:230px; font-size:0.78rem; color:var(--text-secondary);">
+            </div>
+            <div class="forma-row" style="gap:10px;">
+                <span style="flex:1;">Comprovante cartão de débito</span>
+                <input type="file" name="anexo_debito" accept=".jpg,.jpeg,.png,.pdf"
+                       style="max-width:230px; font-size:0.78rem; color:var(--text-secondary);">
+            </div>
         </div>
 
         <div class="form-group">
@@ -392,6 +432,22 @@ document.addEventListener('DOMContentLoaded', function() {
     function formatMoney(val) {
         return 'R$ ' + Math.abs(val).toFixed(2).replace('.', ',');
     }
+
+    // Diferença ao vivo na conferência das demais formas
+    document.querySelectorAll('.contado-forma').forEach(function(input) {
+        input.addEventListener('input', function() {
+            const diffEl = this.parentElement.querySelector('.diff-forma');
+            if (this.value === '') { diffEl.textContent = ''; return; }
+            const diff = (parseFloat(this.value) || 0) - parseFloat(this.dataset.esperado);
+            if (Math.abs(diff) < 0.02) {
+                diffEl.textContent = 'confere';
+                diffEl.style.color = 'var(--accent-green)';
+            } else {
+                diffEl.textContent = (diff > 0 ? '+ ' : '- ') + formatMoney(diff);
+                diffEl.style.color = diff > 0 ? 'var(--accent-yellow)' : 'var(--accent-red)';
+            }
+        });
+    });
 
     contadoInput.addEventListener('input', function() {
         const contado = parseFloat(this.value) || 0;

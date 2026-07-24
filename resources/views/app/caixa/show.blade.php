@@ -106,6 +106,62 @@
             @endif
         </x-erp.card>
         </div>
+
+        {{-- Conferência por forma de pagamento --}}
+        @if($caixa->conferencia)
+        <div class="mt-4">
+        <x-erp.card title="Conferência por forma" icon="check2-square">
+            @php $labels = \App\Models\MovimentacaoCaixa::FORMAS_LABELS; @endphp
+            <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Forma</th>
+                            <th class="text-end">Esperado</th>
+                            <th class="text-end">Contado</th>
+                            <th class="text-end">Diferença</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($caixa->conferencia as $forma => $c)
+                        @php $diff = (float) ($c['diferenca'] ?? 0); @endphp
+                        <tr>
+                            <td>{{ $labels[$forma] ?? ucfirst($forma) }}</td>
+                            <td class="text-end">R$ {{ number_format($c['esperado'] ?? 0, 2, ',', '.') }}</td>
+                            <td class="text-end">R$ {{ number_format($c['contado'] ?? 0, 2, ',', '.') }}</td>
+                            <td class="text-end">
+                                @if(abs($diff) < 0.02)
+                                    <span class="badge bg-success">Confere</span>
+                                @elseif($diff > 0)
+                                    <span class="badge bg-warning text-dark">+ R$ {{ number_format($diff, 2, ',', '.') }}</span>
+                                @else
+                                    <span class="badge bg-danger">- R$ {{ number_format(abs($diff), 2, ',', '.') }}</span>
+                                @endif
+                            </td>
+                        </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </x-erp.card>
+        </div>
+        @endif
+
+        {{-- Comprovantes anexados no fechamento --}}
+        @if($caixa->anexos->isNotEmpty())
+        <div class="mt-4">
+        <x-erp.card title="Comprovantes" icon="paperclip">
+            @foreach($caixa->anexos as $anexo)
+                <div class="d-flex justify-content-between align-items-center py-1">
+                    <span class="text-muted">{{ $anexo->tipoLabel() }}</span>
+                    <a href="{{ route('app.caixa.anexo', $anexo) }}" class="btn btn-sm btn-outline-primary">
+                        <i class="bi bi-download me-1"></i> {{ \Illuminate\Support\Str::limit($anexo->nome_original, 24) }}
+                    </a>
+                </div>
+            @endforeach
+        </x-erp.card>
+        </div>
+        @endif
     </div>
 
     <div class="col-lg-8">

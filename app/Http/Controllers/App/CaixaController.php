@@ -6,9 +6,11 @@ use App\Enums\StatusCaixa;
 use App\Enums\TipoMovimentacaoCaixa;
 use App\Http\Controllers\Controller;
 use App\Models\Caixa;
+use App\Models\CaixaAnexo;
 use App\Models\MovimentacaoCaixa;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class CaixaController extends Controller
 {
@@ -90,7 +92,7 @@ class CaixaController extends Controller
             abort(403, 'Você só pode ver os próprios caixas.');
         }
 
-        $caixa->load(['operador', 'unidade', 'movimentacoes.user']);
+        $caixa->load(['operador', 'unidade', 'movimentacoes.user', 'anexos']);
 
         $resumo = $this->resumoCaixa($caixa);
 
@@ -209,29 +211,86 @@ class CaixaController extends Controller
         if ($request->isMethod('get')) {
             $resumo = $this->resumoCaixa($caixa);
 
+            // Formas a conferir além do dinheiro: as principais sempre,
+            // mais qualquer outra com movimento no caixa.
+            $formasConferencia = collect(['pix', 'cartao_debito', 'cartao_credito'])
+                ->merge($resumo['vendas_por_forma']->keys())
+                ->unique()
+                ->reject(fn ($f) => $f === 'dinheiro')
+                ->values();
+
             return view('app.caixa.fechar', [
-                'caixa'         => $caixa,
-                'resumo'        => $resumo,
+                'caixa'             => $caixa,
+                'resumo'            => $resumo,
                 // Só o que fica fisicamente na gaveta precisa bater:
                 // abertura + vendas em dinheiro + suprimentos - sangrias.
-                'valorEsperado' => $resumo['esperado_dinheiro'],
+                'valorEsperado'     => $resumo['esperado_dinheiro'],
+                'formasConferencia' => $formasConferencia,
             ]);
         }
 
         $request->validate([
-            'valor_contado' => 'required|numeric|min:0',
+            'valor_contado'   => 'required|numeric|min:0',
+            'contado'         => 'nullable|array',
+            'contado.*'       => 'nullable|numeric|min:0',
+            'anexo_maquina'   => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
+            'anexo_credito'   => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
+            'anexo_debito'    => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
         ]);
 
         DB::transaction(function () use ($request, $caixa) {
-            $valorEsperado = $this->resumoCaixa($caixa)['esperado_dinheiro'];
+            $resumo = $this->resumoCaixa($caixa);
+            $valorEsperado = $resumo['esperado_dinheiro'];
+
+            // Conferência por forma: dinheiro fecha a gaveta; as demais são
+            // conferência informativa (esperado = vendas na forma).
+            $conferencia = [
+                'dinheiro' => [
+                    'esperado'  => $valorEsperado,
+                    'contado'   => (float) $request->valor_contado,
+                    'diferenca' => round((float) $request->valor_contado - $valorEsperado, 2),
+                ],
+            ];
+
+            foreach ($request->input('contado', []) as $forma => $valor) {
+                if ($valor === null || $valor === '') {
+                    continue;
+                }
+                $esperado = (float) ($resumo['vendas_por_forma'][$forma] ?? 0);
+                $conferencia[$forma] = [
+                    'esperado'  => $esperado,
+                    'contado'   => (float) $valor,
+                    'diferenca' => round((float) $valor - $esperado, 2),
+                ];
+            }
 
             $caixa->update([
                 'status'           => StatusCaixa::Fechado,
                 'valor_fechamento' => $request->valor_contado,
                 'valor_esperado'   => $valorEsperado,
+                'conferencia'      => $conferencia,
                 'fechado_em'       => now(),
                 'observacoes'      => $request->observacoes,
             ]);
+
+            // Comprovantes (máquina / crédito / débito)
+            foreach (['maquina' => 'anexo_maquina', 'credito' => 'anexo_credito', 'debito' => 'anexo_debito'] as $tipo => $campo) {
+                if (! $request->hasFile($campo)) {
+                    continue;
+                }
+                $file = $request->file($campo);
+                $path = $file->store("caixas/{$caixa->id}");
+
+                CaixaAnexo::create([
+                    'empresa_id'    => $caixa->empresa_id,
+                    'unidade_id'    => $caixa->unidade_id,
+                    'caixa_id'      => $caixa->id,
+                    'tipo'          => $tipo,
+                    'arquivo'       => $path,
+                    'nome_original' => $file->getClientOriginalName(),
+                    'user_id'       => auth()->id(),
+                ]);
+            }
 
             MovimentacaoCaixa::create([
                 'empresa_id' => $caixa->empresa_id,
@@ -255,6 +314,25 @@ class CaixaController extends Controller
 
         return redirect()->route('app.pdv.index')
             ->with('success', 'Caixa fechado com sucesso!');
+    }
+
+    /** Download de comprovante do fechamento (mesma visibilidade do caixa). */
+    public function anexo(CaixaAnexo $anexo)
+    {
+        $user = auth()->user();
+
+        $veTodos = $user->is_admin
+            || in_array($user->perfil->value, ['admin', 'dono', 'gerente', 'financeiro'], true);
+
+        if (! $veTodos && $anexo->caixa?->user_id !== $user->id) {
+            abort(403, 'Você só pode ver anexos dos próprios caixas.');
+        }
+
+        if (! Storage::exists($anexo->arquivo)) {
+            abort(404, 'Arquivo não encontrado.');
+        }
+
+        return Storage::download($anexo->arquivo, $anexo->nome_original);
     }
 
     public function sangria(Request $request)

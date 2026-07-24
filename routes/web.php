@@ -168,6 +168,8 @@ Route::middleware(['auth', 'unidade'])->prefix('app')->name('app.')->group(funct
         ->middleware('permission:vendas,criar');
     Route::post('/caixa/suprimento', [App\CaixaController::class, 'suprimento'])->name('caixa.suprimento')
         ->middleware('permission:vendas,criar');
+    Route::get('/caixa/anexo/{anexo}', [App\CaixaController::class, 'anexo'])->name('caixa.anexo')
+        ->middleware('permission:vendas');
     // Wildcard por último para não capturar /caixa/abrir|fechar
     Route::get('/caixa/{caixa}', [App\CaixaController::class, 'show'])->name('caixa.show')
         ->middleware('permission:vendas');

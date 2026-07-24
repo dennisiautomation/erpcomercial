@@ -30,6 +30,7 @@ class Caixa extends Model
         'valor_abertura',
         'valor_fechamento',
         'valor_esperado',
+        'conferencia',
         'status',
         'aberto_em',
         'fechado_em',
@@ -43,6 +44,7 @@ class Caixa extends Model
             'valor_abertura' => 'decimal:2',
             'valor_fechamento' => 'decimal:2',
             'valor_esperado' => 'decimal:2',
+            'conferencia' => 'array',
             'aberto_em' => 'datetime',
             'fechado_em' => 'datetime',
         ];
@@ -71,5 +73,11 @@ class Caixa extends Model
     public function vendas(): HasMany
     {
         return $this->hasMany(Venda::class);
+    }
+
+    /** Comprovantes anexados no fechamento (máquina, crédito, débito). */
+    public function anexos(): HasMany
+    {
+        return $this->hasMany(CaixaAnexo::class);
     }
 }

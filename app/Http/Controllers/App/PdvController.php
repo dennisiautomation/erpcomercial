@@ -298,6 +298,12 @@ class PdvController extends Controller
                     }
                 }
 
+                // Vendedor responsável pela entrada no caixa (Configurações da Loja)
+                $configLojaOp = $configLoja ?? ConfiguracaoLoja::daUnidade($empresaId, $unidadeId);
+                $responsavelCaixa = ($configLojaOp->vendedor_responsavel_caixa && $request->vendedor_id)
+                    ? (int) $request->vendedor_id
+                    : auth()->id();
+
                 // Create MovimentacaoCaixa (venda) — uma por forma de pagamento,
                 // para a conferência do fechamento bater só o que fica na gaveta.
                 // Troco sai do dinheiro: desconta do valor em espécie recebido.
@@ -320,7 +326,7 @@ class PdvController extends Controller
                         'valor'           => $valorMov,
                         'forma_pagamento' => $pgto['forma'],
                         'descricao'       => "Venda #{$venda->numero}",
-                        'user_id'         => auth()->id(),
+                        'user_id'         => $responsavelCaixa,
                     ]);
                 }
 
