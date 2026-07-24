@@ -265,6 +265,12 @@ Route::middleware(['auth', 'unidade'])->prefix('app')->name('app.')->group(funct
         Route::get('/{notaFiscal}/danfe', [App\NotaFiscalController::class, 'downloadDanfe'])->name('danfe');
     });
 
+    /* ------ Configurações da Loja (operacional, por unidade) ------ */
+    Route::prefix('configuracoes')->name('configuracoes.')->middleware('permission:configuracoes')->group(function () {
+        Route::get('/', [App\ConfiguracaoLojaController::class, 'edit'])->name('edit');
+        Route::put('/', [App\ConfiguracaoLojaController::class, 'update'])->name('update');
+    });
+
     /* ------ Configuração Fiscal ------ */
     Route::prefix('configuracao-fiscal')->name('configuracao-fiscal.')->middleware(['permission:configuracoes', 'plano:fiscal'])->group(function () {
         Route::get('/', [App\ConfiguracaoFiscalController::class, 'edit'])->name('edit');

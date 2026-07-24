@@ -233,7 +233,7 @@ notificacoes: user_id, tipo, titulo, mensagem, url, lida
 9. **$user->perfil é enum Perfil** — converter com `->value` antes de usar como string/array key.
 10. **$errors pode ser null em views standalone** — usar `$errors = $errors ?? new ViewErrorBag()`.
 11. **OrdemServico table = `ordens_servico`** — definir `$table` no model.
-12. **Porta nginx é 8080** (não 8000, que estava ocupada).
+12. **Porta host é 8091** (container escuta em 80; 8091 no `docker-compose.prod.yml`, exposto só em 127.0.0.1 e publicado pelo nginx do host). A porta 8080/8000 da primeira versão não é mais usada.
 13. **Services Focus NFe exigem FocusNFeClient com token** — nunca use `app(NFSeService::class)`, use `FocusNFeClient::fromConfig($config)`.
 14. **NFSeService emitir() aceita aliases** (`descricao` → `discriminacao`, `valor_servico` → `valor_servicos`). Validação de obrigatórios é ANTES da chamada à Focus.
 15. **Certificado .pfx NÃO é persistido local** — upload direto à Focus via multipart. Só metadados ficam no banco.

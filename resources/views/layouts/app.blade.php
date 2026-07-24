@@ -932,15 +932,15 @@
                     @if(auth()->user()->perfil && in_array(auth()->user()->perfil->value, ['dono', 'admin']))
                         <li class="sidebar-heading">Gestao</li>
                         <li class="nav-item">
-                            <a class="nav-link nav-toggle {{ request()->routeIs('app.multilojas.*', 'app.plano-contas.*', 'app.centros-custo.*') ? '' : 'collapsed' }}"
+                            <a class="nav-link nav-toggle {{ request()->routeIs('app.multilojas.*', 'app.plano-contas.*', 'app.centros-custo.*', 'app.configuracoes.*') ? '' : 'collapsed' }}"
                                data-bs-toggle="collapse" href="#menuGestao" role="button"
-                               aria-expanded="{{ request()->routeIs('app.multilojas.*', 'app.plano-contas.*', 'app.centros-custo.*') ? 'true' : 'false' }}"
+                               aria-expanded="{{ request()->routeIs('app.multilojas.*', 'app.plano-contas.*', 'app.centros-custo.*', 'app.configuracoes.*') ? 'true' : 'false' }}"
                                aria-controls="menuGestao">
                                 <i class="bi bi-gear nav-icon"></i>
                                 <span class="nav-text">Gestao</span>
                                 <i class="bi bi-chevron-right toggle-icon"></i>
                             </a>
-                            <div class="collapse {{ request()->routeIs('app.multilojas.*', 'app.plano-contas.*', 'app.centros-custo.*') ? 'show' : '' }}" id="menuGestao">
+                            <div class="collapse {{ request()->routeIs('app.multilojas.*', 'app.plano-contas.*', 'app.centros-custo.*', 'app.configuracoes.*') ? 'show' : '' }}" id="menuGestao">
                                 <ul class="nav flex-column submenu">
                                     <li class="nav-item">
                                         <a class="nav-link {{ request()->routeIs('app.multilojas.index', 'app.multilojas.comparar') ? 'active' : '' }}"
@@ -957,6 +957,12 @@
                                     <li class="nav-item">
                                         <a class="nav-link {{ request()->routeIs('app.centros-custo.*') ? 'active' : '' }}"
                                            href="{{ route('app.centros-custo.index') }}">Centros de Custo</a>
+                                    </li>
+                                    <li class="nav-item">
+                                        <a class="nav-link {{ request()->routeIs('app.configuracoes.*') ? 'active' : '' }}"
+                                           href="{{ route('app.configuracoes.edit') }}">
+                                            <i class="bi bi-sliders me-1"></i> Configurações da Loja
+                                        </a>
                                     </li>
                                     <li class="nav-item">
                                         <a class="nav-link {{ request()->routeIs('app.auditoria.*') ? 'active' : '' }}"
