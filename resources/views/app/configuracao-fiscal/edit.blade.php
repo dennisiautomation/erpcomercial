@@ -366,7 +366,10 @@
                                      A validação de formato é feita no servidor + leitura via openssl. --}}
                                 <div id="certDrop" class="rounded p-3 text-center"
                                      style="border: 2px dashed #b6bfd4; cursor: pointer; background: #f8f9fc;">
-                                    <input type="file" name="certificado" form="formCertificado" class="d-none" id="certInput">
+                                    {{-- accept SÓ com extensões: com o mimetype application/x-pkcs12 na lista
+                                         o macOS escondia os .pfx; sem accept nenhum, idem. Extensões puras são
+                                         o único mapeamento que o Chrome/macOS resolve direito para PKCS#12. --}}
+                                    <input type="file" name="certificado" form="formCertificado" class="d-none" id="certInput" accept=".pfx,.p12">
                                     <div id="certDropVazio">
                                         <i class="bi bi-shield-lock fs-3 d-block text-muted mb-1"></i>
                                         <strong>Arraste o arquivo .pfx aqui</strong>
