@@ -21,6 +21,13 @@ class ConfiguracaoFiscalController extends Controller
 
     public function edit()
     {
+        // Admin da plataforma não tem empresa (armadilha 21) — a config fiscal é
+        // por unidade da empresa; admin usa /admin/empresas/{id}/saude-focus.
+        if (! auth()->user()->empresa_id) {
+            return redirect()->route('admin.dashboard')
+                ->with('warning', 'O admin da plataforma não tem configuração fiscal própria. Acesse a Saúde Focus na empresa desejada (Admin → Empresas).');
+        }
+
         $config = ConfiguracaoFiscal::firstOrNew([
             'empresa_id' => session('empresa_id'),
             'unidade_id' => session('unidade_id'),
@@ -118,6 +125,11 @@ class ConfiguracaoFiscalController extends Controller
 
     public function update(Request $request)
     {
+        if (! auth()->user()->empresa_id) {
+            return redirect()->route('admin.dashboard')
+                ->with('warning', 'O admin da plataforma não tem configuração fiscal própria.');
+        }
+
         $emissaoAtiva = $request->boolean('emissao_fiscal_ativa');
 
         $rules = [
