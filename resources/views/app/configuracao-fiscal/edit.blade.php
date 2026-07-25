@@ -364,8 +364,50 @@
                                 {{-- sem `accept`: no macOS o Chrome esmaece .pfx quando há mimetype
                                      desconhecido na lista (o usuário só conseguia arrastar o arquivo).
                                      A validação de formato é feita no servidor + leitura via openssl. --}}
-                                <input type="file" name="certificado" form="formCertificado" class="form-control">
+                                <div id="certDrop" class="rounded p-3 text-center"
+                                     style="border: 2px dashed #b6bfd4; cursor: pointer; background: #f8f9fc;">
+                                    <input type="file" name="certificado" form="formCertificado" class="d-none" id="certInput">
+                                    <div id="certDropVazio">
+                                        <i class="bi bi-shield-lock fs-3 d-block text-muted mb-1"></i>
+                                        <strong>Arraste o arquivo .pfx aqui</strong>
+                                        <div class="small text-muted">ou clique para escolher na pasta
+                                            <span class="d-block">(no seletor, use o campo <strong>Buscar</strong> e digite "pfx" para achar rápido)</span>
+                                        </div>
+                                    </div>
+                                    <div id="certDropEscolhido" class="d-none">
+                                        <i class="bi bi-file-earmark-lock2 fs-3 d-block text-success mb-1"></i>
+                                        <strong id="certDropNome"></strong>
+                                        <div class="small text-muted">Arquivo pronto — informe a senha ao lado e clique Enviar.</div>
+                                    </div>
+                                </div>
                                 <div class="form-text">Arquivo <strong>.pfx</strong> ou <strong>.p12</strong> (certificado A1), máximo 2MB.</div>
+                                <script>
+                                (function () {
+                                    const zona = document.getElementById('certDrop');
+                                    const input = document.getElementById('certInput');
+                                    const mostra = (nome) => {
+                                        document.getElementById('certDropVazio').classList.add('d-none');
+                                        document.getElementById('certDropEscolhido').classList.remove('d-none');
+                                        document.getElementById('certDropNome').textContent = nome;
+                                        zona.style.borderColor = '#198754';
+                                        zona.style.background = '#f2fbf6';
+                                    };
+                                    zona.addEventListener('click', (e) => { if (e.target !== input) input.click(); });
+                                    input.addEventListener('change', () => { if (input.files.length) mostra(input.files[0].name); });
+                                    ['dragover', 'dragenter'].forEach(ev => zona.addEventListener(ev, (e) => {
+                                        e.preventDefault(); zona.style.borderColor = '#4c63d2';
+                                    }));
+                                    ['dragleave', 'dragend'].forEach(ev => zona.addEventListener(ev, () => {
+                                        if (!input.files.length) zona.style.borderColor = '#b6bfd4';
+                                    }));
+                                    zona.addEventListener('drop', (e) => {
+                                        e.preventDefault();
+                                        if (!e.dataTransfer.files.length) return;
+                                        input.files = e.dataTransfer.files;
+                                        mostra(input.files[0].name);
+                                    });
+                                })();
+                                </script>
                             </div>
                             <div class="col-md-3">
                                 <label class="form-label small fw-semibold">Senha</label>

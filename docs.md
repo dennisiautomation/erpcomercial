@@ -744,6 +744,8 @@ imagem). O modelo antigo era um CSV com `;` que o Excel/Numbers abria em coluna 
   erro MySQL 1366 e derrubava a linha inteira.
 - Exportações (`/app/export/*`) também saem em .xlsx; `preco_debito`/`preco_credito` agora
   vêm da relação `produto_precos` (antes saíam sempre vazios).
+- Upload do certificado virou **área de arrastar-e-soltar** com nome do arquivo escolhido e
+  dica de usar o Buscar do seletor (o lojista não achava o .pfx na pasta cheia de downloads).
 - Card NFC-e com paridade ao sistema antigo: Ambiente/Versão 4.00/Última NFC-e como campos
   informativos + mapa recolhido "onde ficou cada campo" (Token do Gestão = ID CSC).
 - Front: botões viraram "Importar planilha" / "Modelo Excel"; o handler mostra o motivo real
