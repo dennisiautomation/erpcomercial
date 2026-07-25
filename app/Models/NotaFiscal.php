@@ -37,6 +37,8 @@ class NotaFiscal extends Model
         'focus_mensagem',
         'xml_url',
         'danfe_url',
+        'qrcode_url',
+        'protocolo',
         'pdf_url',
         'cancelamento_motivo',
         'cancelamento_protocolo',
@@ -82,6 +84,38 @@ class NotaFiscal extends Model
     /* ------------------------------------------------------------------ */
     /*  Relationships                                                      */
     /* ------------------------------------------------------------------ */
+
+    /**
+     * A Focus devolve `caminho_danfe`/`caminho_xml` RELATIVOS ao host dela
+     * (ex.: /notas_fiscais_consumidor/NFe...html). Redirecionar esse caminho
+     * direto joga o usuário em erp.ia365.com.br/... → 404. Resolve para o
+     * host da Focus conforme o ambiente da nota.
+     */
+    public function urlArquivoFocus(?string $caminho): ?string
+    {
+        if (! $caminho) {
+            return null;
+        }
+        if (str_starts_with($caminho, 'http://') || str_starts_with($caminho, 'https://')) {
+            return $caminho;
+        }
+
+        $base = ($this->ambiente ?? 'homologacao') === 'producao'
+            ? 'https://api.focusnfe.com.br'
+            : 'https://homologacao.focusnfe.com.br';
+
+        return $base . '/' . ltrim($caminho, '/');
+    }
+
+    public function getDanfeUrlCompletaAttribute(): ?string
+    {
+        return $this->urlArquivoFocus($this->danfe_url ?? $this->pdf_url);
+    }
+
+    public function getXmlUrlCompletaAttribute(): ?string
+    {
+        return $this->urlArquivoFocus($this->xml_url);
+    }
 
     public function empresa(): BelongsTo
     {

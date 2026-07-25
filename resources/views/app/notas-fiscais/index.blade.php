@@ -237,7 +237,7 @@
                                     </a>
                                 @endif
                                 @if($nf->danfe_url || $nf->pdf_url)
-                                    <a href="{{ route('app.notas-fiscais.danfe', $nf) }}" class="btn btn-outline-danger" title="DANFE/PDF" target="_blank">
+                                    <a href="{{ route('app.notas-fiscais.danfe', $nf) }}" class="btn btn-outline-danger" title="{{ $nf->tipo->value === 'nfce' ? 'Imprimir cupom' : ($nf->tipo->value === 'nfse' ? 'PDF da NFS-e' : 'DANFE') }}" target="_blank">
                                         <i class="bi bi-file-pdf"></i>
                                     </a>
                                 @endif

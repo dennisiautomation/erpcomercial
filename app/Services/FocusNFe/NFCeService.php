@@ -63,6 +63,8 @@ class NFCeService
                     $nota->numero = $data['numero'] ?? null;
                     $nota->xml_url = $data['caminho_xml_nota_fiscal'] ?? null;
                     $nota->danfe_url = $data['caminho_danfe'] ?? null;
+                    $nota->qrcode_url = $data['qrcode_url'] ?? null;
+                    $nota->protocolo = $data['protocolo'] ?? null;
                     $nota->emitida_em = now();
 
                     Log::info('NFCe: NFC-e autorizada', [
@@ -133,6 +135,8 @@ class NFCeService
                     $nota->numero = $data['numero'] ?? $nota->numero;
                     $nota->xml_url = $data['caminho_xml_nota_fiscal'] ?? $nota->xml_url;
                     $nota->danfe_url = $data['caminho_danfe'] ?? $nota->danfe_url;
+                    $nota->qrcode_url = $data['qrcode_url'] ?? $nota->qrcode_url;
+                    $nota->protocolo = $data['protocolo'] ?? $nota->protocolo;
                     $nota->emitida_em = $nota->emitida_em ?? now();
                 } elseif (in_array($data['status'] ?? '', ['cancelado', 'cancelada'])) {
                     $nota->status = StatusNotaFiscal::Cancelada;

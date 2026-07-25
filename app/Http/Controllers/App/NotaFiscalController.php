@@ -156,8 +156,8 @@ class NotaFiscalController extends Controller
                     'numero'       => $nota->numero,
                     'chave_acesso' => $nota->chave_acesso,
                     'status'       => $nota->status->value,
-                    'danfe_url'    => $nota->danfe_url,
-                    'xml_url'      => $nota->xml_url,
+                    'danfe_url'    => $nota->danfe_url_completa,
+                    'xml_url'      => $nota->xml_url_completa,
                 ],
             ]);
         } catch (\Throwable $e) {
@@ -371,7 +371,7 @@ class NotaFiscalController extends Controller
             return back()->with('error', 'XML nao disponivel para esta nota.');
         }
 
-        return redirect($notaFiscal->xml_url);
+        return redirect($notaFiscal->xml_url_completa);
     }
 
     /* ------------------------------------------------------------------ */
@@ -380,10 +380,10 @@ class NotaFiscalController extends Controller
 
     public function downloadDanfe(NotaFiscal $notaFiscal)
     {
-        $url = $notaFiscal->danfe_url ?? $notaFiscal->pdf_url;
+        $url = $notaFiscal->danfe_url_completa;
 
         if (! $url) {
-            return back()->with('error', 'DANFE/PDF nao disponivel para esta nota.');
+            return back()->with('error', 'Documento nao disponivel para esta nota.');
         }
 
         return redirect($url);

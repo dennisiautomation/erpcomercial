@@ -126,6 +126,13 @@ class FocusNFeWebhookController extends Controller
             $updateData['danfe_url'] = $request->input('caminho_danfe');
         }
 
+        if ($request->filled('qrcode_url')) {
+            $updateData['qrcode_url'] = $request->input('qrcode_url');
+        }
+        if ($request->filled('protocolo')) {
+            $updateData['protocolo'] = $request->input('protocolo');
+        }
+
         if ($novoStatus === StatusNotaFiscal::Autorizada && ! $nota->emitida_em) {
             $updateData['emitida_em'] = now();
         }

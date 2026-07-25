@@ -262,21 +262,17 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        checks.forEach((check, i) => {
+        // 1 input por produto (produtos[<id>] = qtd) — o formato antigo com 2 inputs
+        // estourava o max_input_vars do PHP ao selecionar todos os produtos.
+        checks.forEach((check) => {
             const row = check.closest('tr');
-            const qtd = row.querySelector('.qtd-input').value;
+            const qtd = parseInt(row.querySelector('.qtd-input').value, 10) || 1;
 
-            const inputId = document.createElement('input');
-            inputId.type = 'hidden';
-            inputId.name = `produtos[${i}][id]`;
-            inputId.value = check.value;
-            hiddenInputs.appendChild(inputId);
-
-            const inputQtd = document.createElement('input');
-            inputQtd.type = 'hidden';
-            inputQtd.name = `produtos[${i}][quantidade]`;
-            inputQtd.value = qtd;
-            hiddenInputs.appendChild(inputQtd);
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = `produtos[${check.value}]`;
+            input.value = Math.min(100, Math.max(1, qtd));
+            hiddenInputs.appendChild(input);
         });
     });
 });

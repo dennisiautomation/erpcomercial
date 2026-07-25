@@ -290,11 +290,19 @@
                         @foreach($venda->notasFiscais as $nota)
                             <tr>
                                 <td><span class="badge bg-{{ $nota->tipo->value === 'nfce' ? 'success' : ($nota->tipo->value === 'nfe' ? 'primary' : 'info') }}">{{ strtoupper($nota->tipo->value) }}</span></td>
-                                <td>{{ $nota->numero ?? 'Processando...' }}</td>
+                                <td><a href="{{ route('app.notas-fiscais.show', $nota) }}" class="text-decoration-none">{{ $nota->numero ?? 'Processando...' }}</a></td>
                                 <td><span class="badge bg-{{ $nota->status->color() }}">{{ $nota->status->label() }}</span></td>
                                 <td>
                                     @if($nota->xml_url)<a href="{{ route('app.notas-fiscais.xml', $nota) }}" class="btn btn-sm btn-outline-secondary">XML</a>@endif
-                                    @if($nota->danfe_url)<a href="{{ route('app.notas-fiscais.danfe', $nota) }}" class="btn btn-sm btn-outline-primary">DANFE</a>@endif
+                                    @if($nota->tipo->value === 'nfce' && $nota->status->value === 'autorizada')
+                                        {{-- Cupom térmico do ERP (80mm, QR + chave + protocolo), já abrindo a impressão --}}
+                                        <a href="{{ route('app.vendas.recibo', $venda) }}?print=1" target="_blank" class="btn btn-sm btn-outline-primary" title="Imprimir cupom fiscal na térmica">Cupom</a>
+                                    @elseif($nota->danfe_url)
+                                        <a href="{{ route('app.notas-fiscais.danfe', $nota) }}" class="btn btn-sm btn-outline-primary" target="_blank">{{ $nota->tipo->value === 'nfce' ? 'Cupom' : ($nota->tipo->value === 'nfse' ? 'PDF' : 'DANFE') }}</a>
+                                    @endif
+                                    <a href="{{ route('app.notas-fiscais.show', $nota) }}" class="btn btn-sm btn-outline-secondary" title="Detalhes / cancelar">
+                                        <i class="bi bi-three-dots"></i>
+                                    </a>
                                 </td>
                             </tr>
                         @endforeach

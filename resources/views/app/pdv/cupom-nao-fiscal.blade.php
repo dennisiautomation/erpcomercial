@@ -354,5 +354,8 @@
     </p>
 </div>
 
+@if(request()->boolean('print'))
+<script>window.addEventListener('load', () => setTimeout(() => window.print(), 300));</script>
+@endif
 </body>
 </html>

@@ -791,6 +791,27 @@ anexos de caixa. Corrigido no container ativo, no `entrypoint.sh` e no `docker/p
   **série nova** ou pedir à Focus para iniciar a numeração — senão a SEFAZ rejeita por
   duplicidade. Aviso explícito no card da NFC-e.
 
+### Cupom fiscal na térmica + cancelamento + arquivos da Focus (25/07 noite)
+
+- **404 ao abrir cupom/XML**: a Focus devolve `caminho_danfe`/`caminho_xml` RELATIVOS ao host
+  dela; o redirect jogava em erp.ia365.com.br/... Accessors `danfe_url_completa`/`xml_url_completa`
+  no model resolvem para api.focusnfe.com.br (produção) ou homologacao.focusnfe.com.br pelo
+  `ambiente` da NOTA. Usados nos downloads e no JSON do PDV.
+- **Botão "Cupom" imprime na térmica**: NFC-e autorizada abre `vendas/{id}/recibo?print=1` —
+  cupom 80mm do ERP com QR Code, chave e protocolo + `window.print()` automático. Colunas novas
+  `notas_fiscais.qrcode_url` e `protocolo` (migration 2026_07_25_200000), gravadas na emissão,
+  na consulta e no webhook; a view do cupom já as esperava (nunca existiam → cupom sem QR).
+  Rótulos por tipo: NFC-e = "Cupom"/"Imprimir Cupom", NF-e = "DANFE", NFS-e = "PDF".
+- **Cancelar cupom**: número da nota na venda linka para a página da nota (botão Cancelar com
+  justificativa). `VendaController::destroy` agora BLOQUEIA cancelar a venda com documento
+  fiscal vivo e redireciona para a nota (NFC-e tem prazo curto de cancelamento na SEFAZ).
+- **Etiquetas "validation.required" ao selecionar todos**: 515 produtos × 2 inputs = 1030 campos
+  e o PHP corta em 1000 (`max_input_vars`) — o corte silencioso chegava como validação. Form
+  agora manda 1 input por produto (`produtos[<id>]=qtd`, aceita o formato antigo),
+  `max_input_vars=10000` no php.ini de produção.
+- **`resources/lang/pt_BR/validation.php` criado** — o langPath repointado desligava o fallback
+  do framework e TODA validação aparecia crua ("validation.required").
+
 ### Etiquetas
 
 Novo formato **Tag Roupa 35 × 60 mm — 3 colunas** (`termica-tag-35x60`): bobina de 105 mm,
@@ -851,6 +872,8 @@ código de barras de 13 mm e código do produto visível.
     `""` no XML e a SEFAZ rejeita a nota inteira com "Erro na validação do Schema XML".
 29. **Certificado A1 vai pela API de EMPRESAS com token master** (`PUT /v2/empresas/{id}`,
     `arquivo_certificado_base64` + `senha_certificado`). Não existe endpoint de certificado.
+29b. **Caminhos de arquivo da Focus são RELATIVOS** — sempre usar `danfe_url_completa`/
+    `xml_url_completa` do model (resolvem o host pelo ambiente), nunca redirect direto.
 30. **A Focus controla número e série da NFC-e/NF-e** — os campos `serie_*` do ERP são registro
     local. Migração de sistema exige série nova ou reinício de numeração pedido à Focus.
 

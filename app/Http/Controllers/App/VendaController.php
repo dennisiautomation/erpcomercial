@@ -273,6 +273,21 @@ class VendaController extends Controller
             return back()->with('error', 'Esta venda ja esta cancelada.');
         }
 
+        // Cancelar a venda NÃO cancela o documento na SEFAZ — com cupom autorizado
+        // vivo, o cancelamento precisa começar pela nota (prazo curto na NFC-e).
+        $notaViva = $venda->notasFiscais()
+            ->whereIn('status', ['autorizada', 'pendente', 'contingencia'])
+            ->latest()
+            ->first();
+
+        if ($notaViva) {
+            return redirect()
+                ->route('app.notas-fiscais.show', $notaViva)
+                ->with('error', 'Esta venda tem um documento fiscal ' . $notaViva->status->label() .
+                    '. Cancele o cupom/nota aqui primeiro (botão Cancelar) — depois cancele a venda. ' .
+                    'Atenção: NFC-e tem prazo curto de cancelamento na SEFAZ (em geral 30 minutos).');
+        }
+
         DB::transaction(function () use ($venda) {
             // Revert estoque
             foreach ($venda->itens as $item) {

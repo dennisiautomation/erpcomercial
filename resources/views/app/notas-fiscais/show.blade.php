@@ -31,7 +31,7 @@
         @endif
         @if($notaFiscal->danfe_url || $notaFiscal->pdf_url)
             <a href="{{ route('app.notas-fiscais.danfe', $notaFiscal) }}" class="btn btn-danger btn-sm" target="_blank">
-                <i class="bi bi-file-pdf me-1"></i> DANFE / PDF
+                <i class="bi bi-file-pdf me-1"></i> {{ $notaFiscal->tipo->value === 'nfce' ? 'Imprimir Cupom' : ($notaFiscal->tipo->value === 'nfse' ? 'PDF da NFS-e' : 'DANFE') }}
             </a>
         @endif
         @if($notaFiscal->status === \App\Enums\StatusNotaFiscal::Autorizada)
