@@ -278,6 +278,25 @@
     </div>
 </div>
 
+{{-- ===== TRIBUTOS APROXIMADOS (Lei 12.741/2012 — obrigatório no cupom ao consumidor) ===== --}}
+@php
+    // Mesmo cálculo do payload fiscal: percentual IBPT do item (snapshot → produto),
+    // fallback 25% quando o produto não tem o percentual cadastrado.
+    $totalTributos = 0.0;
+    foreach ($venda->itens as $itemTrib) {
+        $percIbpt = (float) ($itemTrib->fiscal('percentual_tributos_ibpt', 25.0) ?: 25.0);
+        $totalTributos += round((float) $itemTrib->total * ($percIbpt / 100), 2);
+    }
+@endphp
+@if($totalTributos > 0)
+    <hr class="line">
+    <div class="row" style="font-size:9px;">
+        <span>Tributos Totais Incidentes (Lei 12.741/2012):</span>
+        <span>R$ {{ number_format($totalTributos, 2, ',', '.') }}</span>
+    </div>
+    <div style="font-size:8px; color:#555;">Valor aproximado. Fonte: IBPT</div>
+@endif
+
 <hr class="line">
 
 {{-- ===== PAGAMENTO ===== --}}

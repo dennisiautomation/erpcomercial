@@ -802,6 +802,9 @@ anexos de caixa. Corrigido no container ativo, no `entrypoint.sh` e no `docker/p
   `notas_fiscais.qrcode_url` e `protocolo` (migration 2026_07_25_200000), gravadas na emissão,
   na consulta e no webhook; a view do cupom já as esperava (nunca existiam → cupom sem QR).
   Rótulos por tipo: NFC-e = "Cupom"/"Imprimir Cupom", NF-e = "DANFE", NFS-e = "PDF".
+- **Tributos aproximados no cupom térmico** (Lei 12.741/2012): linha "Tributos Totais
+  Incidentes" no cupom 80mm — mesmo cálculo do payload (IBPT do item via `fiscal()`,
+  fallback 25%). Obrigatória no documento ao consumidor.
 - **Cancelar cupom**: número da nota na venda linka para a página da nota (botão Cancelar com
   justificativa). `VendaController::destroy` agora BLOQUEIA cancelar a venda com documento
   fiscal vivo e redireciona para a nota (NFC-e tem prazo curto de cancelamento na SEFAZ).
