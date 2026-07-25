@@ -371,7 +371,8 @@
                                         <i class="bi bi-shield-lock fs-3 d-block text-muted mb-1"></i>
                                         <strong>Arraste o arquivo .pfx aqui</strong>
                                         <div class="small text-muted">ou clique para escolher na pasta
-                                            <span class="d-block">(no seletor, use o campo <strong>Buscar</strong> e digite "pfx" para achar rápido)</span>
+                                            <span class="d-block">Não achou o arquivo? O seletor ordena por <strong>data de criação</strong> (diferente do Finder) —
+                                            digite as primeiras letras do nome no campo <strong>Buscar</strong> ou clique na coluna <strong>Nome</strong>.</span>
                                         </div>
                                     </div>
                                     <div id="certDropEscolhido" class="d-none">
