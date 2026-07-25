@@ -99,7 +99,9 @@ class NotaFiscalController extends Controller
         }
 
         try {
-            $service = app(NFeService::class);
+            // NUNCA app(NFeService::class): o client exige token (armadilha 13) e o
+            // container estoura BindingResolutionException antes de emitir.
+            $service = NFeService::forUnidade($config->unidade);
             $nota = $service->emitir($venda, $config);
 
             return redirect()
@@ -122,18 +124,29 @@ class NotaFiscalController extends Controller
     public function emitirNFCe(Request $request, Venda $venda)
     {
         if ($venda->itens()->count() === 0) {
-            return response()->json(['success' => false, 'message' => 'A venda nao possui itens.'], 422);
+            return $request->expectsJson()
+                ? response()->json(['success' => false, 'message' => 'A venda nao possui itens.'], 422)
+                : back()->with('error', 'A venda não possui itens.');
         }
 
         $config = $this->getConfigFiscal();
 
         if (! $config || ! $config->emissao_fiscal_ativa) {
-            return response()->json(['success' => false, 'message' => 'Emissao fiscal nao esta ativa.'], 422);
+            return $request->expectsJson()
+                ? response()->json(['success' => false, 'message' => 'Emissao fiscal nao esta ativa.'], 422)
+                : back()->with('error', 'Emissão fiscal não está ativa para esta unidade.');
         }
 
         try {
-            $service = app(NFCeService::class);
+            $service = NFCeService::forUnidade($config->unidade);
             $nota = $service->emitir($venda, $config);
+
+            // Requisição de formulário (tela da venda) volta com flash; o PDV usa JSON.
+            if (! $request->expectsJson()) {
+                return redirect()
+                    ->route('app.notas-fiscais.show', $nota)
+                    ->with('success', 'NFC-e emitida com sucesso!');
+            }
 
             return response()->json([
                 'success'  => true,
@@ -152,6 +165,10 @@ class NotaFiscalController extends Controller
                 'venda_id' => $venda->id,
                 'error'    => $e->getMessage(),
             ]);
+
+            if (! $request->expectsJson()) {
+                return back()->with('error', 'Erro ao emitir NFC-e: ' . $e->getMessage());
+            }
 
             return response()->json(['success' => false, 'message' => 'Erro ao emitir NFC-e: ' . $e->getMessage()], 500);
         }

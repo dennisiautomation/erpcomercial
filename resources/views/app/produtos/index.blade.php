@@ -16,11 +16,13 @@
             <i class="bi bi-upc me-1"></i> Gerar Etiquetas
         </a>
         <div class="btn-group">
-            <button data-import="{{ route('app.import.produtos') }}" class="btn btn-erp-outline">
-                <i class="bi bi-upload me-1"></i> Importar CSV
+            <button data-import="{{ route('app.import.produtos') }}" class="btn btn-erp-outline"
+                    title="Envie a planilha preenchida (.xlsx ou .csv)">
+                <i class="bi bi-upload me-1"></i> Importar planilha
             </button>
-            <a href="{{ route('app.import.template', 'produtos') }}" class="btn btn-erp-outline">
-                <i class="bi bi-download me-1"></i> Modelo
+            <a href="{{ route('app.import.template', 'produtos') }}" class="btn btn-erp-outline"
+               title="Baixa o modelo em Excel (.xlsx) com as colunas certas e exemplos">
+                <i class="bi bi-file-earmark-excel me-1"></i> Modelo Excel
             </a>
         </div>
         <a href="{{ route('app.produtos.create') }}" class="btn btn-primary">

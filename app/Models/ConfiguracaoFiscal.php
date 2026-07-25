@@ -26,6 +26,7 @@ class ConfiguracaoFiscal extends Model
         'serie_nfe',
         'serie_nfce',
         'serie_nfse',
+        'informacoes_complementares',
         'csc_nfce',
         'csc_id_nfce',
         'nfse_item_lista_servico',

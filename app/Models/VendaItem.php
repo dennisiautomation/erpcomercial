@@ -89,7 +89,12 @@ class VendaItem extends Model
         if ($snap !== null && $snap !== '') {
             return $snap;
         }
-        return $this->produto?->getAttribute($campo) ?? $fallback;
+        // Campo em branco no produto (string vazia, não null) precisa cair no fallback:
+        // com `??` o CFOP vazio ia para o XML como "" e a SEFAZ rejeitava a nota inteira
+        // com "Erro na validação do Schema XML".
+        $valor = $this->produto?->getAttribute($campo);
+
+        return ($valor === null || $valor === '') ? $fallback : $valor;
     }
 
     public function venda(): BelongsTo

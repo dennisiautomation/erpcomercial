@@ -361,8 +361,11 @@
                         <div class="row g-3">
                             <div class="col-md-7">
                                 <label class="form-label small fw-semibold">Arquivo do certificado (.pfx)</label>
-                                <input type="file" name="certificado" form="formCertificado" accept=".pfx,.p12,application/x-pkcs12" class="form-control">
-                                <div class="form-text">Apenas certificado A1 em formato PKCS#12. Máximo 2MB.</div>
+                                {{-- sem `accept`: no macOS o Chrome esmaece .pfx quando há mimetype
+                                     desconhecido na lista (o usuário só conseguia arrastar o arquivo).
+                                     A validação de formato é feita no servidor + leitura via openssl. --}}
+                                <input type="file" name="certificado" form="formCertificado" class="form-control">
+                                <div class="form-text">Arquivo <strong>.pfx</strong> ou <strong>.p12</strong> (certificado A1), máximo 2MB.</div>
                             </div>
                             <div class="col-md-3">
                                 <label class="form-label small fw-semibold">Senha</label>
@@ -501,6 +504,18 @@
                             <i class="bi bi-info-circle me-1"></i>
                             Como obter CSC: <strong>portal SEFAZ do seu estado</strong> (e-CAC ou similar) → menu "NFC-e" → "Gerar CSC". Você recebe o código e o ID (1 ou 2).
                         </small>
+
+                        {{-- Migração de outro sistema: a numeração é da Focus, não do ERP.
+                             Sem série nova (ou reinício de numeração pedido à Focus) a SEFAZ
+                             rejeita por duplicidade. --}}
+                        <div class="alert alert-warning py-2 px-3 small mt-3 mb-0">
+                            <i class="bi bi-123 me-1"></i>
+                            <strong>Veio de outro sistema?</strong> O <strong>número</strong> da NFC-e é controlado
+                            pela Focus NFe (não existe campo "última NFC-e" aqui — o ERP não numera a nota).
+                            Se a série informada acima já foi usada no sistema anterior, escolha uma
+                            <strong>série nova</strong> (ex.: a última + 1) ou peça à Focus para iniciar a numeração
+                            no próximo número. Repetir série + número já emitido = rejeição da SEFAZ por duplicidade.
+                        </div>
                     </div>
                 </div>
 
@@ -724,6 +739,29 @@
                                 </small>
                             </div>
                         </div>
+                    </div>
+                </div>
+
+                {{-- ═══ Mensagem fixa nas notas ═══ --}}
+                <div class="erp-card mb-3 border">
+                    <div class="card-header bg-transparent d-flex align-items-center">
+                        <i class="bi bi-chat-left-text fs-4 text-secondary me-2"></i>
+                        <div class="flex-grow-1">
+                            <strong>Informações complementares</strong>
+                            <div class="small text-muted">
+                                Mensagem fixa impressa em todas as NF-e e NFC-e (campo "informações adicionais do contribuinte").
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <textarea name="informacoes_complementares" rows="3"
+                                  class="form-control @error('informacoes_complementares') is-invalid @enderror"
+                                  placeholder="Ex.: Mercadoria não retirada em 30 dias será cobrada armazenagem. Trocas em até 7 dias com o cupom.">{{ old('informacoes_complementares', $config->informacoes_complementares) }}</textarea>
+                        @error('informacoes_complementares')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                        <small class="form-text">
+                            As observações digitadas na venda continuam saindo também — as duas aparecem separadas por " | ".
+                            Não use este campo para informação fiscal obrigatória (ICMS, ST, etc.), que já sai automática.
+                        </small>
                     </div>
                 </div>
 

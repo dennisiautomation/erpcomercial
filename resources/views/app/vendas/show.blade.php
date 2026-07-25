@@ -274,6 +274,13 @@
         <div class="erp-card h-100">
             <div class="card-header"><i class="bi bi-file-earmark-text me-2"></i>Nota Fiscal</div>
             <div class="card-body">
+                @php
+                    // Nota rejeitada/cancelada não impede nova emissão — a venda continua sem
+                    // documento fiscal válido. Só some o botão quando existe nota viva.
+                    $notaViva = $venda->notasFiscais->first(fn ($n) => in_array(
+                        $n->status->value, ['autorizada', 'pendente', 'contingencia'], true
+                    ));
+                @endphp
                 @if($venda->notasFiscais->count())
                     {{-- Show existing notas --}}
                     <div class="table-responsive">
@@ -294,6 +301,29 @@
                         </tbody>
                     </table>
                     </div>
+
+                    @unless($notaViva)
+                        <div class="alert alert-warning small mt-3 mb-2">
+                            <i class="bi bi-exclamation-triangle me-1"></i>
+                            Esta venda <strong>não tem nota fiscal válida</strong> — a tentativa anterior foi
+                            rejeitada ou cancelada. Corrija o que a SEFAZ apontou (Configuração Fiscal / cadastro
+                            do produto) e emita de novo.
+                        </div>
+                        <div class="d-flex gap-2">
+                            <form method="POST" action="{{ route('app.notas-fiscais.emitir-nfce', $venda) }}">
+                                @csrf
+                                <button class="btn btn-erp-primary" data-confirm="Emitir NFC-e novamente para esta venda?">
+                                    <i class="bi bi-arrow-repeat me-1"></i> Emitir NFC-e novamente
+                                </button>
+                            </form>
+                            <form method="POST" action="{{ route('app.notas-fiscais.emitir-nfe', $venda) }}">
+                                @csrf
+                                <button class="btn btn-erp-outline" data-confirm="Emitir NF-e (modelo 55) para esta venda?">
+                                    <i class="bi bi-file-earmark-text me-1"></i> Emitir NF-e
+                                </button>
+                            </form>
+                        </div>
+                    @endunless
                 @else
                     {{-- No notas yet — show emit buttons --}}
                     <p class="text-muted mb-3">Nenhuma nota fiscal emitida para esta venda.</p>

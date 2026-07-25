@@ -2,7 +2,7 @@
 
 > SaaS ERP multi-tenant para PMEs. Admin (IA365) gerencia a plataforma; cada empresa-cliente tem múltiplas unidades com fiscal, estoque e caixa independentes. Integração 100% Focus NFe (NF-e, NFC-e, NFS-e, CC-e, manifestação do destinatário, backup XMLs).
 
-**Última revisão:** 2026-07-25 · **Estado:** integração fiscal Fase 1-4 + multi-loja + regime de cobrança + auto-sync Focus + UX config fiscal + caixa por forma de pagamento (14/07) + Configurações da Loja/tabelas de preço/emissão parametrizada/adquirentes (24/07) + **Reforma Tributária NT 2025.002 (obrigatório 03/08/2026) + CNPJ alfanumérico NT 2025.001 (25/07)** — concluídos
+**Última revisão:** 2026-07-25 (tarde: planilhas .xlsx + correções fiscais do teste ao vivo) · **Estado:** integração fiscal Fase 1-4 + multi-loja + regime de cobrança + auto-sync Focus + UX config fiscal + caixa por forma de pagamento (14/07) + Configurações da Loja/tabelas de preço/emissão parametrizada/adquirentes (24/07) + **Reforma Tributária NT 2025.002 (obrigatório 03/08/2026) + CNPJ alfanumérico NT 2025.001 (25/07)** — concluídos
 
 ---
 
@@ -725,6 +725,76 @@ docker exec -i erp-com-app php artisan schedule:list
 
 ---
 
+### Planilhas (.xlsx), importação e uploads — 25/07 tarde
+
+**Modelos de planilha agora são .xlsx de verdade** (`App\Support\Planilha`, gerador+leitor de
+XLSX sem dependência externa — PhpSpreadsheet não existe no vendor e sumiria em rebuild da
+imagem). O modelo antigo era um CSV com `;` que o Excel/Numbers abria em coluna única.
+
+- `Planilha::gerar/download/ler/pareceXlsx` — escrita com strings inline, cabeçalho em negrito
+  congelado, autofiltro e larguras; leitura resolve sharedStrings, inlineStr, rich text e
+  células ausentes. Colunas "de código" (CPF/CNPJ, CEP, NCM, EAN, SKU...) saem **como texto** —
+  se virassem número o Excel comeria o zero à esquerda e faria notação científica com o EAN.
+- `/app/import/template/{tipo}` devolve .xlsx com as colunas aceitas + linhas de exemplo
+  (`?formato=csv` mantém o texto puro). As linhas de exemplo são **descartadas na importação**
+  (`ehLinhaDeExemplo`) — o lojista preenche embaixo e não apaga o exemplo.
+- **Importação lê .xlsx nativo** (antes o arquivo era lido como texto e virava lixo, apesar de
+  `mimes` já aceitar xlsx). `.xls` binário é recusado com instrução para salvar como .xlsx.
+- Célula vazia vira `null` — string vazia em coluna decimal (`limite_credito`, preços) é
+  erro MySQL 1366 e derrubava a linha inteira.
+- Exportações (`/app/export/*`) também saem em .xlsx; `preco_debito`/`preco_credito` agora
+  vêm da relação `produto_precos` (antes saíam sempre vazios).
+- Front: botões viraram "Importar planilha" / "Modelo Excel"; o handler mostra o motivo real
+  de 419/413/500 (antes: "Erro ao importar arquivo" para tudo).
+
+**⚠️ Causa raiz do "não consigo importar" (500 em QUALQUER upload):** no container, o worker do
+nginx roda como `www-data` mas `/var/lib/nginx` era do usuário `nginx` com 0700 — todo upload
+maior que o buffer em memória morria em `open() "/var/lib/nginx/tmp/client_body/..." failed
+(13: Permission denied)` **antes de chegar no PHP**. Afetava importação, certificado A1 e
+anexos de caixa. Corrigido no container ativo, no `entrypoint.sh` e no `docker/prod/Dockerfile`.
+
+### Fiscal — correções do teste ao vivo (25/07 tarde)
+
+- **Certificado A1 nunca funcionou**: chamava `POST /v2/empresas/{cnpj}/certificado` com o token
+  da empresa no host de homologação — rota inexistente, 404 → "Erro desconhecido" na tela.
+  A Focus instala certificado pela **API de empresas, com token master em api.focusnfe.com.br**:
+  `PUT /v2/empresas/{focus_empresa_id}` com `arquivo_certificado_base64` + `senha_certificado`.
+  Agora o .pfx também é aberto localmente (openssl) antes de enviar: senha errada, arquivo
+  inválido, certificado vencido e CNPJ de outro titular são barrados com mensagem clara, e a
+  validade sai do próprio certificado. Erro da Focus é lido de `erros[0].mensagem`
+  (a raiz traz só "Erro de validação").
+- **Seletor de arquivo não mostrava o .pfx no macOS**: o `accept` com mimetype desconhecido
+  esmaece o arquivo no Chrome/mac (só dava para arrastar). Removido — a validação é no servidor.
+- **500 ao salvar a Configuração Fiscal**: a máscara manda `23.237.062/0001-17` (18 chars) e a
+  coluna é `varchar(14)` → SQLSTATE 22001. O controller agora sanitiza resp. técnico
+  (`Cnpj::limparCpfCnpj`) e telefone (dígitos) antes de gravar.
+- **NFC-e rejeitada com "Erro na validação do Schema XML"** — duas causas reais:
+  1. `VendaItem::fiscal()` usava `?? $fallback`, então **CFOP em branco no produto** (string
+     vazia, não null) ia para o XML como `""`. Agora `''` cai no fallback (CFOP 5102 etc.).
+  2. **Inscrição Estadual não cadastrada** ia como `""`. O emitente agora omite campos vazios e
+     o pre-flight da NFC-e barra antes, dizendo onde cadastrar (IE e CSC/ID CSC).
+- **Nota rejeitada travava a venda**: a tela só oferecia emissão quando não havia NENHUMA nota.
+  Agora, se não existe nota viva (autorizada/pendente/contingência), aparecem "Emitir NFC-e
+  novamente" e "Emitir NF-e" com o aviso do que houve.
+- **`app(NFeService::class)` / `app(NFCeService::class)`** nos botões de emissão estouravam
+  `BindingResolutionException` (armadilha 13) — trocados por `::forUnidade($config->unidade)`.
+  `emitirNFCe` responde JSON para o PDV e redirect+flash para formulário.
+- **Campo "Informações complementares"** (`configuracoes_fiscais.informacoes_complementares`,
+  migration 2026_07_25_180000): mensagem fixa do rodapé que o lojista tinha no sistema antigo —
+  entra em `informacoes_adicionais_contribuinte` na NF-e e na NFC-e, junto das observações da venda.
+- **Numeração/"Última NFC-e"**: não existe campo equivalente porque **quem numera é a Focus**,
+  não o ERP (o payload da NFC-e não aceita número nem série). Ao migrar de outro sistema, usar
+  **série nova** ou pedir à Focus para iniciar a numeração — senão a SEFAZ rejeita por
+  duplicidade. Aviso explícito no card da NFC-e.
+
+### Etiquetas
+
+Novo formato **Tag Roupa 35 × 60 mm — 3 colunas** (`termica-tag-35x60`): bobina de 105 mm,
+grid `repeat(3, 35mm)`, conteúdo deslocado 7 mm do topo para não cair no furo da tag,
+código de barras de 13 mm e código do produto visível.
+
+---
+
 ## Armadilhas conhecidas
 
 1. **EmpresaScope recursão**: `auth()->user()` dentro do scope chama User model que tem o scope → loop infinito. Scopes têm flag `static $applying`. Não remover.
@@ -765,6 +835,16 @@ docker exec -i erp-com-app php artisan schedule:list
     Corrigido no review de 25/07 — antes `valor_bruto` recebia o líquido e desconto de
     item causaria rejeição SEFAZ (qtd×unitário ≠ vProd) + desconto em dobro.
 25. **Admin da plataforma tem `empresa_id` NULL** — `auth()->user()->empresa` retorna null e qualquer deref direto (`->regime_tributario`, `->getPlanoAtivo()`) dá 500. O `EnsureUnidadeSelected` e o `CheckPlano` dão bypass para admin, então telas `/app/*` PRECISAM de guard próprio. Padrão adotado (fix 24/07/2026): telas de criação redirecionam com aviso (`ProdutoController::create/store`), telas de item existente usam a empresa do próprio registro (`ProdutoController::edit/show` → `?? $produto->empresa`), telas de plano redirecionam para `admin.dashboard` (`PlanoController`). Ao criar tela nova em `/app/*`, nunca derefar `->empresa->` sem guard — usar `?->` ou redirect. 25/07: `ConfiguracaoFiscalController::edit/update` ganharam o mesmo guard (dava 500 pro admin da plataforma).
+26. **NUNCA gerar CSV como "modelo de planilha"** — usar `App\Support\Planilha` (.xlsx).
+    Colunas de código precisam sair como texto, senão o Excel destrói zero à esquerda e EAN.
+27. **Upload 500 sem log no Laravel = permissão do nginx no container** — conferir
+    `docker logs erp-com-app | grep client_body`. `/var/lib/nginx` tem que ser de `www-data`.
+28. **Campo em branco no produto é `''`, não `null`** — `?? ` não pega. Em dado fiscal isso vira
+    `""` no XML e a SEFAZ rejeita a nota inteira com "Erro na validação do Schema XML".
+29. **Certificado A1 vai pela API de EMPRESAS com token master** (`PUT /v2/empresas/{id}`,
+    `arquivo_certificado_base64` + `senha_certificado`). Não existe endpoint de certificado.
+30. **A Focus controla número e série da NFC-e/NF-e** — os campos `serie_*` do ERP são registro
+    local. Migração de sistema exige série nova ou reinício de numeração pedido à Focus.
 
 ---
 

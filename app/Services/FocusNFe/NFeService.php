@@ -515,6 +515,7 @@ class NFeService
         // ── Informações adicionais ───────────────────────────────────────
         $infos = array_filter([
             $dadosAdicionais['informacoes_complementares'] ?? null,
+            $config->informacoes_complementares ?: null,
             $venda->observacoes ?: null,
         ]);
         if ($infos) {

@@ -32,4 +32,13 @@ php artisan view:cache
 # Permissões
 chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache
 
+# Diretórios temporários do nginx: o worker roda como www-data, mas na imagem alpine
+# /var/lib/nginx pertence ao usuário `nginx` com 0700 — sem isto QUALQUER upload maior
+# que o buffer em memória morre em 500 ("client_body ... Permission denied") antes de
+# chegar no PHP (importação de planilha, certificado A1, anexos de caixa).
+mkdir -p /var/lib/nginx/tmp/client_body /var/lib/nginx/tmp/proxy \
+         /var/lib/nginx/tmp/fastcgi /var/lib/nginx/tmp/uwsgi /var/lib/nginx/tmp/scgi
+chown -R www-data:www-data /var/lib/nginx
+chmod -R 0755 /var/lib/nginx
+
 exec "$@"

@@ -108,6 +108,19 @@ class FiscalPayloadBuilder
     public function validarVendaParaNFCe(Venda $venda): void
     {
         $erros = [];
+
+        // Sem IE a SEFAZ devolve "Erro na validação do Schema XML" — mensagem que
+        // ninguém decifra. Barramos antes, dizendo onde resolver.
+        if (! $this->digits($this->unidade->ie ?: $this->empresa->ie ?? '')) {
+            $erros[] = 'Inscrição Estadual não cadastrada — preencha em Admin › Empresas › Unidades '
+                . '(ou nos dados da empresa). Sem IE a SEFAZ rejeita a NFC-e.';
+        }
+
+        if (! $this->config->csc_nfce || ! $this->config->csc_id_nfce) {
+            $erros[] = 'CSC / ID do CSC não configurados — obtenha no portal SEFAZ do seu estado '
+                . 'e preencha na Configuração Fiscal.';
+        }
+
         foreach ($venda->itens as $idx => $item) {
             $ncm = $item->snapshot_ncm ?: $item->produto?->ncm;
             if (! $ncm || $ncm === '00000000') {
@@ -131,7 +144,9 @@ class FiscalPayloadBuilder
             'cnpj_emitente' => $cnpj,
             'nome_emitente' => $this->empresa->razao_social,
             'nome_fantasia_emitente' => $this->empresa->nome_fantasia ?? $this->empresa->razao_social,
-            'inscricao_estadual_emitente' => $this->digits($this->unidade->ie ?: $this->empresa->ie ?? ''),
+            // IE vazia NÃO pode ir como "" no XML (schema inválido) — o pre-flight barra antes,
+            // mas o campo só entra no payload quando existe de fato.
+            'inscricao_estadual_emitente' => $this->digits($this->unidade->ie ?: $this->empresa->ie ?? '') ?: null,
             'logradouro_emitente' => $this->unidade->logradouro ?: $this->empresa->logradouro,
             'numero_emitente' => $this->unidade->numero ?: $this->empresa->numero,
             'bairro_emitente' => $this->unidade->bairro ?: $this->empresa->bairro,
@@ -156,7 +171,8 @@ class FiscalPayloadBuilder
             $payload['inscricao_municipal_emitente'] = $this->digits($im);
         }
 
-        return $payload;
+        // remove chaves nulas (ex.: IE ausente) — campo vazio quebra o schema do XML
+        return array_filter($payload, fn ($v) => $v !== null && $v !== '');
     }
 
     /**

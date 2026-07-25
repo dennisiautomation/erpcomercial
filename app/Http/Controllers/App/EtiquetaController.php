@@ -32,7 +32,7 @@ class EtiquetaController extends Controller
             'produtos' => 'required|array|min:1',
             'produtos.*.id' => 'required|exists:produtos,id',
             'produtos.*.quantidade' => 'required|integer|min:1|max:100',
-            'formato' => 'required|in:2x5,3x7,4x10,termica-40x25,termica-50x30,termica-60x40,termica-33x22',
+            'formato' => 'required|in:2x5,3x7,4x10,termica-40x25,termica-50x30,termica-60x40,termica-33x22,termica-tag-35x60',
         ]);
 
         $configLoja = ConfiguracaoLoja::daUnidade();

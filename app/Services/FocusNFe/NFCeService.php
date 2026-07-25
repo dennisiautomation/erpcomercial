@@ -365,9 +365,13 @@ class NFCeService
         // Formas de pagamento
         $payload['formas_pagamento'] = $builder->formasPagamento($venda);
 
-        // Informações adicionais
-        if ($venda->observacoes) {
-            $payload['informacoes_adicionais_contribuinte'] = $venda->observacoes;
+        // Informações adicionais: mensagem fixa da Configuração Fiscal + observações da venda
+        $infos = array_filter([
+            $config->informacoes_complementares ?: null,
+            $venda->observacoes ?: null,
+        ]);
+        if ($infos) {
+            $payload['informacoes_adicionais_contribuinte'] = implode(' | ', $infos);
         }
 
         // Responsável técnico se configurado (opcional na NFC-e mas recomendado)

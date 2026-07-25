@@ -12,7 +12,8 @@
             'termica-40x25' => ['w' => '40mm', 'h' => '25mm'],
             'termica-50x30' => ['w' => '50mm', 'h' => '30mm'],
             'termica-60x40' => ['w' => '60mm', 'h' => '40mm'],
-            'termica-33x22' => ['w' => '70mm', 'h' => '22mm'], // bobina 2 colunas
+            'termica-33x22' => ['w' => '70mm', 'h' => '22mm'],  // bobina 2 colunas
+            'termica-tag-35x60' => ['w' => '105mm', 'h' => '60mm'], // tag de roupa: 3 × 35mm
         ];
     @endphp
     <style>
@@ -164,6 +165,7 @@
         .page.formato-termica-50x30 { width: 50mm; height: 30mm; grid-template-columns: 1fr; }
         .page.formato-termica-60x40 { width: 60mm; height: 40mm; grid-template-columns: 1fr; }
         .page.formato-termica-33x22 { width: 70mm; height: 22mm; grid-template-columns: 1fr 1fr; gap: 0 2mm; }
+        .page.formato-termica-tag-35x60 { width: 105mm; height: 60mm; grid-template-columns: repeat(3, 35mm); gap: 0; }
 
         [class*="formato-termica"] .etiqueta { border: none; padding: 1mm; }
         [class*="formato-termica"] .etiqueta .empresa { font-size: 5pt; }
@@ -174,11 +176,18 @@
         .formato-termica-50x30 .etiqueta .barcode-container svg { height: 12mm; }
         .formato-termica-60x40 .etiqueta .barcode-container svg { height: 16mm; }
         .formato-termica-33x22 .etiqueta .barcode-container svg { height: 8mm; }
+        .formato-termica-tag-35x60 .etiqueta .barcode-container svg { height: 13mm; }
 
         .formato-termica-60x40 .etiqueta .empresa { font-size: 6pt; }
         .formato-termica-60x40 .etiqueta .descricao { font-size: 8pt; -webkit-line-clamp: 2; max-height: 2.4em; }
         .formato-termica-60x40 .etiqueta .preco { font-size: 12pt; }
         .formato-termica-33x22 .etiqueta .empresa { display: none; }
+        /* Tag de roupa (ilabel 35×60mm, furo no topo): conteúdo desce 6mm para não cair no furo */
+        .formato-termica-tag-35x60 .etiqueta { padding: 7mm 2mm 2mm; justify-content: flex-start; gap: 1mm; }
+        .formato-termica-tag-35x60 .etiqueta .empresa { font-size: 6pt; }
+        .formato-termica-tag-35x60 .etiqueta .descricao { font-size: 7pt; -webkit-line-clamp: 3; max-height: 3.6em; }
+        .formato-termica-tag-35x60 .etiqueta .preco { font-size: 13pt; }
+        .formato-termica-tag-35x60 .etiqueta .codigo { display: block; font-size: 5pt; }
 
         @media screen {
             .page[class*="formato-termica"] {
@@ -337,6 +346,7 @@
             'termica-50x30' => ['cols' => 1, 'rows' => 1, 'per_page' => 1],
             'termica-60x40' => ['cols' => 1, 'rows' => 1, 'per_page' => 1],
             'termica-33x22' => ['cols' => 2, 'rows' => 1, 'per_page' => 2],
+            'termica-tag-35x60' => ['cols' => 3, 'rows' => 1, 'per_page' => 3],
         ];
         $config = $formatos[$formato];
         $pages = array_chunk($itens, $config['per_page']);

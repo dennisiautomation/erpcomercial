@@ -80,6 +80,14 @@
                         </label>
                     </div>
                 </div>
+                <div class="col-md-6">
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="formato" id="formatoTag3560" value="termica-tag-35x60">
+                        <label class="form-check-label" for="formatoTag3560">
+                            <strong>Tag Roupa 35 × 60 mm</strong> — 3 colunas (bobina 105 mm, com furo)
+                        </label>
+                    </div>
+                </div>
             </div>
             <p class="text-muted small mt-2 mb-0">
                 <i class="bi bi-info-circle me-1"></i>Na impressão, selecione a impressora térmica e desative margens ("Margens: Nenhuma") no diálogo do navegador.

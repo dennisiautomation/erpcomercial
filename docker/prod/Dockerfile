@@ -43,7 +43,11 @@ COPY docker/prod/nginx.conf /etc/nginx/nginx.conf
 COPY docker/prod/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY docker/prod/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh \
-    && mkdir -p /var/log/supervisor /run/nginx
+    && mkdir -p /var/log/supervisor /run/nginx \
+    && mkdir -p /var/lib/nginx/tmp/client_body /var/lib/nginx/tmp/proxy \
+                /var/lib/nginx/tmp/fastcgi /var/lib/nginx/tmp/uwsgi /var/lib/nginx/tmp/scgi \
+    && chown -R www-data:www-data /var/lib/nginx \
+    && chmod -R 0755 /var/lib/nginx
 
 EXPOSE 80
 

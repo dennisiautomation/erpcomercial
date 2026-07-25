@@ -376,9 +376,10 @@ const ERP = {
     initImport() {
         document.querySelectorAll('[data-import]').forEach(btn => {
             const url = btn.dataset.import;
+            const rotuloOriginal = btn.innerHTML;
             const fileInput = document.createElement('input');
             fileInput.type = 'file';
-            fileInput.accept = '.csv,.xlsx,.xls';
+            fileInput.accept = '.xlsx,.csv,.txt';
             fileInput.style.display = 'none';
             document.body.appendChild(fileInput);
 
@@ -397,20 +398,43 @@ const ERP = {
                     const res = await fetch(url, {
                         method: 'POST',
                         body: formData,
-                        headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content }
+                        headers: {
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content,
+                            'Accept': 'application/json'
+                        }
                     });
-                    const data = await res.json();
-                    if (data.success) {
-                        ERP.toast(`${data.imported || 0} registros importados com sucesso!`, 'success');
-                        setTimeout(() => location.reload(), 1500);
+
+                    // 419/413/500 vêm em HTML — sem isso o usuário só via "Erro ao importar arquivo"
+                    let data = null;
+                    try { data = await res.json(); } catch (_) { data = null; }
+
+                    if (!res.ok && !data) {
+                        const motivo = res.status === 419 ? 'Sessão expirada — recarregue a página e tente de novo.'
+                            : res.status === 413 ? 'Arquivo grande demais (limite 10 MB).'
+                            : `Falha no envio do arquivo (erro ${res.status}).`;
+                        ERP.toast(motivo, 'danger', { title: 'Importação', duration: 0 });
+                        return;
+                    }
+
+                    if (data && data.success) {
+                        const erros = (data.errors || []).length;
+                        ERP.toast(
+                            `${data.imported || 0} de ${data.total_lines || 0} linhas importadas` +
+                            (erros ? ` — ${erros} com erro (ver detalhes no arquivo)` : '!'),
+                            erros ? 'warning' : 'success'
+                        );
+                        if (erros) console.warn('[Import] linhas com erro:', data.errors);
+                        setTimeout(() => location.reload(), erros ? 3000 : 1500);
                     } else {
-                        ERP.toast(data.error || 'Erro na importação', 'danger');
+                        ERP.toast((data && (data.error || data.message)) || 'Erro na importação', 'danger',
+                            { title: 'Importação', duration: 0 });
                     }
                 } catch (e) {
-                    ERP.toast('Erro ao importar arquivo', 'danger');
+                    ERP.toast('Não consegui enviar o arquivo. Verifique sua conexão e tente de novo.', 'danger',
+                        { title: 'Importação', duration: 0 });
                 } finally {
                     btn.disabled = false;
-                    btn.innerHTML = '<i class="bi bi-upload me-1"></i> Importar';
+                    btn.innerHTML = rotuloOriginal;
                     fileInput.value = '';
                 }
             });

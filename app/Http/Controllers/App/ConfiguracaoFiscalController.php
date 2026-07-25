@@ -205,6 +205,7 @@ class ConfiguracaoFiscalController extends Controller
                 'responsavel_tecnico_nome'     => 'nullable|string|max:60',
                 'responsavel_tecnico_email'    => 'nullable|email|max:60',
                 'responsavel_tecnico_telefone' => 'nullable|string|max:14',
+                'informacoes_complementares'   => 'nullable|string|max:5000',
                 'tipo_cupom_pdv'       => 'required|in:fiscal,nao_fiscal',
             ];
         }
@@ -219,6 +220,18 @@ class ConfiguracaoFiscalController extends Controller
         $validated['ibs_ativo'] = $request->boolean('ibs_ativo');
         $validated['cbs_ativo'] = $request->boolean('cbs_ativo');
         $validated['is_ativo'] = $request->boolean('is_ativo');
+
+        // A máscara do formulário manda "23.237.062/0001-17" (18 chars) e a coluna é
+        // varchar(14) → SQLSTATE[22001] e 500 ao salvar. Guardamos só os dígitos/letras.
+        // Cnpj::limparCpfCnpj preserva letras (CNPJ alfanumérico — NT 2025.001).
+        if (array_key_exists('responsavel_tecnico_cnpj', $validated)) {
+            $validated['responsavel_tecnico_cnpj'] =
+                \App\Support\Cnpj::limparCpfCnpj($validated['responsavel_tecnico_cnpj'] ?? '') ?: null;
+        }
+        if (array_key_exists('responsavel_tecnico_telefone', $validated)) {
+            $validated['responsavel_tecnico_telefone'] =
+                preg_replace('/\D/', '', (string) ($validated['responsavel_tecnico_telefone'] ?? '')) ?: null;
+        }
 
         if (!$emissaoAtiva) {
             $validated['tipo_cupom_pdv'] = $request->input('tipo_cupom_pdv', 'nao_fiscal');
