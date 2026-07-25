@@ -744,6 +744,8 @@ imagem). O modelo antigo era um CSV com `;` que o Excel/Numbers abria em coluna 
   erro MySQL 1366 e derrubava a linha inteira.
 - Exportações (`/app/export/*`) também saem em .xlsx; `preco_debito`/`preco_credito` agora
   vêm da relação `produto_precos` (antes saíam sempre vazios).
+- Card NFC-e com paridade ao sistema antigo: Ambiente/Versão 4.00/Última NFC-e como campos
+  informativos + mapa recolhido "onde ficou cada campo" (Token do Gestão = ID CSC).
 - Front: botões viraram "Importar planilha" / "Modelo Excel"; o handler mostra o motivo real
   de 419/413/500 (antes: "Erro ao importar arquivo" para tudo).
 
@@ -837,6 +839,10 @@ código de barras de 13 mm e código do produto visível.
 25. **Admin da plataforma tem `empresa_id` NULL** — `auth()->user()->empresa` retorna null e qualquer deref direto (`->regime_tributario`, `->getPlanoAtivo()`) dá 500. O `EnsureUnidadeSelected` e o `CheckPlano` dão bypass para admin, então telas `/app/*` PRECISAM de guard próprio. Padrão adotado (fix 24/07/2026): telas de criação redirecionam com aviso (`ProdutoController::create/store`), telas de item existente usam a empresa do próprio registro (`ProdutoController::edit/show` → `?? $produto->empresa`), telas de plano redirecionam para `admin.dashboard` (`PlanoController`). Ao criar tela nova em `/app/*`, nunca derefar `->empresa->` sem guard — usar `?->` ou redirect. 25/07: `ConfiguracaoFiscalController::edit/update` ganharam o mesmo guard (dava 500 pro admin da plataforma).
 26. **NUNCA gerar CSV como "modelo de planilha"** — usar `App\Support\Planilha` (.xlsx).
     Colunas de código precisam sair como texto, senão o Excel destrói zero à esquerda e EAN.
+26b. **DEPLOY NÃO APARECE = faltou `docker restart erp-com-app`** — o php.ini de produção tem
+    `opcache.validate_timestamps=0`: o FPM congela o bytecode quando o container sobe e IGNORA
+    arquivos novos no disco (tinker/CLI enxergam o código novo, o site não — armadilha dupla:
+    a validação por CLI passa e o navegador segue no antigo). Todo deploy termina com restart.
 27. **Upload 500 sem log no Laravel = permissão do nginx no container** — conferir
     `docker logs erp-com-app | grep client_body`. `/var/lib/nginx` tem que ser de `www-data`.
 28. **Campo em branco no produto é `''`, não `null`** — `?? ` não pega. Em dado fiscal isso vira

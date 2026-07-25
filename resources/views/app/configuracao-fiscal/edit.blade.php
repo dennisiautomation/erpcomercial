@@ -505,16 +505,65 @@
                             Como obter CSC: <strong>portal SEFAZ do seu estado</strong> (e-CAC ou similar) → menu "NFC-e" → "Gerar CSC". Você recebe o código e o ID (1 ou 2).
                         </small>
 
+                        {{-- Campos que o lojista via no sistema anterior e aqui são fixos/automáticos.
+                             Mostrados em cinza para ele reconhecer a tela, sem virar campo editável. --}}
+                        <div class="row g-3 mt-1">
+                            <div class="col-md-3">
+                                <label class="form-label fw-semibold text-muted small mb-1">Ambiente</label>
+                                <div class="form-control bg-light text-muted d-flex align-items-center justify-content-between">
+                                    <span>{{ ($config->ambiente ?? 'homologacao') === 'producao' ? 'Produção (real)' : 'Homologação (testes)' }}</span>
+                                    <a href="#" onclick="document.querySelector('select[name=ambiente]').scrollIntoView({behavior:'smooth',block:'center'});document.querySelector('select[name=ambiente]').focus();return false;"
+                                       class="small text-decoration-none">alterar</a>
+                                </div>
+                                <small class="form-text">Definido no topo da tela, vale para todas as notas.</small>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label fw-semibold text-muted small mb-1">Versão da NFC-e</label>
+                                <div class="form-control bg-light text-muted">4.00</div>
+                                <small class="form-text">Fixa — a Focus usa sempre o layout vigente da SEFAZ.</small>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold text-muted small mb-1">Última NFC-e emitida</label>
+                                <div class="form-control bg-light text-muted">Controlada pela Focus NFe</div>
+                                <small class="form-text">O ERP não numera a nota — veja o aviso abaixo se você veio de outro sistema.</small>
+                            </div>
+                        </div>
+
                         {{-- Migração de outro sistema: a numeração é da Focus, não do ERP.
                              Sem série nova (ou reinício de numeração pedido à Focus) a SEFAZ
                              rejeita por duplicidade. --}}
                         <div class="alert alert-warning py-2 px-3 small mt-3 mb-0">
                             <i class="bi bi-123 me-1"></i>
                             <strong>Veio de outro sistema?</strong> O <strong>número</strong> da NFC-e é controlado
-                            pela Focus NFe (não existe campo "última NFC-e" aqui — o ERP não numera a nota).
+                            pela Focus NFe (por isso não há campo "última NFC-e" para digitar).
                             Se a série informada acima já foi usada no sistema anterior, escolha uma
                             <strong>série nova</strong> (ex.: a última + 1) ou peça à Focus para iniciar a numeração
                             no próximo número. Repetir série + número já emitido = rejeição da SEFAZ por duplicidade.
+                        </div>
+
+                        {{-- Mapa "onde foi parar cada campo do sistema antigo" — recolhido por padrão --}}
+                        <div class="mt-2">
+                            <a class="small text-decoration-none" data-bs-toggle="collapse" href="#mapaCamposNfce" role="button">
+                                <i class="bi bi-arrow-left-right me-1"></i>Usava outro sistema? Veja onde ficou cada campo
+                            </a>
+                            <div class="collapse mt-2" id="mapaCamposNfce">
+                                <div class="table-responsive">
+                                    <table class="table table-sm small mb-0">
+                                        <thead class="table-light">
+                                            <tr><th>No sistema antigo</th><th>Aqui</th></tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr><td>Série NFC-e</td><td><strong>Série NFC-e</strong> (mesmo campo)</td></tr>
+                                            <tr><td>Token</td><td><strong>ID CSC</strong> — é o mesmo número (ex.: 000001)</td></tr>
+                                            <tr><td>CSC</td><td><strong>CSC</strong> (mesmo campo)</td></tr>
+                                            <tr><td>Ambiente</td><td>No topo da tela — vale para NF-e, NFC-e e NFS-e</td></tr>
+                                            <tr><td>Versão da NFC-e</td><td>Fixa em 4.00, mantida pela Focus</td></tr>
+                                            <tr><td>Última NFC-e</td><td>Não se digita: a Focus controla a numeração</td></tr>
+                                            <tr><td>Informações complementares</td><td>Card <strong>Informações complementares</strong>, mais abaixo — vale para NF-e e NFC-e</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
