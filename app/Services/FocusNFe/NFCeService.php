@@ -301,10 +301,12 @@ class NFCeService
 
         // Itens
         $itens = [];
-        $valorTotalProdutos = 0;
+        $valorTotalProdutos = 0; // Σ vProd (bruto) — SEFAZ valida contra os itens
+        $descontoItens = 0;
         foreach ($venda->itens as $index => $item) {
             $itens[] = $builder->itemNFCe($item, $index + 1, $reforma);
-            $valorTotalProdutos += (float) $item->total;
+            $valorTotalProdutos += round((float) $item->preco_unitario * (float) $item->quantidade, 2);
+            $descontoItens += (float) ($item->desconto_valor ?? 0);
         }
 
         $payload = array_merge(
@@ -332,6 +334,14 @@ class NFCeService
         $payload['icms_base_calculo'] = $totais['icms_base_calculo'];
         $payload['icms_valor_total'] = $totais['icms_valor_total'];
 
+        // Totais IBS/CBS/IS (grupo IBSCBSTot — NT 2025.002, vale p/ NFC-e também)
+        foreach (['ibs_cbs_base_calculo', 'ibs_uf_valor_total', 'ibs_mun_valor_total',
+                  'ibs_valor_total', 'cbs_valor_total', 'is_valor_total'] as $campoReforma) {
+            if (isset($totais[$campoReforma])) {
+                $payload[$campoReforma] = $totais[$campoReforma];
+            }
+        }
+
         // IBPT — LC 165/2018: rodapé do cupom precisa do valor aproximado
         $valorTributos = $builder->valorTotalTributos($itens);
         if ($valorTributos > 0) {
@@ -344,10 +354,12 @@ class NFCeService
             $payload['valor_troco'] = number_format($troco, 2, '.', '');
         }
 
-        // Desconto global
+        // Desconto (vDesc total = descontos dos itens + desconto global)
+        // Necessário porque vProd é bruto: vNF = vProd − vDesc.
         $descontoGlobal = (float) ($venda->desconto_valor ?? 0);
-        if ($descontoGlobal > 0) {
-            $payload['valor_desconto'] = number_format($descontoGlobal, 2, '.', '');
+        $descontoTotal = $descontoGlobal + $descontoItens;
+        if ($descontoTotal > 0) {
+            $payload['valor_desconto'] = number_format($descontoTotal, 2, '.', '');
         }
 
         // Formas de pagamento

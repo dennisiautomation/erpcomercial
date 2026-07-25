@@ -691,6 +691,12 @@ docker exec -i erp-com-app php artisan schedule:list
     `ibs`/`cbs`/`tributos_reforma` (formato antigo, ignorado pela Focus).
 24. **IBS/CBS é automático para lucro_presumido/lucro_real** via `paraEmissao()` — não
     condicionar emissão só nas flags `ibs_ativo`/`cbs_ativo` (rejeição SEFAZ 03/08/2026).
+24b. **`VendaItem.total` é LÍQUIDO do desconto do item** — no payload fiscal, `valor_bruto`
+    (vProd) = `preco_unitario × quantidade` e o desconto vai em `valor_desconto`;
+    `valor_desconto` do documento = Σ descontos dos itens + desconto global da venda
+    (vNF = vProd − vDesc). Base dos tributos (ICMS/PIS/COFINS/IBS/CBS) = total líquido.
+    Corrigido no review de 25/07 — antes `valor_bruto` recebia o líquido e desconto de
+    item causaria rejeição SEFAZ (qtd×unitário ≠ vProd) + desconto em dobro.
 25. **Admin da plataforma tem `empresa_id` NULL** — `auth()->user()->empresa` retorna null e qualquer deref direto (`->regime_tributario`, `->getPlanoAtivo()`) dá 500. O `EnsureUnidadeSelected` e o `CheckPlano` dão bypass para admin, então telas `/app/*` PRECISAM de guard próprio. Padrão adotado (fix 24/07/2026): telas de criação redirecionam com aviso (`ProdutoController::create/store`), telas de item existente usam a empresa do próprio registro (`ProdutoController::edit/show` → `?? $produto->empresa`), telas de plano redirecionam para `admin.dashboard` (`PlanoController`). Ao criar tela nova em `/app/*`, nunca derefar `->empresa->` sem guard — usar `?->` ou redirect.
 
 ---

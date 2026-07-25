@@ -247,6 +247,9 @@ class FiscalPayloadBuilder
         $produto = $item->produto;
         $valorUnitario = $this->fmt($item->preco_unitario, 4);
         $quantidade = $this->fmt($item->quantidade, 4);
+        // vProd (valor_bruto) = quantidade × unitário — SEFAZ valida essa conta.
+        // VendaItem.total é LÍQUIDO do desconto do item e serve de base p/ tributos.
+        $valorBruto = $this->fmt(round((float) $item->preco_unitario * (float) $item->quantidade, 2), 2);
         $valorTotal = $this->fmt($item->total, 2);
         $valorDesconto = (float) ($item->desconto_valor ?? 0);
 
@@ -272,7 +275,7 @@ class FiscalPayloadBuilder
             'unidade_comercial' => $unidade,
             'quantidade_comercial' => $quantidade,
             'valor_unitario_comercial' => $valorUnitario,
-            'valor_bruto' => $valorTotal,
+            'valor_bruto' => $valorBruto,
             'unidade_tributavel' => $unidade,
             'quantidade_tributavel' => $quantidade,
             'valor_unitario_tributavel' => $valorUnitario,

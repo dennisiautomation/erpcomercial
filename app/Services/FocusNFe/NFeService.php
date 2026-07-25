@@ -426,10 +426,12 @@ class NFeService
 
         // ── Itens ────────────────────────────────────────────────────────
         $itens = [];
-        $valorTotalProdutos = 0;
+        $valorTotalProdutos = 0; // Σ vProd (bruto) — SEFAZ valida contra os itens
+        $descontoItens = 0;
         foreach ($venda->itens as $index => $item) {
             $itens[] = $builder->itemNFe($item, $index + 1, $reforma, incluiIpi: true);
-            $valorTotalProdutos += (float) $item->total;
+            $valorTotalProdutos += round((float) $item->preco_unitario * (float) $item->quantidade, 2);
+            $descontoItens += (float) ($item->desconto_valor ?? 0);
         }
 
         // ── Header ───────────────────────────────────────────────────────
@@ -462,10 +464,12 @@ class NFeService
             $payload['valor_total_tributos'] = number_format($valorTributos, 2, '.', '');
         }
 
-        // ── Desconto global ──────────────────────────────────────────────
+        // ── Desconto (vDesc total = descontos dos itens + desconto global) ──
+        // Necessário porque vProd é bruto: vNF = vProd − vDesc.
         $descontoGlobal = (float) ($venda->desconto_valor ?? 0);
-        if ($descontoGlobal > 0) {
-            $payload['valor_desconto'] = number_format($descontoGlobal, 2, '.', '');
+        $descontoTotal = $descontoGlobal + $descontoItens;
+        if ($descontoTotal > 0) {
+            $payload['valor_desconto'] = number_format($descontoTotal, 2, '.', '');
         }
 
         // ── Pagamentos + duplicatas (boleto/crediário a prazo) ───────────
