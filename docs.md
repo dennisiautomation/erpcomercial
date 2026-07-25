@@ -212,6 +212,20 @@ entra em **04/01/2027**. Desde 01/07/2026 os campos já são exigidos em homolog
 - **UI**: tela de Configuração Fiscal explica o envio automático + alíquotas corretas;
   tooltips de IBS/CBS atualizados; defaults dos inputs de alíquota agora em branco
   (= usa valores legais).
+- **Regime tributário configurável pelo cliente (25/07)**: card "Regime tributário da
+  empresa" no topo da Configuração Fiscal — **só o perfil dono** altera (outros veem
+  read-only), com `data-confirm` de impacto e flash orientando o contador. Rota
+  `PUT app/configuracao-fiscal/regime` → `ConfiguracaoFiscalController::atualizarRegime`.
+  Trocar para Presumido/Real liga o IBS/CBS automático na nota seguinte; voltar ao Simples
+  desliga (obrigação 01/2027). Validado E2E via curl (dono muda → badge "Envio automático
+  ativo" → volta). ⚠️ Blade: dois `@php(...)` inline consecutivos não compilam — usar
+  bloco `@php ... @endphp` (quebrou a tela em produção por minutos até o fix).
+- **Varredura E2E 25/07 (107 rotas GET × persona dono e admin)**: 3 bugs 500 corrigidos —
+  (1) `ExportController::export` quebrava com enum (`StatusVenda`) → cast `BackedEnum->value`
+  (afetava `/app/export/vendas` para clientes); (2) DRE (index/porUnidade/exportar) 500 para
+  admin da plataforma → guard armadilha 21; (3) `/app/fiscal/calcular-st` sem parâmetros
+  dava TypeError 500 → validação (422). Sweep final: dono 0×5xx, admin 0×5xx. Metodologia:
+  usuário QA temporário (removido ao final) + seleção de unidade via `POST /selecionar-unidade`.
 - **UI v2 (review 25/07 tarde)**: card da Reforma na config fiscal com **status dinâmico
   por regime** — regime normal: badge verde "Envio automático ativo", alerta verde, chaves
   IBS/CBS viram badges "automático" (hidden inputs preservam o valor persistido); Simples:

@@ -298,6 +298,7 @@ Route::middleware(['auth', 'unidade'])->prefix('app')->name('app.')->group(funct
         Route::post('/testar', [App\ConfiguracaoFiscalController::class, 'testarConexao'])->name('testar');
         Route::post('/certificado', [App\ConfiguracaoFiscalController::class, 'uploadCertificado'])->name('certificado');
         Route::get('/sefaz-status', [App\ConfiguracaoFiscalController::class, 'statusSefaz'])->name('sefaz-status');
+        Route::put('/regime', [App\ConfiguracaoFiscalController::class, 'atualizarRegime'])->name('regime');
     });
 
     /* ------ NFes Recebidas (Manifestação do Destinatário) ------ */
@@ -361,6 +362,12 @@ Route::middleware(['auth', 'unidade'])->prefix('app')->name('app.')->group(funct
 
     /* ------ Fiscal — ICMS ST Calculator (AJAX) ------ */
     Route::get('/fiscal/calcular-st', function (Request $request) {
+        $request->validate([
+            'uf_origem'  => ['required', 'string', 'size:2'],
+            'uf_destino' => ['required', 'string', 'size:2'],
+            'valor'      => ['required', 'numeric', 'min:0'],
+        ]);
+
         $result = \App\Services\ICMSCalculator::calcular(
             $request->uf_origem,
             $request->uf_destino,

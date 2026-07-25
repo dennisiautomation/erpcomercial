@@ -84,7 +84,11 @@ class ExportController extends Controller
         foreach ($items as $item) {
             $row = [];
             foreach ($columns as $col) {
-                $row[] = str_replace(';', ',', (string) ($item->$col ?? ''));
+                $valor = $item->$col ?? '';
+                if ($valor instanceof \BackedEnum) {
+                    $valor = $valor->value; // enums (ex.: StatusVenda) não castam para string
+                }
+                $row[] = str_replace(';', ',', (string) $valor);
             }
             $csv .= implode(';', $row) . "\n";
         }

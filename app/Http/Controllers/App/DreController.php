@@ -14,6 +14,9 @@ class DreController extends Controller
 {
     public function index(Request $request)
     {
+        if ($guard = $this->guardAdminSemEmpresa()) {
+            return $guard;
+        }
         $empresaId = auth()->user()->empresa_id;
 
         $dataInicio = $request->input('data_inicio', Carbon::now()->startOfMonth()->format('Y-m-d'));
@@ -38,6 +41,9 @@ class DreController extends Controller
 
     public function porUnidade(Request $request)
     {
+        if ($guard = $this->guardAdminSemEmpresa()) {
+            return $guard;
+        }
         $empresaId = auth()->user()->empresa_id;
 
         $dataInicio = $request->input('data_inicio', Carbon::now()->startOfMonth()->format('Y-m-d'));
@@ -58,6 +64,9 @@ class DreController extends Controller
 
     public function exportar(Request $request)
     {
+        if ($guard = $this->guardAdminSemEmpresa()) {
+            return $guard;
+        }
         $empresaId = auth()->user()->empresa_id;
 
         $dataInicio = $request->input('data_inicio', Carbon::now()->startOfMonth()->format('Y-m-d'));
@@ -96,6 +105,17 @@ class DreController extends Controller
     /* ------------------------------------------------------------------ */
     /*  Private: Build DRE Structure                                       */
     /* ------------------------------------------------------------------ */
+
+    /** Admin da plataforma não tem empresa (armadilha 21) — DRE é por empresa. */
+    private function guardAdminSemEmpresa(): ?\Illuminate\Http\RedirectResponse
+    {
+        if (auth()->user()->empresa_id) {
+            return null;
+        }
+
+        return redirect()->route('admin.dashboard')
+            ->with('warning', 'O admin da plataforma não tem DRE próprio — o DRE é da empresa.');
+    }
 
     private function buildDre(int $empresaId, string $dataInicio, string $dataFim, ?int $unidadeId = null): array
     {

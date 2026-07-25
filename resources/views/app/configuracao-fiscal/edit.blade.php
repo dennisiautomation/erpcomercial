@@ -7,6 +7,62 @@
     <h4 class="mb-0"><i class="bi bi-gear me-2"></i>Configuracao Fiscal</h4>
 </div>
 
+{{-- ═══ Regime tributário da empresa (fora do form principal — submit próprio) ═══ --}}
+@php
+    $empresaAtual = auth()->user()->empresa;
+    $ehDono = (auth()->user()->perfil?->value ?? '') === 'dono' || auth()->user()->is_admin;
+@endphp
+<div class="erp-card mb-3 border">
+    <div class="card-header bg-transparent d-flex align-items-center">
+        <i class="bi bi-building fs-4 text-primary me-2"></i>
+        <div class="flex-grow-1">
+            <strong>Regime tributário da empresa</strong>
+            <div class="small text-muted">
+                Define CST×CSOSN, alíquotas sugeridas e o envio automático de IBS/CBS — vale para todas as unidades.
+            </div>
+        </div>
+        <span class="badge bg-primary bg-opacity-10 text-primary">
+            {{ $empresaAtual?->regime_tributario?->label() ?? 'Não definido' }}
+        </span>
+    </div>
+    <div class="card-body">
+        @if($ehDono)
+            <form method="POST" action="{{ route('app.configuracao-fiscal.regime') }}"
+                  class="row g-2 align-items-end"
+                  data-confirm="Mudar o regime tributário altera como TODAS as notas são emitidas (CST×CSOSN, IBS/CBS automático, alíquotas). Confirme com o seu contador antes. Continuar?">
+                @csrf
+                @method('PUT')
+                <div class="col-md-5">
+                    <label class="form-label small fw-semibold">Regime</label>
+                    <select name="regime_tributario" class="form-select">
+                        @foreach(\App\Enums\RegimeTributario::cases() as $regime)
+                            <option value="{{ $regime->value }}"
+                                {{ ($empresaAtual?->regime_tributario?->value ?? '') === $regime->value ? 'selected' : '' }}>
+                                {{ $regime->label() }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <button type="submit" class="btn btn-outline-primary">
+                        <i class="bi bi-check2 me-1"></i>Salvar regime
+                    </button>
+                </div>
+                <div class="col-md-4">
+                    <small class="text-muted d-block">
+                        Lucro Presumido/Real: IBS/CBS automático nas notas (obrigatório desde 03/08/2026).
+                        Simples Nacional: entra em 01/2027.
+                    </small>
+                </div>
+            </form>
+        @else
+            <small class="text-muted">
+                <i class="bi bi-lock me-1"></i>Somente o dono da empresa pode alterar o regime tributário.
+            </small>
+        @endif
+    </div>
+</div>
+
 <form method="POST" action="{{ route('app.configuracao-fiscal.update') }}">
     @csrf
     @method('PUT')

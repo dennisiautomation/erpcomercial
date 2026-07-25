@@ -123,6 +123,47 @@ class ConfiguracaoFiscalController extends Controller
     /*  Atualizar                                                          */
     /* ------------------------------------------------------------------ */
 
+    /**
+     * Regime tributário da empresa — configurável pelo próprio dono.
+     * Muda o comportamento fiscal inteiro (CST×CSOSN, IBS/CBS automático,
+     * presets de alíquota), por isso é restrito ao perfil dono e vem com
+     * aviso de impacto na tela.
+     */
+    public function atualizarRegime(Request $request)
+    {
+        $user = auth()->user();
+
+        if (! $user->empresa_id) {
+            return redirect()->route('admin.dashboard')
+                ->with('warning', 'O admin da plataforma não tem empresa própria.');
+        }
+
+        // Só o dono da empresa (ou admin da plataforma dentro de uma empresa) muda o regime
+        if (($user->perfil?->value ?? '') !== 'dono' && ! $user->is_admin) {
+            return back()->with('error', 'Apenas o dono da empresa pode alterar o regime tributário.');
+        }
+
+        $validated = $request->validate([
+            'regime_tributario' => ['required', 'in:simples_nacional,lucro_presumido,lucro_real'],
+        ]);
+
+        $empresa = $user->empresa;
+        $anterior = $empresa->regime_tributario?->value;
+        $empresa->update(['regime_tributario' => $validated['regime_tributario']]);
+
+        $novo = \App\Enums\RegimeTributario::from($validated['regime_tributario'])->label();
+
+        $aviso = $validated['regime_tributario'] === 'simples_nacional'
+            ? 'Notas passam a usar CSOSN e o destaque de IBS/CBS deixa de ser automático (obrigação do Simples começa em 01/2027).'
+            : 'Suas notas passam a destacar IBS/CBS automaticamente (obrigatório desde 03/08/2026) e a usar CST em vez de CSOSN. Revise os produtos cadastrados antes do regime anterior.';
+
+        return redirect()->route('app.configuracao-fiscal.edit')
+            ->with('success', "Regime tributário alterado para {$novo}. {$aviso}")
+            ->with('warning', $anterior !== $validated['regime_tributario']
+                ? 'Confirme a mudança com o seu contador — o regime altera CST/CSOSN e alíquotas dos produtos.'
+                : null);
+    }
+
     public function update(Request $request)
     {
         if (! auth()->user()->empresa_id) {
