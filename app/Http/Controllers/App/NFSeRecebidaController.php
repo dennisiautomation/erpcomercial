@@ -21,7 +21,7 @@ class NFSeRecebidaController extends Controller
         if ($prestador = $request->input('prestador')) {
             $query->where(function ($q) use ($prestador) {
                 $q->where('nome_prestador', 'like', "%{$prestador}%")
-                  ->orWhere('cnpj_prestador', 'like', '%' . preg_replace('/\D/', '', $prestador) . '%');
+                  ->orWhere('cnpj_prestador', 'like', '%' . \App\Support\Cnpj::limpar($prestador) . '%');
             });
         }
 

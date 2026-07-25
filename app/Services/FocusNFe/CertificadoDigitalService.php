@@ -27,7 +27,7 @@ class CertificadoDigitalService
         string $senha,
         string $nomeArquivo = 'certificado.pfx'
     ): ConfiguracaoFiscal {
-        $cnpj = preg_replace('/\D/', '', $empresa->cnpj ?? '');
+        $cnpj = \App\Support\Cnpj::limpar($empresa->cnpj ?? '');
 
         if (strlen($cnpj) !== 14) {
             throw new CertificadoDigitalException(

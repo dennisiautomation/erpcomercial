@@ -39,7 +39,7 @@ class VerificarSaudeWebhooksCommand extends Command
             $empresa = $config->empresa()->withoutGlobalScopes()->first();
             if (! $unidade || ! $empresa) continue;
 
-            $cnpj = preg_replace('/\D/', '', $unidade->cnpj ?: $empresa->cnpj);
+            $cnpj = \App\Support\Cnpj::limpar($unidade->cnpj ?: $empresa->cnpj);
             if (! $cnpj) continue;
 
             try {

@@ -34,7 +34,7 @@ class NFSesRecebidasService
      */
     public function sincronizar(Empresa $empresa, Unidade $unidade): int
     {
-        $cnpj = preg_replace('/\D/', '', $unidade->cnpj ?: $empresa->cnpj);
+        $cnpj = \App\Support\Cnpj::limpar($unidade->cnpj ?: $empresa->cnpj);
         if (strlen($cnpj) !== 14) {
             throw new \RuntimeException('Unidade precisa de CNPJ válido para consultar NFS-es recebidas.');
         }
@@ -49,7 +49,7 @@ class NFSesRecebidasService
         $novas = 0;
 
         foreach ($itens as $item) {
-            $cnpjPrestador = preg_replace('/\D/', '', $item['cnpj_prestador'] ?? '');
+            $cnpjPrestador = \App\Support\Cnpj::limpar($item['cnpj_prestador'] ?? '');
             $codigoVerificacao = $item['codigo_verificacao']
                 ?? $item['numero_substituta']
                 ?? ($item['numero'] ?? '') . '-' . ($item['serie'] ?? '');

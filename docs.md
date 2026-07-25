@@ -2,7 +2,7 @@
 
 > SaaS ERP multi-tenant para PMEs. Admin (IA365) gerencia a plataforma; cada empresa-cliente tem múltiplas unidades com fiscal, estoque e caixa independentes. Integração 100% Focus NFe (NF-e, NFC-e, NFS-e, CC-e, manifestação do destinatário, backup XMLs).
 
-**Última revisão:** 2026-07-24 · **Estado:** integração fiscal Fase 1-4 + multi-loja + regime de cobrança + auto-sync Focus + UX config fiscal + caixa por forma de pagamento (14/07) + Configurações da Loja/tabelas de preço/emissão parametrizada/adquirentes (24/07) — concluídos
+**Última revisão:** 2026-07-25 · **Estado:** integração fiscal Fase 1-4 + multi-loja + regime de cobrança + auto-sync Focus + UX config fiscal + caixa por forma de pagamento (14/07) + Configurações da Loja/tabelas de preço/emissão parametrizada/adquirentes (24/07) + **Reforma Tributária NT 2025.002 (obrigatório 03/08/2026) + CNPJ alfanumérico NT 2025.001 (25/07)** — concluídos
 
 ---
 
@@ -183,6 +183,54 @@ Quando há `FOCUS_MASTER_TOKEN`, toda mudança na configuração fiscal propaga 
 - **Badges `★ obrigatório`** nos campos críticos (CSC, ID CSC, Série, Resp.Técnico) — usuário não confunde com opcionais.
 - **Texto explicativo** no card Responsável Técnico ("geralmente o dono, contador, ou TI da empresa") + botão **"Usar meus dados"** auto-preenche CNPJ empresa + nome + email do user logado em 1 clique.
 - **Mensagem SEFAZ status** mais amigável quando empresa ainda não tem token ("Aguardando provisionamento" em vez de erro técnico).
+
+### Reforma Tributária — IBS/CBS obrigatórios 03/08/2026 (NT 2025.002 v1.40) — branch `feat/reforma-agosto2026-cnpj-alfanumerico` (25/07)
+
+**Contexto legal:** a partir de **03/08/2026** a SEFAZ **rejeita** NF-e/NFC-e do regime
+normal (CRT=3 — Lucro Presumido/Real) sem os grupos IBS/CBS (UB/W03). Simples Nacional
+entra em **04/01/2027**. Desde 01/07/2026 os campos já são exigidos em homologação.
+
+**O que mudou no ERP:**
+
+- **Envio automático**: `ReformaTributariaCalculator::paraEmissao($config, $empresa)` liga o
+  bloco IBS/CBS para toda empresa `lucro_presumido`/`lucro_real`, **independente das flags**
+  `ibs_ativo`/`cbs_ativo` (que agora servem para antecipar o envio no Simples). IS continua
+  só por flag. Vale para NF-e, NFC-e e NFS-e nacional.
+- **Alíquotas-teste 2026 corrigidas** (estavam INVERTIDAS): **CBS 0,9% + IBS 0,1%**
+  (LC 214/2025; IBS integral na esfera estadual em 2026, municipal = 0). Migration
+  `2026_07_25_120000` anula o par invertido persistido em `configuracoes_fiscais`.
+- **Payload no formato flat da Focus** (antes eram arrays aninhados `ibs`/`cbs` que a Focus
+  ignorava): item ganha `ibs_cbs_situacao_tributaria` (CST, default `000`),
+  `ibs_cbs_classificacao_tributaria` (cClassTrib, default `000001`), `ibs_cbs_base_calculo`,
+  `ibs_uf_aliquota/valor`, `ibs_mun_aliquota/valor`, `ibs_valor_total`, `cbs_aliquota/valor`
+  (+ `is_*` se IS ativo). Totais: `ibs_cbs_base_calculo`, `ibs_uf_valor_total`,
+  `ibs_mun_valor_total`, `ibs_valor_total`, `cbs_valor_total`, `is_valor_total`
+  (só entram quando os itens carregam o grupo). Na NFS-e nacional os campos flat vão dentro
+  de `servico` (substituiu `servico.tributos_reforma`).
+- **Overrides por produto** continuam: `produtos.ibs_aliquota/cbs_aliquota/is_aliquota`,
+  `cst_ibs_cbs`, `classificacao_ibs` (formulário de produto já expõe).
+- **UI**: tela de Configuração Fiscal explica o envio automático + alíquotas corretas;
+  tooltips de IBS/CBS atualizados; defaults dos inputs de alíquota agora em branco
+  (= usa valores legais).
+
+### CNPJ alfanumérico (NT Conjunta 2025.001 — produção desde 06/07/2026)
+
+CNPJs novos podem ter **letras nas 12 primeiras posições** (DV continua numérico,
+módulo 11 sobre `ASCII−48`). O que mudou:
+
+- **`App\Support\Cnpj`**: `limpar()` (preserva letras, caixa alta), `limparCpfCnpj()`,
+  `pareceCpf()/pareceCnpj()`, `valido()` (DV alfanumérico — validado contra o exemplo
+  oficial `12.ABC.345/01DE-35`), `dv()`, `formatar()`.
+- **Sweep completo**: todos os `preg_replace('/\D/')` sobre CNPJ trocados por
+  `Cnpj::limpar()` (payload builder, services Focus, webhook, commands, imports, filtros).
+  Webhook `resolveConfig` compara com `UPPER(...)` no SQL.
+- **Validação**: rule `App\Rules\CnpjValido` aplicada em Empresa (create/update) e Unidade.
+- **Máscaras JS** (`erp-core.js`): `cnpj`/`cpfCnpj` aceitam letras (qualquer letra ⇒ trata
+  como CNPJ); `buscaCNPJ` pula a BrasilAPI para CNPJ alfanumérico (API só numérico).
+
+**Estado em produção (25/07):** as 2 empresas ativas são Simples Nacional — nada muda nas
+notas de hoje; a plataforma fica pronta para clientes do regime normal e para a virada do
+Simples em 2027.
 
 ### O que a Focus NÃO consegue gerenciar (limite do SEFAZ)
 
@@ -632,7 +680,18 @@ docker exec -i erp-com-app php artisan schedule:list
 18. **Focus webhook é 1 evento por chamada** — payload `{event: "nfe", ...}` singular. Mandar `{eventos: [...]}` falha silenciosamente (corrigido em `cadastrarWebhook`).
 19. **Migration de campos NFS-e (`codigo_municipio`)** assume tabelas `empresas/unidades/clientes` — usuário precisa preencher manualmente ou via autocomplete `/app/focus-autocomplete/municipio`.
 20. **Snapshot fiscal só é aplicado em `creating`** do VendaItem — itens criados antes da migration 2026-05-28 não têm snapshot (caem no fallback `produto->*`).
-21. **Admin da plataforma tem `empresa_id` NULL** — `auth()->user()->empresa` retorna null e qualquer deref direto (`->regime_tributario`, `->getPlanoAtivo()`) dá 500. O `EnsureUnidadeSelected` e o `CheckPlano` dão bypass para admin, então telas `/app/*` PRECISAM de guard próprio. Padrão adotado (fix 24/07/2026): telas de criação redirecionam com aviso (`ProdutoController::create/store`), telas de item existente usam a empresa do próprio registro (`ProdutoController::edit/show` → `?? $produto->empresa`), telas de plano redirecionam para `admin.dashboard` (`PlanoController`). Ao criar tela nova em `/app/*`, nunca derefar `->empresa->` sem guard — usar `?->` ou redirect.
+21. **NUNCA sanitizar CNPJ com `preg_replace('/\D/')`** — destrói as letras do CNPJ
+    alfanumérico (NT 2025.001). Usar `App\Support\Cnpj::limpar()` /
+    `limparCpfCnpj()`. Para decidir CPF×CNPJ usar `Cnpj::pareceCpf()`, não `strlen == 11`.
+22. **Alíquotas-teste 2026 são CBS 0,9% + IBS 0,1%** (LC 214/2025) — cuidado com material
+    antigo do projeto que trazia o par invertido. Defaults corretos no
+    `ReformaTributariaCalculator`; não preencher `*_aliquota_padrao` na config sem motivo.
+23. **`ReformaTributariaCalculator::blocoPayload` retorna campos FLAT da Focus**
+    (`ibs_cbs_*`, `ibs_uf_*`, `cbs_*`) para mesclar direto no item — não aninhar em
+    `ibs`/`cbs`/`tributos_reforma` (formato antigo, ignorado pela Focus).
+24. **IBS/CBS é automático para lucro_presumido/lucro_real** via `paraEmissao()` — não
+    condicionar emissão só nas flags `ibs_ativo`/`cbs_ativo` (rejeição SEFAZ 03/08/2026).
+25. **Admin da plataforma tem `empresa_id` NULL** — `auth()->user()->empresa` retorna null e qualquer deref direto (`->regime_tributario`, `->getPlanoAtivo()`) dá 500. O `EnsureUnidadeSelected` e o `CheckPlano` dão bypass para admin, então telas `/app/*` PRECISAM de guard próprio. Padrão adotado (fix 24/07/2026): telas de criação redirecionam com aviso (`ProdutoController::create/store`), telas de item existente usam a empresa do próprio registro (`ProdutoController::edit/show` → `?? $produto->empresa`), telas de plano redirecionam para `admin.dashboard` (`PlanoController`). Ao criar tela nova em `/app/*`, nunca derefar `->empresa->` sem guard — usar `?->` ou redirect.
 
 ---
 
@@ -640,6 +699,13 @@ docker exec -i erp-com-app php artisan schedule:list
 
 - **Validar em produção (24/07)**: tabelas de preço no PDV com produto piloto; 1º fechamento de
   caixa com conferência completa; 1º pedido faturado com NF-e + e-mail automático.
+- **Reforma Tributária**: emitir 1 NF-e de teste em homologação com os grupos IBS/CBS
+  (`docker exec ... php artisan tinker` ou venda piloto) para validar aceite da Focus/SEFAZ;
+  ao onboardar o primeiro cliente Lucro Presumido/Real, conferir cClassTrib dos produtos
+  (default `000001` = tributação integral — casos de isenção/redução precisam do código
+  próprio da tabela RT 2025.002).
+- **CNPJ alfanumérico**: BrasilAPI ainda não consulta CNPJ com letras — quando surgir um
+  cliente com CNPJ novo, cadastro manual (autopreenchimento pulado por design).
 - **Fase 5 (opcional)**: CT-e + MDF-e (transportadoras) — `CTeService`, `MDFeService`, UI gated por plano.
 - **NF-e de transferência automática** entre unidades em vendas remotas (CFOP 5152/6152) — hoje é registro interno; emitir nota torna o fluxo 100% fiscal.
 - **Autocomplete `/v2/municipios`** na edição de empresa/unidade/cliente para popular `codigo_municipio` IBGE automaticamente.

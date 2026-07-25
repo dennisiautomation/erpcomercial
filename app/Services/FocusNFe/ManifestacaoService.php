@@ -32,7 +32,7 @@ class ManifestacaoService
      */
     public function sincronizar(Empresa $empresa, Unidade $unidade): int
     {
-        $cnpj = preg_replace('/\D/', '', $unidade->cnpj ?: $empresa->cnpj);
+        $cnpj = \App\Support\Cnpj::limpar($unidade->cnpj ?: $empresa->cnpj);
         if (strlen($cnpj) !== 14) {
             throw new ManifestacaoException(
                 'A unidade precisa ter CNPJ válido para consultar NFes recebidas.'
@@ -76,7 +76,7 @@ class ManifestacaoService
                 [
                     'empresa_id'     => $empresa->id,
                     'unidade_id'     => $unidade->id,
-                    'cnpj_emitente'  => preg_replace('/\D/', '', $item['cnpj_emitente'] ?? ''),
+                    'cnpj_emitente'  => \App\Support\Cnpj::limpar($item['cnpj_emitente'] ?? ''),
                     'nome_emitente'  => $item['razao_social_emitente'] ?? $item['nome_emitente'] ?? 'Emitente desconhecido',
                     'numero'         => $item['numero'] ?? null,
                     'serie'          => $item['serie'] ?? null,

@@ -678,7 +678,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (step === 2) {
             let valid = true;
-            const cpfCnpj = document.getElementById('cpf_cnpj').value.replace(/\D/g, '');
+            const cpfCnpj = document.getElementById('cpf_cnpj').value.replace(/[^0-9A-Za-z]/g, '');
             const nome = document.getElementById('nome_razao_social').value.trim();
 
             if (selectedType === 'pf' && cpfCnpj.length !== 11) {

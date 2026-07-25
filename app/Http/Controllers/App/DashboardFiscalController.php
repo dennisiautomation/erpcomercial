@@ -77,7 +77,7 @@ class DashboardFiscalController extends Controller
         // Último backup local
         $ultimosBackups = [];
         foreach ($configs as $config) {
-            $cnpj = preg_replace('/\D/', '', $config->unidade->cnpj ?? '');
+            $cnpj = \App\Support\Cnpj::limpar($config->unidade->cnpj ?? '');
             if (! $cnpj) continue;
             $path = "fiscal/backups/{$cnpj}";
             if (Storage::disk('local')->exists($path)) {

@@ -72,7 +72,7 @@ class EmpresaController extends Controller
         abort_unless($request->user()->is_admin, 403);
 
         $validated = $request->validate([
-            'cnpj'              => ['required', 'string', 'size:18', 'unique:empresas,cnpj'],
+            'cnpj'              => ['required', 'string', 'size:18', new \App\Rules\CnpjValido(), 'unique:empresas,cnpj'],
             'razao_social'      => ['required', 'string', 'max:255'],
             'nome_fantasia'     => ['nullable', 'string', 'max:255'],
             'ie'                => ['nullable', 'string', 'max:20'],
@@ -141,7 +141,7 @@ class EmpresaController extends Controller
         abort_unless($request->user()->is_admin, 403);
 
         $validated = $request->validate([
-            'cnpj'              => ['required', 'string', 'size:18', 'unique:empresas,cnpj,' . $empresa->id],
+            'cnpj'              => ['required', 'string', 'size:18', new \App\Rules\CnpjValido(), 'unique:empresas,cnpj,' . $empresa->id],
             'razao_social'      => ['required', 'string', 'max:255'],
             'nome_fantasia'     => ['nullable', 'string', 'max:255'],
             'ie'                => ['nullable', 'string', 'max:20'],

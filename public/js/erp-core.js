@@ -7,8 +7,23 @@ const ERP = {
     // ─── MASKS ──────────────────────────────────────────────
     masks: {
         cpf(v) { return v.replace(/\D/g,'').replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d{1,2})$/,'$1-$2').slice(0,14); },
-        cnpj(v) { return v.replace(/\D/g,'').replace(/^(\d{2})(\d)/,'$1.$2').replace(/^(\d{2})\.(\d{3})(\d)/,'$1.$2.$3').replace(/\.(\d{3})(\d)/,'.$1/$2').replace(/(\d{4})(\d)/,'$1-$2').slice(0,18); },
-        cpfCnpj(v) { const d = v.replace(/\D/g,''); return d.length <= 11 ? ERP.masks.cpf(v) : ERP.masks.cnpj(v); },
+        // CNPJ alfanumérico (NT 2025.001): 12 primeiras posições aceitam A-Z/0-9, DV sempre numérico
+        cnpj(v) {
+            const a = (v || '').replace(/[^0-9A-Za-z]/g, '').toUpperCase().slice(0, 14);
+            const base = a.slice(0, 12);
+            const dv = a.slice(12).replace(/[^0-9]/g, '');
+            let out = base.slice(0, 2);
+            if (base.length > 2) out += '.' + base.slice(2, 5);
+            if (base.length > 5) out += '.' + base.slice(5, 8);
+            if (base.length > 8) out += '/' + base.slice(8, 12);
+            if (dv.length) out += '-' + dv;
+            return out;
+        },
+        cpfCnpj(v) {
+            const a = (v || '').replace(/[^0-9A-Za-z]/g, '');
+            if (/[A-Za-z]/.test(a)) return ERP.masks.cnpj(v); // letra → CNPJ alfanumérico
+            return a.length <= 11 ? ERP.masks.cpf(v) : ERP.masks.cnpj(v);
+        },
         cep(v) { return v.replace(/\D/g,'').replace(/(\d{5})(\d)/,'$1-$2').slice(0,9); },
         telefone(v) { const d = v.replace(/\D/g,''); return d.length <= 10 ? d.replace(/(\d{2})(\d)/,'($1) $2').replace(/(\d{4})(\d)/,'$1-$2') : d.replace(/(\d{2})(\d)/,'($1) $2').replace(/(\d{5})(\d)/,'$1-$2'); },
         money(v) { const n = parseFloat(v.replace(/\D/g,''))/100; return isNaN(n) ? '' : n.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}); },
@@ -91,8 +106,10 @@ const ERP = {
 
     // ─── CNPJ LOOKUP (BrasilAPI) ────────────────────────────
     async buscaCNPJ(cnpj, prefix = '') {
-        const clean = cnpj.replace(/\D/g, '');
+        const clean = cnpj.replace(/[^0-9A-Za-z]/g, '').toUpperCase();
         if (clean.length !== 14) return null;
+        // BrasilAPI ainda não consulta CNPJ alfanumérico — segue sem autopreencher
+        if (/[A-Z]/.test(clean)) return null;
 
         const indicator = document.querySelector('[data-cnpj-loading]');
         if (indicator) indicator.classList.remove('d-none');

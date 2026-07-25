@@ -42,7 +42,10 @@ class NFSeNacionalService
 
         return new static(
             FocusNFeClient::forUnidade($unidade),
-            new ReformaTributariaCalculator($config),
+            new ReformaTributariaCalculator(
+                $config,
+                ReformaTributariaCalculator::obrigatoriaParaEmpresa($unidade->empresa),
+            ),
         );
     }
 
@@ -247,7 +250,7 @@ class NFSeNacionalService
         $unidade = Unidade::with('empresa')->findOrFail($config->unidade_id);
         $empresa = $unidade->empresa;
 
-        $cnpjPrestador = preg_replace('/\D/', '', $unidade->cnpj ?: $empresa->cnpj);
+        $cnpjPrestador = \App\Support\Cnpj::limpar($unidade->cnpj ?: $empresa->cnpj);
         $valor = (float) ($dados['valor_servicos'] ?? 0);
 
         $payload = [
@@ -272,20 +275,22 @@ class NFSeNacionalService
             ],
         ];
 
-        // Tributos da Reforma Tributária (quando flags ligadas em config)
+        // Tributos da Reforma Tributária (automático no regime normal; flags
+        // forçam no Simples). Campos flat ibs_cbs_* dentro de `servico`,
+        // conforme mapeamento da API Focus para o layout nacional RTC.
         $rt = $this->reforma->blocoPayload($valor, $dados);
         if (! empty($rt)) {
-            $payload['servico']['tributos_reforma'] = $rt;
+            $payload['servico'] = array_merge($payload['servico'], $rt);
         }
 
         // Tomador
         if ($cliente) {
-            $cpfCnpj = preg_replace('/\D/', '', $cliente->cpf_cnpj ?? '');
+            $cpfCnpj = \App\Support\Cnpj::limparCpfCnpj($cliente->cpf_cnpj ?? '');
             $payload['tomador'] = [
                 'razao_social' => $cliente->nome_razao_social,
                 'email' => $cliente->email,
                 'telefone' => $cliente->telefone ? preg_replace('/\D/', '', $cliente->telefone) : null,
-                strlen($cpfCnpj) === 11 ? 'cpf' : 'cnpj' => $cpfCnpj,
+                \App\Support\Cnpj::pareceCpf($cpfCnpj) ? 'cpf' : 'cnpj' => $cpfCnpj,
                 'endereco' => array_filter([
                     'logradouro' => $cliente->logradouro,
                     'numero' => $cliente->numero ?? 'S/N',

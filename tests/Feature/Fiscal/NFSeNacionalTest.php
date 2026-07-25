@@ -167,16 +167,16 @@ class NFSeNacionalTest extends TestCase
         $config = $this->configBase([
             'ibs_ativo' => true,
             'cbs_ativo' => true,
-            'ibs_aliquota_padrao' => 0.9,
-            'cbs_aliquota_padrao' => 0.1,
+            'ibs_aliquota_padrao' => 0.1,
+            'cbs_aliquota_padrao' => 0.9,
         ]);
 
         $result = (new ReformaTributariaCalculator($config))->calcular(1000);
 
-        $this->assertEquals(9.00, $result['ibs']['valor']);
-        $this->assertEquals(0.9, $result['ibs']['aliquota']);
-        $this->assertEquals(1.00, $result['cbs']['valor']);
-        $this->assertEquals(0.1, $result['cbs']['aliquota']);
+        $this->assertEquals(1.00, $result['ibs']['valor']);
+        $this->assertEquals(0.1, $result['ibs']['aliquota']);
+        $this->assertEquals(9.00, $result['cbs']['valor']);
+        $this->assertEquals(0.9, $result['cbs']['aliquota']);
     }
 
     public function test_calculator_usa_aliquota_do_item_quando_disponivel(): void
@@ -217,13 +217,38 @@ class NFSeNacionalTest extends TestCase
             'ibs_ativo' => true,
             'cbs_ativo' => false,
             'is_ativo' => false,
-            'ibs_aliquota_padrao' => 0.9,
+            'ibs_aliquota_padrao' => 0.1,
         ]);
 
         $payload = (new ReformaTributariaCalculator($config))->blocoPayload(500);
 
-        $this->assertArrayHasKey('ibs', $payload);
-        $this->assertArrayNotHasKey('cbs', $payload);
-        $this->assertArrayNotHasKey('is', $payload);
+        // Formato flat da API Focus (grupo UB — NT 2025.002)
+        $this->assertArrayHasKey('ibs_uf_aliquota', $payload);
+        $this->assertArrayHasKey('ibs_valor_total', $payload);
+        $this->assertSame('000', $payload['ibs_cbs_situacao_tributaria']);
+        $this->assertSame('000001', $payload['ibs_cbs_classificacao_tributaria']);
+        $this->assertSame('500.00', $payload['ibs_cbs_base_calculo']);
+        $this->assertArrayNotHasKey('cbs_aliquota', $payload);
+        $this->assertArrayNotHasKey('cbs_valor', $payload);
+        $this->assertArrayNotHasKey('is_valor', $payload);
+    }
+
+    public function test_regime_normal_forca_ibs_cbs_mesmo_com_flags_desligadas(): void
+    {
+        // NT 2025.002 v1.40: rejeição a partir de 03/08/2026 para CRT=3
+        $config = $this->configBase([
+            'ibs_ativo' => false,
+            'cbs_ativo' => false,
+            'is_ativo' => false,
+        ]);
+
+        $payload = (new ReformaTributariaCalculator($config, obrigatoria: true))->blocoPayload(1000);
+
+        $this->assertSame('000', $payload['ibs_cbs_situacao_tributaria']);
+        $this->assertSame('000001', $payload['ibs_cbs_classificacao_tributaria']);
+        // Alíquotas-teste 2026 (LC 214/2025): IBS 0,1% + CBS 0,9%
+        $this->assertSame('1.00', $payload['ibs_uf_valor']);
+        $this->assertSame('1.00', $payload['ibs_valor_total']);
+        $this->assertSame('9.00', $payload['cbs_valor']);
     }
 }

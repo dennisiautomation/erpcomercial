@@ -506,7 +506,8 @@ class FocusEmpresaService
 
     private function cnpjLimpo(?string $cnpj): string
     {
-        return preg_replace('/\D+/', '', (string) $cnpj) ?? '';
+        // Preserva letras — CNPJ alfanumérico (NT 2025.001, vigente desde 07/2026)
+        return \App\Support\Cnpj::limpar($cnpj);
     }
 
     private function somenteDigitos(?string $valor): ?string

@@ -345,7 +345,7 @@ class NFeService
             ]);
 
             $response = $this->client->post('/v2/nfe/inutilizacao', [
-                'cnpj' => preg_replace('/\D/', '', $unidade->cnpj ?: $unidade->empresa->cnpj),
+                'cnpj' => \App\Support\Cnpj::limpar($unidade->cnpj ?: $unidade->empresa->cnpj),
                 'serie' => (string) $serie,
                 'numero_inicial' => (string) $numInicial,
                 'numero_final' => (string) $numFinal,
@@ -421,9 +421,8 @@ class NFeService
         $builder = new FiscalPayloadBuilder($empresa, $unidade, $config);
         $builder->validarVendaParaNFe($venda);
 
-        $reforma = ($config->ibs_ativo || $config->cbs_ativo || $config->is_ativo)
-            ? new ReformaTributariaCalculator($config)
-            : null;
+        // Automático para regime normal (rejeição SEFAZ a partir de 03/08/2026 — NT 2025.002)
+        $reforma = ReformaTributariaCalculator::paraEmissao($config, $empresa);
 
         // ── Itens ────────────────────────────────────────────────────────
         $itens = [];

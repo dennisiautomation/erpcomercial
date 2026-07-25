@@ -111,7 +111,7 @@ class AtorInteressadoService
     /** @return array<string, mixed> */
     private function validarDados(array $dados): array
     {
-        $cnpj = preg_replace('/\D+/', '', (string) ($dados['cnpj_ator'] ?? ''));
+        $cnpj = \App\Support\Cnpj::limpar((string) ($dados['cnpj_ator'] ?? ''));
 
         if (strlen($cnpj) !== 14) {
             throw new RuntimeException('CNPJ do ator interessado inválido (precisa ter 14 dígitos).');

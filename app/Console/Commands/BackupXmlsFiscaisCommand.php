@@ -47,7 +47,7 @@ class BackupXmlsFiscaisCommand extends Command
             $unidade = Unidade::withoutGlobalScopes()->with('empresa')->find($config->unidade_id);
             if (! $unidade) continue;
 
-            $cnpj = preg_replace('/\D/', '', $unidade->cnpj ?: $unidade->empresa->cnpj);
+            $cnpj = \App\Support\Cnpj::limpar($unidade->cnpj ?: $unidade->empresa->cnpj);
             if (! $cnpj) continue;
 
             try {

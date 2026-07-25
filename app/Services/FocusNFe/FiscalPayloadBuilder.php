@@ -9,6 +9,7 @@ use App\Models\Unidade;
 use App\Models\Venda;
 use App\Models\VendaItem;
 use App\Services\ICMSCalculator;
+use App\Support\Cnpj;
 
 /**
  * Builder centralizado para os blocos de payload Focus NFe (NF-e e NFC-e).
@@ -124,7 +125,7 @@ class FiscalPayloadBuilder
 
     public function emitentePayload(): array
     {
-        $cnpj = $this->digits($this->unidade->cnpj ?: $this->empresa->cnpj);
+        $cnpj = Cnpj::limpar($this->unidade->cnpj ?: $this->empresa->cnpj);
 
         $payload = [
             'cnpj_emitente' => $cnpj,
@@ -167,7 +168,7 @@ class FiscalPayloadBuilder
             return [];
         }
         return [
-            'cnpj_responsavel_tecnico' => $this->digits($this->config->responsavel_tecnico_cnpj),
+            'cnpj_responsavel_tecnico' => Cnpj::limpar($this->config->responsavel_tecnico_cnpj),
             'contato_responsavel_tecnico' => $this->config->responsavel_tecnico_nome,
             'email_responsavel_tecnico' => $this->config->responsavel_tecnico_email,
             'telefone_responsavel_tecnico' => $this->digits($this->config->responsavel_tecnico_telefone),
@@ -179,10 +180,10 @@ class FiscalPayloadBuilder
         if (! $cliente) {
             return [];
         }
-        $cpfCnpj = $this->digits($cliente->cpf_cnpj ?? '');
+        $cpfCnpj = Cnpj::limparCpfCnpj($cliente->cpf_cnpj ?? '');
         $payload = ['nome_destinatario' => $cliente->nome_razao_social];
 
-        if (strlen($cpfCnpj) === 11) {
+        if (Cnpj::pareceCpf($cpfCnpj)) {
             $payload['cpf_destinatario'] = $cpfCnpj;
         } elseif (strlen($cpfCnpj) === 14) {
             $payload['cnpj_destinatario'] = $cpfCnpj;
@@ -222,9 +223,9 @@ class FiscalPayloadBuilder
         if (! $cliente) {
             return [];
         }
-        $cpfCnpj = $this->digits($cliente->cpf_cnpj ?? '');
+        $cpfCnpj = Cnpj::limparCpfCnpj($cliente->cpf_cnpj ?? '');
         $payload = [];
-        if (strlen($cpfCnpj) === 11) {
+        if (Cnpj::pareceCpf($cpfCnpj)) {
             $payload['cpf_destinatario'] = $cpfCnpj;
         } elseif (strlen($cpfCnpj) === 14) {
             $payload['cnpj_destinatario'] = $cpfCnpj;
@@ -428,7 +429,7 @@ class FiscalPayloadBuilder
     {
         $somaCampo = fn (string $k) => array_sum(array_map(fn ($i) => (float) ($i[$k] ?? 0), $itens));
 
-        return [
+        $totais = [
             'icms_base_calculo' => $this->fmt($somaCampo('icms_base_calculo'), 2),
             'icms_valor_total' => $this->fmt($somaCampo('icms_valor'), 2), // alias
             'icms_base_calculo_st' => $this->fmt($somaCampo('icms_base_calculo_st'), 2),
@@ -442,6 +443,24 @@ class FiscalPayloadBuilder
             'valor_seguro' => $this->fmt($venda->valor_seguro ?? 0, 2),
             'valor_outras_despesas' => $this->fmt($venda->outras_despesas ?? 0, 2),
         ];
+
+        // ─── Totais IBS/CBS/IS (grupo IBSCBSTot — NT 2025.002) ───
+        // Só entram quando os itens carregam o grupo (regime normal ou flags).
+        $temReforma = array_filter($itens, fn ($i) => isset($i['ibs_cbs_base_calculo']));
+        if ($temReforma) {
+            $totais['ibs_cbs_base_calculo'] = $this->fmt($somaCampo('ibs_cbs_base_calculo'), 2);
+            $totais['ibs_uf_valor_total'] = $this->fmt($somaCampo('ibs_uf_valor'), 2);
+            $totais['ibs_mun_valor_total'] = $this->fmt($somaCampo('ibs_mun_valor'), 2);
+            $totais['ibs_valor_total'] = $this->fmt($somaCampo('ibs_valor_total'), 2);
+            $totais['cbs_valor_total'] = $this->fmt($somaCampo('cbs_valor'), 2);
+
+            $isTotal = $somaCampo('is_valor');
+            if ($isTotal > 0) {
+                $totais['is_valor_total'] = $this->fmt($isTotal, 2);
+            }
+        }
+
+        return $totais;
     }
 
     // ─── Pagamentos ─────────────────────────────────────────────────────
@@ -458,7 +477,7 @@ class FiscalPayloadBuilder
                 if (in_array($pg['forma'] ?? '', ['credito', 'debito', 'cartao_credito', 'cartao_debito'])) {
                     $forma['bandeira_operadora'] = $pg['bandeira'] ?? '99';
                     if (! empty($pg['cnpj_credenciadora'])) {
-                        $forma['cnpj_credenciadora'] = $this->digits($pg['cnpj_credenciadora']);
+                        $forma['cnpj_credenciadora'] = Cnpj::limpar($pg['cnpj_credenciadora']);
                     }
                     if (! empty($pg['autorizacao'])) {
                         $forma['numero_autorizacao'] = $pg['autorizacao'];

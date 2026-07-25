@@ -167,9 +167,7 @@ class FocusNFeWebhookController extends Controller
 
     private function resolveConfig(Request $request): ?ConfiguracaoFiscal
     {
-        $cnpj = preg_replace(
-            '/\D+/',
-            '',
+        $cnpj = \App\Support\Cnpj::limpar(
             (string) ($request->input('cnpj_emitente') ?? $request->input('cnpj') ?? '')
         );
 
@@ -179,7 +177,7 @@ class FocusNFeWebhookController extends Controller
 
         // Procura a unidade que tem esse CNPJ (ou a empresa, caso a unidade não tenha)
         $config = ConfiguracaoFiscal::withoutGlobalScopes()
-            ->whereHas('unidade', fn ($q) => $q->whereRaw("REPLACE(REPLACE(REPLACE(cnpj, '.', ''), '/', ''), '-', '') = ?", [$cnpj]))
+            ->whereHas('unidade', fn ($q) => $q->whereRaw("UPPER(REPLACE(REPLACE(REPLACE(cnpj, '.', ''), '/', ''), '-', '')) = ?", [$cnpj]))
             ->with(['unidade', 'empresa'])
             ->first();
 

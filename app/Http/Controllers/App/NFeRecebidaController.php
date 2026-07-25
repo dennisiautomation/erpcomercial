@@ -36,7 +36,7 @@ class NFeRecebidaController extends Controller
         if ($emitente = $request->input('emitente')) {
             $query->where(function ($q) use ($emitente) {
                 $q->where('nome_emitente', 'like', "%{$emitente}%")
-                    ->orWhere('cnpj_emitente', 'like', '%' . preg_replace('/\D/', '', $emitente) . '%');
+                    ->orWhere('cnpj_emitente', 'like', '%' . \App\Support\Cnpj::limpar($emitente) . '%');
             });
         }
 

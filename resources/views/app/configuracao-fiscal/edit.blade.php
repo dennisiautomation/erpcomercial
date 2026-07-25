@@ -543,10 +543,20 @@
                         <span class="badge bg-warning text-dark">Transição</span>
                     </div>
                     <div class="card-body">
+                        <div class="alert alert-warning small mb-3">
+                            <i class="bi bi-exclamation-triangle me-1"></i>
+                            <strong>Desde 03/08/2026 a SEFAZ rejeita NF-e/NFC-e sem os campos IBS/CBS</strong>
+                            para empresas do regime normal (Lucro Presumido ou Real) — NT 2025.002.
+                            Por isso, se a sua empresa é do regime normal, <strong>a plataforma já envia
+                            IBS e CBS automaticamente em todas as notas</strong>, sem precisar ligar nada aqui.
+                        </div>
                         <div class="alert alert-info small mb-3">
                             <i class="bi bi-info-circle me-1"></i>
-                            Em <strong>2026</strong> as alíquotas são de teste (IBS 0,9% + CBS 0,1%) com compensação via PIS/COFINS.
-                            Marque abaixo se quer que suas notas já incluam esses campos — a plataforma calcula automaticamente.
+                            Em <strong>2026</strong> as alíquotas são de teste (<strong>CBS 0,9% + IBS 0,1%</strong>)
+                            com compensação via PIS/COFINS — não muda o valor pago pelo cliente.
+                            Empresas do <strong>Simples Nacional</strong> só entram na obrigação em
+                            <strong>janeiro/2027</strong>; as chaves abaixo servem para antecipar o envio
+                            nesse caso. Deixe as alíquotas em branco para usar os valores legais.
                         </div>
 
                         <div class="row g-3">
@@ -564,7 +574,8 @@
                                 <label class="form-label small mt-2">Alíquota padrão (%)</label>
                                 <input type="number" step="0.0001" min="0" max="100" name="ibs_aliquota_padrao"
                                        class="form-control form-control-sm"
-                                       value="{{ old('ibs_aliquota_padrao', $config->ibs_aliquota_padrao ?? '0.9') }}">
+                                       value="{{ old('ibs_aliquota_padrao', $config->ibs_aliquota_padrao ?? '') }}"
+                                       placeholder="0,1 (teste 2026)">
                             </div>
                             <div class="col-md-4">
                                 <div class="form-check form-switch">
@@ -580,7 +591,8 @@
                                 <label class="form-label small mt-2">Alíquota padrão (%)</label>
                                 <input type="number" step="0.0001" min="0" max="100" name="cbs_aliquota_padrao"
                                        class="form-control form-control-sm"
-                                       value="{{ old('cbs_aliquota_padrao', $config->cbs_aliquota_padrao ?? '0.1') }}">
+                                       value="{{ old('cbs_aliquota_padrao', $config->cbs_aliquota_padrao ?? '') }}"
+                                       placeholder="0,9 (teste 2026)">
                             </div>
                             <div class="col-md-4">
                                 <div class="form-check form-switch">

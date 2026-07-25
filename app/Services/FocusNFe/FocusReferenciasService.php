@@ -186,7 +186,7 @@ class FocusReferenciasService
      */
     public function cnpj(string $cnpj): ?array
     {
-        $cnpjLimpo = preg_replace('/\D+/', '', $cnpj);
+        $cnpjLimpo = \App\Support\Cnpj::limpar($cnpj);
         if (strlen($cnpjLimpo) !== 14) {
             return null;
         }

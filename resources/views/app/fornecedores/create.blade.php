@@ -469,7 +469,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (step === 1) {
             let valid = true;
-            const cpfCnpj = document.getElementById('cpf_cnpj').value.replace(/\D/g, '');
+            const cpfCnpj = document.getElementById('cpf_cnpj').value.replace(/[^0-9A-Za-z]/g, '');
             const razao = document.getElementById('razao_social').value.trim();
 
             if (cpfCnpj.length < 11) {

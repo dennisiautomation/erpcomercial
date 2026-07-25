@@ -17,7 +17,7 @@ class ImportController extends Controller
     public function clientes(Request $request): JsonResponse
     {
         return $this->processImport($request, 'clientes', function ($row, $empresaId) {
-            $cpfCnpj = preg_replace('/\D/', '', $row['cpf_cnpj'] ?? $row['cpf'] ?? $row['cnpj'] ?? '');
+            $cpfCnpj = \App\Support\Cnpj::limparCpfCnpj($row['cpf_cnpj'] ?? $row['cpf'] ?? $row['cnpj'] ?? '');
             if (empty($cpfCnpj)) return null;
 
             return Cliente::updateOrCreate(
@@ -106,7 +106,7 @@ class ImportController extends Controller
     public function fornecedores(Request $request): JsonResponse
     {
         return $this->processImport($request, 'fornecedores', function ($row, $empresaId) {
-            $cpfCnpj = preg_replace('/\D/', '', $row['cpf_cnpj'] ?? $row['cnpj'] ?? '');
+            $cpfCnpj = \App\Support\Cnpj::limparCpfCnpj($row['cpf_cnpj'] ?? $row['cnpj'] ?? '');
             if (empty($cpfCnpj)) return null;
 
             return Fornecedor::updateOrCreate(

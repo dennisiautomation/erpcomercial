@@ -173,7 +173,7 @@ class UnidadeController extends Controller
     {
         return [
             'nome'        => ['required', 'string', 'max:255'],
-            'cnpj'        => ['required', 'string', 'max:18'],
+            'cnpj'        => ['required', 'string', 'max:18', new \App\Rules\CnpjValido()],
             'ie'          => ['nullable', 'string', 'max:20'],
             'im'          => ['nullable', 'string', 'max:20'],
             'cep'         => ['required', 'string', 'max:10'],
