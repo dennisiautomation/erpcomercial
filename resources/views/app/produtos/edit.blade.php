@@ -465,39 +465,42 @@
                             </div>
                         </div>
 
-                        {{-- Reforma Tributária (IBS/CBS/IS) --}}
-                        @if(($configFiscal->ibs_ativo ?? false) || ($configFiscal->cbs_ativo ?? false) || ($configFiscal->is_ativo ?? false))
+                        {{-- Reforma Tributária (IBS/CBS/IS) — automático no regime normal; flags no Simples --}}
+                        @php($reformaProduto = \App\Services\FocusNFe\ReformaTributariaCalculator::obrigatoriaParaEmpresa(auth()->user()->empresa ?? $produto->empresa) || ($configFiscal->ibs_ativo ?? false) || ($configFiscal->cbs_ativo ?? false) || ($configFiscal->is_ativo ?? false))
+                        @if($reformaProduto)
                             <div class="col-12 mt-3">
                                 <div class="alert alert-warning small d-flex mb-3">
                                     <i class="bi bi-stars me-2 fs-5"></i>
                                     <div>
-                                        <strong>Reforma Tributária (EC 132/2023)</strong> — preencha se esse item tem alíquota específica.
-                                        Em branco, usa a alíquota padrão da unidade.
+                                        <strong>Reforma Tributária (EC 132/2023)</strong> — suas notas saem com IBS/CBS.
+                                        Em branco, este item usa CST <code>000</code> + cClassTrib <code>000001</code>
+                                        (tributação integral) e as alíquotas legais de 2026 (CBS 0,9% + IBS 0,1%).
+                                        Só preencha se o item tem tratamento diferente (isenção, redução, alíquota própria).
                                     </div>
                                 </div>
                                 <div class="row g-3">
-                                    @if($configFiscal->ibs_ativo ?? false)
-                                        <div class="col-md-3">
-                                            <label class="form-label">IBS (%)</label>
-                                            <input type="number" name="ibs_aliquota" step="0.0001" min="0" max="100" class="form-control" value="{{ old('ibs_aliquota', $produto->ibs_aliquota) }}">
-                                        </div>
-                                    @endif
-                                    @if($configFiscal->cbs_ativo ?? false)
-                                        <div class="col-md-3">
-                                            <label class="form-label">CBS (%)</label>
-                                            <input type="number" name="cbs_aliquota" step="0.0001" min="0" max="100" class="form-control" value="{{ old('cbs_aliquota', $produto->cbs_aliquota) }}">
-                                        </div>
-                                    @endif
+                                    <div class="col-md-3">
+                                        <label class="form-label">CST IBS/CBS</label>
+                                        <input type="text" name="cst_ibs_cbs" maxlength="3" class="form-control" placeholder="000 (padrão)" value="{{ old('cst_ibs_cbs', $produto->cst_ibs_cbs) }}">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label">Classificação (cClassTrib)</label>
+                                        <input type="text" name="classificacao_ibs" maxlength="10" class="form-control" placeholder="000001 (padrão)" value="{{ old('classificacao_ibs', $produto->classificacao_ibs) }}">
+                                    </div>
+                                    <div class="col-md-2">
+                                        <label class="form-label">IBS (%)</label>
+                                        <input type="number" name="ibs_aliquota" step="0.0001" min="0" max="100" class="form-control" placeholder="0,1" value="{{ old('ibs_aliquota', $produto->ibs_aliquota) }}">
+                                    </div>
+                                    <div class="col-md-2">
+                                        <label class="form-label">CBS (%)</label>
+                                        <input type="number" name="cbs_aliquota" step="0.0001" min="0" max="100" class="form-control" placeholder="0,9" value="{{ old('cbs_aliquota', $produto->cbs_aliquota) }}">
+                                    </div>
                                     @if($configFiscal->is_ativo ?? false)
-                                        <div class="col-md-3">
+                                        <div class="col-md-2">
                                             <label class="form-label">IS (%) <small class="text-muted">seletivo</small></label>
                                             <input type="number" name="is_aliquota" step="0.0001" min="0" max="100" class="form-control" value="{{ old('is_aliquota', $produto->is_aliquota) }}">
                                         </div>
                                     @endif
-                                    <div class="col-md-3">
-                                        <label class="form-label">CST IBS/CBS</label>
-                                        <input type="text" name="cst_ibs_cbs" maxlength="3" class="form-control" placeholder="000" value="{{ old('cst_ibs_cbs', $produto->cst_ibs_cbs) }}">
-                                    </div>
                                 </div>
                             </div>
                         @endif

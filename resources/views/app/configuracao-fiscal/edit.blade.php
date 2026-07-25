@@ -531,46 +531,96 @@
                 </div>
 
                 {{-- ═══ Reforma Tributária (IBS / CBS / IS) ═══ --}}
-                <div class="erp-card mb-3 border">
+                @php($reformaObrigatoria = \App\Services\FocusNFe\ReformaTributariaCalculator::obrigatoriaParaEmpresa(auth()->user()->empresa))
+                <div class="erp-card mb-3 border {{ $reformaObrigatoria ? 'border-success border-opacity-50' : '' }}">
                     <div class="card-header bg-transparent d-flex align-items-center">
-                        <i class="bi bi-stars fs-4 text-warning me-2"></i>
+                        <i class="bi bi-stars fs-4 {{ $reformaObrigatoria ? 'text-success' : 'text-warning' }} me-2"></i>
                         <div class="flex-grow-1">
-                            <strong>Reforma Tributária (EC 132/2023)</strong>
+                            <strong>Reforma Tributária (EC 132/2023) — IBS / CBS / IS</strong>
                             <div class="small text-muted">
-                                IBS, CBS e IS — novos tributos substituindo ICMS/ISS/PIS/COFINS/IPI (transição 2026-2033).
+                                Novos tributos que substituem ICMS/ISS/PIS/COFINS/IPI na transição 2026-2033.
                             </div>
                         </div>
-                        <span class="badge bg-warning text-dark">Transição</span>
+                        @if($reformaObrigatoria)
+                            <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Envio automático ativo</span>
+                        @else
+                            <span class="badge bg-warning text-dark">Simples Nacional — obrigatório em 01/2027</span>
+                        @endif
                     </div>
                     <div class="card-body">
-                        <div class="alert alert-warning small mb-3">
-                            <i class="bi bi-exclamation-triangle me-1"></i>
-                            <strong>Desde 03/08/2026 a SEFAZ rejeita NF-e/NFC-e sem os campos IBS/CBS</strong>
-                            para empresas do regime normal (Lucro Presumido ou Real) — NT 2025.002.
-                            Por isso, se a sua empresa é do regime normal, <strong>a plataforma já envia
-                            IBS e CBS automaticamente em todas as notas</strong>, sem precisar ligar nada aqui.
+                        @if($reformaObrigatoria)
+                            <div class="alert alert-success small mb-3">
+                                <i class="bi bi-check-circle me-1"></i>
+                                <strong>Sua empresa é do regime normal ({{ auth()->user()->empresa?->regime_tributario?->value === 'lucro_real' ? 'Lucro Real' : 'Lucro Presumido' }})
+                                — todas as NF-e, NFC-e e NFS-e já saem com IBS e CBS automaticamente.</strong>
+                                Nada a configurar aqui. A SEFAZ <strong>rejeita</strong> notas do regime normal sem
+                                esses campos a partir de <strong>agosto/2026</strong> (NT 2025.002, vigora em 03/08).
+                            </div>
+                        @else
+                            <div class="alert alert-warning small mb-3">
+                                <i class="bi bi-exclamation-triangle me-1"></i>
+                                <strong>A partir de agosto/2026 (03/08) a SEFAZ rejeita NF-e/NFC-e sem IBS/CBS
+                                para empresas do regime normal</strong> (Lucro Presumido/Real — NT 2025.002).
+                                Sua empresa é do <strong>Simples Nacional</strong>: a obrigação começa em
+                                <strong>04/01/2027</strong>. Se quiser <strong>antecipar</strong> o envio dos novos
+                                campos nas suas notas, ligue as chaves abaixo — a plataforma calcula tudo sozinha.
+                            </div>
+                        @endif
+
+                        {{-- Alíquotas em uso (2026 = fase de teste) --}}
+                        <div class="row g-2 mb-3">
+                            <div class="col-md-4">
+                                <div class="border rounded p-2 text-center h-100">
+                                    <div class="small text-muted">CBS (federal) em 2026</div>
+                                    <div class="fs-5 fw-bold">{{ $config->cbs_aliquota_padrao ? number_format((float) $config->cbs_aliquota_padrao, 2, ',', '.') : '0,90' }}%</div>
+                                    <div class="small text-muted">{{ $config->cbs_aliquota_padrao ? 'personalizada' : 'alíquota-teste legal' }}</div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="border rounded p-2 text-center h-100">
+                                    <div class="small text-muted">IBS (estadual) em 2026</div>
+                                    <div class="fs-5 fw-bold">{{ $config->ibs_aliquota_padrao ? number_format((float) $config->ibs_aliquota_padrao, 2, ',', '.') : '0,10' }}%</div>
+                                    <div class="small text-muted">{{ $config->ibs_aliquota_padrao ? 'personalizada' : 'alíquota-teste legal' }}</div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="border rounded p-2 text-center h-100">
+                                    <div class="small text-muted">Impacto no cliente</div>
+                                    <div class="fs-5 fw-bold">R$ 0,00</div>
+                                    <div class="small text-muted">compensado via PIS/COFINS em 2026</div>
+                                </div>
+                            </div>
                         </div>
+
                         <div class="alert alert-info small mb-3">
                             <i class="bi bi-info-circle me-1"></i>
-                            Em <strong>2026</strong> as alíquotas são de teste (<strong>CBS 0,9% + IBS 0,1%</strong>)
-                            com compensação via PIS/COFINS — não muda o valor pago pelo cliente.
-                            Empresas do <strong>Simples Nacional</strong> só entram na obrigação em
-                            <strong>janeiro/2027</strong>; as chaves abaixo servem para antecipar o envio
-                            nesse caso. Deixe as alíquotas em branco para usar os valores legais.
+                            Cada produto sai com CST <code>000</code> e classificação tributária
+                            (cClassTrib) <code>000001</code> — tributação integral, o caso comum do varejo.
+                            Produto com isenção/redução? Informe o CST e o cClassTrib próprios na
+                            <strong>ficha do produto</strong> (aba Fiscal). Alíquotas em branco = valores legais.
                         </div>
 
                         <div class="row g-3">
                             <div class="col-md-4">
-                                <div class="form-check form-switch">
-                                    <input type="hidden" name="ibs_ativo" value="0">
-                                    <input class="form-check-input" type="checkbox" role="switch" id="switch_ibs"
-                                           name="ibs_ativo" value="1"
-                                           {{ old('ibs_ativo', $config->ibs_ativo ?? false) ? 'checked' : '' }}>
-                                    <label class="form-check-label" for="switch_ibs">
-                                        <strong>IBS</strong> <small class="text-muted">(estadual/municipal)</small>
-                                        <x-erp.fiscal-tooltip field="ibs" />
-                                    </label>
-                                </div>
+                                @if($reformaObrigatoria)
+                                    {{-- Regime normal: envio automático — chaves ocultas, valor preservado --}}
+                                    <input type="hidden" name="ibs_ativo" value="{{ old('ibs_ativo', $config->ibs_ativo ?? false) ? 1 : 0 }}">
+                                    <div class="small fw-semibold mb-1">
+                                        IBS <x-erp.fiscal-tooltip field="ibs" />
+                                        <span class="badge bg-success bg-opacity-10 text-success">automático</span>
+                                    </div>
+                                @else
+                                    <div class="form-check form-switch">
+                                        <input type="hidden" name="ibs_ativo" value="0">
+                                        <input class="form-check-input" type="checkbox" role="switch" id="switch_ibs"
+                                               name="ibs_ativo" value="1"
+                                               {{ old('ibs_ativo', $config->ibs_ativo ?? false) ? 'checked' : '' }}>
+                                        <label class="form-check-label" for="switch_ibs">
+                                            <strong>IBS</strong> <small class="text-muted">(estadual/municipal)</small>
+                                            <x-erp.fiscal-tooltip field="ibs" />
+                                        </label>
+                                    </div>
+                                @endif
                                 <label class="form-label small mt-2">Alíquota padrão (%)</label>
                                 <input type="number" step="0.0001" min="0" max="100" name="ibs_aliquota_padrao"
                                        class="form-control form-control-sm"
@@ -578,16 +628,24 @@
                                        placeholder="0,1 (teste 2026)">
                             </div>
                             <div class="col-md-4">
-                                <div class="form-check form-switch">
-                                    <input type="hidden" name="cbs_ativo" value="0">
-                                    <input class="form-check-input" type="checkbox" role="switch" id="switch_cbs"
-                                           name="cbs_ativo" value="1"
-                                           {{ old('cbs_ativo', $config->cbs_ativo ?? false) ? 'checked' : '' }}>
-                                    <label class="form-check-label" for="switch_cbs">
-                                        <strong>CBS</strong> <small class="text-muted">(federal)</small>
-                                        <x-erp.fiscal-tooltip field="cbs" />
-                                    </label>
-                                </div>
+                                @if($reformaObrigatoria)
+                                    <input type="hidden" name="cbs_ativo" value="{{ old('cbs_ativo', $config->cbs_ativo ?? false) ? 1 : 0 }}">
+                                    <div class="small fw-semibold mb-1">
+                                        CBS <x-erp.fiscal-tooltip field="cbs" />
+                                        <span class="badge bg-success bg-opacity-10 text-success">automático</span>
+                                    </div>
+                                @else
+                                    <div class="form-check form-switch">
+                                        <input type="hidden" name="cbs_ativo" value="0">
+                                        <input class="form-check-input" type="checkbox" role="switch" id="switch_cbs"
+                                               name="cbs_ativo" value="1"
+                                               {{ old('cbs_ativo', $config->cbs_ativo ?? false) ? 'checked' : '' }}>
+                                        <label class="form-check-label" for="switch_cbs">
+                                            <strong>CBS</strong> <small class="text-muted">(federal)</small>
+                                            <x-erp.fiscal-tooltip field="cbs" />
+                                        </label>
+                                    </div>
+                                @endif
                                 <label class="form-label small mt-2">Alíquota padrão (%)</label>
                                 <input type="number" step="0.0001" min="0" max="100" name="cbs_aliquota_padrao"
                                        class="form-control form-control-sm"
@@ -606,7 +664,7 @@
                                     </label>
                                 </div>
                                 <small class="d-block text-muted mt-3">
-                                    Alíquota varia por produto — definida na ficha do item.
+                                    Só para produtos nocivos (bebidas, cigarros...). Alíquota na ficha do item.
                                 </small>
                             </div>
                         </div>

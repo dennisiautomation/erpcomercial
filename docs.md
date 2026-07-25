@@ -212,6 +212,16 @@ entra em **04/01/2027**. Desde 01/07/2026 os campos já são exigidos em homolog
 - **UI**: tela de Configuração Fiscal explica o envio automático + alíquotas corretas;
   tooltips de IBS/CBS atualizados; defaults dos inputs de alíquota agora em branco
   (= usa valores legais).
+- **UI v2 (review 25/07 tarde)**: card da Reforma na config fiscal com **status dinâmico
+  por regime** — regime normal: badge verde "Envio automático ativo", alerta verde, chaves
+  IBS/CBS viram badges "automático" (hidden inputs preservam o valor persistido); Simples:
+  badge "obrigatório em 01/2027" + chaves para antecipar. Tiles com alíquotas em uso
+  (padrão da config ou teste legal) + "impacto no cliente R$ 0,00". Cadastro de produto:
+  seção Reforma agora aparece **também no regime normal** (era gated só pelas flags) e
+  ganhou o campo **cClassTrib (`classificacao_ibs`)** que o controller já validava mas o
+  form nunca enviava; CST/cClassTrib primeiro, alíquotas depois, placeholders com os
+  defaults. Cupom não-fiscal revisado (usa dados da venda — sem impacto do vProd);
+  DANFE/DANFE-NFC-e vêm prontos da Focus com o detalhamento IBS/CBS.
 
 ### CNPJ alfanumérico (NT Conjunta 2025.001 — produção desde 06/07/2026)
 
