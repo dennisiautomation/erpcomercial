@@ -551,7 +551,17 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function onlyDigits(v) { return v.replace(/\D/g, ''); }
     function maskCpf(v) { return onlyDigits(v).slice(0,11).replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})\.(\d{3})(\d)/,'$1.$2.$3').replace(/(\d{3})\.(\d{3})\.(\d{3})(\d)/,'$1.$2.$3-$4'); }
-    function maskCnpj(v) { return onlyDigits(v).slice(0,14).replace(/^(\d{2})(\d)/,'$1.$2').replace(/^(\d{2})\.(\d{3})(\d)/,'$1.$2.$3').replace(/\.(\d{3})(\d)/,'.$1/$2').replace(/(\d{4})(\d)/,'$1-$2'); }
+    function maskCnpj(v) {
+        // CNPJ alfanumérico (NT 2025.001): letras nas 12 primeiras posições, DV numérico
+        const a = v.replace(/[^0-9A-Za-z]/g, '').toUpperCase().slice(0, 14);
+        const base = a.slice(0, 12), dv = a.slice(12).replace(/[^0-9]/g, '');
+        let out = base.slice(0, 2);
+        if (base.length > 2) out += '.' + base.slice(2, 5);
+        if (base.length > 5) out += '.' + base.slice(5, 8);
+        if (base.length > 8) out += '/' + base.slice(8, 12);
+        if (dv.length) out += '-' + dv;
+        return out;
+    }
     function maskTel(v) { v = onlyDigits(v).slice(0,11); if (v.length > 10) return v.replace(/^(\d{2})(\d{5})(\d{4}).*/,'($1) $2-$3'); if (v.length > 6) return v.replace(/^(\d{2})(\d{4})(\d{0,4}).*/,'($1) $2-$3'); if (v.length > 2) return v.replace(/^(\d{2})(\d{0,5})/,'($1) $2'); return v; }
 
     function aplicarTipo() {
@@ -569,8 +579,9 @@ document.addEventListener('DOMContentLoaded', function() {
     ncCpfCnpj.addEventListener('blur', function() {
         const isPJ = document.getElementById('nc_tipo_pj').checked;
         if (!isPJ) return;
-        const cnpj = onlyDigits(this.value);
+        const cnpj = this.value.replace(/[^0-9A-Za-z]/g, '').toUpperCase();
         if (cnpj.length !== 14) return;
+        if (/[A-Z]/.test(cnpj)) return; // consulta automática só existe p/ CNPJ numérico
         const original = this.value;
         this.disabled = true;
         fetch('https://brasilapi.com.br/api/cnpj/v1/' + cnpj)
@@ -594,7 +605,7 @@ document.addEventListener('DOMContentLoaded', function() {
         ncNome.value = '';
         document.getElementById('nc_telefone').value = '';
         document.getElementById('nc_email').value = '';
-        const digits = onlyDigits(termo);
+        const digits = (termo || '').replace(/[^0-9A-Za-z]/g, ''); // preserva CNPJ alfanumérico
         if (digits.length === 11 || digits.length === 14) {
             document.getElementById(digits.length === 14 ? 'nc_tipo_pj' : 'nc_tipo_pf').checked = true;
             aplicarTipo();

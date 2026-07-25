@@ -711,27 +711,32 @@ document.addEventListener('DOMContentLoaded', function () {
     // ─── CPF/CNPJ Mask ──────────────────────────────────────
     const cpfCnpjInput = document.getElementById('cpf_cnpj');
     cpfCnpjInput.addEventListener('input', function () {
-        let v = this.value.replace(/\D/g, '');
         if (selectedType === 'pj') {
-            v = v.substring(0, 14);
-            v = v.replace(/^(\d{2})(\d)/, '$1.$2');
-            v = v.replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3');
-            v = v.replace(/\.(\d{3})(\d)/, '.$1/$2');
-            v = v.replace(/(\d{4})(\d)/, '$1-$2');
+            // CNPJ alfanumérico (NT 2025.001): 12 primeiras posições aceitam letras, DV numérico
+            const a = this.value.replace(/[^0-9A-Za-z]/g, '').toUpperCase().slice(0, 14);
+            const base = a.slice(0, 12);
+            const dv = a.slice(12).replace(/[^0-9]/g, '');
+            let v = base.slice(0, 2);
+            if (base.length > 2) v += '.' + base.slice(2, 5);
+            if (base.length > 5) v += '.' + base.slice(5, 8);
+            if (base.length > 8) v += '/' + base.slice(8, 12);
+            if (dv.length) v += '-' + dv;
+            this.value = v;
         } else {
-            v = v.substring(0, 11);
+            let v = this.value.replace(/\D/g, '').substring(0, 11);
             v = v.replace(/(\d{3})(\d)/, '$1.$2');
             v = v.replace(/(\d{3})(\d)/, '$1.$2');
             v = v.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+            this.value = v;
         }
-        this.value = v;
     });
 
     // ─── CNPJ Auto-Lookup (ReceitaWS) ───────────────────────
     cpfCnpjInput.addEventListener('blur', function () {
         if (selectedType !== 'pj') return;
-        const cnpj = this.value.replace(/\D/g, '');
+        const cnpj = this.value.replace(/[^0-9A-Za-z]/g, '').toUpperCase();
         if (cnpj.length !== 14) return;
+        if (/[A-Z]/.test(cnpj)) return; // consulta automática só existe p/ CNPJ numérico
 
         const loading = document.getElementById('cnpjLoading');
         loading.style.display = '';

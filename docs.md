@@ -268,6 +268,14 @@ módulo 11 sobre `ASCII−48`). O que mudou:
 - **Validação**: rule `App\Rules\CnpjValido` aplicada em Empresa (create/update) e Unidade.
 - **Máscaras JS** (`erp-core.js`): `cnpj`/`cpfCnpj` aceitam letras (qualquer letra ⇒ trata
   como CNPJ); `buscaCNPJ` pula a BrasilAPI para CNPJ alfanumérico (API só numérico).
+- **⚠️ Máscaras INLINE fora do erp-core (fix 25/07 madrugada)**: 9 telas tinham máscara
+  própria com `replace(/\D/g)` que apagava as letras ao digitar — clientes create/edit,
+  fornecedores create/edit, admin empresas create/edit (`maskCNPJ`), admin unidades
+  create/edit, pedidos create (`maskCnpj` do cadastro rápido). Todas corrigidas (12 primeiras
+  posições alfanuméricas + DV numérico, caixa alta) e lookup BrasilAPI/ReceitaWS pulado
+  quando há letra. Validado E2E: cliente PJ criado via POST com `12.ABC.345/01DE-35`,
+  exibido e editável. **Ao criar máscara nova de CNPJ, nunca usar `\D` — copiar o padrão
+  dessas telas ou usar `data-mask="cnpj"` do erp-core.**
 
 **Estado em produção (25/07):** as 2 empresas ativas são Simples Nacional — nada muda nas
 notas de hoje; a plataforma fica pronta para clientes do regime normal e para a virada do

@@ -175,12 +175,16 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function maskCNPJ(v) {
-        v = v.replace(/\D/g, '').substring(0, 14);
-        v = v.replace(/^(\d{2})(\d)/, '$1.$2');
-        v = v.replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3');
-        v = v.replace(/\.(\d{3})(\d)/, '.$1/$2');
-        v = v.replace(/(\d{4})(\d)/, '$1-$2');
-        return v;
+        // CNPJ alfanumérico (NT 2025.001): 12 primeiras posições aceitam letras, DV numérico
+        const a = v.replace(/[^0-9A-Za-z]/g, '').toUpperCase().slice(0, 14);
+        const base = a.slice(0, 12);
+        const dv = a.slice(12).replace(/[^0-9]/g, '');
+        let out = base.slice(0, 2);
+        if (base.length > 2) out += '.' + base.slice(2, 5);
+        if (base.length > 5) out += '.' + base.slice(5, 8);
+        if (base.length > 8) out += '/' + base.slice(8, 12);
+        if (dv.length) out += '-' + dv;
+        return out;
     }
 
     function maskCEP(v) {

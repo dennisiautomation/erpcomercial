@@ -372,25 +372,31 @@ document.addEventListener('DOMContentLoaded', function () {
     // ─── CPF/CNPJ Mask ──────────────────────────────────────
     const cpfCnpjInput = document.getElementById('cpf_cnpj');
     cpfCnpjInput.addEventListener('input', function () {
-        let v = this.value.replace(/\D/g, '');
-        if (v.length <= 11) {
-            v = v.replace(/(\d{3})(\d)/, '$1.$2');
+        const a = this.value.replace(/[^0-9A-Za-z]/g, '').toUpperCase();
+        if (/[A-Z]/.test(a) || a.length > 11) {
+            // CNPJ — alfanumérico aceito (NT 2025.001): letra em qualquer posição já indica CNPJ
+            const c = a.slice(0, 14);
+            const base = c.slice(0, 12);
+            const dv = c.slice(12).replace(/[^0-9]/g, '');
+            let v = base.slice(0, 2);
+            if (base.length > 2) v += '.' + base.slice(2, 5);
+            if (base.length > 5) v += '.' + base.slice(5, 8);
+            if (base.length > 8) v += '/' + base.slice(8, 12);
+            if (dv.length) v += '-' + dv;
+            this.value = v;
+        } else {
+            let v = a.replace(/(\d{3})(\d)/, '$1.$2');
             v = v.replace(/(\d{3})(\d)/, '$1.$2');
             v = v.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
-        } else {
-            v = v.substring(0, 14);
-            v = v.replace(/^(\d{2})(\d)/, '$1.$2');
-            v = v.replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3');
-            v = v.replace(/\.(\d{3})(\d)/, '.$1/$2');
-            v = v.replace(/(\d{4})(\d)/, '$1-$2');
+            this.value = v;
         }
-        this.value = v;
     });
 
     // ─── CNPJ Auto-Lookup ───────────────────────────────────
     cpfCnpjInput.addEventListener('blur', function () {
-        const cnpj = this.value.replace(/\D/g, '');
+        const cnpj = this.value.replace(/[^0-9A-Za-z]/g, '').toUpperCase();
         if (cnpj.length !== 14) return;
+        if (/[A-Z]/.test(cnpj)) return; // consulta automática só existe p/ CNPJ numérico
         const loading = document.getElementById('cnpjLoading');
         loading.style.display = '';
         fetch('https://receitaws.com.br/v1/cnpj/' + cnpj, { mode: 'cors' })
