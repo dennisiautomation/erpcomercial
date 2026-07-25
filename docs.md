@@ -543,6 +543,24 @@ com defaults quando a loja nunca salvou (checar `->exists` para distinguir). Par
 - Pedido **#3 é de teste** (Carla Menezes Souza, produto teste) — criado na validação, pode
   ser cancelado.
 
+### PDV — CPF na nota + transparência da NFC-e (25/07 madrugada)
+
+- **Campo "CPF/CNPJ na nota (opcional)"** no painel direito do PDV — o documento do
+  consumidor vai no cupom fiscal **sem precisar cadastrar cliente** (`vendas.cpf_cnpj_nota`,
+  migration 2026_07_25_140000). Aceita CNPJ alfanumérico; máscara própria no PDV (que não
+  carrega erp-core). Vira `cpf/cnpj_destinatario` na NFC-e
+  (`destinatarioNFCePayload($cliente, $cpfCnpjAvulso)` — cliente cadastrado tem prioridade),
+  sai impresso no cupom não-fiscal, conta para a regra `cpf_emite_fiscal` da Config da Loja
+  e é limpo a cada venda.
+- **Falha de NFC-e deixou de ser silenciosa**: o modal "Venda Finalizada" mostra alerta
+  amarelo com o motivo ("Cupom fiscal não emitido — saiu recibo: NCM inválido...").
+  Backend devolve `nfce_erro` no JSON do PDV; `tipo_cupom` só é `fiscal` quando a nota
+  realmente saiu. Diagnóstico que motivou (venda 28 do Dennis, cartão): pre-flight barrou
+  por **NCM inválido no produto** e caiu no recibo sem avisar. Para o cupom fiscal sair de
+  verdade ainda faltam **CSC + certificado A1** na config fiscal da unidade, e o modo
+  automático por cartão exige **salvar a Configuração da Loja** (unidade Matriz não tem
+  registro — modo legado: fiscal ativo → tenta NFC-e em toda venda).
+
 ### Armadilhas novas
 
 1. `ConfiguracaoLoja::daUnidade()` retorna instância **não salva** quando a loja nunca configurou —

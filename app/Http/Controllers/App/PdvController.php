@@ -150,6 +150,7 @@ class PdvController extends Controller
             'pagamentos.*.valor'       => 'required|numeric|min:0.01',
             'pagamentos.*.parcelas'    => 'nullable|integer|min:1|max:24',
             'cliente_id'               => 'nullable|exists:clientes,id',
+            'cpf_cnpj_nota'            => 'nullable|string|max:18',
             'desconto_valor'           => 'nullable|numeric|min:0',
             'desconto_percentual'      => 'nullable|numeric|min:0|max:100',
             'vendedor_id'              => 'nullable|exists:users,id',
@@ -246,6 +247,7 @@ class PdvController extends Controller
                     'empresa_id'          => $empresaId,
                     'unidade_id'          => $unidadeId,
                     'cliente_id'          => $request->cliente_id,
+                    'cpf_cnpj_nota'       => $request->cpf_cnpj_nota ? \App\Support\Cnpj::limparCpfCnpj($request->cpf_cnpj_nota) : null,
                     'vendedor_id'         => $request->vendedor_id ?? auth()->id(),
                     'caixa_id'            => $caixa->id,
                     'numero'              => $numero,
@@ -447,16 +449,20 @@ class PdvController extends Controller
 
                 $deveEmitirNfce =
                     ($configLojaEmissao->cupom_automatico_cartao && $temCartao)
-                    || ($configLojaEmissao->cpf_emite_fiscal && $request->cliente_id)
+                    || ($configLojaEmissao->cpf_emite_fiscal && ($request->cliente_id || $request->cpf_cnpj_nota))
                     || $configLojaEmissao->padrao_impressao === 'cupom_fiscal';
             }
 
+            $nfceErro = null;
             if ($deveEmitirNfce) {
                 try {
                     $client = FocusNFeClient::fromConfig($config);
                     $nfceService = new NFCeService($client);
                     $notaFiscal = $nfceService->emitir($venda, $config);
                 } catch (\Throwable $e) {
+                    // A venda nunca trava por falha fiscal — mas o operador
+                    // precisa SABER que saiu recibo e o porquê (era silencioso).
+                    $nfceErro = $e->getMessage();
                     Log::error('[PDV] Erro ao emitir NFC-e, gerando apenas recibo.', [
                         'venda_id' => $venda->id,
                         'error'    => $e->getMessage(),
@@ -472,7 +478,8 @@ class PdvController extends Controller
                 'venda'       => $venda,
                 'cupom'       => $cupomHtml,
                 'nota_fiscal' => $notaFiscal,
-                'tipo_cupom'  => $deveEmitirNfce ? 'fiscal' : 'nao_fiscal',
+                'tipo_cupom'  => ($deveEmitirNfce && $notaFiscal) ? 'fiscal' : 'nao_fiscal',
+                'nfce_erro'   => $nfceErro,
             ]);
 
         } catch (\Throwable $e) {

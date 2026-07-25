@@ -22,6 +22,7 @@ class Venda extends Model
         'empresa_id',
         'unidade_id',
         'cliente_id',
+        'cpf_cnpj_nota',
         'vendedor_id',
         'caixa_id',
         'pedido_id',

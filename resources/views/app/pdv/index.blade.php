@@ -859,6 +859,13 @@
             </div>
         </div>
 
+        {{-- CPF/CNPJ na nota (avulso — vai no cupom fiscal sem cadastrar cliente) --}}
+        <div class="cliente-section">
+            <input type="text" id="cpfNota" maxlength="18" autocomplete="off"
+                   placeholder="CPF/CNPJ na nota (opcional)"
+                   style="width:100%; background:var(--bg-primary); border:1px solid var(--border); color:var(--text-primary); border-radius:8px; font-size:0.85rem; padding:8px 12px;">
+        </div>
+
         {{-- Vendedor --}}
         @if(isset($operadores) && $operadores->count() > 0)
         <div class="cliente-section">
@@ -1176,6 +1183,7 @@
                     <div style="font-size:0.85rem; color:var(--text-muted);">TROCO</div>
                     <div style="font-size:1.5rem; font-weight:700; color:var(--accent-yellow);" id="sucessoTrocoValor"></div>
                 </div>
+                <div id="sucessoNfceErro" style="display:none; margin-bottom:16px; padding:10px 14px; border:1px solid var(--accent-yellow); border-radius:8px; color:var(--accent-yellow); font-size:0.82rem; text-align:left; line-height:1.4;"></div>
                 <div class="d-flex gap-2 justify-content-center">
                     <button class="modal-btn-primary" onclick="PDV.imprimirCupom()">
                         <i class="bi bi-printer"></i> Imprimir Cupom
@@ -1237,6 +1245,27 @@ const PDV = {
         this.updateClock();
         setInterval(() => this.updateClock(), 1000);
         this.bindKeyboardShortcuts();
+
+        // Máscara do "CPF na nota" — aceita CNPJ alfanumérico (NT 2025.001)
+        document.getElementById('cpfNota')?.addEventListener('input', function () {
+            const a = this.value.replace(/[^0-9A-Za-z]/g, '').toUpperCase();
+            if (/[A-Z]/.test(a) || a.length > 11) {
+                const c = a.slice(0, 14);
+                const base = c.slice(0, 12), dv = c.slice(12).replace(/[^0-9]/g, '');
+                let v = base.slice(0, 2);
+                if (base.length > 2) v += '.' + base.slice(2, 5);
+                if (base.length > 5) v += '.' + base.slice(5, 8);
+                if (base.length > 8) v += '/' + base.slice(8, 12);
+                if (dv.length) v += '-' + dv;
+                this.value = v;
+            } else {
+                let v = a.slice(0, 11);
+                v = v.replace(/(\d{3})(\d)/, '$1.$2');
+                v = v.replace(/(\d{3})(\d)/, '$1.$2');
+                v = v.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+                this.value = v;
+            }
+        });
 
         // Modal de pagamento fechado sem confirmar: volta à tabela das formas confirmadas
         document.getElementById('modalPagamento')?.addEventListener('hidden.bs.modal', () => {
@@ -2110,6 +2139,7 @@ const PDV = {
                 })),
                 pagamentos: this.pagamentos,
                 cliente_id: this.clienteId,
+                cpf_cnpj_nota: document.getElementById('cpfNota')?.value || null,
                 vendedor_id: document.getElementById('vendedorSelect')?.value || null,
                 desconto_valor: this.descontoValor,
                 desconto_percentual: this.descontoPercentual,
@@ -2148,6 +2178,20 @@ const PDV = {
                 document.getElementById('sucessoTroco').style.display = 'none';
             }
 
+            // limpa o CPF na nota após uso (não vaza para a próxima venda)
+            const cpfNotaPos = document.getElementById('cpfNota');
+            if (cpfNotaPos) cpfNotaPos.value = '';
+
+            // Cupom fiscal falhou? A venda sai como recibo — avisar o motivo
+            const nfceErroBox = document.getElementById('sucessoNfceErro');
+            if (data.nfce_erro) {
+                nfceErroBox.innerHTML = '<strong><i class="bi bi-exclamation-triangle"></i> Cupom fiscal (NFC-e) não emitido — saiu recibo.</strong><br>'
+                    + String(data.nfce_erro).replace(/\n/g, '<br>');
+                nfceErroBox.style.display = 'block';
+            } else {
+                nfceErroBox.style.display = 'none';
+            }
+
             const modal = new bootstrap.Modal(document.getElementById('modalSucesso'));
             modal.show();
 
@@ -2182,6 +2226,8 @@ const PDV = {
         this.documentoEscolhido = null;
         document.querySelectorAll('#docChoice .btn-doc').forEach(b =>
             b.classList.toggle('active', !b.dataset.doc));
+        const cpfNotaEl = document.getElementById('cpfNota');
+        if (cpfNotaEl) cpfNotaEl.value = '';
 
         // Reset UI
         this.renderItems();

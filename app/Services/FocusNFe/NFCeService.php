@@ -322,7 +322,7 @@ class NFCeService
                 'modalidade_frete' => '9',
             ],
             $builder->emitentePayload(),
-            $builder->destinatarioNFCePayload($cliente),
+            $builder->destinatarioNFCePayload($cliente, $venda->cpf_cnpj_nota),
             ['items' => $itens],
             // Totais (NFC-e usa subset)
             ['valor_produtos' => number_format($valorTotalProdutos, 2, '.', '')],

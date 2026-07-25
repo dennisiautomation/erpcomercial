@@ -217,20 +217,20 @@ class FiscalPayloadBuilder
         return $payload;
     }
 
-    /** Destinatário simplificado para NFC-e (opcional, só CPF + nome). */
-    public function destinatarioNFCePayload(?\App\Models\Cliente $cliente): array
+    /**
+     * Destinatário simplificado para NFC-e (opcional, só CPF/CNPJ + nome).
+     * $cpfCnpjAvulso = "CPF na nota" digitado no PDV sem cadastro de cliente.
+     */
+    public function destinatarioNFCePayload(?\App\Models\Cliente $cliente, ?string $cpfCnpjAvulso = null): array
     {
-        if (! $cliente) {
-            return [];
-        }
-        $cpfCnpj = Cnpj::limparCpfCnpj($cliente->cpf_cnpj ?? '');
+        $cpfCnpj = Cnpj::limparCpfCnpj($cliente?->cpf_cnpj ?? $cpfCnpjAvulso ?? '');
         $payload = [];
         if (Cnpj::pareceCpf($cpfCnpj)) {
             $payload['cpf_destinatario'] = $cpfCnpj;
         } elseif (strlen($cpfCnpj) === 14) {
             $payload['cnpj_destinatario'] = $cpfCnpj;
         }
-        if ($cliente->nome_razao_social) {
+        if ($cliente?->nome_razao_social) {
             $payload['nome_destinatario'] = $cliente->nome_razao_social;
         }
         return $payload;

@@ -208,6 +208,11 @@
         <span>Venda: #{{ str_pad($venda->numero, 6, '0', STR_PAD_LEFT) }}</span>
         <span>{{ $venda->created_at->format('d/m/Y H:i') }}</span>
     </div>
+    @if(! $venda->cliente && $venda->cpf_cnpj_nota)
+        <div class="venda-info">
+            <span>CPF/CNPJ do consumidor: {{ $venda->cpf_cnpj_nota }}</span>
+        </div>
+    @endif
     @if($venda->cliente)
         <div class="row">
             <span>Cliente: {{ \Illuminate\Support\Str::limit($venda->cliente->nome_razao_social, 30) }}</span>
