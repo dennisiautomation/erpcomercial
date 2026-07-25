@@ -190,9 +190,15 @@ class NFCeService
 
         $data = $response->json() ?? [];
 
-        if ($response->successful()) {
+        // HTTP 200 NÃO significa cancelado: a Focus responde 200 com status
+        // "erro_cancelamento"/"autorizado" quando a SEFAZ recusa (ex.: prazo de
+        // 30 min vencido). Só marcamos cancelada com confirmação explícita —
+        // marcar sem confirmar deixa nota VIVA na SEFAZ com venda cancelada aqui.
+        $statusFocus = strtolower((string) ($data['status'] ?? ''));
+
+        if ($response->successful() && in_array($statusFocus, ['cancelado', 'cancelada'], true)) {
             $nota->status = StatusNotaFiscal::Cancelada;
-            $nota->focus_status = $data['status'] ?? 'cancelado';
+            $nota->focus_status = $data['status'];
             $nota->cancelamento_motivo = $justificativa;
             $nota->cancelamento_protocolo = $data['protocolo'] ?? null;
             $nota->cancelada_em = now();
@@ -202,7 +208,10 @@ class NFCeService
             return $nota;
         }
 
-        $rawMsg = $data['mensagem'] ?? $data['erros'][0]['mensagem'] ?? 'Erro desconhecido ao cancelar.';
+        $rawMsg = $data['mensagem_sefaz']
+            ?? $data['mensagem']
+            ?? $data['erros'][0]['mensagem']
+            ?? ($statusFocus !== '' ? "SEFAZ não confirmou o cancelamento (status: {$statusFocus})." : 'Erro desconhecido ao cancelar.');
         $friendly = $this->translateCancelError($rawMsg, $response->status());
 
         $nota->focus_mensagem = $rawMsg;

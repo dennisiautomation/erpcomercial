@@ -885,6 +885,10 @@ código de barras de 13 mm e código do produto visível.
     `""` no XML e a SEFAZ rejeita a nota inteira com "Erro na validação do Schema XML".
 29. **Certificado A1 vai pela API de EMPRESAS com token master** (`PUT /v2/empresas/{id}`,
     `arquivo_certificado_base64` + `senha_certificado`). Não existe endpoint de certificado.
+29a. **HTTP 200 da Focus NÃO significa evento aceito** — o DELETE de cancelamento devolve
+    200 com `status` de erro quando a SEFAZ recusa (ex.: prazo de 30 min vencido). SEMPRE
+    conferir `status == cancelado` no corpo antes de marcar cancelada local (nota 3 ficou
+    "cancelada" no banco e AUTORIZADA na SEFAZ até o fix de 25/07 noite).
 29b. **Caminhos de arquivo da Focus são RELATIVOS** — sempre usar `danfe_url_completa`/
     `xml_url_completa` do model (resolvem o host pelo ambiente), nunca redirect direto.
 30. **A Focus controla número e série da NFC-e/NF-e** — os campos `serie_*` do ERP são registro
