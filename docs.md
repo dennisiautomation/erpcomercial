@@ -220,6 +220,23 @@ entra em **04/01/2027**. Desde 01/07/2026 os campos já são exigidos em homolog
   desliga (obrigação 01/2027). Validado E2E via curl (dono muda → badge "Envio automático
   ativo" → volta). ⚠️ Blade: dois `@php(...)` inline consecutivos não compilam — usar
   bloco `@php ... @endphp` (quebrou a tela em produção por minutos até o fix).
+- **Varredura E2E rodada 2 (telas de detalhe, 25/07)**: 46 rotas `GET` com parâmetro
+  testadas com IDs reais → 10×500 + achado grave via scanner de reflexão (rota × assinatura
+  do controller): **route model binding quebrado em 13 rotas** — parâmetro da URL não casava
+  com o nome da variável (`{contas_pagar}` vs `$contaPagar` etc.), o Laravel injetava model
+  VAZIO em silêncio. Consequência real: **baixar/excluir contas a pagar/receber nunca
+  funcionou**, editar plano de contas e ordens de serviço (show/edit/update/destroy)
+  operavam num registro vazio. Fix: `->parameters([...])` nos resources
+  (movimentacoes→movimentacao, contas-receber→contaReceber, contas-pagar→contaPagar,
+  plano-contas→planoContas, ordens-servico→ordemServico) + rotas custom `baixar` renomeadas.
+  Rotas `resource` para métodos inexistentes removidas com `->except`/`->only`
+  (vendas edit/update, contas edit/update, movimentações edit/update/destroy, planos show,
+  transferências edit/update, plano-contas/centros-custo show); `admin/unidades/{id}` show →
+  redirect ao edit (view nunca existiu). Scanner final: ZERO bindings quebrados/métodos
+  ausentes; sweep: zero 5xx nas 2 personas. ⚠️ Armadilha: em `Route::resource` SEMPRE conferir
+  se o parâmetro (singular do slug) casa com o nome da variável tipada do controller —
+  binding que não casa NÃO dá erro, entrega model vazio (Laravel aceita snake_case do nome
+  da variável; qualquer outra diferença falha).
 - **Varredura E2E 25/07 (107 rotas GET × persona dono e admin)**: 3 bugs 500 corrigidos —
   (1) `ExportController::export` quebrava com enum (`StatusVenda`) → cast `BackedEnum->value`
   (afetava `/app/export/vendas` para clientes); (2) DRE (index/porUnidade/exportar) 500 para

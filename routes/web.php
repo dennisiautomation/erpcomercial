@@ -58,7 +58,7 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
     Route::resource('empresas', Admin\EmpresaController::class);
     Route::resource('empresas.unidades', Admin\UnidadeController::class)->shallow();
     Route::resource('usuarios', Admin\UsuarioController::class);
-    Route::resource('planos', Admin\PlanoController::class);
+    Route::resource('planos', Admin\PlanoController::class)->except(['show']);
 
     // Leads de demonstração (capturados pela landing pública)
     Route::get('/demonstracoes', [Admin\DemonstracaoController::class, 'index'])->name('demonstracoes.index');
@@ -135,7 +135,9 @@ Route::middleware(['auth', 'unidade'])->prefix('app')->name('app.')->group(funct
     Route::get('vendas/{venda}/recibo', [App\VendaController::class, 'recibo'])
         ->name('vendas.recibo')
         ->middleware('permission:vendas');
-    Route::resource('vendas', App\VendaController::class)->middleware('permission:vendas');
+    Route::resource('vendas', App\VendaController::class)
+        ->except(['edit', 'update']) // venda concluída não é editável (cancelar/devolver são os fluxos)
+        ->middleware('permission:vendas');
 
     /* ------ PDV ------ */
     Route::get('/pdv', [App\PdvController::class, 'index'])
@@ -176,8 +178,11 @@ Route::middleware(['auth', 'unidade'])->prefix('app')->name('app.')->group(funct
 
     /* ------ Estoque ------ */
     Route::resource('estoque/movimentacoes', App\EstoqueMovimentacaoController::class)
+        ->only(['index', 'create', 'store', 'show']) // movimentação é imutável (auditoria)
+        ->parameters(['movimentacoes' => 'movimentacao']) // casar com $movimentacao (binding)
         ->middleware('permission:estoque');
     Route::resource('estoque/transferencias', App\TransferenciaEstoqueController::class)
+        ->except(['edit', 'update']) // fluxo é aprovar/cancelar, não editar
         ->middleware('permission:estoque');
     Route::patch('estoque/transferencias/{transferencia}/aprovar', [App\TransferenciaEstoqueController::class, 'aprovar'])
         ->name('transferencias.aprovar')
@@ -188,13 +193,17 @@ Route::middleware(['auth', 'unidade'])->prefix('app')->name('app.')->group(funct
 
     /* ------ Financeiro ------ */
     Route::resource('financeiro/contas-receber', App\ContaReceberController::class)
+        ->except(['edit', 'update']) // fluxo é baixar/estornar, não editar
+        ->parameters(['contas-receber' => 'contaReceber']) // casar com $contaReceber (binding)
         ->middleware('permission:financeiro');
-    Route::post('financeiro/contas-receber/{contas_receber}/baixar', [App\ContaReceberController::class, 'baixar'])
+    Route::post('financeiro/contas-receber/{contaReceber}/baixar', [App\ContaReceberController::class, 'baixar'])
         ->name('contas-receber.baixar')
         ->middleware('permission:financeiro');
     Route::resource('financeiro/contas-pagar', App\ContaPagarController::class)
+        ->except(['edit', 'update']) // fluxo é baixar/estornar, não editar
+        ->parameters(['contas-pagar' => 'contaPagar']) // casar com $contaPagar (binding)
         ->middleware('permission:financeiro');
-    Route::post('financeiro/contas-pagar/{contas_pagar}/baixar', [App\ContaPagarController::class, 'baixar'])
+    Route::post('financeiro/contas-pagar/{contaPagar}/baixar', [App\ContaPagarController::class, 'baixar'])
         ->name('contas-pagar.baixar')
         ->middleware('permission:financeiro');
     /* ------ Adquirentes (máquinas de cartão: taxas e prazos) ------ */
@@ -230,10 +239,15 @@ Route::middleware(['auth', 'unidade'])->prefix('app')->name('app.')->group(funct
     });
 
     /* ------ Plano de Contas ------ */
-    Route::resource('plano-contas', App\PlanoContasController::class)->middleware('permission:financeiro');
+    Route::resource('plano-contas', App\PlanoContasController::class)
+        ->except(['show'])
+        ->parameters(['plano-contas' => 'planoContas']) // casar com $planoContas (binding)
+        ->middleware('permission:financeiro');
 
     /* ------ Centro de Custos ------ */
-    Route::resource('centros-custo', App\CentroCustoController::class)->middleware('permission:financeiro');
+    Route::resource('centros-custo', App\CentroCustoController::class)
+        ->except(['show'])
+        ->middleware('permission:financeiro');
 
     /* ------ DRE ------ */
     Route::prefix('dre')->name('dre.')->middleware(['permission:financeiro', 'plano:dre'])->group(function () {
@@ -433,7 +447,9 @@ Route::middleware(['auth', 'unidade'])->prefix('app')->name('app.')->group(funct
     });
 
     /* ------ Ordens de Servico ------ */
-    Route::resource('ordens-servico', App\OrdemServicoController::class)->middleware(['permission:vendas', 'plano:os']);
+    Route::resource('ordens-servico', App\OrdemServicoController::class)
+        ->parameters(['ordens-servico' => 'ordemServico']) // casar com $ordemServico (binding)
+        ->middleware(['permission:vendas', 'plano:os']);
     Route::post('ordens-servico/{ordemServico}/status', [App\OrdemServicoController::class, 'updateStatus'])
         ->name('ordens-servico.update-status')
         ->middleware(['permission:vendas', 'plano:os']);

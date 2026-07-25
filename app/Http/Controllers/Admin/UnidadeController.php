@@ -86,13 +86,12 @@ class UnidadeController extends Controller
         ];
     }
 
-    public function show(Request $request, Unidade $unidade): View
+    public function show(Request $request, Unidade $unidade): \Illuminate\Http\RedirectResponse
     {
         abort_unless($request->user()->is_admin, 403);
 
-        $unidade->load('empresa', 'gerente');
-
-        return view('admin.unidades.show', compact('unidade'));
+        // View admin.unidades.show nunca existiu — a tela de detalhe é o edit.
+        return redirect()->route('admin.unidades.edit', $unidade);
     }
 
     public function edit(Request $request, Unidade $unidade): View
