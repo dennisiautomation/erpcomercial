@@ -129,6 +129,9 @@ class FocusNFeWebhookController extends Controller
         if ($request->filled('qrcode_url')) {
             $updateData['qrcode_url'] = $request->input('qrcode_url');
         }
+        if ($request->filled('url_consulta_nf')) {
+            $updateData['url_consulta'] = $request->input('url_consulta_nf');
+        }
         if ($request->filled('protocolo')) {
             $updateData['protocolo'] = $request->input('protocolo');
         }

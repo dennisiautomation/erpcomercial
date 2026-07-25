@@ -242,7 +242,7 @@ class NotaFiscalController extends Controller
     public function consultar(NotaFiscal $notaFiscal)
     {
         try {
-            $service = $this->resolveService($notaFiscal->tipo);
+            $service = $this->resolveService($notaFiscal->tipo, $notaFiscal);
             $nota = $service->consultar($notaFiscal);
 
             return response()->json([
@@ -272,7 +272,7 @@ class NotaFiscalController extends Controller
         }
 
         try {
-            $service = $this->resolveService($notaFiscal->tipo);
+            $service = $this->resolveService($notaFiscal->tipo, $notaFiscal);
             $service->cancelar($notaFiscal, $request->justificativa);
 
             return back()->with('success', 'Nota fiscal cancelada com sucesso!');
@@ -304,7 +304,7 @@ class NotaFiscalController extends Controller
         }
 
         try {
-            $service = app(NFeService::class);
+            $service = NFeService::forUnidade($notaFiscal->unidade()->withoutGlobalScopes()->first());
             $carta = $service->cartaCorrecao($notaFiscal, $request->correcao, auth()->id());
 
             return back()->with('success', "Carta de Correção #{$carta->numero_sequencia} autorizada pela SEFAZ!");
@@ -348,7 +348,12 @@ class NotaFiscalController extends Controller
 
         try {
             $tipo = TipoNotaFiscal::from($request->tipo);
-            $service = $this->resolveService($tipo);
+            $unidadeCfg = $config->unidade()->withoutGlobalScopes()->first();
+            $service = match ($tipo) {
+                TipoNotaFiscal::NFe  => NFeService::forUnidade($unidadeCfg),
+                TipoNotaFiscal::NFCe => NFCeService::forUnidade($unidadeCfg),
+                TipoNotaFiscal::NFSe => NFSeService::forUnidade($unidadeCfg),
+            };
             $service->inutilizar($request->all(), $config);
 
             return redirect()
@@ -400,12 +405,18 @@ class NotaFiscalController extends Controller
             ->first();
     }
 
-    private function resolveService(TipoNotaFiscal $tipo): NFeService|NFCeService|NFSeService
+    /**
+     * Armadilha 13: os services Focus exigem client com token — nunca app(...).
+     * Usa a unidade da PRÓPRIA nota (cancelar da tela de outra unidade funciona).
+     */
+    private function resolveService(TipoNotaFiscal $tipo, NotaFiscal $nota): NFeService|NFCeService|NFSeService
     {
+        $unidade = $nota->unidade()->withoutGlobalScopes()->first();
+
         return match ($tipo) {
-            TipoNotaFiscal::NFe  => app(NFeService::class),
-            TipoNotaFiscal::NFCe => app(NFCeService::class),
-            TipoNotaFiscal::NFSe => app(NFSeService::class),
+            TipoNotaFiscal::NFe  => NFeService::forUnidade($unidade),
+            TipoNotaFiscal::NFCe => NFCeService::forUnidade($unidade),
+            TipoNotaFiscal::NFSe => NFSeService::forUnidade($unidade),
         };
     }
 }

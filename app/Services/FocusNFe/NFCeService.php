@@ -64,6 +64,7 @@ class NFCeService
                     $nota->xml_url = $data['caminho_xml_nota_fiscal'] ?? null;
                     $nota->danfe_url = $data['caminho_danfe'] ?? null;
                     $nota->qrcode_url = $data['qrcode_url'] ?? null;
+                    $nota->url_consulta = $data['url_consulta_nf'] ?? null;
                     $nota->protocolo = $data['protocolo'] ?? null;
                     $nota->emitida_em = now();
 
@@ -136,6 +137,7 @@ class NFCeService
                     $nota->xml_url = $data['caminho_xml_nota_fiscal'] ?? $nota->xml_url;
                     $nota->danfe_url = $data['caminho_danfe'] ?? $nota->danfe_url;
                     $nota->qrcode_url = $data['qrcode_url'] ?? $nota->qrcode_url;
+                    $nota->url_consulta = $data['url_consulta_nf'] ?? $nota->url_consulta;
                     $nota->protocolo = $data['protocolo'] ?? $nota->protocolo;
                     $nota->emitida_em = $nota->emitida_em ?? now();
                 } elseif (in_array($data['status'] ?? '', ['cancelado', 'cancelada'])) {

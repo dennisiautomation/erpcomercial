@@ -38,6 +38,7 @@ class NotaFiscal extends Model
         'xml_url',
         'danfe_url',
         'qrcode_url',
+        'url_consulta',
         'protocolo',
         'pdf_url',
         'cancelamento_motivo',

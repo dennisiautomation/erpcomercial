@@ -805,6 +805,16 @@ anexos de caixa. Corrigido no container ativo, no `entrypoint.sh` e no `docker/p
 - **Tributos aproximados no cupom térmico** (Lei 12.741/2012): linha "Tributos Totais
   Incidentes" no cupom 80mm — mesmo cálculo do payload (IBPT do item via `fiscal()`,
   fallback 25%). Obrigatória no documento ao consumidor.
+- **Cupom térmico 100% conforme o Manual DANFE NFC-e (NT 2020.006)**: nome completo do
+  documento + "Não permite aproveitamento de crédito de ICMS", nº/série/data de emissão,
+  "Via Consumidor", "Consulte pela chave de acesso em <url da SEFAZ>" (coluna nova
+  `notas_fiscais.url_consulta`, vem de `url_consulta_nf` da Focus), chave em grupos de 4,
+  bloco CONSUMIDOR (identificado ou "NÃO IDENTIFICADO"), QR Code, protocolo com data/hora,
+  tarja "EMITIDA EM AMBIENTE DE HOMOLOGAÇÃO" quando aplicável e a linha da Lei 12.741.
+  Bug junto: a view usava `numero_nota` (coluna é `numero`) — nº/série nunca saíam.
+- **"Erro inesperado ao cancelar a nota"**: `resolveService()` usava `app(NF*Service)`
+  (armadilha 13) — cancelar, consultar, inutilizar E carta de correção estavam quebrados
+  desde sempre. Agora `::forUnidade` com a unidade da PRÓPRIA nota.
 - **Cancelar cupom**: número da nota na venda linka para a página da nota (botão Cancelar com
   justificativa). `VendaController::destroy` agora BLOQUEIA cancelar a venda com documento
   fiscal vivo e redireciona para a nota (NFC-e tem prazo curto de cancelamento na SEFAZ).

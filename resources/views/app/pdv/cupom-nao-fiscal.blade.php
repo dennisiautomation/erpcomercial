@@ -196,6 +196,16 @@
 {{-- ===== TIPO DO CUPOM ===== --}}
 @if(isset($notaFiscal) && $notaFiscal)
     <div class="tipo-cupom">DANFE NFC-e</div>
+    {{-- Manual DANFE NFC-e: nome completo + frase de não aproveitamento de crédito são obrigatórios --}}
+    <div style="text-align:center; font-size:8px;">
+        Documento Auxiliar da Nota Fiscal de Consumidor Eletrônica<br>
+        Não permite aproveitamento de crédito de ICMS
+    </div>
+    @if(($notaFiscal->ambiente ?? '') === 'homologacao')
+        <div style="text-align:center; font-size:9px; font-weight:bold; border:1px dashed #000; margin-top:2px; padding:2px;">
+            EMITIDA EM AMBIENTE DE HOMOLOGAÇÃO — SEM VALOR FISCAL
+        </div>
+    @endif
 @else
     <div class="tipo-cupom">Cupom Nao Fiscal</div>
 @endif
@@ -338,22 +348,49 @@
 
 <hr class="line">
 
-{{-- ===== NFC-e INFO ===== --}}
+{{-- ===== NFC-e INFO (Manual DANFE NFC-e / NT 2020.006) ===== --}}
 @if(isset($notaFiscal) && $notaFiscal)
+    <div class="nfce-info">
+        {{-- número, série, data/hora de emissão e via — obrigatórios --}}
+        <div style="text-align:center;">
+            NFC-e nº {{ $notaFiscal->numero ?? '-' }} &nbsp; Série {{ $notaFiscal->serie ?? '-' }} &nbsp;
+            {{ ($notaFiscal->emitida_em ?? $venda->created_at)->format('d/m/Y H:i:s') }}
+        </div>
+        <div style="text-align:center; font-weight:bold;">Via Consumidor</div>
+
+        {{-- consulta por chave de acesso no site da SEFAZ — obrigatório --}}
+        @if($notaFiscal->url_consulta ?? null)
+            <div style="text-align:center; margin-top:2px;">Consulte pela chave de acesso em</div>
+            <div style="text-align:center; word-break:break-all; font-size:8px;">{{ $notaFiscal->url_consulta }}</div>
+        @endif
+        @if($notaFiscal->chave_acesso ?? null)
+            <div style="text-align:center; margin-top:2px;">CHAVE DE ACESSO</div>
+            <div style="text-align:center; word-break:break-all; font-size:8px; font-weight:bold;">{{ trim(chunk_split(preg_replace('/^NFe/', '', $notaFiscal->chave_acesso), 4, ' ')) }}</div>
+        @endif
+
+        {{-- identificação do consumidor — obrigatória (identificado ou não) --}}
+        <hr class="line">
+        <div style="text-align:center; font-weight:bold;">CONSUMIDOR</div>
+        <div style="text-align:center;">
+            @php $docConsumidor = $venda->cliente->cpf_cnpj ?? $venda->cpf_cnpj_nota ?? null; @endphp
+            @if($docConsumidor)
+                {{ $venda->cliente->nome_razao_social ?? 'CONSUMIDOR' }} — CPF/CNPJ: {{ $docConsumidor }}
+            @else
+                CONSUMIDOR NÃO IDENTIFICADO
+            @endif
+        </div>
+    </div>
+
     @if($notaFiscal->qrcode_url ?? null)
+        <div style="text-align:center; font-size:9px; margin-top:3px;">Consulta via leitor de QR Code</div>
         <div class="qrcode-area">
             <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data={{ urlencode($notaFiscal->qrcode_url) }}" alt="QR Code">
         </div>
     @endif
-    <div class="nfce-info">
-        @if($notaFiscal->chave_acesso ?? null)
-            <div>Chave de Acesso:</div>
-            <div style="word-break:break-all; font-size:8px;">{{ $notaFiscal->chave_acesso }}</div>
-        @endif
-        @if($notaFiscal->numero_nota ?? null)
-            <div>NFC-e Nr: {{ $notaFiscal->numero_nota }} Serie: {{ $notaFiscal->serie ?? '1' }}</div>
-        @endif
-        <div>Protocolo: {{ $notaFiscal->protocolo ?? '-' }}</div>
+
+    <div class="nfce-info" style="text-align:center;">
+        Protocolo de autorização: {{ $notaFiscal->protocolo ?? '-' }}
+        @if($notaFiscal->emitida_em)<br>{{ $notaFiscal->emitida_em->format('d/m/Y H:i:s') }}@endif
     </div>
     <hr class="line">
 @endif
