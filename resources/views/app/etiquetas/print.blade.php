@@ -259,6 +259,10 @@
             max-width: 82%;
             max-height: 7mm;
             object-fit: contain;
+            /* logo colorido/dourado sai apagado na térmica — imprime em preto sólido */
+            filter: brightness(0);
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
         }
         .etiqueta .empresa-logo { text-align: center; margin-bottom: 1px; }
 
@@ -384,8 +388,8 @@
                     @php $pe = $precosEtiqueta[$produto->id] ?? null; @endphp
                     @if($pe && $pe['dual'])
                         {{-- valores secos por forma — sem parcelamento (pedido do Dennis 25/07) --}}
-                        <div class="preco preco-forma">Cartão R$ {{ number_format($pe['credito'], 2, ',', '.') }}</div>
                         <div class="preco preco-forma">PIX R$ {{ number_format($pe['base'], 2, ',', '.') }}</div>
+                        <div class="preco preco-forma">Cartão R$ {{ number_format($pe['credito'], 2, ',', '.') }}</div>
                     @else
                         <div class="preco">R$ {{ number_format($produto->preco_venda, 2, ',', '.') }}</div>
                     @endif
