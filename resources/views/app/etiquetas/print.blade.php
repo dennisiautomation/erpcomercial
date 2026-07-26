@@ -246,14 +246,12 @@
             margin-top: 1px;
         }
 
-        .etiqueta .preco-pix {
-            font-size: 80%;
-            font-weight: 600;
-            color: #333;
+        .etiqueta .preco-alt {
+            font-size: 90%;
         }
 
         .etiqueta .codigo {
-            color: #777;
+            color: #000;
             margin-top: 1px;
         }
 
@@ -367,8 +365,9 @@
                     </div>
                     @php $pe = $precosEtiqueta[$produto->id] ?? null; @endphp
                     @if($pe && $pe['dual'])
-                        <div class="preco">{{ $pe['parcelas'] }}x R$ {{ number_format($pe['parcela_valor'], 2, ',', '.') }}</div>
-                        <div class="preco-pix">ou R$ {{ number_format($pe['base'], 2, ',', '.') }} no PIX</div>
+                        {{-- valores secos por forma — sem parcelamento (pedido do Dennis 25/07) --}}
+                        <div class="preco">Cartão R$ {{ number_format($pe['credito'], 2, ',', '.') }}</div>
+                        <div class="preco preco-alt">PIX R$ {{ number_format($pe['base'], 2, ',', '.') }}</div>
                     @else
                         <div class="preco">R$ {{ number_format($produto->preco_venda, 2, ',', '.') }}</div>
                     @endif

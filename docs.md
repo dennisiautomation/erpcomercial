@@ -457,8 +457,9 @@ com defaults quando a loja nunca salvou (checar `->exists` para distinguir). Par
   PDV abertas antes do deploy continuam funcionando com preço do cliente).
 - **Cadastro de produto** (create/edit): campos "Preço no Débito/Crédito" (vazio = regra geral).
   Import/export CSV: colunas opcionais `preco_debito`/`preco_credito`.
-- **Etiquetas**: quando tabela crédito > base, sai "6x R$ 59,90 / ou R$ 300,00 no PIX"
-  (parcelas = `max_parcelas`); sem configuração a etiqueta fica como sempre foi.
+- **Etiquetas**: quando tabela crédito > base, saem os valores secos "Cartão R$ X" +
+  "PIX R$ Y" (sem parcelamento — pedido do Dennis 25/07); sem configuração a etiqueta
+  fica como sempre foi (preço único).
 
 ### Emissão parametrizada
 
