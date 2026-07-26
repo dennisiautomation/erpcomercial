@@ -815,6 +815,10 @@ anexos de caixa. Corrigido no container ativo, no `entrypoint.sh` e no `docker/p
 - **"Erro inesperado ao cancelar a nota"**: `resolveService()` usava `app(NF*Service)`
   (armadilha 13) — cancelar, consultar, inutilizar E carta de correção estavam quebrados
   desde sempre. Agora `::forUnidade` com a unidade da PRÓPRIA nota.
+- **Cupom saía claro demais na térmica**: térmica só imprime preto puro — cinza vira chuviscado
+  e Courier fino sai fraco. Corpo do cupom com `font-weight:700`, zero cinza (era #555/#888),
+  fontes mínimas 9px (eram 8px), corpo 13px, separadores 2px e `color:#000 !important` no
+  @media print. Vale para recibo E cupom fiscal (mesma view `cupom-nao-fiscal`).
 - **Cancelar cupom**: número da nota na venda linka para a página da nota (botão Cancelar com
   justificativa). `VendaController::destroy` agora BLOQUEIA cancelar a venda com documento
   fiscal vivo e redireciona para a nota (NFC-e tem prazo curto de cancelamento na SEFAZ).

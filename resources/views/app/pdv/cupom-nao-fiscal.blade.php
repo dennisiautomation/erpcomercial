@@ -7,14 +7,20 @@
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
+            /* Térmica imprime só preto: Courier fino + cinzas saem ilegíveis.
+               Peso 700 no corpo inteiro + zero cinza = impressão firme. */
             font-family: 'Courier New', 'Lucida Console', monospace;
-            font-size: 12px;
+            font-size: 13px;
+            font-weight: 700;
             width: 80mm;
             margin: 0 auto;
             padding: 4mm 3mm;
             color: #000;
             background: #fff;
-            line-height: 1.3;
+            line-height: 1.35;
+        }
+        @media print {
+            * { color: #000 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         }
 
         .center { text-align: center; }
@@ -23,7 +29,7 @@
 
         .line {
             border: none;
-            border-top: 1px dashed #000;
+            border-top: 2px dashed #000;
             margin: 6px 0;
         }
         .double-line {
@@ -41,7 +47,7 @@
             text-transform: uppercase;
         }
         .header .info-line {
-            font-size: 10px;
+            font-size: 11px;
             line-height: 1.4;
         }
 
@@ -57,7 +63,7 @@
 
         /* Dados da venda */
         .venda-info {
-            font-size: 10px;
+            font-size: 11px;
             margin: 4px 0;
         }
         .venda-info .row {
@@ -68,7 +74,7 @@
         /* Tabela de itens */
         table { width: 100%; border-collapse: collapse; }
         table th {
-            font-size: 9px;
+            font-size: 10px;
             text-align: left;
             padding: 2px 0;
             border-bottom: 1px solid #000;
@@ -76,14 +82,14 @@
         }
         table th.num { text-align: right; }
         table td {
-            font-size: 11px;
+            font-size: 12px;
             padding: 2px 0;
             vertical-align: top;
         }
         table td.num { text-align: right; }
         table td.item-seq {
-            font-size: 10px;
-            color: #555;
+            font-size: 11px;
+            color: #000;
             width: 16px;
         }
 
@@ -93,7 +99,7 @@
             display: flex;
             justify-content: space-between;
             padding: 1px 0;
-            font-size: 11px;
+            font-size: 12px;
         }
         .totais .total-row {
             font-size: 18px;
@@ -105,7 +111,7 @@
         /* Pagamento */
         .pagamento { margin: 4px 0; }
         .pagamento .titulo {
-            font-size: 10px;
+            font-size: 11px;
             font-weight: bold;
             text-align: center;
             margin-bottom: 3px;
@@ -114,7 +120,7 @@
         .pagamento .row {
             display: flex;
             justify-content: space-between;
-            font-size: 11px;
+            font-size: 12px;
             padding: 1px 0;
         }
         .pagamento .troco-row {
@@ -133,7 +139,7 @@
             height: auto;
         }
         .nfce-info {
-            font-size: 9px;
+            font-size: 10px;
             text-align: center;
             line-height: 1.3;
         }
@@ -141,7 +147,7 @@
         /* Footer */
         .footer {
             margin-top: 8px;
-            font-size: 9px;
+            font-size: 10px;
             text-align: center;
             line-height: 1.4;
         }
@@ -197,7 +203,7 @@
 @if(isset($notaFiscal) && $notaFiscal)
     <div class="tipo-cupom">DANFE NFC-e</div>
     {{-- Manual DANFE NFC-e: nome completo + frase de não aproveitamento de crédito são obrigatórios --}}
-    <div style="text-align:center; font-size:8px;">
+    <div style="text-align:center; font-size:9px;">
         Documento Auxiliar da Nota Fiscal de Consumidor Eletrônica<br>
         Não permite aproveitamento de crédito de ICMS
     </div>
@@ -304,7 +310,7 @@
         <span>Tributos Totais Incidentes (Lei 12.741/2012):</span>
         <span>R$ {{ number_format($totalTributos, 2, ',', '.') }}</span>
     </div>
-    <div style="font-size:8px; color:#555;">Valor aproximado. Fonte: IBPT</div>
+    <div style="font-size:9px;">Valor aproximado. Fonte: IBPT</div>
 @endif
 
 <hr class="line">
@@ -361,11 +367,11 @@
         {{-- consulta por chave de acesso no site da SEFAZ — obrigatório --}}
         @if($notaFiscal->url_consulta ?? null)
             <div style="text-align:center; margin-top:2px;">Consulte pela chave de acesso em</div>
-            <div style="text-align:center; word-break:break-all; font-size:8px;">{{ $notaFiscal->url_consulta }}</div>
+            <div style="text-align:center; word-break:break-all; font-size:9px;">{{ $notaFiscal->url_consulta }}</div>
         @endif
         @if($notaFiscal->chave_acesso ?? null)
             <div style="text-align:center; margin-top:2px;">CHAVE DE ACESSO</div>
-            <div style="text-align:center; word-break:break-all; font-size:8px; font-weight:bold;">{{ trim(chunk_split(preg_replace('/^NFe/', '', $notaFiscal->chave_acesso), 4, ' ')) }}</div>
+            <div style="text-align:center; word-break:break-all; font-size:9px; font-weight:bold;">{{ trim(chunk_split(preg_replace('/^NFe/', '', $notaFiscal->chave_acesso), 4, ' ')) }}</div>
         @endif
 
         {{-- identificação do consumidor — obrigatória (identificado ou não) --}}
@@ -405,7 +411,7 @@
         </div>
     @endif
 
-    <p style="margin-top:6px; font-size:8px; color:#888;">
+    <p style="margin-top:6px; font-size:9px;">
         Documento gerado eletronicamente | {{ $venda->created_at->format('d/m/Y H:i:s') }}
     </p>
 </div>
