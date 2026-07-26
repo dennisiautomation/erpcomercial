@@ -2,7 +2,7 @@
 
 > SaaS ERP multi-tenant para PMEs. Admin (IA365) gerencia a plataforma; cada empresa-cliente tem múltiplas unidades com fiscal, estoque e caixa independentes. Integração 100% Focus NFe (NF-e, NFC-e, NFS-e, CC-e, manifestação do destinatário, backup XMLs).
 
-**Última revisão:** 2026-07-25 (tarde: planilhas .xlsx + correções fiscais do teste ao vivo) · **Estado:** integração fiscal Fase 1-4 + multi-loja + regime de cobrança + auto-sync Focus + UX config fiscal + caixa por forma de pagamento (14/07) + Configurações da Loja/tabelas de preço/emissão parametrizada/adquirentes (24/07) + **Reforma Tributária NT 2025.002 (obrigatório 03/08/2026) + CNPJ alfanumérico NT 2025.001 (25/07)** — concluídos
+**Última revisão:** 2026-07-26 (tarde: planilhas .xlsx + correções fiscais do teste ao vivo) · **Estado:** integração fiscal Fase 1-4 + multi-loja + regime de cobrança + auto-sync Focus + UX config fiscal + caixa por forma de pagamento (14/07) + Configurações da Loja/tabelas de preço/emissão parametrizada/adquirentes (24/07) + **Reforma Tributária NT 2025.002 (obrigatório 03/08/2026) + CNPJ alfanumérico NT 2025.001 (25/07)** — concluídos
 
 ---
 
@@ -835,6 +835,21 @@ anexos de caixa. Corrigido no container ativo, no `entrypoint.sh` e no `docker/p
 Novo formato **Tag Roupa 35 × 60 mm — 3 colunas** (`termica-tag-35x60`): bobina de 105 mm,
 grid `repeat(3, 35mm)`, conteúdo deslocado 7 mm do topo para não cair no furo da tag,
 código de barras de 13 mm e código do produto visível.
+
+**Preços e logo (26/07):**
+- Etiqueta dupla mostra valores secos — **"PIX R$ Y" em cima, "Cartão R$ X" embaixo**
+  (sem "6x de"; ordem a pedido do Dennis). Sem tabela de cartão, preço único como sempre.
+  Linhas com `white-space: nowrap` (não quebram "Cartão R$ 22,00" no meio).
+- **Logo da empresa no lugar do nome** quando `empresas.logo` preenchido (vale para todas
+  as unidades; sem logo, cai no nome). Na impressão o logo sai em **preto sólido**
+  (`filter: brightness(0)`) — dourado/colorido imprime apagado na térmica. Na tela do
+  sistema o logo continua nas cores originais.
+- Logo da J S COMERCIO (STILO VINTE) instalado em `storage/app/public/logos/empresa-3.png`
+  (volume `app_storage`, sobrevive a recreate).
+- **Upload de logo no admin CORRIGIDO**: o form de empresa sempre teve o campo mas
+  `store`/`update` ignoravam o arquivo — agora valida (image, 2MB), salva em `logos/` no
+  disco público e apaga o anterior ao trocar.
+- Zero cinza também nas etiquetas (preço PIX era #333, código #777) — térmica.
 
 ---
 
