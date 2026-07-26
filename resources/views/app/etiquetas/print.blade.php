@@ -181,7 +181,8 @@
         .formato-termica-60x40 .etiqueta .empresa { font-size: 6pt; }
         .formato-termica-60x40 .etiqueta .descricao { font-size: 8pt; -webkit-line-clamp: 2; max-height: 2.4em; }
         .formato-termica-60x40 .etiqueta .preco { font-size: 12pt; }
-        .formato-termica-33x22 .etiqueta .empresa { display: none; }
+        .formato-termica-33x22 .etiqueta .empresa,
+        .formato-termica-33x22 .etiqueta .empresa-logo { display: none; }
         /* Tag de roupa (ilabel 35×60mm, furo no topo): conteúdo desce 6mm para não cair no furo */
         .formato-termica-tag-35x60 .etiqueta { padding: 7mm 2mm 2mm; justify-content: flex-start; gap: 1mm; }
         .formato-termica-tag-35x60 .etiqueta .empresa { font-size: 6pt; }
@@ -244,11 +245,22 @@
         .etiqueta .preco {
             font-weight: bold;
             margin-top: 1px;
+            white-space: nowrap;
         }
 
-        .etiqueta .preco-alt {
-            font-size: 90%;
+        /* etiqueta dupla (Cartão + PIX): 2 linhas menores que o preço único,
+           nowrap para nunca quebrar "Cartão R$ 22,00" no meio */
+        .etiqueta .preco-forma {
+            font-size: 72%;
+            line-height: 1.25;
         }
+
+        .etiqueta .empresa-logo img {
+            max-width: 82%;
+            max-height: 7mm;
+            object-fit: contain;
+        }
+        .etiqueta .empresa-logo { text-align: center; margin-bottom: 1px; }
 
         .etiqueta .codigo {
             color: #000;
@@ -349,13 +361,19 @@
         $config = $formatos[$formato];
         $pages = array_chunk($itens, $config['per_page']);
         $empresaNome = auth()->user()->empresa->razao_social ?? auth()->user()->empresa->nome_fantasia ?? 'Empresa';
+        // Logo da empresa substitui o nome na etiqueta (vale para todas as unidades)
+        $empresaLogo = auth()->user()->empresa?->logo ? asset('storage/' . auth()->user()->empresa->logo) : null;
     @endphp
 
     @foreach($pages as $pageItens)
         <div class="page formato-{{ $formato }}">
             @foreach($pageItens as $produto)
                 <div class="etiqueta">
-                    <div class="empresa">{{ $empresaNome }}</div>
+                    @if($empresaLogo)
+                        <div class="empresa-logo"><img src="{{ $empresaLogo }}" alt=""></div>
+                    @else
+                        <div class="empresa">{{ $empresaNome }}</div>
+                    @endif
                     <div class="descricao">{{ $produto->descricao }}</div>
                     <div class="barcode-container">
                         <svg class="barcode"
@@ -366,8 +384,8 @@
                     @php $pe = $precosEtiqueta[$produto->id] ?? null; @endphp
                     @if($pe && $pe['dual'])
                         {{-- valores secos por forma — sem parcelamento (pedido do Dennis 25/07) --}}
-                        <div class="preco">Cartão R$ {{ number_format($pe['credito'], 2, ',', '.') }}</div>
-                        <div class="preco preco-alt">PIX R$ {{ number_format($pe['base'], 2, ',', '.') }}</div>
+                        <div class="preco preco-forma">Cartão R$ {{ number_format($pe['credito'], 2, ',', '.') }}</div>
+                        <div class="preco preco-forma">PIX R$ {{ number_format($pe['base'], 2, ',', '.') }}</div>
                     @else
                         <div class="preco">R$ {{ number_format($produto->preco_venda, 2, ',', '.') }}</div>
                     @endif
