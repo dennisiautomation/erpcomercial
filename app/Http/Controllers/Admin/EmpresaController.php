@@ -75,6 +75,7 @@ class EmpresaController extends Controller
             'cnpj'              => ['required', 'string', 'size:18', new \App\Rules\CnpjValido(), 'unique:empresas,cnpj'],
             'razao_social'      => ['required', 'string', 'max:255'],
             'nome_fantasia'     => ['nullable', 'string', 'max:255'],
+            'logo'              => ['nullable', 'image', 'max:2048'],
             'ie'                => ['nullable', 'string', 'max:20'],
             'im'                => ['nullable', 'string', 'max:20'],
             'regime_tributario' => ['required', 'string'],
@@ -91,6 +92,11 @@ class EmpresaController extends Controller
             'status'            => ['required', 'string'],
             'observacoes'       => ['nullable', 'string'],
         ]);
+
+        // Logo (o form sempre teve o campo, mas o upload era ignorado — fix 26/07)
+        if ($request->hasFile('logo')) {
+            $validated['logo'] = $request->file('logo')->store('logos', 'public');
+        }
 
         $empresa = Empresa::create($validated);
 
@@ -144,6 +150,7 @@ class EmpresaController extends Controller
             'cnpj'              => ['required', 'string', 'size:18', new \App\Rules\CnpjValido(), 'unique:empresas,cnpj,' . $empresa->id],
             'razao_social'      => ['required', 'string', 'max:255'],
             'nome_fantasia'     => ['nullable', 'string', 'max:255'],
+            'logo'              => ['nullable', 'image', 'max:2048'],
             'ie'                => ['nullable', 'string', 'max:20'],
             'im'                => ['nullable', 'string', 'max:20'],
             'regime_tributario' => ['required', 'string'],
@@ -185,6 +192,13 @@ class EmpresaController extends Controller
             $validated['cortesia_concedida_em'] = null;
             $validated['cortesia_revisar_em'] = null;
             $validated['cortesia_concedida_por'] = null;
+        }
+
+        if ($request->hasFile('logo')) {
+            if ($empresa->logo) {
+                \Illuminate\Support\Facades\Storage::disk('public')->delete($empresa->logo);
+            }
+            $validated['logo'] = $request->file('logo')->store('logos', 'public');
         }
 
         $empresa->update($validated);
