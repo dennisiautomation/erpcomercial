@@ -12,8 +12,8 @@
                Courier tem haste fina e sai fraca a 203dpi. */
             font-family: Arial, 'Helvetica Neue', Helvetica, sans-serif;
             font-size: 14px;
-            font-weight: 900;
-            -webkit-text-stroke: 0.3px #000;
+            font-weight: 700;
+            /* sem text-stroke: 900+contorno entupia o miolo dos números na térmica */
             width: 80mm;
             margin: 0 auto;
             padding: 4mm 3mm;
