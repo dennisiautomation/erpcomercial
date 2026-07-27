@@ -388,8 +388,8 @@
                     @php $pe = $precosEtiqueta[$produto->id] ?? null; @endphp
                     @if($pe && $pe['dual'])
                         {{-- valores secos por forma — sem parcelamento (pedido do Dennis 25/07) --}}
-                        <div class="preco preco-forma">PIX R$ {{ number_format($pe['base'], 2, ',', '.') }}</div>
                         <div class="preco preco-forma">Cartão R$ {{ number_format($pe['credito'], 2, ',', '.') }}</div>
+                        <div class="preco preco-forma">PIX R$ {{ number_format($pe['base'], 2, ',', '.') }}</div>
                     @else
                         <div class="preco">R$ {{ number_format($produto->preco_venda, 2, ',', '.') }}</div>
                     @endif
