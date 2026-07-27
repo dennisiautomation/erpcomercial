@@ -837,15 +837,20 @@ grid `repeat(3, 35mm)`, conteúdo deslocado 7 mm do topo para não cair no furo 
 código de barras de 13 mm e código do produto visível.
 
 **Preços e logo (26/07):**
-- Etiqueta dupla mostra valores secos — **"PIX R$ Y" em cima, "Cartão R$ X" embaixo**
-  (sem "6x de"; ordem a pedido do Dennis). Sem tabela de cartão, preço único como sempre.
-  Linhas com `white-space: nowrap` (não quebram "Cartão R$ 22,00" no meio).
+- Etiqueta dupla mostra valores secos — **"Cartão R$ X" em cima, "PIX R$ Y" embaixo**
+  (sem "6x de"; ordem final definida pelo Dennis 26/07). Sem tabela de cartão, preço único
+  como sempre. Linhas com `white-space: nowrap` (não quebram "Cartão R$ 22,00" no meio).
 - **Logo da empresa no lugar do nome** quando `empresas.logo` preenchido (vale para todas
   as unidades; sem logo, cai no nome). Na impressão o logo sai em **preto sólido**
   (`filter: brightness(0)`) — dourado/colorido imprime apagado na térmica. Na tela do
   sistema o logo continua nas cores originais.
-- Logo da J S COMERCIO (STILO VINTE) instalado em `storage/app/public/logos/empresa-3.png`
-  (volume `app_storage`, sobrevive a recreate).
+- Logo da J S COMERCIO (STILO VINTE): `storage/app/public/logos/empresa-3-v2.png`
+  (volume `app_storage`, sobrevive a recreate). **Arquivo TRATADO antes de instalar** — o
+  original tinha canvas 500×500 com o desenho numa faixa de 408×156 (172px de vazio em
+  cima/baixo encolhiam o logo visível pra ~2mm na etiqueta) e cor rosé claro: recortado no
+  conteúdo (424×172) + pintado de preto puro via PIL. ⚠️ Ao instalar logo de cliente,
+  SEMPRE conferir margens vazias do canvas e cor clara — e salvar com nome novo (v2, v3...)
+  para furar o cache do navegador.
 - **Upload de logo no admin CORRIGIDO**: o form de empresa sempre teve o campo mas
   `store`/`update` ignoravam o arquivo — agora valida (image, 2MB), salva em `logos/` no
   disco público e apaga o anterior ao trocar.
