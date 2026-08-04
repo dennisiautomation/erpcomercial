@@ -110,11 +110,11 @@
                 </div>
             @endif
 
-            @if(session('email'))
+            @if($email ?? session('email'))
                 <div class="login-alert success-alert">
                     <p class="alert-text">
                         <i class="bi bi-check-circle"></i>
-                        Link gerado para {{ session('email') }}. Preencha abaixo para redefinir.
+                        Defina a nova senha para {{ $email ?? session('email') }}.
                     </p>
                 </div>
             @endif
@@ -131,7 +131,7 @@
                             type="email"
                             id="email"
                             name="email"
-                            value="{{ session('email', old('email')) }}"
+                            value="{{ old('email', $email ?? session('email')) }}"
                             placeholder="seu@email.com"
                             autocomplete="email"
                             required

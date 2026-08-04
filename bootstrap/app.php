@@ -27,6 +27,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'permission' => \App\Http\Middleware\CheckPermission::class,
             'unidade' => \App\Http\Middleware\EnsureUnidadeSelected::class,
             'plano' => \App\Http\Middleware\CheckPlano::class,
+            'suspensao' => \App\Http\Middleware\CheckSuspensao::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

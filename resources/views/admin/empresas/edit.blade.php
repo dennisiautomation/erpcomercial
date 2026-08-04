@@ -352,6 +352,109 @@
                 </div>
             </div>
 
+            {{-- Cobrança direta (cliente paga a IA365 sem gateway) --}}
+            @if(auth()->user()->podeVerFinanceiro())
+            <div class="card section-card shadow-sm mb-4">
+                <div class="card-header d-flex align-items-center justify-content-between">
+                    <div>
+                        <i class="bi bi-cash-coin me-2"></i>
+                        <strong>Cobrança direta</strong> — cliente paga direto à IA365 (sem gateway)
+                    </div>
+                    @if($empresa->estaSuspensa())
+                        <span class="badge bg-danger"><i class="bi bi-lock-fill me-1"></i>ACESSO SUSPENSO</span>
+                    @elseif($empresa->temCobrancaDireta())
+                        <span class="badge bg-success">Ativa</span>
+                    @endif
+                </div>
+                <div class="card-body">
+                    @php $periodicidade = old('cobranca_periodicidade', $empresa->cobranca_periodicidade); @endphp
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <label class="form-label">Periodicidade</label>
+                            <select name="cobranca_periodicidade" id="cobranca_periodicidade" class="form-select">
+                                <option value="">— sem cobrança direta —</option>
+                                <option value="mensal" {{ $periodicidade === 'mensal' ? 'selected' : '' }}>Mensal</option>
+                                <option value="anual" {{ $periodicidade === 'anual' ? 'selected' : '' }}>Anual</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3 cobranca-campo" data-quando="mensal anual">
+                            <label class="form-label">Valor (R$)</label>
+                            <input type="number" step="0.01" min="0" name="cobranca_valor"
+                                   class="form-control @error('cobranca_valor') is-invalid @enderror"
+                                   value="{{ old('cobranca_valor', $empresa->cobranca_valor) }}" placeholder="0,00">
+                            @error('cobranca_valor')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                        </div>
+                        <div class="col-md-3 cobranca-campo" data-quando="mensal">
+                            <label class="form-label">Dia do vencimento</label>
+                            <input type="number" min="1" max="28" name="cobranca_dia_vencimento"
+                                   class="form-control @error('cobranca_dia_vencimento') is-invalid @enderror"
+                                   value="{{ old('cobranca_dia_vencimento', $empresa->cobranca_dia_vencimento) }}" placeholder="ex.: 10">
+                            @error('cobranca_dia_vencimento')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                        </div>
+                        <div class="col-md-3 cobranca-campo" data-quando="anual">
+                            <label class="form-label">Próxima renovação</label>
+                            <input type="date" name="cobranca_proxima_renovacao"
+                                   class="form-control @error('cobranca_proxima_renovacao') is-invalid @enderror"
+                                   value="{{ old('cobranca_proxima_renovacao', $empresa->cobranca_proxima_renovacao?->format('Y-m-d')) }}">
+                            @error('cobranca_proxima_renovacao')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mt-1 cobranca-campo" data-quando="mensal anual">
+                        <div class="col-md-4">
+                            <label class="form-label">Geração da fatura</label>
+                            @php $geracao = old('cobranca_geracao', $empresa->cobranca_geracao ?? 'automatica'); @endphp
+                            <select name="cobranca_geracao" class="form-select">
+                                <option value="automatica" {{ $geracao === 'automatica' ? 'selected' : '' }}>Automática (todo ciclo)</option>
+                                <option value="manual" {{ $geracao === 'manual' ? 'selected' : '' }}>Manual (eu gero quando quiser)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Tolerância após o vencimento</label>
+                            <div class="input-group">
+                                <input type="number" min="0" max="90" name="cobranca_tolerancia_dias"
+                                       class="form-control"
+                                       value="{{ old('cobranca_tolerancia_dias', $empresa->cobranca_tolerancia_dias ?? 5) }}">
+                                <span class="input-group-text">dias</span>
+                            </div>
+                        </div>
+                        <div class="col-md-4 d-flex align-items-end">
+                            <div class="form-check form-switch mb-2">
+                                <input type="hidden" name="cobranca_bloqueio_automatico" value="0">
+                                <input class="form-check-input" type="checkbox" role="switch" value="1"
+                                       name="cobranca_bloqueio_automatico" id="cobranca_bloqueio"
+                                       {{ old('cobranca_bloqueio_automatico', $empresa->cobranca_bloqueio_automatico) ? 'checked' : '' }}>
+                                <label class="form-check-label" for="cobranca_bloqueio">
+                                    <strong>Bloquear automaticamente</strong> se não marcar como paga
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <small class="text-muted d-block mt-3">
+                        <i class="bi bi-info-circle me-1"></i>
+                        Com a cobrança direta ativa, o acesso da empresa passa a depender das faturas daqui
+                        (o trial deixa de contar). O bloqueio derruba <strong>todo</strong> o acesso da empresa
+                        e reativa na hora em que você marca a fatura como paga.
+                        Faturas e pagamentos ficam em <a href="{{ route('admin.financeiro.index', ['empresa_id' => $empresa->id]) }}">Financeiro</a>.
+                    </small>
+                </div>
+            </div>
+            <script>
+                (function () {
+                    const sel = document.getElementById('cobranca_periodicidade');
+                    const campos = document.querySelectorAll('.cobranca-campo');
+                    function atualiza() {
+                        campos.forEach(c => {
+                            c.style.display = (sel.value && c.dataset.quando.includes(sel.value)) ? '' : 'none';
+                        });
+                    }
+                    sel.addEventListener('change', atualiza);
+                    atualiza();
+                })();
+            </script>
+            @endif
+
             {{-- Multi-loja / política de estoque entre unidades --}}
             @if($empresa->unidades()->count() > 1)
             <div class="card section-card shadow-sm mb-4">

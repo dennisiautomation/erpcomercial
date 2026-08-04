@@ -52,6 +52,8 @@
 
         .login-alert { background:rgba(239,68,68,0.12); border:1px solid rgba(239,68,68,0.25); border-radius:0.75rem; padding:0.75rem 1rem; margin-bottom:1.25rem; animation:slideDown 0.3s ease-out; }
         .login-alert .alert-text { color:#fca5a5; font-size:0.85rem; margin:0; display:flex; align-items:center; gap:0.5rem; }
+        .success-alert { background:rgba(34,197,94,0.12); border:1px solid rgba(34,197,94,0.25); }
+        .success-alert .alert-text { color:#86efac; }
 
         .form-group { margin-bottom:1.25rem; }
         .form-group label { display:block; font-size:0.8rem; font-weight:600; color:#cbd5e1; margin-bottom:0.5rem; text-transform:uppercase; letter-spacing:0.05em; }
@@ -98,6 +100,15 @@
                     <p class="alert-text">
                         <i class="bi bi-exclamation-circle"></i>
                         {{ $errors->first() }}
+                    </p>
+                </div>
+            @endif
+
+            @if(session('success'))
+                <div class="login-alert success-alert">
+                    <p class="alert-text">
+                        <i class="bi bi-check-circle"></i>
+                        {{ session('success') }}
                     </p>
                 </div>
             @endif

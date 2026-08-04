@@ -4,10 +4,12 @@ namespace App\Http\Controllers\App;
 
 use App\Enums\Perfil;
 use App\Http\Controllers\Controller;
+use App\Mail\BoasVindasUsuario;
 use App\Models\Unidade;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 
@@ -97,8 +99,10 @@ class FuncionarioController extends Controller
             $user->unidades()->sync($validated['unidades']);
         }
 
+        Mail::to($user->email)->queue(new BoasVindasUsuario($user, 'funcionario'));
+
         return redirect()->route('app.funcionarios.index')
-            ->with('success', 'Funcionário cadastrado com sucesso!');
+            ->with('success', 'Funcionário cadastrado com sucesso! E-mail de boas-vindas enviado.');
     }
 
     public function show(User $funcionario)

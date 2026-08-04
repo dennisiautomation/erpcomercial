@@ -34,6 +34,7 @@
     <div class="nav__cta">
       <a class="btn btn-ghost" href="#demo">Falar com a gente</a>
       <a class="btn btn-primary" href="#demo">Agendar demonstração</a>
+      <a class="btn btn-ghost nav__login" href="{{ route('login') }}">Entrar&nbsp;→</a>
     </div>
   </div>
 </header>

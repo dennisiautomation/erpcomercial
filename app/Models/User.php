@@ -31,6 +31,7 @@ class User extends Authenticatable
         'comissao_percentual',
         'status',
         'is_admin',
+        'pode_ver_financeiro',
     ];
 
     protected $hidden = [
@@ -45,8 +46,18 @@ class User extends Authenticatable
             'password' => 'hashed',
             'perfil' => Perfil::class,
             'is_admin' => 'boolean',
+            'pode_ver_financeiro' => 'boolean',
             'comissao_percentual' => 'decimal:2',
         ];
+    }
+
+    /**
+     * Admin da IA365 com permissão para ver valores financeiros da
+     * plataforma (faturas, receita, preços de contrato).
+     */
+    public function podeVerFinanceiro(): bool
+    {
+        return $this->is_admin && $this->pode_ver_financeiro;
     }
 
     /* ------------------------------------------------------------------ */

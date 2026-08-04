@@ -4,11 +4,13 @@ namespace App\Http\Controllers\Admin;
 
 use App\Enums\Perfil;
 use App\Http\Controllers\Controller;
+use App\Mail\BoasVindasUsuario;
 use App\Models\Empresa;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\View\View;
 
@@ -67,17 +69,30 @@ class UsuarioController extends Controller
             'perfil'              => ['required', 'string'],
             'comissao_percentual' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'is_admin'            => ['boolean'],
+            'pode_ver_financeiro' => ['boolean'],
             'status'              => ['required', 'string'],
         ]);
 
         $validated['password'] = Hash::make($validated['password']);
         $validated['is_admin'] = $request->boolean('is_admin');
+        // Flag financeira: só admin carrega, e só quem VÊ o financeiro concede/revoga
+        if ($request->user()->podeVerFinanceiro()) {
+            $validated['pode_ver_financeiro'] = $validated['is_admin'] && $request->boolean('pode_ver_financeiro');
+        } else {
+            unset($validated['pode_ver_financeiro']);
+        }
 
         $usuario = User::create($validated);
 
+        // Boas-vindas: admin da plataforma = 'equipe'; usuário de empresa = por perfil
+        $contexto = $usuario->is_admin
+            ? 'equipe'
+            : ($usuario->perfil === Perfil::Dono ? 'dono' : 'funcionario');
+        Mail::to($usuario->email)->queue(new BoasVindasUsuario($usuario, $contexto));
+
         return redirect()
             ->route('admin.usuarios.show', $usuario)
-            ->with('success', 'Usuario cadastrado com sucesso.');
+            ->with('success', 'Usuario cadastrado com sucesso. E-mail de boas-vindas enviado.');
     }
 
     public function show(Request $request, User $usuario): View
@@ -113,6 +128,7 @@ class UsuarioController extends Controller
             'perfil'              => ['required', 'string'],
             'comissao_percentual' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'is_admin'            => ['boolean'],
+            'pode_ver_financeiro' => ['boolean'],
             'status'              => ['required', 'string'],
         ]);
 
@@ -123,6 +139,12 @@ class UsuarioController extends Controller
         }
 
         $validated['is_admin'] = $request->boolean('is_admin');
+        // Flag financeira: só admin carrega, e só quem VÊ o financeiro concede/revoga
+        if ($request->user()->podeVerFinanceiro()) {
+            $validated['pode_ver_financeiro'] = $validated['is_admin'] && $request->boolean('pode_ver_financeiro');
+        } else {
+            unset($validated['pode_ver_financeiro']);
+        }
 
         $usuario->update($validated);
 

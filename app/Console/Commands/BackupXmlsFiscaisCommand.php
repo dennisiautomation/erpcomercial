@@ -30,7 +30,10 @@ class BackupXmlsFiscaisCommand extends Command
 
     protected $description = 'Solicita e baixa backups mensais de XMLs fiscais da Focus NFe';
 
-    public function handle(BackupXmlService $service): int
+    // NUNCA injetar BackupXmlService aqui: o container tenta resolver
+    // FocusNFeClient sem token e explode (armadilha 13) ANTES do handle —
+    // o backup falhou todas as noites de 29/05 a 04/08 por isso.
+    public function handle(): int
     {
         $mes = $this->option('mes') ?: $this->mesPadrao();
         $unidadeId = $this->option('unidade');

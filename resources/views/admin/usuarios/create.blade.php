@@ -147,6 +147,22 @@
                                {{ old('is_admin') ? 'checked' : '' }}>
                         <label class="form-check-label" for="is_admin">Acesso administrativo a plataforma</label>
                     </div>
+                    @if(auth()->user()->podeVerFinanceiro())
+                    <div class="form-check form-switch mt-1 {{ old('is_admin') ? '' : 'd-none' }}" id="wrap_pode_ver_financeiro">
+                        <input type="hidden" name="pode_ver_financeiro" value="0">
+                        <input class="form-check-input" type="checkbox" id="pode_ver_financeiro" name="pode_ver_financeiro" value="1"
+                               {{ old('pode_ver_financeiro') ? 'checked' : '' }}>
+                        <label class="form-check-label" for="pode_ver_financeiro">
+                            Pode ver <strong>valores financeiros</strong> (faturas, receita, contratos)
+                        </label>
+                    </div>
+                    <script>
+                        document.getElementById('is_admin').addEventListener('change', function () {
+                            document.getElementById('wrap_pode_ver_financeiro').classList.toggle('d-none', !this.checked);
+                            if (!this.checked) document.getElementById('pode_ver_financeiro').checked = false;
+                        });
+                    </script>
+                    @endif
                     @error('is_admin')
                         <div class="text-danger small">{{ $message }}</div>
                     @enderror

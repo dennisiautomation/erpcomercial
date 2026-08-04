@@ -73,3 +73,12 @@ Schedule::command('fiscal:alertar-certificado')
     ->dailyAt('08:00')
     ->name('alertar-certificado-vencendo')
     ->withoutOverlapping();
+
+// ──────────────────────────────────────────────────────────────────
+// Cobrança direta da plataforma (IA365 → clientes) — diário às 6h:
+// gera faturas do ciclo, avisa vencimentos e aplica bloqueio.
+// ──────────────────────────────────────────────────────────────────
+Schedule::command('plataforma:processar-cobrancas')
+    ->dailyAt('06:00')
+    ->name('processar-cobrancas-plataforma')
+    ->withoutOverlapping();

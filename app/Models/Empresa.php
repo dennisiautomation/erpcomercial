@@ -45,6 +45,14 @@ class Empresa extends Model
         'cortesia_concedida_em',
         'cortesia_revisar_em',
         'cortesia_concedida_por',
+        'cobranca_periodicidade',
+        'cobranca_valor',
+        'cobranca_dia_vencimento',
+        'cobranca_proxima_renovacao',
+        'cobranca_geracao',
+        'cobranca_bloqueio_automatico',
+        'cobranca_tolerancia_dias',
+        'cobranca_suspensa_em',
         'em_trial',
         'status',
         'observacoes',
@@ -63,6 +71,10 @@ class Empresa extends Model
             'assinatura_inicio' => 'date',
             'assinatura_fim'    => 'date',
             'em_trial'          => 'boolean',
+            'cobranca_valor'                => 'decimal:2',
+            'cobranca_proxima_renovacao'    => 'date',
+            'cobranca_bloqueio_automatico'  => 'boolean',
+            'cobranca_suspensa_em'          => 'datetime',
         ];
     }
 
@@ -142,11 +154,18 @@ class Empresa extends Model
     /**
      * Check if the empresa has an active subscription (paid or trial).
      *
-     * Empresas em regime cortesia/parceiro/pos_pago são sempre ativas —
-     * IA365 não cobra ou cobra fora do sistema.
+     * Prioridade:
+     * 1. Cobrança direta configurada (mensal/anual, pagamento direto à IA365):
+     *    quem manda são as faturas — ativa enquanto não suspensa.
+     * 2. Regime cortesia/parceiro/pos_pago: sempre ativa.
+     * 3. Trial / assinatura (fluxo original).
      */
     public function isAssinaturaAtiva(): bool
     {
+        if ($this->temCobrancaDireta()) {
+            return $this->cobranca_suspensa_em === null;
+        }
+
         if ($this->regime_cobranca && $this->regime_cobranca->ehGratuito()) {
             return true;
         }
@@ -156,6 +175,24 @@ class Empresa extends Model
         }
 
         return $this->assinatura_fim && $this->assinatura_fim->gte(Carbon::today());
+    }
+
+    /** Cobrança direta (sem gateway) configurada pelo admin da IA365? */
+    public function temCobrancaDireta(): bool
+    {
+        return $this->cobranca_periodicidade !== null && $this->cobranca_valor !== null;
+    }
+
+    /** Acesso suspenso por pendência financeira da plataforma? */
+    public function estaSuspensa(): bool
+    {
+        return $this->cobranca_suspensa_em !== null;
+    }
+
+    /** Faturas da plataforma (IA365 → esta empresa). */
+    public function plataformaFaturas(): HasMany
+    {
+        return $this->hasMany(PlataformaFatura::class)->orderByDesc('vencimento');
     }
 
     /** True se IA365 não cobra essa empresa (cortesia/parceiro/pós-pago). */

@@ -6,6 +6,7 @@ use App\Enums\Perfil;
 use App\Enums\RegimeTributario;
 use App\Enums\StatusEmpresa;
 use App\Http\Controllers\Controller;
+use App\Mail\BoasVindasUsuario;
 use App\Models\ConfiguracaoFiscal;
 use App\Models\Empresa;
 use App\Models\Plano;
@@ -18,6 +19,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\View\View;
 
 class OnboardingController extends Controller
@@ -174,7 +176,7 @@ class OnboardingController extends Controller
             'telefone' => ['nullable', 'string', 'max:20'],
         ]);
 
-        DB::transaction(function () use ($validated, $empresaId) {
+        $user = DB::transaction(function () use ($validated, $empresaId) {
             $user = User::withoutGlobalScopes()->create([
                 'name'       => $validated['name'],
                 'email'      => $validated['email'],
@@ -192,7 +194,12 @@ class OnboardingController extends Controller
                 ->pluck('id');
 
             $user->unidades()->sync($unidadeIds);
+
+            return $user;
         });
+
+        // Boas-vindas ao dono (fora da transaction — só dispara se o commit passou)
+        Mail::to($user->email)->queue(new BoasVindasUsuario($user, 'dono'));
 
         return redirect()->route('admin.onboarding.step4');
     }

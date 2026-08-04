@@ -20,6 +20,9 @@ Route::post('/agendar-demonstracao', [\App\Http\Controllers\SiteController::clas
 /*  Auth                                                               */
 /* ------------------------------------------------------------------ */
 
+// /app sem sub-rota caía em 404 — manda para o dashboard (auth redireciona p/ login)
+Route::redirect('/app', '/app/dashboard');
+
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
@@ -33,6 +36,19 @@ Route::post('/reset-senha', [\App\Http\Controllers\Auth\PasswordResetController:
 /* ------------------------------------------------------------------ */
 /*  Selecao de Unidade (pos-login, pre-sistema)                       */
 /* ------------------------------------------------------------------ */
+
+/* ------ Acesso suspenso (pendência financeira da plataforma) ------ */
+Route::middleware('auth')->get('/acesso-suspenso', function () {
+    $empresa = auth()->user()->empresa;
+
+    if (! $empresa || ! $empresa->estaSuspensa() || auth()->user()->is_admin) {
+        return redirect('/app/dashboard');
+    }
+
+    $faturas = $empresa->plataformaFaturas()->pendentes()->orderBy('vencimento')->get();
+
+    return view('auth.acesso-suspenso', compact('empresa', 'faturas'));
+})->name('acesso-suspenso');
 
 Route::middleware('auth')->group(function () {
     Route::get('/selecionar-unidade', [UnidadeSelecaoController::class, 'index'])
@@ -60,6 +76,16 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
     Route::resource('usuarios', Admin\UsuarioController::class);
     Route::resource('planos', Admin\PlanoController::class)->except(['show']);
 
+    // Financeiro da plataforma (cobrança direta — só admins com pode_ver_financeiro)
+    Route::prefix('financeiro')->name('financeiro.')->group(function () {
+        Route::get('/', [Admin\FinanceiroPlataformaController::class, 'index'])->name('index');
+        Route::post('/faturas', [Admin\FinanceiroPlataformaController::class, 'store'])->name('faturas.store');
+        Route::post('/faturas/{fatura}/pagar', [Admin\FinanceiroPlataformaController::class, 'marcarPaga'])->name('faturas.pagar');
+        Route::post('/faturas/{fatura}/cancelar', [Admin\FinanceiroPlataformaController::class, 'cancelar'])->name('faturas.cancelar');
+        Route::post('/empresas/{empresa}/suspender', [Admin\FinanceiroPlataformaController::class, 'suspender'])->name('empresas.suspender');
+        Route::post('/empresas/{empresa}/reativar', [Admin\FinanceiroPlataformaController::class, 'reativar'])->name('empresas.reativar');
+    });
+
     // Leads de demonstração (capturados pela landing pública)
     Route::get('/demonstracoes', [Admin\DemonstracaoController::class, 'index'])->name('demonstracoes.index');
     Route::patch('/demonstracoes/{demonstracao}', [Admin\DemonstracaoController::class, 'updateStatus'])->name('demonstracoes.status');
@@ -82,7 +108,7 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
 /*  App (usuarios empresa, unidade selecionada)                       */
 /* ------------------------------------------------------------------ */
 
-Route::middleware(['auth', 'unidade'])->prefix('app')->name('app.')->group(function () {
+Route::middleware(['auth', 'suspensao', 'unidade'])->prefix('app')->name('app.')->group(function () {
 
     Route::get('/dashboard', [App\DashboardController::class, 'index'])->name('dashboard');
 

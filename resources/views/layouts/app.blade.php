@@ -666,6 +666,15 @@
                             <span class="nav-text">Planos</span>
                         </a>
                     </li>
+                    @if(auth()->user()->podeVerFinanceiro())
+                    <li class="nav-item">
+                        <a class="nav-link {{ request()->routeIs('admin.financeiro.*') ? 'active' : '' }}"
+                           href="{{ route('admin.financeiro.index') }}">
+                            <i class="bi bi-cash-coin nav-icon"></i>
+                            <span class="nav-text">Financeiro</span>
+                        </a>
+                    </li>
+                    @endif
                     <li class="nav-item">
                         <a class="nav-link {{ request()->routeIs('admin.demonstracoes.*') ? 'active' : '' }}"
                            href="{{ route('admin.demonstracoes.index') }}">

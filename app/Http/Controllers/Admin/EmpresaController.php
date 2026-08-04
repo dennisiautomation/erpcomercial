@@ -177,6 +177,38 @@ class EmpresaController extends Controller
             'observacoes'       => ['nullable', 'string'],
         ]);
 
+        // Cobrança direta (só admins com acesso ao financeiro alteram)
+        if ($request->user()->podeVerFinanceiro()) {
+            $cobranca = $request->validate([
+                'cobranca_periodicidade'        => ['nullable', 'in:mensal,anual'],
+                'cobranca_valor'                => ['nullable', 'numeric', 'min:0', 'required_with:cobranca_periodicidade'],
+                'cobranca_dia_vencimento'       => ['nullable', 'integer', 'between:1,28', 'required_if:cobranca_periodicidade,mensal'],
+                'cobranca_proxima_renovacao'    => ['nullable', 'date', 'required_if:cobranca_periodicidade,anual'],
+                'cobranca_geracao'              => ['nullable', 'in:automatica,manual'],
+                'cobranca_bloqueio_automatico'  => ['nullable', 'boolean'],
+                'cobranca_tolerancia_dias'      => ['nullable', 'integer', 'between:0,90'],
+            ]);
+
+            // Sem periodicidade = cobrança direta desligada (limpa tudo, inclusive suspensão)
+            if (empty($cobranca['cobranca_periodicidade'])) {
+                $cobranca = [
+                    'cobranca_periodicidade'       => null,
+                    'cobranca_valor'               => null,
+                    'cobranca_dia_vencimento'      => null,
+                    'cobranca_proxima_renovacao'   => null,
+                    'cobranca_bloqueio_automatico' => false,
+                ];
+                if ($empresa->estaSuspensa()) {
+                    $empresa->cobranca_suspensa_em = null;
+                }
+            } else {
+                $cobranca['cobranca_bloqueio_automatico'] = $request->boolean('cobranca_bloqueio_automatico');
+                $cobranca['cobranca_geracao'] = $cobranca['cobranca_geracao'] ?? 'automatica';
+            }
+
+            $validated = array_merge($validated, $cobranca);
+        }
+
         // Auditar quem concedeu a cortesia
         if (! empty($validated['regime_cobranca'])
             && $validated['regime_cobranca'] !== 'padrao'

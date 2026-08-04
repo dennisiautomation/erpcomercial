@@ -2,7 +2,7 @@
 
 > SaaS ERP multi-tenant para PMEs. Admin (IA365) gerencia a plataforma; cada empresa-cliente tem múltiplas unidades com fiscal, estoque e caixa independentes. Integração 100% Focus NFe (NF-e, NFC-e, NFS-e, CC-e, manifestação do destinatário, backup XMLs).
 
-**Última revisão:** 2026-07-26 (tarde: planilhas .xlsx + correções fiscais do teste ao vivo) · **Estado:** integração fiscal Fase 1-4 + multi-loja + regime de cobrança + auto-sync Focus + UX config fiscal + caixa por forma de pagamento (14/07) + Configurações da Loja/tabelas de preço/emissão parametrizada/adquirentes (24/07) + **Reforma Tributária NT 2025.002 (obrigatório 03/08/2026) + CNPJ alfanumérico NT 2025.001 (25/07)** — concluídos
+**Última revisão:** 2026-08-04 (e-mails transacionais + financeiro da plataforma/cobrança direta + equipe IA365) · **Estado:** integração fiscal Fase 1-4 + multi-loja + regime de cobrança + auto-sync Focus + UX config fiscal + caixa por forma de pagamento (14/07) + Configurações da Loja/tabelas de preço/emissão parametrizada/adquirentes (24/07) + **Reforma Tributária NT 2025.002 (obrigatório 03/08/2026) + CNPJ alfanumérico NT 2025.001 (25/07)** + **e-mails/no-reply + cobrança direta mensal/anual com bloqueio + pode_ver_financeiro (04/08)** — concluídos
 
 ---
 
@@ -858,6 +858,80 @@ código de barras de 13 mm e código do produto visível.
 
 ---
 
+## E-mails transacionais + Financeiro da plataforma + Equipe IA365 (04/08/2026)
+
+> Branch `feat/financeiro-plataforma-emails`. Pedido do Dennis: botão de login na home,
+> e-mails de cadastro/recuperação, cobrança direta (cliente paga a IA365 sem gateway,
+> mensal ou anual, com bloqueio) e admins IA365 com/sem acesso a valores.
+
+### E-mails (remetente `no-reply@iautomation.com.br`)
+
+- SMTP: `smtp.hostinger.com:465` SSL (mesmo host de antes; remetente trocado de
+  dennis.canteli@ para no-reply@ no `.env` — lembrar `docker cp` + restart).
+- **`App\Mail\BoasVindasUsuario`** (fila): disparado em TODO cadastro de usuário —
+  contexto `dono` (onboarding step3), `funcionario` (FuncionarioController e
+  Admin\UsuarioController p/ usuário de empresa) e `equipe` (admin IA365).
+  **A senha nunca vai no e-mail** — quem cadastra define a senha (decisão do Dennis);
+  o e-mail orienta trocar via "Esqueci minha senha".
+- **`App\Mail\RedefinirSenha`** (fila): link com token válido por **60 min**
+  (`PasswordResetController`). ⚠️ **Brecha fechada**: antes o "reset" NÃO enviava
+  e-mail — mostrava o link de troca NA TELA para qualquer um que digitasse o e-mail
+  (tomada de conta trivial). Agora resposta neutra ("se o e-mail existir...").
+- Templates em `resources/views/emails/` (`layout` + `boas-vindas` + `redefinir-senha`),
+  inline CSS, tabela — compatível Gmail/Outlook.
+
+### Home / landing
+
+- Botão **"Entrar"** no nav da landing (`.nav__login`, visível também no mobile) → `/login`.
+- `GET /app` redireciona para `/app/dashboard` (dava 404 seco).
+
+### Cobrança direta (financeiro da plataforma — sem gateway)
+
+- **Campos na `empresas`**: `cobranca_periodicidade` (mensal|anual, null = desligada),
+  `cobranca_valor`, `cobranca_dia_vencimento` (mensal, 1-28),
+  `cobranca_proxima_renovacao` (anual), `cobranca_geracao` (automatica|manual),
+  `cobranca_bloqueio_automatico`, `cobranca_tolerancia_dias` (default 5),
+  `cobranca_suspensa_em`.
+- **`plataforma_faturas`**: competência (`YYYY-MM` mensal / `YYYY` anual), valor,
+  vencimento, status (pendente|paga|cancelada), pago_em, forma, marcada_por.
+  NÃO confundir com contas_receber (financeiro interno das empresas).
+- **`plataforma:processar-cobrancas`** (diário 06h): gera fatura do ciclo (mensal:
+  competência do mês; anual: 30 dias antes da renovação — só geração `automatica`),
+  avisa o dono no sino (vence ≤3 dias / em atraso, dedup por não-lida) e **SUSPENDE**
+  a empresa quando fatura pendente passa de vencimento+tolerância com bloqueio ligado.
+- **Bloqueio TOTAL** (decisão do Dennis): middleware `suspensao` no grupo `/app` —
+  todos os usuários da empresa caem em `/acesso-suspenso` (tela dark com pendências
+  visíveis só para o perfil dono). Admin IA365 nunca bloqueia. Marcar a fatura como
+  paga reativa na hora (anual também avança `cobranca_proxima_renovacao` +1 ano).
+- **Prioridade em `isAssinaturaAtiva()`**: cobrança direta configurada > regime
+  gratuito (cortesia/parceiro/pos_pago) > trial/assinatura. Ou seja: com cobrança
+  direta ativa o trial deixa de contar.
+- **UI**: card "Cobrança direta" em `/admin/empresas/{id}/edit` (só admins com
+  `pode_ver_financeiro`) + tela `/admin/financeiro` (cards a receber/em atraso/
+  recebido/MRR, contratos, faturas com filtros, gerar fatura manual, marcar paga,
+  cancelar, suspender/reativar manual).
+
+### Equipe IA365 — `users.pode_ver_financeiro`
+
+- Flag booleana (só faz sentido com `is_admin`); migration deu a flag aos admins
+  existentes. `User::podeVerFinanceiro()` = is_admin && flag.
+- Sem a flag: menu Financeiro some, card Cobrança direta some, rotas do financeiro
+  dão 403 e o update da empresa ignora os campos `cobranca_*`.
+- Só quem TEM a flag concede/revoga a flag de outro admin.
+- **Fix de segurança no deploy**: `comercial@ebgestaoevendas.com.br` (user 3) tinha
+  `is_admin=1` + `empresa_id NULL` — enxergava TODAS as empresas (o EmpresaScope só
+  filtra quando `empresa_id` não é null). Rebaixado a dono da empresa 2 (EB Gestão).
+
+### Bugfix junto
+
+- **`fiscal:backup-xmls` falhava TODA noite desde 29/05/2026** (68 execuções, zero
+  backups): `handle(BackupXmlService $service)` fazia o container resolver
+  `FocusNFeClient` sem token → `BindingResolutionException` antes do handle
+  (armadilha 13 na assinatura de um Command). Parâmetro removido — o método já
+  instanciava o service por unidade.
+
+---
+
 ## Armadilhas conhecidas
 
 1. **EmpresaScope recursão**: `auth()->user()` dentro do scope chama User model que tem o scope → loop infinito. Scopes têm flag `static $applying`. Não remover.
@@ -918,6 +992,16 @@ código de barras de 13 mm e código do produto visível.
     `xml_url_completa` do model (resolvem o host pelo ambiente), nunca redirect direto.
 30. **A Focus controla número e série da NFC-e/NF-e** — os campos `serie_*` do ERP são registro
     local. Migração de sistema exige série nova ou reinício de numeração pedido à Focus.
+31. **NUNCA injetar service Focus na assinatura de `handle()` de Command** — o container tenta
+    resolver `FocusNFeClient` sem token e explode ANTES do handle (o backup de XMLs ficou 68
+    noites quebrado por isso). Instanciar dentro do método com `FocusNFeClient::fromConfig()`.
+32. **Todo cadastro de usuário dispara `BoasVindasUsuario` (fila)** — ao criar novo fluxo de
+    criação de User, disparar o Mailable com o contexto certo (dono/funcionario/equipe).
+    Senha NUNCA vai por e-mail.
+33. **Valores da plataforma só com `podeVerFinanceiro()`** — telas/menus/rotas que exibem
+    faturas, contratos ou receita da IA365 precisam do guard (não basta `is_admin`).
+    A ordem dos middlewares do grupo `/app` é `auth → suspensao → unidade` — não mover o
+    `suspensao` para depois de rotas que consultam a empresa.
 
 ---
 
