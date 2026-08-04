@@ -888,7 +888,9 @@ código de barras de 13 mm e código do produto visível.
 
 ### Home / landing
 
-- Botão **"Entrar"** no nav da landing (`.nav__login`, visível também no mobile) → `/login`.
+- **"Entrar"** no nav da landing → `/login`: **link discreto** (`.nav__login`), não botão —
+  3 botões estouravam o nav em duas linhas ("ficou grotesco", Dennis 04/08). Visível no
+  mobile; botões do nav com `white-space: nowrap`.
 - `GET /app` redireciona para `/app/dashboard` (dava 404 seco).
 
 ### Cobrança direta (financeiro da plataforma — sem gateway)
