@@ -208,6 +208,8 @@ class EmpresaController extends Controller
             } else {
                 $cobranca['cobranca_bloqueio_automatico'] = $request->boolean('cobranca_bloqueio_automatico');
                 $cobranca['cobranca_geracao'] = $cobranca['cobranca_geracao'] ?? 'automatica';
+                // Licença contratada = fim do período de avaliação (banner some)
+                $cobranca['em_trial'] = false;
             }
 
             $validated = array_merge($validated, $cobranca);

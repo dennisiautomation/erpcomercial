@@ -914,6 +914,10 @@ código de barras de 13 mm e código do produto visível.
 - **Prioridade em `isAssinaturaAtiva()`**: cobrança direta configurada > regime
   gratuito (cortesia/parceiro/pos_pago) > trial/assinatura. Ou seja: com cobrança
   direta ativa o trial deixa de contar.
+- **Trial encerra ao contratar**: salvar cobrança direta zera `em_trial` (update do
+  EmpresaController) e o banner "Período de avaliação" também checa
+  `temCobrancaDireta()`/`ehGratuita()` — cliente com licença anual via banner de
+  "4 dias restantes" (caso STILO VINTE, 04/08).
 - **UI**: card "Cobrança direta" em `/admin/empresas/{id}/edit` (só admins com
   `pode_ver_financeiro`) + tela `/admin/financeiro` (cards a receber/em atraso/
   recebido/MRR, contratos, faturas com filtros, gerar fatura manual, marcar paga,
