@@ -80,6 +80,16 @@ class NotaFiscal extends Model
                 \App\Jobs\EnviarEmailNotaFiscalJob::dispatch($nota->id, $email);
             }
         });
+
+        // Toda nota com chave+XML ganha cópia local automática (guarda de
+        // 5 anos sem depender da Focus). Delay: a Focus disponibiliza o
+        // arquivo alguns segundos após autorizar/cancelar.
+        static::saved(function (NotaFiscal $nota) {
+            if ($nota->chave_acesso && $nota->xml_url
+                && ($nota->wasRecentlyCreated || $nota->wasChanged(['status', 'xml_url', 'chave_acesso']))) {
+                \App\Jobs\BaixarXmlNotaJob::dispatch($nota->id)->delay(now()->addSeconds(15));
+            }
+        });
     }
 
     /* ------------------------------------------------------------------ */
@@ -116,6 +126,61 @@ class NotaFiscal extends Model
     public function getXmlUrlCompletaAttribute(): ?string
     {
         return $this->urlArquivoFocus($this->xml_url);
+    }
+
+    /* ------------------------------------------------------------------ */
+    /*  Cópia local do XML (guarda fiscal independente da Focus)           */
+    /* ------------------------------------------------------------------ */
+
+    /** Caminho (disk local) da cópia do XML desta nota. */
+    public function caminhoXmlLocal(): ?string
+    {
+        if (! $this->chave_acesso) {
+            return null;
+        }
+
+        return 'fiscal/xmls/' . $this->empresa_id . '/' . $this->chave_acesso . '.xml';
+    }
+
+    public function temXmlLocal(): bool
+    {
+        $caminho = $this->caminhoXmlLocal();
+
+        return $caminho && \Illuminate\Support\Facades\Storage::exists($caminho);
+    }
+
+    /**
+     * Baixa o XML da Focus para o storage local (idempotente).
+     * True = cópia garantida (baixou agora ou já existia).
+     */
+    public function salvarXmlLocal(): bool
+    {
+        $caminho = $this->caminhoXmlLocal();
+
+        if (! $caminho || ! $this->xml_url) {
+            return false;
+        }
+
+        if (\Illuminate\Support\Facades\Storage::exists($caminho)) {
+            return true;
+        }
+
+        try {
+            $resp = \Illuminate\Support\Facades\Http::timeout(20)->get($this->xml_url_completa);
+
+            if ($resp->successful() && str_contains($resp->body(), '<')) {
+                \Illuminate\Support\Facades\Storage::put($caminho, $resp->body());
+
+                return true;
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('[XmlLocal] falha ao baixar XML', [
+                'nota_id' => $this->id,
+                'erro'    => $e->getMessage(),
+            ]);
+        }
+
+        return false;
     }
 
     public function empresa(): BelongsTo

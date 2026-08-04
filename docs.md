@@ -936,6 +936,25 @@ código de barras de 13 mm e código do produto visível.
   (armadilha 13 na assinatura de um Command). Parâmetro removido — o método já
   instanciava o service por unidade.
 
+### Cópia local dos XMLs por nota (04/08 tarde)
+
+> Contexto: o XML mora na Focus (ela monta/assina/transmite; o ERP guarda chave +
+> link). O pacote mensal (`fiscal:backup-xmls`) é assíncrono no ritmo da Focus.
+> Pedido do Dennis: o cliente precisa de acesso fácil e cópia nossa.
+
+- **Hook `saved` no model NotaFiscal**: nota com chave+XML (autorizada, cancelada,
+  mudança de status) dispara `BaixarXmlNotaJob` (delay 15s, 4 tentativas com
+  backoff 30s/2min/10min) → salva em `storage/app/private/fiscal/xmls/{empresa_id}/{chave}.xml`
+  (volume `app_storage`, sobrevive a recreate).
+- **`fiscal:baixar-xmls-notas`** (diário 03h30): varredura que garante a cópia de
+  toda nota com chave — backfill + rede de segurança se worker/Focus falharem.
+- **Download do cliente (`/app/notas-fiscais/{id}/xml`) é local-first**: serve a
+  cópia do nosso disco (`Storage::download`); sem cópia, tenta baixar na hora;
+  só em último caso redireciona para a Focus (comportamento antigo).
+- Cópia avulsa fora do app: `/home/ubuntu/erp-backups/xmls-focus/` (3 XMLs de
+  produção baixados à mão em 04/08) + dump diário do MySQL às 02h30
+  (`/home/ubuntu/erp-backups/diario/`, cron do ubuntu, retenção 30 dias).
+
 ---
 
 ## Armadilhas conhecidas

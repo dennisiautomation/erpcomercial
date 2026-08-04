@@ -372,6 +372,16 @@ class NotaFiscalController extends Controller
 
     public function downloadXml(NotaFiscal $notaFiscal)
     {
+        // Cópia local primeiro (não depende da Focus estar de pé);
+        // se ainda não tem, tenta baixar na hora e cai no redirect se falhar.
+        if ($notaFiscal->chave_acesso
+            && ($notaFiscal->temXmlLocal() || $notaFiscal->salvarXmlLocal())) {
+            return \Illuminate\Support\Facades\Storage::download(
+                $notaFiscal->caminhoXmlLocal(),
+                $notaFiscal->chave_acesso . '.xml'
+            );
+        }
+
         if (! $notaFiscal->xml_url) {
             return back()->with('error', 'XML nao disponivel para esta nota.');
         }

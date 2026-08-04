@@ -82,3 +82,12 @@ Schedule::command('plataforma:processar-cobrancas')
     ->dailyAt('06:00')
     ->name('processar-cobrancas-plataforma')
     ->withoutOverlapping();
+
+// ──────────────────────────────────────────────────────────────────
+// Cópia local dos XMLs por nota — diário às 3h30 (rede de segurança;
+// o fluxo normal é o hook saved do model NotaFiscal).
+// ──────────────────────────────────────────────────────────────────
+Schedule::command('fiscal:baixar-xmls-notas')
+    ->dailyAt('03:30')
+    ->name('baixar-xmls-notas')
+    ->withoutOverlapping();
