@@ -1014,6 +1014,14 @@ código de barras de 13 mm e código do produto visível.
 
 ## Próximos passos
 
+- **Financeiro da plataforma (04/08)**: validar o 1º ciclo real — fatura 2026-08 da
+  MISS MERLINDA (R$ 710, vence 20/08) marcada como paga pelo Dennis; ligar o bloqueio
+  automático dela se for a intenção (hoje só avisa). STILO VINTE: gerar a anuidade
+  manualmente perto de 21/07/2027 (geração manual).
+- **E-mails (04/08)**: validar o 1º boas-vindas de cadastro real e o 1º reset de senha
+  de cliente; **trocar a senha da caixa no-reply na Hostinger** (foi exposta em chat)
+  e atualizar o `.env` do container; replicar MAIL_* novos no `/root/erp/.env`
+  (root-owned — faltou sudo na sessão de 04/08; o do container está certo).
 - **Validar em produção (24/07)**: tabelas de preço no PDV com produto piloto; 1º fechamento de
   caixa com conferência completa; 1º pedido faturado com NF-e + e-mail automático.
 - **Reforma Tributária**: emitir 1 NF-e de teste em homologação com os grupos IBS/CBS
