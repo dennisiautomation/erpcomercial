@@ -1028,6 +1028,10 @@ código de barras de 13 mm e código do produto visível.
     faturas, contratos ou receita da IA365 precisam do guard (não basta `is_admin`).
     A ordem dos middlewares do grupo `/app` é `auth → suspensao → unidade` — não mover o
     `suspensao` para depois de rotas que consultam a empresa.
+34. **`docker exec php artisan` roda como ROOT** — comando que escreve em
+    `storage/` (ex.: `fiscal:baixar-xmls-notas`) cria arquivos que o site
+    (www-data) não lê/escreve. Rodar com `-u www-data` ou chown depois.
+    O scheduler/workers já rodam como www-data — só o exec manual morde.
 
 ---
 
