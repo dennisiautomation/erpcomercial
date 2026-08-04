@@ -871,8 +871,14 @@ código de barras de 13 mm e código do produto visível.
 - **`App\Mail\BoasVindasUsuario`** (fila): disparado em TODO cadastro de usuário —
   contexto `dono` (onboarding step3), `funcionario` (FuncionarioController e
   Admin\UsuarioController p/ usuário de empresa) e `equipe` (admin IA365).
-  **A senha nunca vai no e-mail** — quem cadastra define a senha (decisão do Dennis);
-  o e-mail orienta trocar via "Esqueci minha senha".
+  **A senha digitada no cadastro VAI no e-mail** (decisão do Dennis 04/08, revisando
+  a escolha da manhã: "tem que ter a senha, senão como ele acessa") — 3º parâmetro
+  do Mailable; sem senha o template mostra "definida por quem realizou o cadastro".
+- **Reenviar dados de acesso**: card "Acessos do cliente" no fim de
+  `/admin/empresas/{id}/edit` lista os usuários da empresa com botão
+  **Reenviar acesso** (`POST empresas/{id}/reenviar-acesso`): gera **senha nova**
+  (Str::random(10) — a original é hash, irrecuperável), salva e envia o
+  boas-vindas com a senha. `data-confirm` avisa que a senha atual deixa de valer.
 - **`App\Mail\RedefinirSenha`** (fila): link com token válido por **60 min**
   (`PasswordResetController`). ⚠️ **Brecha fechada**: antes o "reset" NÃO enviava
   e-mail — mostrava o link de troca NA TELA para qualquer um que digitasse o e-mail
@@ -996,8 +1002,9 @@ código de barras de 13 mm e código do produto visível.
     resolver `FocusNFeClient` sem token e explode ANTES do handle (o backup de XMLs ficou 68
     noites quebrado por isso). Instanciar dentro do método com `FocusNFeClient::fromConfig()`.
 32. **Todo cadastro de usuário dispara `BoasVindasUsuario` (fila)** — ao criar novo fluxo de
-    criação de User, disparar o Mailable com o contexto certo (dono/funcionario/equipe).
-    Senha NUNCA vai por e-mail.
+    criação de User, disparar o Mailable com o contexto certo (dono/funcionario/equipe)
+    **passando a senha plana como 3º argumento** (decisão do Dennis 04/08: a senha vai no
+    e-mail). Reenvio (tela da empresa) SEMPRE gera senha nova — nunca tentar "recuperar".
 33. **Valores da plataforma só com `podeVerFinanceiro()`** — telas/menus/rotas que exibem
     faturas, contratos ou receita da IA365 precisam do guard (não basta `is_admin`).
     A ordem dos middlewares do grupo `/app` é `auth → suspensao → unidade` — não mover o

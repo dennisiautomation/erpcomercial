@@ -2,15 +2,19 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Enums\Perfil;
 use App\Enums\RegimeTributario;
 use App\Enums\StatusEmpresa;
 use App\Http\Controllers\Controller;
 use App\Jobs\ProvisionarEmpresaFocusJob;
+use App\Mail\BoasVindasUsuario;
 use App\Models\Empresa;
 use App\Models\Plano;
+use App\Models\User;
 use App\Services\FocusNFe\FocusNFeClient;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\View\View;
 
 class EmpresaController extends Controller
@@ -261,6 +265,33 @@ class EmpresaController extends Controller
         return redirect()
             ->route('admin.empresas.show', $empresa)
             ->with('success', 'Empresa atualizada com sucesso.');
+    }
+
+    /**
+     * Reenvia os dados de acesso (e-mail de boas-vindas) para um usuário da
+     * empresa. A senha original é irrecuperável (hash) — GERA UMA SENHA NOVA
+     * e envia junto no e-mail (decisão do Dennis 04/08/2026).
+     */
+    public function reenviarAcesso(Request $request, Empresa $empresa): RedirectResponse
+    {
+        abort_unless($request->user()->is_admin, 403);
+
+        $validated = $request->validate(['user_id' => ['required', 'integer']]);
+
+        $user = User::withoutGlobalScopes()
+            ->where('empresa_id', $empresa->id)
+            ->where('status', 'ativo')
+            ->findOrFail($validated['user_id']);
+
+        $novaSenha = \Illuminate\Support\Str::random(10);
+        $user->forceFill(['password' => \Illuminate\Support\Facades\Hash::make($novaSenha)])->save();
+
+        $contexto = $user->perfil === Perfil::Dono ? 'dono' : 'funcionario';
+        Mail::to($user->email)->queue(new BoasVindasUsuario($user, $contexto, $novaSenha));
+
+        return redirect()
+            ->route('admin.empresas.edit', $empresa)
+            ->with('success', "Nova senha gerada e dados de acesso enviados para {$user->name} ({$user->email}).");
     }
 
     /**

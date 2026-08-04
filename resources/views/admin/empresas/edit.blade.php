@@ -557,6 +557,66 @@
         </div>
     </div>
 </form>
+
+{{-- Acessos do cliente — reenviar dados de acesso (fora do form principal) --}}
+@php
+    $usuariosEmpresa = $empresa->users()->withoutGlobalScopes()
+        ->orderByRaw("FIELD(perfil, 'dono') DESC")->orderBy('name')->get();
+@endphp
+<div class="card section-card shadow-sm mb-4">
+    <div class="card-header">
+        <i class="bi bi-envelope-paper me-2"></i>
+        <strong>Acessos do cliente</strong> — reenviar os dados de acesso por e-mail
+    </div>
+    <div class="card-body">
+        @if($usuariosEmpresa->isEmpty())
+            <p class="text-muted mb-0">Nenhum usuário cadastrado para esta empresa ainda.</p>
+        @else
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-2">
+                    <thead>
+                        <tr>
+                            <th>Nome</th>
+                            <th>E-mail</th>
+                            <th>Perfil</th>
+                            <th>Status</th>
+                            <th class="text-end">Ação</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($usuariosEmpresa as $u)
+                            <tr>
+                                <td>{{ $u->name }}</td>
+                                <td>{{ $u->email }}</td>
+                                <td><span class="badge bg-{{ $u->perfil === \App\Enums\Perfil::Dono ? 'primary' : 'secondary' }}">{{ $u->perfil?->label() ?? $u->perfil }}</span></td>
+                                <td><x-erp.status-badge :status="$u->status" /></td>
+                                <td class="text-end">
+                                    @if($u->status === 'ativo')
+                                        <form method="POST" action="{{ route('admin.empresas.reenviar-acesso', $empresa) }}" class="d-inline"
+                                              data-confirm="Isso gera uma SENHA NOVA para {{ $u->name }} e envia os dados de acesso para {{ $u->email }}. A senha atual deixa de funcionar. Continuar?">
+                                            @csrf
+                                            <input type="hidden" name="user_id" value="{{ $u->id }}">
+                                            <button type="submit" class="btn btn-sm btn-outline-primary">
+                                                <i class="bi bi-envelope-arrow-up me-1"></i> Reenviar acesso
+                                            </button>
+                                        </form>
+                                    @else
+                                        <span class="text-muted small">inativo</span>
+                                    @endif
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+            <small class="text-muted">
+                <i class="bi bi-info-circle me-1"></i>
+                O reenvio gera uma <strong>senha nova</strong> (a anterior é criptografada e não dá para recuperar)
+                e manda o e-mail de boas-vindas com endereço, login e senha.
+            </small>
+        @endif
+    </div>
+</div>
 @endsection
 
 @push('scripts')

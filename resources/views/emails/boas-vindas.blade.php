@@ -32,7 +32,12 @@
                 <p style="margin:0;font-size:15px;color:#0f172a;line-height:1.8;">
                     <strong>Endereço:</strong> <a href="{{ config('app.url') }}/login" style="color:#2563eb;text-decoration:none;">{{ preg_replace('#^https?://#', '', config('app.url')) }}</a><br>
                     <strong>E-mail:</strong> {{ $user->email }}<br>
-                    <strong>Senha:</strong> definida por quem realizou o seu cadastro
+                    <strong>Senha:</strong>
+                    @if($senha)
+                        <span style="font-family:'Courier New',monospace;background-color:#eef2ff;border:1px solid #c7d2fe;border-radius:6px;padding:2px 10px;font-weight:700;letter-spacing:0.5px;">{{ $senha }}</span>
+                    @else
+                        definida por quem realizou o seu cadastro
+                    @endif
                 </p>
             </td>
         </tr>

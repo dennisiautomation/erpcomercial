@@ -199,7 +199,7 @@ class OnboardingController extends Controller
         });
 
         // Boas-vindas ao dono (fora da transaction — só dispara se o commit passou)
-        Mail::to($user->email)->queue(new BoasVindasUsuario($user, 'dono'));
+        Mail::to($user->email)->queue(new BoasVindasUsuario($user, 'dono', $validated['password']));
 
         return redirect()->route('admin.onboarding.step4');
     }

@@ -73,6 +73,7 @@ class UsuarioController extends Controller
             'status'              => ['required', 'string'],
         ]);
 
+        $senhaPlana = $validated['password'];
         $validated['password'] = Hash::make($validated['password']);
         $validated['is_admin'] = $request->boolean('is_admin');
         // Flag financeira: só admin carrega, e só quem VÊ o financeiro concede/revoga
@@ -88,7 +89,7 @@ class UsuarioController extends Controller
         $contexto = $usuario->is_admin
             ? 'equipe'
             : ($usuario->perfil === Perfil::Dono ? 'dono' : 'funcionario');
-        Mail::to($usuario->email)->queue(new BoasVindasUsuario($usuario, $contexto));
+        Mail::to($usuario->email)->queue(new BoasVindasUsuario($usuario, $contexto, $senhaPlana));
 
         return redirect()
             ->route('admin.usuarios.show', $usuario)

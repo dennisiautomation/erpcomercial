@@ -99,7 +99,7 @@ class FuncionarioController extends Controller
             $user->unidades()->sync($validated['unidades']);
         }
 
-        Mail::to($user->email)->queue(new BoasVindasUsuario($user, 'funcionario'));
+        Mail::to($user->email)->queue(new BoasVindasUsuario($user, 'funcionario', $validated['password']));
 
         return redirect()->route('app.funcionarios.index')
             ->with('success', 'Funcionário cadastrado com sucesso! E-mail de boas-vindas enviado.');

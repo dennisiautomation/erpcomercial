@@ -66,6 +66,8 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
     // Cobrança / cortesias — antes do resource pra não bater com show
     Route::post('/empresas/{empresa}/estender-trial', [Admin\EmpresaController::class, 'estenderTrial'])
         ->name('empresas.estender-trial');
+    Route::post('/empresas/{empresa}/reenviar-acesso', [Admin\EmpresaController::class, 'reenviarAcesso'])
+        ->name('empresas.reenviar-acesso');
     // Saúde da integração Focus (antes do resource para não bater com show/{id})
     Route::get('/empresas/{empresa}/saude-focus', [Admin\SaudeFocusController::class, 'show'])
         ->name('empresas.saude-focus');

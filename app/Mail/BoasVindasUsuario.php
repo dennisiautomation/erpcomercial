@@ -19,8 +19,9 @@ use Illuminate\Queue\SerializesModels;
  *  - 'funcionario' → usuário criado pela própria empresa (FuncionarioController)
  *  - 'equipe'      → administrador da plataforma IA365 (Admin\UsuarioController)
  *
- * A senha é definida por quem cadastra (decisão do Dennis 04/08/2026) — o
- * e-mail nunca carrega a senha, apenas orienta usar "Esqueci minha senha".
+ * A senha definida no cadastro VAI NO E-MAIL (decisão do Dennis 04/08/2026 —
+ * "tem que ter a senha, senão como ele acessa"). No reenvio pela tela da
+ * empresa, uma senha NOVA é gerada e enviada (a original é hash).
  */
 class BoasVindasUsuario extends Mailable implements ShouldQueue
 {
@@ -29,6 +30,7 @@ class BoasVindasUsuario extends Mailable implements ShouldQueue
     public function __construct(
         public User $user,
         public string $contexto = 'funcionario',
+        public ?string $senha = null,
     ) {}
 
     public function envelope(): Envelope
