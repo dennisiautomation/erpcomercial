@@ -5,6 +5,7 @@ namespace App\Http\Controllers\App;
 use App\Http\Controllers\Controller;
 use App\Models\Cliente;
 use App\Models\ContaReceber;
+use App\Models\EstoqueMovimentacao;
 use App\Models\Fornecedor;
 use App\Models\Produto;
 use App\Models\Venda;
@@ -34,8 +35,7 @@ class ImportController extends Controller
                 ? ['empresa_id' => $empresaId, 'cpf_cnpj' => $cpfCnpj]
                 : ['empresa_id' => $empresaId, 'cpf_cnpj' => null, 'nome_razao_social' => $nome];
 
-            return Cliente::updateOrCreate(
-                $chave,
+            return $this->upsertComLixeira(Cliente::class, $chave,
                 [
                     'tipo_pessoa'       => strlen($cpfCnpj) > 11 ? 'pj' : 'pf',
                     'nome_razao_social' => $nome !== '' ? $nome : 'Sem nome',
@@ -70,7 +70,7 @@ class ImportController extends Controller
                 $codigoInterno = str_pad(($last ? intval($last) + 1 : 1), 6, '0', STR_PAD_LEFT);
             }
 
-            $produto = Produto::updateOrCreate(
+            $produto = $this->upsertComLixeira(Produto::class,
                 ['empresa_id' => $empresaId, 'codigo_interno' => $codigoInterno],
                 [
                     'codigo_barras'    => $row['codigo_barras'] ?? $row['ean'] ?? $row['barcode'] ?? null,
@@ -123,7 +123,7 @@ class ImportController extends Controller
             $cpfCnpj = \App\Support\Cnpj::limparCpfCnpj($row['cpf_cnpj'] ?? $row['cnpj'] ?? '');
             if (empty($cpfCnpj)) return null;
 
-            return Fornecedor::updateOrCreate(
+            return $this->upsertComLixeira(Fornecedor::class,
                 ['empresa_id' => $empresaId, 'cpf_cnpj' => $cpfCnpj],
                 [
                     'razao_social'          => $row['razao_social'] ?? $row['nome'] ?? 'Sem nome',
@@ -214,6 +214,69 @@ class ImportController extends Controller
 
                 return $venda;
             });
+        });
+    }
+
+    /**
+     * Saldo INICIAL de estoque na migração de outro sistema.
+     *
+     * Semântica é "completar até o saldo da planilha", não "somar": grava uma
+     * movimentação de ENTRADA do delta (planilha − saldo atual da unidade). Rodar
+     * o mesmo arquivo duas vezes não duplica estoque — na segunda vez o delta é 0
+     * e a linha entra como pulada. O saldo é POR UNIDADE (`session('unidade_id')`),
+     * mesma cadeia anterior→posterior do lançamento manual.
+     */
+    public function estoque(Request $request): JsonResponse
+    {
+        $unidadeId = session('unidade_id');
+        if (! $unidadeId) {
+            return response()->json([
+                'success' => false,
+                'error'   => 'Selecione a loja antes de importar o estoque — o saldo é por unidade.',
+            ], 422);
+        }
+
+        return $this->processImport($request, 'estoque', function ($row, $empresaId) use ($unidadeId) {
+            $codigo = trim((string) ($row['codigo'] ?? $row['codigo_interno'] ?? $row['cod'] ?? ''));
+            if ($codigo === '') return null;
+
+            $quantidade = $this->parseNumber($row['quantidade'] ?? $row['saldo'] ?? $row['estoque'] ?? 0);
+            if ($quantidade <= 0) return null;   // saldo zerado/negativo não vira movimentação
+
+            $produto = Produto::withoutGlobalScopes()
+                ->whereNull('deleted_at')                    // armadilha 38
+                ->where('empresa_id', $empresaId)
+                ->where('codigo_interno', $codigo)
+                ->first();
+
+            if (! $produto) {
+                throw new \RuntimeException("produto de código {$codigo} não existe — importe os produtos primeiro.");
+            }
+
+            $ultima = EstoqueMovimentacao::withoutGlobalScopes()
+                ->where('empresa_id', $empresaId)
+                ->where('unidade_id', $unidadeId)
+                ->where('produto_id', $produto->id)
+                ->orderByDesc('id')
+                ->first();
+
+            $anterior = $ultima ? (float) $ultima->quantidade_posterior : 0.0;
+            $delta = $quantidade - $anterior;
+            if ($delta <= 0) return null;        // já está no saldo (ou acima): pulada
+
+            return EstoqueMovimentacao::create([
+                'empresa_id'           => $empresaId,
+                'unidade_id'           => $unidadeId,
+                'produto_id'           => $produto->id,
+                'tipo'                 => 'entrada',
+                'quantidade'           => $delta,
+                'quantidade_anterior'  => $anterior,
+                'quantidade_posterior' => $quantidade,
+                'custo_unitario'       => $this->parseNumber($row['custo_unitario'] ?? $row['custo'] ?? 0),
+                'origem_tipo'          => 'importacao_saldo_inicial',
+                'user_id'              => auth()->id(),
+                'observacoes'          => trim((string) ($row['observacao'] ?? $row['observacoes'] ?? 'Saldo inicial importado')),
+            ]);
         });
     }
 
@@ -414,6 +477,14 @@ class ImportController extends Controller
                 ['Maria Souza', '', 'Venda a prazo 1/3', '250,00', '20/08/2026', '1/3', 'paga', '18/08/2026', 'pix'],
             ],
         ],
+        'estoque' => [
+            'aba'     => 'Saldo de Estoque',
+            'colunas' => ['codigo', 'descricao', 'quantidade', 'custo_unitario', 'observacao'],
+            'exemplos' => [
+                ['1122', 'Jogo de Cama Casal', '12', '18,50', 'Saldo inicial migrado'],
+                ['1123', 'Toalha de Banho', '5', '', ''],
+            ],
+        ],
     ];
 
     /**
@@ -450,6 +521,30 @@ class ImportController extends Controller
     }
 
     // ─── Internal ───────────────────────────────────────────
+
+    /**
+     * updateOrCreate que ENXERGA a lixeira: registro soft-deletado com a mesma
+     * chave é restaurado e atualizado (o updateOrCreate padrão não o encontra,
+     * tenta INSERT e estoura o unique — era o "11 com erro" do Dennis 04/08).
+     */
+    private function upsertComLixeira(string $model, array $chave, array $dados)
+    {
+        $query = $model::withoutGlobalScopes(); // remove tenant scopes E o SoftDeletingScope
+        foreach ($chave as $col => $val) {
+            $val === null ? $query->whereNull($col) : $query->where($col, $val);
+        }
+
+        $registro = $query->first();
+        if ($registro) {
+            if (method_exists($registro, 'trashed') && $registro->trashed()) {
+                $registro->restore();
+            }
+            $registro->fill($dados)->save();
+            return $registro;
+        }
+
+        return $model::create($chave + $dados);
+    }
 
     /**
      * "CPF/CNPJ" → cpf_cnpj, "Razão Social" → razao_social, "Preço Venda" → preco_venda.
@@ -501,7 +596,9 @@ class ImportController extends Controller
 
             foreach ($matriz as $i => $values) {
                 try {
-                    if (count(array_filter($values, fn($v) => trim((string) $v) !== '')) < 2) continue;
+                    // Só pula linha TOTALMENTE vazia — cliente só com nome é válido
+                    // (a regra antiga de "mínimo 2 células" engolia 59 linhas em silêncio)
+                    if (count(array_filter($values, fn($v) => trim((string) $v) !== '')) < 1) continue;
 
                     $row = [];
                     foreach ($headers as $idx => $header) {

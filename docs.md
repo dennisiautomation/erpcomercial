@@ -1087,6 +1087,70 @@ falha; log INFO filtrado em produção. Correções em `processImport`:
   exigindo documento.
 - Datas aceitam dd/mm/aaaa, aaaa-mm-dd e **serial do Excel** (célula formatada como
   data); `normalizarFormaPagamento()` mapeia "Cartão de Crédito"→`cartao_credito` etc.
+- **Round 2 (import real da STILO VINTE, 05/08 tarde)**: os "11 com erro" eram
+  registros SOFT-DELETADOS com o mesmo CPF (Dennis importou 04/08 e excluiu — o
+  updateOrCreate não enxerga a lixeira, tentava INSERT e estourava o unique).
+  `upsertComLixeira()` (clientes/produtos/fornecedores): acha inclusive trashed,
+  restaura e atualiza. E a regra "mínimo 2 células" virou "linha não vazia" —
+  cliente só com nome é válido. **Resultado: 70/70 clientes da planilha do Dennis
+  importados (11 com CPF, 59 sem documento), zero erros.**
+
+---
+
+## Migração DONA DOURO (empresa 5) — Hiper Loja → ERP (05/08/2026)
+
+> Branch `feat/etiqueta-36x20-2col-donadouro`. Cliente novo (M & R LTDA, CNPJ
+> 64.169.650/0001-48, Teresina/PI, Simples Nacional): joalheria/semi-joias/bolsas
+> vinda do **Hiper Loja** (`donadouro26.hiper.com.br`). Base de origem: export
+> `Cadastros - produtos.xlsx` — **1.913 produtos ativos**, 2.842 unidades em estoque.
+
+### Import de saldo de estoque (`POST /app/import/estoque`)
+
+Não existia forma de trazer saldo na migração: o import de produtos só grava
+cadastro (`estoque_minimo`), e o saldo do ERP é **derivado** da última
+`estoque_movimentacoes.quantidade_posterior` da unidade — não há coluna de saldo.
+
+- Colunas: `codigo, descricao, quantidade, custo_unitario, observacao` + Modelo Excel.
+- Permissão `estoque,criar`; botão discreto (outline) na tela de Movimentações,
+  ao lado do "Nova Movimentação" — a tela não muda para quem já usa.
+- **Semântica é "completar até o saldo da planilha", não "somar"**: grava ENTRADA do
+  delta (`planilha − saldo atual da unidade`). Rodar o mesmo arquivo duas vezes NÃO
+  duplica estoque — na 2ª vez o delta é 0 e a linha entra como *pulada* no modal.
+- Saldo é **por unidade** (`session('unidade_id')`) — sem loja selecionada devolve 422.
+- `origem_tipo = 'importacao_saldo_inicial'` identifica a carga no histórico.
+- Produto inexistente vira **erro** da linha (não silêncio): importar produtos antes.
+
+### Conversão da base do Hiper
+
+O export do Hiper não bate com o template `produtos`; a conversão gera 3 planilhas:
+
+| Arquivo | Conteúdo |
+|---|---|
+| `1_produtos.xlsx` | 1.913 linhas no template `produtos` |
+| `2_estoque.xlsx` | 1.725 produtos / 2.842 un para o import de saldo |
+| `3_ncm_revisar.xlsx` | 202 NCMs corrigidos, com confiança e motivo (para o contador) |
+
+Pontos que mordem:
+
+- **O Hiper não exporta código de barras.** O EAN-13 interno é gerado na conversão
+  com o MESMO algoritmo do `ProdutoController::store` (`2` + `empresa%1000` +
+  `codigo`(8) + DV) — ⚠️ **o `ImportController` NÃO gera EAN**, só o cadastro manual;
+  sem essa coluna os 1.913 produtos ficariam sem barras e a etiqueta cairia em
+  CODE128 do código interno.
+- **Decimais precisam sair com vírgula.** `parseNumber` remove `.` e troca `,` por `.`
+  — mandar `178.00` vira **17800**.
+- **202 NCMs eram lixo do Hiper** (196 com `01012900` = cavalos vivos, mais
+  `0102/0105`, e 1 com `00000000` que **barra a NFC-e** no pre-flight). Corrigidos por
+  regra derivada da própria base (distribuição de NCM dos 1.711 válidos): categoria
+  PRATA 925 → `71131100` (93%), SEMI JOIA → `71131900` (88%), zircônia → `71179000`
+  (89%), clutch → `42021220` (86%), relógio/echarpe/carteira → 100%. **86 alta / 79
+  média / 37 baixa confiança** — as 116 de média/baixa saem na planilha de revisão
+  (bolsa de couro × têxtil muda o NCM e a base não decide).
+- Origem: `"0 - Nacional"` → `0`, `"2 - Estrangeira…"` → `2`.
+- O import de produtos **não cria** categoria, marca nem fornecedor (16/11/13 na base
+  de origem) — ficam de fora.
+- Achados para o lojista: 3 produtos com preço de venda < custo (códigos 3759, 3430,
+  3365) e 2 com estoque negativo (5146, 5029 — ficam de fora da carga).
 
 ---
 
@@ -1179,6 +1243,18 @@ falha; log INFO filtrado em produção. Correções em `processImport`:
     passa a incluir registros soft-deletados (Venda/Cliente/ContaReceber têm
     deleted_at). Para excluir de verdade dado de teste, `forceDelete()`; para contar
     só vivos sem os scopes de tenant, adicionar `whereNull('deleted_at')`.
+39. **O `ImportController` NÃO gera código de barras nem SKU automáticos** — o EAN-13
+    interno (`2` + empresa + código + DV) e o `SKU-<codigo>` só nascem no
+    `ProdutoController::store`, no cadastro manual. Produto importado sem a coluna
+    `codigo_barras` fica sem barras e a etiqueta cai em CODE128 do código interno.
+    Em migração, gerar o EAN na planilha (mesmo algoritmo) ou o cliente fica sem etiqueta.
+40. **`parseNumber` do import remove o ponto e troca vírgula por ponto** — planilha com
+    `178.00` vira **17800**. Todo decimal gerado para importação sai em padrão BR
+    (`178,00`). Vale para preços, markup e custo.
+41. **Import de saldo de estoque COMPLETA, não soma** (`import/estoque`): grava entrada
+    do delta `planilha − saldo atual`. É o que torna o reprocessamento seguro — mas
+    significa que rodar depois de vendas **recompleta** o saldo até o valor do arquivo.
+    Carga de migração, não ajuste de rotina.
 
 ---
 

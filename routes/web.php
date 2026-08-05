@@ -131,6 +131,8 @@ Route::middleware(['auth', 'suspensao', 'unidade'])->prefix('app')->name('app.')
             ->middleware('permission:vendas,criar');
         Route::post('/contas-receber', [App\ImportController::class, 'contasReceber'])->name('contas-receber')
             ->middleware('permission:financeiro,criar');
+        Route::post('/estoque', [App\ImportController::class, 'estoque'])->name('estoque')
+            ->middleware('permission:estoque,criar');
         Route::get('/template/{tipo}', [App\ImportController::class, 'template'])->name('template');
     });
 
