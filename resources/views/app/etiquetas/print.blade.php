@@ -469,6 +469,18 @@
                         console.warn('Nao foi possivel gerar barcode para:', code);
                     }
                 }
+
+                @if($formato === 'termica-36x20-2col')
+                    // Blindagem: estica o SVG para EXATAMENTE 35mm × 8.5mm, sem
+                    // depender do aspect-ratio da lib. 'none' alonga só na vertical
+                    // (a proporção horizontal das barras — o que o leitor lê — é
+                    // preservada pelo viewBox). Inline style vence qualquer CSS.
+                    svg.setAttribute('preserveAspectRatio', 'none');
+                    svg.removeAttribute('width');
+                    svg.removeAttribute('height');
+                    svg.style.width = '100%';
+                    svg.style.height = '8.5mm';
+                @endif
             });
 
             // Auto-print
