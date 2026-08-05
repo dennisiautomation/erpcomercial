@@ -178,10 +178,24 @@
         .formato-termica-50x30 .etiqueta .barcode-container svg { height: 12mm; }
         .formato-termica-60x40 .etiqueta .barcode-container svg { height: 16mm; }
         .formato-termica-33x22 .etiqueta .barcode-container svg { height: 8mm; }
-        /* 36x20: a barra vai de ponta a ponta — width 100% e altura folgada para a
-           LARGURA ser o limite (com 7mm a altura mandava e a barra encolhia p/ ~16mm) */
-        .formato-termica-36x20-2col .etiqueta .barcode-container svg { width: 100%; height: 8.5mm; }
-        .formato-termica-tag-35x60 .etiqueta .barcode-container svg { height: 13mm; }
+        /* 36x20 e Tag 35x60: barra de ponta a ponta (SVG esticado por JS) e
+           dígitos numa LINHA ÚNICA centrada embaixo (padrão Hiper) — o layout
+           EAN-13 clássico joga o 1º dígito para fora das barras e ele encostava
+           na borda da etiqueta ("número para fora", Dennis 05/08) */
+        .formato-termica-36x20-2col .etiqueta .barcode-container svg { width: 100%; height: 6mm; }
+        .formato-termica-tag-35x60 .etiqueta .barcode-container svg { width: 100%; height: 10mm; }
+        .formato-termica-36x20-2col .etiqueta .barcode-container,
+        .formato-termica-tag-35x60 .etiqueta .barcode-container { flex-direction: column; }
+        .etiqueta .barcode-digits {
+            width: 100%;
+            text-align: center;
+            font-weight: 700;
+            font-family: 'Courier New', monospace;
+            line-height: 1.1;
+            white-space: nowrap;
+        }
+        .formato-termica-36x20-2col .etiqueta .barcode-digits { font-size: 8pt; letter-spacing: 1px; }
+        .formato-termica-tag-35x60 .etiqueta .barcode-digits { font-size: 9pt; letter-spacing: 1.5px; }
 
         .formato-termica-60x40 .etiqueta .empresa { font-size: 6pt; }
         .formato-termica-60x40 .etiqueta .descricao { font-size: 8pt; -webkit-line-clamp: 2; max-height: 2.4em; }
@@ -442,20 +456,19 @@
                     margin: 2,
                     textMargin: 1
                 };
-                @if($formato === 'termica-36x20-2col')
-                    // 36x20: intrínseco achatado (~4:1) para a barra ocupar os 36mm
-                    // de ponta a ponta. fontSize alto = os dígitos são a informação
-                    // que o lojista lê — maiores que o nome, como na Hiper; bold
-                    // porque fonte fina sai fraca na térmica.
+                @if(in_array($formato, ['termica-36x20-2col', 'termica-tag-35x60']))
+                    // 36x20 e Tag 35x60: o SVG carrega SÓ as barras — os dígitos
+                    // saem numa div própria, em linha única centrada (padrão Hiper).
+                    // O layout EAN-13 clássico (displayValue) joga o 1º dígito para
+                    // fora das barras e ele encostava na borda da etiqueta.
+                    // margin 10 no intrínseco vira ~1,5mm de quiet zone por lado
+                    // depois do stretch — o leitor precisa desse respiro.
                     barOpts = {
                         format: format,
                         width: 2,
-                        height: 28,
-                        displayValue: true,
-                        fontSize: 18,
-                        fontOptions: 'bold',
-                        margin: 0,
-                        textMargin: 0
+                        height: 30,
+                        displayValue: false,
+                        margin: 10
                     };
                 @endif
 
@@ -470,16 +483,23 @@
                     }
                 }
 
-                @if($formato === 'termica-36x20-2col')
-                    // Blindagem: estica o SVG para EXATAMENTE 35mm × 8.5mm, sem
-                    // depender do aspect-ratio da lib. 'none' alonga só na vertical
-                    // (a proporção horizontal das barras — o que o leitor lê — é
+                @if(in_array($formato, ['termica-36x20-2col', 'termica-tag-35x60']))
+                    // Blindagem: estica o SVG para a largura toda, sem depender do
+                    // aspect-ratio da lib ('none' = preenche exatamente o box; a
+                    // proporção horizontal das barras — o que o leitor lê — é
                     // preservada pelo viewBox). Inline style vence qualquer CSS.
                     svg.setAttribute('preserveAspectRatio', 'none');
                     svg.removeAttribute('width');
                     svg.removeAttribute('height');
                     svg.style.width = '100%';
-                    svg.style.height = '8.5mm';
+                    svg.style.height = '{{ $formato === 'termica-36x20-2col' ? '6mm' : '10mm' }}';
+                    // dígitos em linha única centrada embaixo das barras
+                    var digits = document.createElement('div');
+                    digits.className = 'barcode-digits';
+                    digits.textContent = /^\d{13}$/.test(code)
+                        ? code[0] + ' ' + code.slice(1, 7) + ' ' + code.slice(7)
+                        : code;
+                    svg.parentNode.appendChild(digits);
                 @endif
             });
 

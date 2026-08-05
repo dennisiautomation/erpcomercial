@@ -870,10 +870,19 @@ página muda.
 ⚠️ **Barra de ponta a ponta (feedback do Dennis 05/08)**: o SVG do JsBarcode escala
 mantendo a proporção — com o intrínseco padrão (~2,3:1) e altura CSS de 7 mm, a
 ALTURA vira o limite e a barra encolhia para ~16 mm com margens dos dois lados,
-dígitos ilegíveis. Neste formato o JsBarcode usa opções próprias (width 2, height 30,
-fontSize 14, margin 0 → ~4:1) + CSS `width:100%; height:8.5mm`, aí a LARGURA manda:
-barra nos 35 mm úteis e dígitos ~2,6 mm. Ao criar formato térmico novo, conferir qual
-dimensão está limitando o SVG antes de mexer em fonte.
+dígitos ilegíveis. Fix definitivo (pós-processamento JS): `preserveAspectRatio='none'`
++ inline `width:100%` — o SVG estica para o box exato, independente da lib. Ao criar
+formato térmico novo, conferir qual dimensão está limitando o SVG antes de mexer em fonte.
+⚠️ **Dígitos em linha única (Hiper-style) — 36×20 E Tag 35×60 (Dennis 05/08, "número
+para fora")**: o layout EAN-13 clássico do JsBarcode (`displayValue`) desenha o 1º
+dígito FORA das barras-guarda; com a barra esticada ele encostava na borda da
+etiqueta. Nos dois formatos o JsBarcode roda com `displayValue:false` (SVG só de
+barras, `margin:10` no intrínseco ≈ 1,5 mm de quiet zone por lado após o stretch) e
+os 13 dígitos saem numa **div `.barcode-digits`** própria — linha única centrada,
+bold, monospace, grupos `X XXXXXX XXXXXX`. Vale também para o fallback CODE128
+(mostra o código cru). Os demais formatos (33×22, 40×25, 50×30, 60×40) seguem com o
+EAN-13 clássico — mudança scoped por `in_array($formato, [...])`.
+A melhoria da Tag 35×60 vale para TODAS as empresas que a usam (STILO VINTE inclusa).
 
 ---
 
