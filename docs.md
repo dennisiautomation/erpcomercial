@@ -873,16 +873,18 @@ ALTURA vira o limite e a barra encolhia para ~16 mm com margens dos dois lados,
 dígitos ilegíveis. Fix definitivo (pós-processamento JS): `preserveAspectRatio='none'`
 + inline `width:100%` — o SVG estica para o box exato, independente da lib. Ao criar
 formato térmico novo, conferir qual dimensão está limitando o SVG antes de mexer em fonte.
-⚠️ **Dígitos em linha única (Hiper-style) — 36×20 E Tag 35×60 (Dennis 05/08, "número
-para fora")**: o layout EAN-13 clássico do JsBarcode (`displayValue`) desenha o 1º
-dígito FORA das barras-guarda; com a barra esticada ele encostava na borda da
-etiqueta. Nos dois formatos o JsBarcode roda com `displayValue:false` (SVG só de
+⚠️ **Dígitos em linha única (Hiper-style) — 36×20, 33×22 E Tag 35×60 (Dennis 05/08,
+"número para fora")**: o layout EAN-13 clássico do JsBarcode (`displayValue`) desenha
+o 1º dígito FORA das barras-guarda; com a barra esticada ele encostava na borda da
+etiqueta. Nos três formatos o JsBarcode roda com `displayValue:false` (SVG só de
 barras, `margin:10` no intrínseco ≈ 1,5 mm de quiet zone por lado após o stretch) e
 os 13 dígitos saem numa **div `.barcode-digits`** própria — linha única centrada,
 bold, monospace, grupos `X XXXXXX XXXXXX`. Vale também para o fallback CODE128
-(mostra o código cru). Os demais formatos (33×22, 40×25, 50×30, 60×40) seguem com o
-EAN-13 clássico — mudança scoped por `in_array($formato, [...])`.
-A melhoria da Tag 35×60 vale para TODAS as empresas que a usam (STILO VINTE inclusa).
+(mostra o código cru). Alturas de barra: 36×20 = 6 mm, 33×22 = 6,5 mm, Tag = 10 mm.
+Os formatos de 1 coluna (40×25, 50×30, 60×40) seguem com o EAN-13 clássico —
+mudança scoped por `in_array($formato, [...])`.
+As melhorias do 33×22 e da Tag 35×60 valem para TODAS as empresas que os usam
+(STILO VINTE inclusa) — OK do Dennis 05/08 ("deixa as duas prontas" / "33×22 arruma este").
 
 ---
 
