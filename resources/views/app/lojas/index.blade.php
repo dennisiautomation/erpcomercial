@@ -4,7 +4,13 @@
 
 @section('content')
 <x-erp.page-header title="Minhas Lojas" subtitle="Cadastro e situação fiscal das lojas da sua empresa" icon="shop">
-    @if(auth()->user()->isDono())
+    @php
+        $podeCriarLoja = auth()->user()->isDono()
+            || (auth()->user()->perfil instanceof \App\Enums\Perfil
+                ? auth()->user()->perfil->value === 'gerente'
+                : auth()->user()->perfil === 'gerente');
+    @endphp
+    @if($podeCriarLoja)
         @if($limiteAtingido)
             <span class="badge bg-warning text-dark align-self-center me-2" title="Fale com a IA365 para ampliar o plano">
                 Limite de lojas do plano atingido

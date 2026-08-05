@@ -93,6 +93,13 @@ class LojaController extends Controller
         $validated['empresa_id'] = $empresa->id;
         $loja = Unidade::create($validated);
 
+        // Gerente que cria a loja fica vinculado a ela (senão não conseguiria editá-la)
+        $user = $request->user();
+        $perfil = $user->perfil instanceof \App\Enums\Perfil ? $user->perfil->value : $user->perfil;
+        if ($perfil === 'gerente') {
+            $user->unidades()->syncWithoutDetaching([$loja->id]);
+        }
+
         if (FocusNFeClient::masterDisponivel()) {
             ProvisionarEmpresaFocusJob::dispatch(
                 empresaId: $empresa->id,

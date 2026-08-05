@@ -20,7 +20,7 @@ class CheckPermission
         'unidades' => [
             'admin' => ['ver', 'criar', 'editar', 'excluir'],
             'dono' => ['ver', 'criar', 'editar', 'excluir'],
-            'gerente' => ['ver', 'editar'], // edita as lojas vinculadas (Minhas Lojas, 05/08)
+            'gerente' => ['ver', 'criar', 'editar'], // cadastra lojas e edita as vinculadas (Minhas Lojas, 05/08)
             'consulta' => ['ver'],
         ],
         'funcionarios' => [

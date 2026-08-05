@@ -1075,7 +1075,8 @@ Admin da plataforma segue com o redirect próprio (armadilha 25).
 Pedido do Dennis ("tudo no admin fica ruim") — o cadastro sai do monopólio do admin:
 
 - **`/app/lojas` (Minhas Lojas)** — dono cria/edita todas as lojas da empresa;
-  **gerente edita as lojas às quais está vinculado** (pivot `unidade_user`; sem
+  **gerente também cadastra lojas** (fica vinculado automaticamente à que criou)
+  e **edita as lojas às quais está vinculado** (pivot `unidade_user`; sem
   vínculo, vale a loja da sessão). Criação respeita `max_unidades` do plano
   (badge "limite atingido" no lugar do botão; admin continua sem limite).
   Reusa `Admin\UnidadeController::validationRules()` e dispara o MESMO
