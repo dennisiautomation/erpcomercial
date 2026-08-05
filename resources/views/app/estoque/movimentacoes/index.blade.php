@@ -4,6 +4,8 @@
 
 @section('content')
 <x-erp.page-header title="Movimentacoes de Estoque" subtitle="Controle de entradas, saidas, ajustes e transferencias" icon="arrow-left-right">
+    {{-- Saldo inicial da migração: discreto, ao lado do botão de sempre --}}
+    <x-erp.import-buttons :importRoute="route('app.import.estoque')" templateType="estoque" />
     <a href="{{ route('app.movimentacoes.create') }}" class="btn btn-erp-primary">
         <i class="bi bi-plus-lg me-1"></i> Nova Movimentacao
     </a>

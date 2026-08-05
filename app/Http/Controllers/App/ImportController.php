@@ -5,6 +5,7 @@ namespace App\Http\Controllers\App;
 use App\Http\Controllers\Controller;
 use App\Models\Cliente;
 use App\Models\ContaReceber;
+use App\Models\EstoqueMovimentacao;
 use App\Models\Fornecedor;
 use App\Models\Produto;
 use App\Models\Venda;
@@ -216,6 +217,69 @@ class ImportController extends Controller
         });
     }
 
+    /**
+     * Saldo INICIAL de estoque na migração de outro sistema.
+     *
+     * Semântica é "completar até o saldo da planilha", não "somar": grava uma
+     * movimentação de ENTRADA do delta (planilha − saldo atual da unidade). Rodar
+     * o mesmo arquivo duas vezes não duplica estoque — na segunda vez o delta é 0
+     * e a linha entra como pulada. O saldo é POR UNIDADE (`session('unidade_id')`),
+     * mesma cadeia anterior→posterior do lançamento manual.
+     */
+    public function estoque(Request $request): JsonResponse
+    {
+        $unidadeId = session('unidade_id');
+        if (! $unidadeId) {
+            return response()->json([
+                'success' => false,
+                'error'   => 'Selecione a loja antes de importar o estoque — o saldo é por unidade.',
+            ], 422);
+        }
+
+        return $this->processImport($request, 'estoque', function ($row, $empresaId) use ($unidadeId) {
+            $codigo = trim((string) ($row['codigo'] ?? $row['codigo_interno'] ?? $row['cod'] ?? ''));
+            if ($codigo === '') return null;
+
+            $quantidade = $this->parseNumber($row['quantidade'] ?? $row['saldo'] ?? $row['estoque'] ?? 0);
+            if ($quantidade <= 0) return null;   // saldo zerado/negativo não vira movimentação
+
+            $produto = Produto::withoutGlobalScopes()
+                ->whereNull('deleted_at')                    // armadilha 38
+                ->where('empresa_id', $empresaId)
+                ->where('codigo_interno', $codigo)
+                ->first();
+
+            if (! $produto) {
+                throw new \RuntimeException("produto de código {$codigo} não existe — importe os produtos primeiro.");
+            }
+
+            $ultima = EstoqueMovimentacao::withoutGlobalScopes()
+                ->where('empresa_id', $empresaId)
+                ->where('unidade_id', $unidadeId)
+                ->where('produto_id', $produto->id)
+                ->orderByDesc('id')
+                ->first();
+
+            $anterior = $ultima ? (float) $ultima->quantidade_posterior : 0.0;
+            $delta = $quantidade - $anterior;
+            if ($delta <= 0) return null;        // já está no saldo (ou acima): pulada
+
+            return EstoqueMovimentacao::create([
+                'empresa_id'           => $empresaId,
+                'unidade_id'           => $unidadeId,
+                'produto_id'           => $produto->id,
+                'tipo'                 => 'entrada',
+                'quantidade'           => $delta,
+                'quantidade_anterior'  => $anterior,
+                'quantidade_posterior' => $quantidade,
+                'custo_unitario'       => $this->parseNumber($row['custo_unitario'] ?? $row['custo'] ?? 0),
+                'origem_tipo'          => 'importacao_saldo_inicial',
+                'user_id'              => auth()->id(),
+                'observacoes'          => trim((string) ($row['observacao'] ?? $row['observacoes'] ?? 'Saldo inicial importado')),
+            ]);
+        });
+    }
+
     public function contasReceber(Request $request): JsonResponse
     {
         return $this->processImport($request, 'contas_receber', function ($row, $empresaId) {
@@ -411,6 +475,14 @@ class ImportController extends Controller
             'exemplos' => [
                 ['João da Silva', '12345678901', 'Carnê loja 2/10', '120,00', '10/09/2026', '2/10', 'pendente', '', 'crediario'],
                 ['Maria Souza', '', 'Venda a prazo 1/3', '250,00', '20/08/2026', '1/3', 'paga', '18/08/2026', 'pix'],
+            ],
+        ],
+        'estoque' => [
+            'aba'     => 'Saldo de Estoque',
+            'colunas' => ['codigo', 'descricao', 'quantidade', 'custo_unitario', 'observacao'],
+            'exemplos' => [
+                ['1122', 'Jogo de Cama Casal', '12', '18,50', 'Saldo inicial migrado'],
+                ['1123', 'Toalha de Banho', '5', '', ''],
             ],
         ],
     ];

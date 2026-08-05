@@ -38,7 +38,7 @@ class EtiquetaController extends Controller
         // aceita os dois e a quantidade é clampada em 1..100.
         $request->validate([
             'produtos' => 'required|array|min:1',
-            'formato'  => 'required|in:2x5,3x7,4x10,termica-40x25,termica-50x30,termica-60x40,termica-33x22,termica-tag-35x60',
+            'formato'  => 'required|in:2x5,3x7,4x10,termica-40x25,termica-50x30,termica-60x40,termica-33x22,termica-36x20-2col,termica-tag-35x60',
         ]);
 
         // Compat: aceita também o formato antigo produtos[][id]/[quantidade]
