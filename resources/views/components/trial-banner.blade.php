@@ -13,7 +13,9 @@
                 <div class="flex-grow-1">
                     <strong>Periodo de avaliacao.</strong>
                     {{ $empresaTrial->diasRestantesTrial() }} dias restantes.
-                    <a href="{{ route('app.plano.index') }}" class="alert-link">Ver planos</a>
+                    @if(auth()->user()->isDono())
+                        <a href="{{ route('app.plano.index') }}" class="alert-link">Ver planos</a>
+                    @endif
                 </div>
                 <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
             </div>

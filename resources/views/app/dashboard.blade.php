@@ -330,7 +330,9 @@
                     <h6 class="fw-bold text-primary mb-0">{{ $trialDias }} dia(s)</h6>
                     <small class="text-muted">restantes no trial</small>
                 </div>
-                <a href="{{ route('app.plano.index') }}" class="btn btn-sm btn-outline-primary ms-auto">Assinar</a>
+                @if(auth()->user()->isDono())
+                    <a href="{{ route('app.plano.index') }}" class="btn btn-sm btn-outline-primary ms-auto">Assinar</a>
+                @endif
             </div>
         </div>
     </div>

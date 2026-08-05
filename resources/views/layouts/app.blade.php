@@ -988,14 +988,16 @@
                         </li>
                     @endif
 
-                    {{-- Meu Plano --}}
-                    <li class="nav-item" style="margin-top: 0.25rem;">
-                        <a class="nav-link {{ request()->routeIs('app.plano.*') ? 'active' : '' }}"
-                           href="{{ route('app.plano.index') }}">
-                            <i class="bi bi-star nav-icon"></i>
-                            <span class="nav-text">Meu Plano</span>
-                        </a>
-                    </li>
+                    {{-- Meu Plano — assunto do dono; funcionários não veem --}}
+                    @if(auth()->user()->isDono())
+                        <li class="nav-item" style="margin-top: 0.25rem;">
+                            <a class="nav-link {{ request()->routeIs('app.plano.*') ? 'active' : '' }}"
+                               href="{{ route('app.plano.index') }}">
+                                <i class="bi bi-star nav-icon"></i>
+                                <span class="nav-text">Meu Plano</span>
+                            </a>
+                        </li>
+                    @endif
                 </ul>
             @endif
         </div>
@@ -1128,7 +1130,7 @@
                             </span>
                         </li>
                         <li><hr class="dropdown-divider"></li>
-                        @if(!auth()->user()->is_admin)
+                        @if(!auth()->user()->is_admin && auth()->user()->isDono())
                             <li>
                                 <a class="dropdown-item" href="{{ route('app.plano.index') }}">
                                     <i class="bi bi-star me-2"></i>Meu Plano

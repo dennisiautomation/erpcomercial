@@ -1050,6 +1050,14 @@ Dennis trouxe os dados do sistema antigo e confirmou mistura entre os CNPJs:
 - Cliente resolvido por CPF/CNPJ e depois por nome exato; sem match a conta fica sem
   vínculo (a tela já aceita). `paga` preenche valor_pago/pago_em (default = vencimento).
 
+### /app/plano só para o dono (05/08, 2ª rodada)
+
+Pedido do Dennis: plano/assinatura é assunto do proprietário. `PlanoController::index`
+e `comparar` redirecionam não-donos ao dashboard com aviso; menu "Meu Plano", link
+"Ver planos" do banner de trial e botão "Assinar" do dashboard só renderizam para
+`isDono()`. A tela `/app/plano/expirado` continua aberta a todos (é a de bloqueio).
+Admin da plataforma segue com o redirect próprio (armadilha 25).
+
 ### Import robusto (bug "0 de 70 linhas — 11 com erro")
 
 Causas: linha sem CPF/CNPJ era pulada EM SILÊNCIO; cabeçalho "CPF/CNPJ" não virava

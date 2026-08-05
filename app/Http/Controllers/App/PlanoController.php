@@ -21,6 +21,17 @@ class PlanoController extends Controller
     }
 
     /**
+     * Plano/assinatura é assunto do dono — funcionários não veem valores
+     * nem opções de upgrade (pedido do Dennis 05/08). A tela de plano
+     * expirado continua aberta a todos (é a tela de bloqueio).
+     */
+    private function redirectNaoDono(): RedirectResponse
+    {
+        return redirect()->route('app.dashboard')
+            ->with('warning', 'O plano da empresa é gerenciado pelo proprietário da conta.');
+    }
+
+    /**
      * Show current plan info + upgrade options.
      */
     public function index(Request $request): View|RedirectResponse
@@ -28,6 +39,9 @@ class PlanoController extends Controller
         $empresa = $request->user()->empresa;
         if (! $empresa) {
             return $this->redirectSemEmpresa();
+        }
+        if (! $request->user()->isDono()) {
+            return $this->redirectNaoDono();
         }
         $planoAtual = $empresa->getPlanoAtivo();
         $planos = Plano::ativo()->orderBy('ordem')->get();
@@ -77,6 +91,9 @@ class PlanoController extends Controller
         $empresa = $request->user()->empresa;
         if (! $empresa) {
             return $this->redirectSemEmpresa();
+        }
+        if (! $request->user()->isDono()) {
+            return $this->redirectNaoDono();
         }
         $planoAtual = $empresa->getPlanoAtivo();
         $planos = Plano::ativo()->orderBy('ordem')->get();

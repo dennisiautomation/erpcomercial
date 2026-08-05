@@ -13,6 +13,7 @@
             'termica-50x30' => ['w' => '50mm', 'h' => '30mm'],
             'termica-60x40' => ['w' => '60mm', 'h' => '40mm'],
             'termica-33x22' => ['w' => '70mm', 'h' => '22mm'],  // bobina 2 colunas
+            'termica-36x20-2col' => ['w' => '74mm', 'h' => '20mm'], // Argox 2 col c/ espaço: 2 × 36mm + 2mm
             'termica-tag-35x60' => ['w' => '105mm', 'h' => '60mm'], // tag de roupa: 3 × 35mm
         ];
     @endphp
@@ -165,6 +166,7 @@
         .page.formato-termica-50x30 { width: 50mm; height: 30mm; grid-template-columns: 1fr; }
         .page.formato-termica-60x40 { width: 60mm; height: 40mm; grid-template-columns: 1fr; }
         .page.formato-termica-33x22 { width: 70mm; height: 22mm; grid-template-columns: 1fr 1fr; gap: 0 2mm; }
+        .page.formato-termica-36x20-2col { width: 74mm; height: 20mm; grid-template-columns: repeat(2, 36mm); gap: 0 2mm; }
         .page.formato-termica-tag-35x60 { width: 105mm; height: 60mm; grid-template-columns: repeat(3, 35mm); gap: 0; }
 
         [class*="formato-termica"] .etiqueta { border: none; padding: 1mm; }
