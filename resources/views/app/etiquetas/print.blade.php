@@ -444,13 +444,16 @@
                 };
                 @if($formato === 'termica-36x20-2col')
                     // 36x20: intrínseco achatado (~4:1) para a barra ocupar os 36mm
-                    // de ponta a ponta e os dígitos saírem grandes (padrão da Hiper)
+                    // de ponta a ponta. fontSize alto = os dígitos são a informação
+                    // que o lojista lê — maiores que o nome, como na Hiper; bold
+                    // porque fonte fina sai fraca na térmica.
                     barOpts = {
                         format: format,
                         width: 2,
-                        height: 30,
+                        height: 28,
                         displayValue: true,
-                        fontSize: 14,
+                        fontSize: 18,
+                        fontOptions: 'bold',
                         margin: 0,
                         textMargin: 0
                     };
