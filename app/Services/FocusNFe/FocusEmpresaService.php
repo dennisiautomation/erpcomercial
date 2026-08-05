@@ -60,9 +60,23 @@ class FocusEmpresaService
      */
     public function criar(Empresa $empresa, Unidade $unidade, array $flags = []): array
     {
+        // Lojas com o MESMO CNPJ compartilham a mesma empresa-filha Focus:
+        // certificado A1, CSC e numeração são por CNPJ, e a Focus recusa uma
+        // 2ª empresa com CNPJ repetido quando habilita_manifestacao=true (422).
+        if ($irma = $this->configIrmaMesmoCnpj($empresa, $unidade)) {
+            return $this->reutilizarEmpresaFocus($empresa, $unidade, $irma, $flags);
+        }
+
         $payload = $this->montarPayload($empresa, $unidade, $flags);
 
         $response = $this->master->post('/v2/empresas', $payload);
+
+        // CNPJ já existe na Focus com manifestação habilitada (provisionado fora
+        // do ERP ou irmã ainda sem config local) → tenta de novo sem a flag.
+        if ($response->failed() && $this->erroManifestacaoDuplicada($response)) {
+            $flags['habilita_manifestacao'] = false;
+            $response = $this->master->post('/v2/empresas', $this->montarPayload($empresa, $unidade, $flags));
+        }
 
         if ($response->failed()) {
             $this->handleError($response, 'criar empresa');
@@ -470,6 +484,121 @@ class FocusEmpresaService
                 $payload[$dbCol] = (bool) $flags[$apiFlag];
             }
         }
+    }
+
+    /**
+     * Config fiscal de OUTRA unidade da mesma empresa com o mesmo CNPJ efetivo
+     * e já provisionada na Focus (focus_empresa_id preenchido).
+     */
+    private function configIrmaMesmoCnpj(Empresa $empresa, Unidade $unidade): ?ConfiguracaoFiscal
+    {
+        $cnpj = $this->cnpjLimpo($unidade->cnpj ?: $empresa->cnpj);
+        if ($cnpj === '') {
+            return null;
+        }
+
+        $idsMesmoCnpj = Unidade::withoutGlobalScopes()
+            ->where('empresa_id', $empresa->id)
+            ->where('id', '!=', $unidade->id)
+            ->get(['id', 'cnpj'])
+            ->filter(fn ($u) => $this->cnpjLimpo($u->cnpj ?: $empresa->cnpj) === $cnpj)
+            ->pluck('id');
+
+        if ($idsMesmoCnpj->isEmpty()) {
+            return null;
+        }
+
+        return ConfiguracaoFiscal::withoutGlobalScopes()
+            ->where('empresa_id', $empresa->id)
+            ->whereIn('unidade_id', $idsMesmoCnpj)
+            ->whereNotNull('focus_empresa_id')
+            ->whereNotNull('focus_token_producao')
+            ->orderBy('id')
+            ->first();
+    }
+
+    /**
+     * Copia o vínculo Focus da unidade irmã (mesmo CNPJ) para a unidade nova:
+     * mesmo focus_empresa_id, tokens, ambiente, CSC e metadados do certificado.
+     * Não chama a Focus — a empresa-filha já existe e está configurada.
+     *
+     * @param  array<string, bool>  $flags
+     * @return array<string, mixed>
+     */
+    private function reutilizarEmpresaFocus(
+        Empresa $empresa,
+        Unidade $unidade,
+        ConfiguracaoFiscal $irma,
+        array $flags,
+    ): array {
+        $config = ConfiguracaoFiscal::withoutGlobalScopes()
+            ->where('empresa_id', $empresa->id)
+            ->where('unidade_id', $unidade->id)
+            ->first();
+
+        $payload = [
+            'empresa_id' => $empresa->id,
+            'unidade_id' => $unidade->id,
+            'focus_empresa_id' => $irma->focus_empresa_id,
+            'focus_token_producao' => $irma->focus_token_producao,
+            'focus_token_homologacao' => $irma->focus_token_homologacao,
+            'ambiente' => $irma->ambiente,
+            'emissao_fiscal_ativa' => true,
+            'csc_nfce' => $irma->csc_nfce,
+            'csc_id_nfce' => $irma->csc_id_nfce,
+            'certificado_validade' => $irma->certificado_validade,
+            'certificado_enviado_em' => $irma->certificado_enviado_em,
+            'certificado_cnpj' => $irma->certificado_cnpj,
+            'certificado_nome' => $irma->certificado_nome,
+            'focus_sincronizado_em' => now(),
+        ];
+
+        if (! $config || empty($config->webhook_secret)) {
+            $payload['webhook_secret'] = Str::random(48);
+        }
+
+        $this->aplicarFlagsLocais($payload, $flags);
+
+        if ($config) {
+            $config->update($payload);
+        } else {
+            ConfiguracaoFiscal::create($payload);
+        }
+
+        Log::info('[FocusEmpresa] empresa Focus reutilizada (mesmo CNPJ)', [
+            'empresa_id' => $empresa->id,
+            'unidade_id' => $unidade->id,
+            'unidade_irma_id' => $irma->unidade_id,
+            'focus_empresa_id' => $irma->focus_empresa_id,
+        ]);
+
+        return [
+            'id' => $irma->focus_empresa_id,
+            'reutilizada' => true,
+            'unidade_irma_id' => $irma->unidade_id,
+        ];
+    }
+
+    /**
+     * 422 da Focus "Não é permitido habilitar manifestação para uma segunda
+     * empresa com o mesmo CNPJ/CPF" (o texto real vem com typo "manisfetação",
+     * então detecta pelo campo e pelo trecho estável da mensagem).
+     */
+    private function erroManifestacaoDuplicada(\Illuminate\Http\Client\Response $response): bool
+    {
+        if ($response->status() !== 422) {
+            return false;
+        }
+
+        foreach ((array) ($response->json()['erros'] ?? []) as $erro) {
+            $campo = $erro['campo'] ?? '';
+            $msg = mb_strtolower($erro['mensagem'] ?? '');
+            if ($campo === 'habilita_manifestacao' || str_contains($msg, 'mesmo cnpj')) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function configOuFalha(Empresa $empresa, Unidade $unidade): ConfiguracaoFiscal

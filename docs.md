@@ -2,7 +2,7 @@
 
 > SaaS ERP multi-tenant para PMEs. Admin (IA365) gerencia a plataforma; cada empresa-cliente tem múltiplas unidades com fiscal, estoque e caixa independentes. Integração 100% Focus NFe (NF-e, NFC-e, NFS-e, CC-e, manifestação do destinatário, backup XMLs).
 
-**Última revisão:** 2026-08-04 (e-mails transacionais + financeiro da plataforma/cobrança direta + equipe IA365) · **Estado:** integração fiscal Fase 1-4 + multi-loja + regime de cobrança + auto-sync Focus + UX config fiscal + caixa por forma de pagamento (14/07) + Configurações da Loja/tabelas de preço/emissão parametrizada/adquirentes (24/07) + **Reforma Tributária NT 2025.002 (obrigatório 03/08/2026) + CNPJ alfanumérico NT 2025.001 (25/07)** + **e-mails/no-reply + cobrança direta mensal/anual com bloqueio + pode_ver_financeiro (04/08)** — concluídos
+**Última revisão:** 2026-08-05 (filtro por loja em vendas + imports de vendas/contas a receber + import robusto + lojas mesmo CNPJ compartilham empresa Focus) · **Estado:** integração fiscal Fase 1-4 + multi-loja + regime de cobrança + auto-sync Focus + UX config fiscal + caixa por forma de pagamento (14/07) + Configurações da Loja/tabelas de preço/emissão parametrizada/adquirentes (24/07) + **Reforma Tributária NT 2025.002 (obrigatório 03/08/2026) + CNPJ alfanumérico NT 2025.001 (25/07)** + **e-mails/no-reply + cobrança direta mensal/anual com bloqueio + pode_ver_financeiro (04/08)** + **doc de alterações do Dennis (05/08)** — concluídos
 
 ---
 
@@ -963,6 +963,88 @@ código de barras de 13 mm e código do produto visível.
 
 ---
 
+## Alterações do doc do Dennis (05/08/2026) — branch `fix/vendas-filtro-imports-multiloja-cnpj`
+
+> Origem: Google Doc "AlteraesERP" (5 itens com screenshots). Contexto real: migração
+> da STILO VINTE (6+ lojas em 2 CNPJs) do sistema antigo para o ERP.
+
+### Lojas com o MESMO CNPJ compartilham a empresa Focus
+
+**Problema:** a Focus recusa `POST /v2/empresas` para um CNPJ repetido quando
+`habilita_manifestacao=true` (422 — "Não é permitido habilitar manifestação para uma
+segunda empresa com o mesmo CNPJ/CPF", com typo "manisfetação" no texto real). O
+provisionamento mandava a flag sempre ligada → as filiais 02 JS/03 JS/OUTLET da STILO
+VINTE ficaram sem `focus_empresa_id`/tokens (não emitiam e o upload de certificado
+pedia token). As PRIME 05-07 tinham o focus_id copiado na mão, mas com
+`ambiente=homologacao` divergindo da matriz (producao).
+
+**Solução (`FocusEmpresaService::criar`):**
+1. `configIrmaMesmoCnpj()` — se OUTRA unidade da mesma empresa com o mesmo CNPJ efetivo
+   (`unidade.cnpj ?: empresa.cnpj`, comparado via `Cnpj::limpar`) já está provisionada,
+   `reutilizarEmpresaFocus()` copia focus_empresa_id + tokens + ambiente + CSC +
+   metadados do certificado SEM chamar a Focus. Certificado A1, CSC e numeração são
+   POR CNPJ — configura uma vez, vale para todas as lojas do CNPJ.
+2. Sem irmã local: POST normal; se vier o 422 da manifestação
+   (`erroManifestacaoDuplicada` — campo `habilita_manifestacao` ou "mesmo cnpj" na
+   mensagem), retry único com `habilita_manifestacao=false`.
+3. Tela de Configuração Fiscal mostra alerta "CNPJ compartilhado entre lojas" listando
+   as irmãs (`$lojasMesmoCnpj` no `ConfiguracaoFiscalController::edit`; relação
+   `unidade()` adicionada ao model ConfiguracaoFiscal).
+
+**Data-fix aplicado em produção (empresa 3):** configs das unidades 13/14/18 receberam
+focus_id 235712 + tokens/certificado da Matriz (config unidade 9); configs 15/16/17
+(PRIME) alinhadas ao ambiente `producao` + metadados de certificado da 04 PRIME MATRIZ.
+
+### Filtro por loja em /app/vendas
+
+- Select "Loja" (Todas + unidades ativas) **só para admin/dono** — os demais perfis já
+  são travados pelo UnidadeScope. Padrão continua a loja da sessão (tela não muda).
+- Cards de resumo e Exportar respeitam o filtro (`?loja=todas|<id>`; o botão Exportar
+  agora propaga a query string). Badge da loja em cada linha quando "Todas".
+- `VendaController::lojasParaFiltro()` valida o id contra as lojas visíveis.
+
+### Import de vendas históricas (/app/vendas)
+
+- `POST /app/import/vendas` (`permission:vendas,criar`) + Modelo Excel `vendas`.
+- Colunas: `numero_antigo, data, cliente, cliente_cpf_cnpj, vendedor, forma_pagamento,
+  valor_total, status, observacoes`. 1 linha = 1 venda com item único "Venda importada
+  — sistema anterior" (produto_id null — VendaItemObserver ignora snapshot).
+- Entram como **`tipo='importada'`**: SEM estoque, SEM caixa, SEM fiscal, SEM contas a
+  receber. `created_at` = data da planilha (relatórios históricos funcionam); numeração
+  segue a sequência da unidade (nº original vai nas observações).
+- Migration `2026_08_05_100001`: enum `vendas.tipo` += `pedido` e `importada` —
+  **o faturamento de pedidos gravava `tipo='pedido'` que NÃO existia no enum e
+  estourava com sql_mode STRICT** (bug latente desde 24/07, zero vendas de pedido
+  no banco confirmavam).
+
+### Import de contas a receber (/app/financeiro/contas-receber)
+
+- `POST /app/import/contas-receber` (`permission:financeiro,criar`) + modelo
+  `contas_receber`: `cliente, cliente_cpf_cnpj, descricao, valor, vencimento, parcela
+  (2/10), status (pendente|paga), pago_em, forma_pagamento`.
+- Cliente resolvido por CPF/CNPJ e depois por nome exato; sem match a conta fica sem
+  vínculo (a tela já aceita). `paga` preenche valor_pago/pago_em (default = vencimento).
+
+### Import robusto (bug "0 de 70 linhas — 11 com erro")
+
+Causas: linha sem CPF/CNPJ era pulada EM SILÊNCIO; cabeçalho "CPF/CNPJ" não virava
+`cpf_cnpj` (Str::snake preserva `/` — coluna inteira ignorada); loop abortava na 11ª
+falha; log INFO filtrado em produção. Correções em `processImport`:
+
+- `normalizarCabecalho()` — Str::ascii + tudo que não é `[a-z0-9]` vira `_`.
+- Arquivo inteiro processado (sem break); contadores `imported`/`puladas`/`erros_total`
+  + até 50 mensagens linha a linha; log em `warning`.
+- Front (`erp-core.js`): `ERP.importResumoModal(data)` — modal com chips
+  importadas/puladas/com erro/total e a lista de ocorrências (reload ao fechar).
+- **Cliente sem CPF/CNPJ agora importa** (base migrada é assim): migration
+  `2026_08_05_100000` torna `clientes.cpf_cnpj` NULLABLE (unique empresa+cpf_cnpj
+  aceita múltiplos NULL) e a dedup desses é por nome exato. Cadastro manual continua
+  exigindo documento.
+- Datas aceitam dd/mm/aaaa, aaaa-mm-dd e **serial do Excel** (célula formatada como
+  data); `normalizarFormaPagamento()` mapeia "Cartão de Crédito"→`cartao_credito` etc.
+
+---
+
 ## Armadilhas conhecidas
 
 1. **EmpresaScope recursão**: `auth()->user()` dentro do scope chama User model que tem o scope → loop infinito. Scopes têm flag `static $applying`. Não remover.
@@ -1038,11 +1120,25 @@ código de barras de 13 mm e código do produto visível.
     `storage/` (ex.: `fiscal:baixar-xmls-notas`) cria arquivos que o site
     (www-data) não lê/escreve. Rodar com `-u www-data` ou chown depois.
     O scheduler/workers já rodam como www-data — só o exec manual morde.
+35. **A Focus aceita 1 CNPJ com manifestação; lojas do mesmo CNPJ COMPARTILHAM a
+    empresa Focus** — nunca criar 2ª empresa-filha para CNPJ repetido: o certificado,
+    CSC, numeração e webhooks são do CNPJ. `FocusEmpresaService::criar` já reutiliza
+    a config da irmã (05/08); se mexer no provisionamento, preservar esse caminho.
+36. **`vendas.tipo` é ENUM no MySQL** (`pdv,balcao,online,pedido,importada`) — valor
+    novo exige migration ALTER (sql_mode STRICT rejeita o INSERT; foi assim que o
+    faturamento de pedidos ficou quebrado sem ninguém ver).
+37. **Import: linha pulada ≠ erro** — processor devolve null = "pulada" (campo
+    obrigatório ausente) e entra no contador/modal. Ao criar novo import, validar e
+    devolver null em vez de deixar exceção genérica estourar.
 
 ---
 
 ## Próximos passos
 
+- **STILO VINTE multi-CNPJ (05/08)**: emitir 1 NFC-e de teste numa filial JS (02/03/OUTLET)
+  para confirmar o compartilhamento da empresa Focus; conferir CSC das PRIME (herdado da
+  04 MATRIZ). Dennis reimportar a planilha de clientes que deu "0 de 70" (agora entra
+  cliente sem CPF e o modal mostra o motivo de cada linha).
 - **Financeiro da plataforma (04/08)**: validar o 1º ciclo real — fatura 2026-08 da
   MISS MERLINDA (R$ 710, vence 20/08) marcada como paga pelo Dennis; ligar o bloqueio
   automático dela se for a intenção (hoje só avisa). STILO VINTE: gerar a anuidade

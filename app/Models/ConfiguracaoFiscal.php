@@ -87,6 +87,11 @@ class ConfiguracaoFiscal extends Model
         ];
     }
 
+    public function unidade()
+    {
+        return $this->belongsTo(\App\Models\Unidade::class)->withoutGlobalScopes();
+    }
+
     /**
      * Retorna o token Focus adequado ao ambiente atual.
      * Prioriza os tokens por-ambiente (modelo revenda); cai no

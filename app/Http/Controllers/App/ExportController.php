@@ -49,6 +49,14 @@ class ExportController extends Controller
     {
         $query = Venda::where('empresa_id', auth()->user()->empresa_id);
 
+        // Mesmo filtro de loja da listagem (?loja=todas|<id>; sem parâmetro = loja da sessão)
+        if ($request->input('loja') !== 'todas') {
+            $lojaFiltro = $request->filled('loja') ? (int) $request->loja : (int) session('unidade_id');
+            if ($lojaFiltro) {
+                $query->where('unidade_id', $lojaFiltro);
+            }
+        }
+
         if ($request->filled('data_inicio')) {
             $query->whereDate('created_at', '>=', $request->data_inicio);
         }

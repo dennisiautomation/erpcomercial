@@ -127,6 +127,10 @@ Route::middleware(['auth', 'suspensao', 'unidade'])->prefix('app')->name('app.')
             ->middleware('permission:produtos,criar');
         Route::post('/fornecedores', [App\ImportController::class, 'fornecedores'])->name('fornecedores')
             ->middleware('permission:produtos,criar');
+        Route::post('/vendas', [App\ImportController::class, 'vendas'])->name('vendas')
+            ->middleware('permission:vendas,criar');
+        Route::post('/contas-receber', [App\ImportController::class, 'contasReceber'])->name('contas-receber')
+            ->middleware('permission:financeiro,criar');
         Route::get('/template/{tipo}', [App\ImportController::class, 'template'])->name('template');
     });
 

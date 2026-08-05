@@ -7,6 +7,17 @@
     <h4 class="mb-0"><i class="bi bi-gear me-2"></i>Configuracao Fiscal</h4>
 </div>
 
+@if(($lojasMesmoCnpj ?? collect())->isNotEmpty())
+    <div class="alert alert-info d-flex align-items-start gap-2 mb-4">
+        <i class="bi bi-diagram-3 mt-1"></i>
+        <div>
+            <strong>CNPJ compartilhado entre lojas.</strong>
+            Esta loja usa o mesmo CNPJ de: {{ $lojasMesmoCnpj->join(', ') }}.
+            Certificado A1, CSC e numeração das notas são <u>do CNPJ</u> — configurados uma vez, valem para todas essas lojas.
+        </div>
+    </div>
+@endif
+
 {{-- ═══ Regime tributário da empresa (fora do form principal — submit próprio) ═══ --}}
 @php
     $empresaAtual = auth()->user()->empresa;

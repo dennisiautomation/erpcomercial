@@ -417,14 +417,14 @@ const ERP = {
                     }
 
                     if (data && data.success) {
-                        const erros = (data.errors || []).length;
-                        ERP.toast(
-                            `${data.imported || 0} de ${data.total_lines || 0} linhas importadas` +
-                            (erros ? ` — ${erros} com erro (ver detalhes no arquivo)` : '!'),
-                            erros ? 'warning' : 'success'
-                        );
-                        if (erros) console.warn('[Import] linhas com erro:', data.errors);
-                        setTimeout(() => location.reload(), erros ? 3000 : 1500);
+                        const erros = data.erros_total ?? (data.errors || []).length;
+                        const puladas = data.puladas || 0;
+                        if (erros || puladas) {
+                            ERP.importResumoModal(data);
+                        } else {
+                            ERP.toast(`${data.imported || 0} de ${data.total_lines || 0} linhas importadas!`, 'success');
+                            setTimeout(() => location.reload(), 1500);
+                        }
                     } else {
                         ERP.toast((data && (data.error || data.message)) || 'Erro na importação', 'danger',
                             { title: 'Importação', duration: 0 });
@@ -500,6 +500,64 @@ const ERP = {
 
         [valorEl, qtdEl, vencEl].forEach(el => el?.addEventListener('input', generate));
         generate();
+    },
+
+    // ─── RESUMO DA IMPORTAÇÃO (modal com detalhes por linha) ─
+    importResumoModal(data) {
+        const imported = data.imported || 0;
+        const puladas = data.puladas || 0;
+        const erros = data.erros_total ?? (data.errors || []).length;
+        const total = data.total_lines || 0;
+        const detalhes = data.errors || [];
+
+        document.getElementById('erp-import-resumo')?.remove();
+
+        const wrap = document.createElement('div');
+        wrap.id = 'erp-import-resumo';
+        wrap.className = 'modal fade';
+        wrap.tabIndex = -1;
+
+        const chip = (n, rotulo, cor) =>
+            `<div class="text-center px-3 py-2 rounded" style="background:${cor}14;min-width:90px;">
+                <div class="fs-4 fw-bold" style="color:${cor};">${n}</div>
+                <div class="small text-muted">${rotulo}</div>
+            </div>`;
+
+        const itens = detalhes.map(d => {
+            const div = document.createElement('div');
+            div.textContent = d;
+            return `<li class="small py-1 border-bottom">${div.innerHTML || div.textContent}</li>`;
+        }).join('');
+        const maisLinhas = (erros + puladas) > detalhes.length
+            ? `<p class="small text-muted mt-2 mb-0">Mostrando as primeiras ${detalhes.length} ocorrências de ${erros + puladas}.</p>` : '';
+
+        wrap.innerHTML = `
+            <div class="modal-dialog modal-lg modal-dialog-scrollable">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title"><i class="bi bi-clipboard-data me-2"></i>Resultado da importação</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="d-flex gap-2 flex-wrap mb-3">
+                            ${chip(imported, 'importadas', '#059669')}
+                            ${chip(puladas, 'puladas', '#d97706')}
+                            ${chip(erros, 'com erro', '#dc2626')}
+                            ${chip(total, 'linhas no arquivo', '#0891b2')}
+                        </div>
+                        ${detalhes.length ? `<ul class="list-unstyled mb-0" style="max-height:45vh;overflow:auto;">${itens}</ul>` : ''}
+                        ${maisLinhas}
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Entendi</button>
+                    </div>
+                </div>
+            </div>`;
+
+        document.body.appendChild(wrap);
+        const modal = new bootstrap.Modal(wrap);
+        wrap.addEventListener('hidden.bs.modal', () => { wrap.remove(); location.reload(); });
+        modal.show();
     },
 
     // ─── TOAST NOTIFICATIONS ────────────────────────────────

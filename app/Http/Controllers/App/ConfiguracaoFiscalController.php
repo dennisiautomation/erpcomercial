@@ -46,12 +46,27 @@ class ConfiguracaoFiscalController extends Controller
         // pronto e o que falta para cada tipo de nota.
         $checklist = $this->montarChecklist($config, $modoRevenda);
 
+        // Lojas com o mesmo CNPJ compartilham a empresa Focus (certificado,
+        // CSC e numeração) — lista as irmãs para o aviso na tela.
+        $lojasMesmoCnpj = collect();
+        if ($config->focus_empresa_id) {
+            $lojasMesmoCnpj = ConfiguracaoFiscal::withoutGlobalScopes()
+                ->where('empresa_id', session('empresa_id'))
+                ->where('focus_empresa_id', $config->focus_empresa_id)
+                ->where('unidade_id', '!=', session('unidade_id'))
+                ->with('unidade:id,nome')
+                ->get()
+                ->pluck('unidade.nome')
+                ->filter();
+        }
+
         return view('app.configuracao-fiscal.edit', compact(
             'config',
             'ufSefaz',
             'modoRevenda',
             'gerenciadaPelaFocus',
-            'checklist'
+            'checklist',
+            'lojasMesmoCnpj'
         ));
     }
 

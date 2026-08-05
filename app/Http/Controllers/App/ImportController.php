@@ -4,9 +4,13 @@ namespace App\Http\Controllers\App;
 
 use App\Http\Controllers\Controller;
 use App\Models\Cliente;
+use App\Models\ContaReceber;
 use App\Models\Fornecedor;
 use App\Models\Produto;
+use App\Models\Venda;
+use App\Models\VendaItem;
 use App\Support\Planilha;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -19,13 +23,22 @@ class ImportController extends Controller
     {
         return $this->processImport($request, 'clientes', function ($row, $empresaId) {
             $cpfCnpj = \App\Support\Cnpj::limparCpfCnpj($row['cpf_cnpj'] ?? $row['cpf'] ?? $row['cnpj'] ?? '');
-            if (empty($cpfCnpj)) return null;
+            $nome = trim((string) ($row['nome'] ?? $row['razao_social'] ?? $row['nome_razao_social'] ?? ''));
+
+            // Sem CPF/CNPJ e sem nome não há como identificar o cliente
+            if (empty($cpfCnpj) && $nome === '') return null;
+
+            // Sem documento (comum em base migrada de outro sistema):
+            // importa mesmo assim, deduplicando pelo nome exato
+            $chave = ! empty($cpfCnpj)
+                ? ['empresa_id' => $empresaId, 'cpf_cnpj' => $cpfCnpj]
+                : ['empresa_id' => $empresaId, 'cpf_cnpj' => null, 'nome_razao_social' => $nome];
 
             return Cliente::updateOrCreate(
-                ['empresa_id' => $empresaId, 'cpf_cnpj' => $cpfCnpj],
+                $chave,
                 [
                     'tipo_pessoa'       => strlen($cpfCnpj) > 11 ? 'pj' : 'pf',
-                    'nome_razao_social' => $row['nome'] ?? $row['razao_social'] ?? $row['nome_razao_social'] ?? 'Sem nome',
+                    'nome_razao_social' => $nome !== '' ? $nome : 'Sem nome',
                     'nome_fantasia'     => $row['nome_fantasia'] ?? $row['fantasia'] ?? null,
                     'ie'                => $row['ie'] ?? null,
                     'cep'               => preg_replace('/\D/', '', $row['cep'] ?? '') ?: '00000000',
@@ -137,6 +150,184 @@ class ImportController extends Controller
      * Modelos de planilha. Padrão: .xlsx (abre no Excel/Numbers já em colunas).
      * `?formato=csv` mantém o modelo antigo para quem prefere texto puro.
      */
+    /**
+     * Vendas históricas de outro sistema: entram como tipo 'importada' —
+     * apenas histórico/relatórios, SEM movimentar estoque, caixa ou fiscal.
+     */
+    public function vendas(Request $request): JsonResponse
+    {
+        return $this->processImport($request, 'vendas', function ($row, $empresaId) {
+            $data = $this->parseData($row['data'] ?? null);
+            $total = $this->parseNumber($row['valor_total'] ?? $row['total'] ?? $row['valor'] ?? 0);
+            if (! $data || $total <= 0) return null;
+
+            $clienteId = $this->acharClienteId($row, $empresaId);
+
+            $vendedorNome = trim((string) ($row['vendedor'] ?? ''));
+            $vendedorId = $vendedorNome !== ''
+                ? \App\Models\User::where('empresa_id', $empresaId)->where('name', $vendedorNome)->value('id')
+                : null;
+
+            $status = mb_strtolower(trim((string) ($row['status'] ?? 'concluida')));
+            $cancelada = in_array($status, ['cancelada', 'cancelado']);
+
+            $unidadeId = session('unidade_id');
+
+            return \Illuminate\Support\Facades\DB::transaction(function () use ($row, $empresaId, $unidadeId, $data, $total, $clienteId, $vendedorId, $cancelada) {
+                $ultimoNumero = Venda::withoutGlobalScopes()
+                    ->where('empresa_id', $empresaId)
+                    ->where('unidade_id', $unidadeId)
+                    ->lockForUpdate()
+                    ->max('numero');
+
+                $numeroAntigo = trim((string) ($row['numero_antigo'] ?? $row['numero'] ?? ''));
+                $obs = trim('Importada de outro sistema.'
+                    . ($numeroAntigo !== '' ? " Nº original: {$numeroAntigo}." : '')
+                    . ' ' . (string) ($row['observacoes'] ?? ''));
+
+                $venda = new Venda([
+                    'empresa_id'      => $empresaId,
+                    'unidade_id'      => $unidadeId,
+                    'numero'          => ($ultimoNumero ?? 0) + 1,
+                    'cliente_id'      => $clienteId,
+                    'vendedor_id'     => $vendedorId,
+                    'tipo'            => 'importada',
+                    'forma_pagamento' => $this->normalizarFormaPagamento((string) ($row['forma_pagamento'] ?? '')),
+                    'subtotal'        => $total,
+                    'desconto_valor'  => 0,
+                    'total'           => $total,
+                    'status'          => $cancelada ? 'cancelada' : 'concluida',
+                    'observacoes'     => $obs,
+                ]);
+                $venda->created_at = $data;
+                $venda->save();
+
+                VendaItem::create([
+                    'venda_id'       => $venda->id,
+                    'produto_id'     => null,
+                    'descricao'      => 'Venda importada — sistema anterior',
+                    'quantidade'     => 1,
+                    'preco_unitario' => $total,
+                    'desconto_valor' => 0,
+                    'total'          => $total,
+                ]);
+
+                return $venda;
+            });
+        });
+    }
+
+    public function contasReceber(Request $request): JsonResponse
+    {
+        return $this->processImport($request, 'contas_receber', function ($row, $empresaId) {
+            $descricao = trim((string) ($row['descricao'] ?? ''));
+            $valor = $this->parseNumber($row['valor'] ?? 0);
+            $vencimento = $this->parseData($row['vencimento'] ?? null);
+            if ($descricao === '' || $valor <= 0 || ! $vencimento) return null;
+
+            [$parcela, $totalParcelas] = $this->parseParcela((string) ($row['parcela'] ?? ''));
+
+            $status = mb_strtolower(trim((string) ($row['status'] ?? 'pendente')));
+            $paga = in_array($status, ['paga', 'pago', 'quitada', 'quitado', 'recebida', 'recebido']);
+
+            return ContaReceber::create([
+                'empresa_id'      => $empresaId,
+                'unidade_id'      => session('unidade_id'),
+                'cliente_id'      => $this->acharClienteId($row, $empresaId),
+                'descricao'       => $descricao,
+                'valor'           => $valor,
+                'valor_pago'      => $paga ? $valor : 0,
+                'vencimento'      => $vencimento,
+                'pago_em'         => $paga ? ($this->parseData($row['pago_em'] ?? null) ?? $vencimento) : null,
+                'forma_pagamento' => $this->normalizarFormaPagamento((string) ($row['forma_pagamento'] ?? '')) ?: null,
+                'parcela'         => $parcela,
+                'total_parcelas'  => $totalParcelas,
+                'status'          => $paga ? 'paga' : 'pendente',
+                'observacoes'     => 'Importada por planilha',
+            ]);
+        });
+    }
+
+    /**
+     * Cliente da linha: por CPF/CNPJ e, se não achar, por nome exato.
+     * Devolve null sem erro — conta/venda pode ficar sem vínculo.
+     */
+    private function acharClienteId(array $row, int $empresaId): ?int
+    {
+        $doc = \App\Support\Cnpj::limparCpfCnpj(
+            $row['cliente_cpf_cnpj'] ?? $row['cpf_cnpj'] ?? $row['cpf'] ?? $row['cnpj'] ?? ''
+        );
+        if (! empty($doc)) {
+            $id = Cliente::withoutGlobalScopes()
+                ->where('empresa_id', $empresaId)->where('cpf_cnpj', $doc)->value('id');
+            if ($id) return $id;
+        }
+
+        $nome = trim((string) ($row['cliente'] ?? $row['cliente_nome'] ?? ''));
+        if ($nome !== '') {
+            return Cliente::withoutGlobalScopes()
+                ->where('empresa_id', $empresaId)->where('nome_razao_social', $nome)->value('id');
+        }
+
+        return null;
+    }
+
+    /**
+     * Datas em dd/mm/aaaa, aaaa-mm-dd ou serial do Excel (célula formatada
+     * como data no .xlsx chega como número de dias desde 30/12/1899).
+     */
+    private function parseData($valor): ?Carbon
+    {
+        $valor = trim((string) $valor);
+        if ($valor === '') return null;
+
+        if (is_numeric($valor) && (float) $valor > 20000 && (float) $valor < 80000) {
+            return Carbon::create(1899, 12, 30)->addDays((int) (float) $valor);
+        }
+
+        foreach (['d/m/Y', 'd/m/y', 'Y-m-d', 'd-m-Y', 'd/m/Y H:i', 'Y-m-d H:i:s'] as $fmt) {
+            try {
+                return Carbon::createFromFormat($fmt, $valor)->startOfDay();
+            } catch (\Throwable) {
+                // tenta o próximo formato
+            }
+        }
+
+        return null;
+    }
+
+    /** "2/5" → [2, 5]; "3" → [3, 3]; vazio → [1, 1]. */
+    private function parseParcela(string $valor): array
+    {
+        $valor = trim($valor);
+        if ($valor === '') return [1, 1];
+
+        if (preg_match('#^(\d+)\s*/\s*(\d+)$#', $valor, $m)) {
+            return [max(1, (int) $m[1]), max(1, (int) $m[2])];
+        }
+
+        $n = max(1, (int) $valor);
+        return [$n, $n];
+    }
+
+    /** "Cartão de Crédito" → cartao_credito; mantém o texto snake_case se não reconhecer. */
+    private function normalizarFormaPagamento(string $valor): string
+    {
+        $texto = $this->normalizarCabecalho($valor);
+        if ($texto === '') return '';
+
+        return match (true) {
+            str_contains($texto, 'credito') => 'cartao_credito',
+            str_contains($texto, 'debito') => 'cartao_debito',
+            str_contains($texto, 'dinheiro') || str_contains($texto, 'especie') => 'dinheiro',
+            str_contains($texto, 'pix') => 'pix',
+            str_contains($texto, 'boleto') => 'boleto',
+            str_contains($texto, 'transferencia') || str_contains($texto, 'ted') || str_contains($texto, 'doc') => 'transferencia',
+            str_contains($texto, 'crediario') || str_contains($texto, 'prazo') || str_contains($texto, 'carne') => 'crediario',
+            default => $texto,
+        };
+    }
+
     public function template(string $tipo, Request $request)
     {
         $modelo = self::MODELOS[$tipo] ?? null;
@@ -201,6 +392,28 @@ class ImportController extends Controller
                 ['12345678000190', 'Distribuidora Exemplo Ltda', 'Dist Exemplo', '01001000', 'Rua Teste', '200', 'Galpão 3', 'Centro', 'São Paulo', 'SP', '1143211234', 'contato@dist.com', 'João Vendas', '30/60 dias'],
             ],
         ],
+        'vendas' => [
+            'aba'     => 'Vendas',
+            'colunas' => [
+                'numero_antigo', 'data', 'cliente', 'cliente_cpf_cnpj', 'vendedor',
+                'forma_pagamento', 'valor_total', 'status', 'observacoes',
+            ],
+            'exemplos' => [
+                ['1042', '15/03/2026', 'João da Silva', '12345678901', 'Maria Vendedora', 'Cartão de Crédito', '150,00', 'concluida', 'Venda migrada do sistema antigo'],
+                ['1043', '16/03/2026', 'Consumidor Final', '', '', 'Dinheiro', '89,90', 'concluida', ''],
+            ],
+        ],
+        'contas_receber' => [
+            'aba'     => 'Contas a Receber',
+            'colunas' => [
+                'cliente', 'cliente_cpf_cnpj', 'descricao', 'valor', 'vencimento',
+                'parcela', 'status', 'pago_em', 'forma_pagamento',
+            ],
+            'exemplos' => [
+                ['João da Silva', '12345678901', 'Carnê loja 2/10', '120,00', '10/09/2026', '2/10', 'pendente', '', 'crediario'],
+                ['Maria Souza', '', 'Venda a prazo 1/3', '250,00', '20/08/2026', '1/3', 'paga', '18/08/2026', 'pix'],
+            ],
+        ],
     ];
 
     /**
@@ -238,6 +451,17 @@ class ImportController extends Controller
 
     // ─── Internal ───────────────────────────────────────────
 
+    /**
+     * "CPF/CNPJ" → cpf_cnpj, "Razão Social" → razao_social, "Preço Venda" → preco_venda.
+     * Remove acentos e troca qualquer sequência não alfanumérica por _.
+     */
+    private function normalizarCabecalho(string $header): string
+    {
+        $ascii = Str::ascii(mb_strtolower(trim($header, " \t\n\r\0\x0B\"")));
+
+        return trim(preg_replace('/[^a-z0-9]+/', '_', $ascii) ?? '', '_');
+    }
+
     private function processImport(Request $request, string $tipo, callable $processor): JsonResponse
     {
         $request->validate(['arquivo' => 'required|file|mimes:csv,txt,xlsx|max:10240'], [
@@ -260,13 +484,18 @@ class ImportController extends Controller
                 return response()->json(['success' => false, 'error' => 'Arquivo vazio ou sem dados'], 422);
             }
 
+            // "CPF/CNPJ", "Razão Social" etc. viram cpf_cnpj, razao_social —
+            // o snake_case puro deixava a barra e a coluna inteira era ignorada.
             $headers = array_map(
-                fn($h) => Str::snake(trim(strtolower((string) $h), " \t\n\r\0\x0B\"")),
+                fn($h) => $this->normalizarCabecalho((string) $h),
                 array_shift($matriz)
             );
 
             $imported = 0;
-            $errors = [];
+            $errosTotal = 0;
+            $puladasTotal = 0;
+            $detalhes = [];       // mensagens linha a linha (erros + puladas), cap 50
+            $capDetalhes = 50;
 
             DB::beginTransaction();
 
@@ -286,21 +515,36 @@ class ImportController extends Controller
                     if ($this->ehLinhaDeExemplo($tipo, $row)) continue;
 
                     $result = $processor($row, $empresaId);
-                    if ($result) $imported++;
+                    if ($result) {
+                        $imported++;
+                    } else {
+                        // Antes a linha sumia em silêncio ("0 de 70 importadas")
+                        $puladasTotal++;
+                        if (count($detalhes) < $capDetalhes) {
+                            $detalhes[] = "Linha " . ($i + 2) . ": pulada — campo obrigatório ausente (confira o Modelo Excel).";
+                        }
+                    }
                 } catch (\Throwable $e) {
-                    $errors[] = "Linha " . ($i + 2) . ": " . $e->getMessage();
-                    if (count($errors) > 10) break;
+                    $errosTotal++;
+                    if (count($detalhes) < $capDetalhes) {
+                        $detalhes[] = "Linha " . ($i + 2) . ": " . $e->getMessage();
+                    }
+                    // sem break: o arquivo inteiro é processado (antes parava na 11ª falha)
                 }
             }
 
             DB::commit();
 
-            Log::info("[Import] {$tipo}: {$imported} importados", ['errors' => count($errors)]);
+            Log::warning("[Import] {$tipo}: {$imported} importadas, {$puladasTotal} puladas, {$errosTotal} com erro", [
+                'detalhes' => array_slice($detalhes, 0, 20),
+            ]);
 
             return response()->json([
                 'success' => true,
                 'imported' => $imported,
-                'errors' => $errors,
+                'puladas' => $puladasTotal,
+                'erros_total' => $errosTotal,
+                'errors' => $detalhes,
                 'total_lines' => count($matriz),
             ]);
         } catch (\Throwable $e) {

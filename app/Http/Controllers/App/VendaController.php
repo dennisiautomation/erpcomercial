@@ -18,9 +18,22 @@ class VendaController extends Controller
 {
     public function index(Request $request)
     {
+        // Filtro por loja: só para admin/dono (o UnidadeScope já trava os demais
+        // perfis na loja da sessão). Padrão continua sendo a loja atual.
+        $lojas = $this->lojasParaFiltro($request->user());
+        $lojaFiltro = (int) session('unidade_id');
+        if ($lojas->count() > 1 && $request->filled('loja')) {
+            if ($request->loja === 'todas') {
+                $lojaFiltro = null;
+            } elseif ($lojas->contains('id', (int) $request->loja)) {
+                $lojaFiltro = (int) $request->loja;
+            }
+        }
+
         $query = Venda::where('empresa_id', session('empresa_id'))
-            ->where('unidade_id', session('unidade_id'))
-            ->with(['cliente:id,nome_razao_social,cpf_cnpj', 'vendedor:id,name']);
+            ->when($lojaFiltro, fn ($q) => $q->where('unidade_id', $lojaFiltro))
+            ->when(! $lojaFiltro, fn ($q) => $q->whereIn('unidade_id', $lojas->pluck('id')))
+            ->with(['cliente:id,nome_razao_social,cpf_cnpj', 'vendedor:id,name', 'unidade:id,nome']);
 
         if ($request->filled('busca')) {
             $busca = $request->busca;
@@ -52,10 +65,11 @@ class VendaController extends Controller
 
         $vendas = $query->latest()->paginate(20)->withQueryString();
 
-        // Summary stats
+        // Summary stats — respeitam o filtro de loja
         $empresaId = session('empresa_id');
-        $unidadeId = session('unidade_id');
-        $baseQuery = Venda::where('empresa_id', $empresaId)->where('unidade_id', $unidadeId);
+        $baseQuery = Venda::where('empresa_id', $empresaId)
+            ->when($lojaFiltro, fn ($q) => $q->where('unidade_id', $lojaFiltro))
+            ->when(! $lojaFiltro, fn ($q) => $q->whereIn('unidade_id', $lojas->pluck('id')));
 
         // Apply same date filters for stats
         $statsQuery = clone $baseQuery;
@@ -73,7 +87,27 @@ class VendaController extends Controller
             'total_hoje' => (clone $baseQuery)->where('status', StatusVenda::Concluida)->whereDate('created_at', today())->sum('total'),
         ];
 
-        return view('app.vendas.index', compact('vendas', 'stats'));
+        return view('app.vendas.index', compact('vendas', 'stats', 'lojas', 'lojaFiltro'));
+    }
+
+    /**
+     * Lojas que o usuário pode usar no filtro da listagem: admin da plataforma
+     * e admin/dono da empresa veem todas as unidades ativas da empresa da
+     * sessão; demais perfis não filtram (UnidadeScope já os trava).
+     */
+    private function lojasParaFiltro($user): \Illuminate\Support\Collection
+    {
+        $perfil = $user->perfil instanceof \App\Enums\Perfil ? $user->perfil->value : $user->perfil;
+
+        if (! $user->is_admin && ! in_array($perfil, ['admin', 'dono'])) {
+            return collect();
+        }
+
+        return \App\Models\Unidade::withoutGlobalScopes()
+            ->where('empresa_id', session('empresa_id'))
+            ->where('status', 'ativa')
+            ->orderBy('nome')
+            ->get(['id', 'nome']);
     }
 
     public function create()

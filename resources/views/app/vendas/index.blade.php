@@ -14,7 +14,8 @@
         </nav>
     </div>
     <div class="d-flex gap-2">
-        <a href="{{ route('app.export.vendas') }}" class="btn btn-erp-outline"><i class="bi bi-file-earmark-spreadsheet me-1"></i>Exportar</a>
+        <x-erp.import-buttons :importRoute="route('app.import.vendas')" templateType="vendas" />
+        <a href="{{ route('app.export.vendas', request()->query()) }}" class="btn btn-erp-outline"><i class="bi bi-file-earmark-spreadsheet me-1"></i>Exportar</a>
     </div>
 </div>
 
@@ -101,6 +102,19 @@
                     <input type="text" name="busca" class="form-control" placeholder="Numero ou cliente..." value="{{ request('busca') }}">
                 </div>
             </div>
+            @if(($lojas ?? collect())->count() > 1)
+                <div class="col-md-2">
+                    <label class="form-label small fw-semibold mb-1">Loja</label>
+                    <select name="loja" class="form-select form-select-sm">
+                        <option value="todas" {{ empty($lojaFiltro) && request()->filled('loja') ? 'selected' : '' }}>Todas</option>
+                        @foreach($lojas as $loja)
+                            <option value="{{ $loja->id }}" {{ (int) ($lojaFiltro ?? 0) === $loja->id ? 'selected' : '' }}>
+                                {{ $loja->nome }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+            @endif
             <div class="col-md-2">
                 <label class="form-label small fw-semibold mb-1">Status</label>
                 <select name="status" class="form-select form-select-sm">
@@ -169,6 +183,11 @@
                         <td class="small">{{ $venda->created_at->format('d/m/Y H:i') }}</td>
                         <td>
                             <div class="fw-semibold">{{ Str::limit($venda->cliente->nome_razao_social ?? 'Consumidor Final', 28) }}</div>
+                            @if(empty($lojaFiltro) && ($lojas ?? collect())->count() > 1)
+                                <span class="badge bg-light text-secondary border small">
+                                    <i class="bi bi-shop me-1"></i>{{ $venda->unidade->nome ?? '-' }}
+                                </span>
+                            @endif
                         </td>
                         <td class="text-muted small">{{ $venda->vendedor->name ?? '-' }}</td>
                         <td class="text-center">

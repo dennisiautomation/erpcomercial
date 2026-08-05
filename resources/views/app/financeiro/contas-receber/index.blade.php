@@ -4,6 +4,7 @@
 
 @section('content')
 <x-erp.page-header title="Contas a Receber" subtitle="Gerencie recebiveis, parcelas e baixas" icon="cash-stack">
+    <x-erp.import-buttons :importRoute="route('app.import.contas-receber')" templateType="contas_receber" />
     <a href="{{ route('app.export.contas-receber') }}" class="btn btn-erp-outline"><i class="bi bi-file-earmark-spreadsheet me-1"></i>Exportar</a>
     <a href="{{ route('app.contas-receber.create') }}" class="btn btn-erp-primary">
         <i class="bi bi-plus-lg me-1"></i> Nova Conta
