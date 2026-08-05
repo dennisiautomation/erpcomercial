@@ -1070,6 +1070,30 @@ e `comparar` redirecionam não-donos ao dashboard com aviso; menu "Meu Plano", l
 `isDono()`. A tela `/app/plano/expirado` continua aberta a todos (é a de bloqueio).
 Admin da plataforma segue com o redirect próprio (armadilha 25).
 
+### Minhas Lojas + Minha Empresa no /app (05/08, 4ª rodada)
+
+Pedido do Dennis ("tudo no admin fica ruim") — o cadastro sai do monopólio do admin:
+
+- **`/app/lojas` (Minhas Lojas)** — dono cria/edita todas as lojas da empresa;
+  **gerente edita as lojas às quais está vinculado** (pivot `unidade_user`; sem
+  vínculo, vale a loja da sessão). Criação respeita `max_unidades` do plano
+  (badge "limite atingido" no lugar do botão; admin continua sem limite).
+  Reusa `Admin\UnidadeController::validationRules()` e dispara o MESMO
+  `ProvisionarEmpresaFocusJob` — loja nova com CNPJ de irmã herda a empresa
+  Focus automaticamente. Badge fiscal por loja (Pronta/Provisionando/Sem emissão).
+  Excluir loja continua só no admin (aqui, inativar).
+- **`/app/empresa` (Minha Empresa)** — só o dono: nome fantasia, endereço,
+  contato, código IBGE e **logo** (o mesmo que sai nas etiquetas). CNPJ e razão
+  social read-only (ato societário — suporte). Regime tributário segue na
+  Config Fiscal.
+- **Permissões**: `unidades.gerente` ganhou `editar` na matriz. Menu Gestão
+  agora abre para gerente (só com Minhas Lojas; demais itens continuam
+  dono/admin) — Minha Empresa e Minhas Lojas no topo do grupo.
+- ⚠️ Blade: a armadilha do `@php(...)` inline mordeu DE NOVO no layout
+  (500 em todo o /app até o fix) — SEMPRE bloco `@php ... @endphp`.
+- Nota: STILO VINTE tem 8 lojas num plano Profissional (max 3) — criadas pelo
+  admin, que ignora limite; o dono dela só cria loja nova se o plano subir.
+
 ### Vendedor no PDV sempre visível + F3 (05/08, 3ª rodada)
 
 Pedido do Dennis: "onde eu seleciono o vendedor?". O select `vendedorSelect` JÁ

@@ -114,6 +114,22 @@ Route::middleware(['auth', 'suspensao', 'unidade'])->prefix('app')->name('app.')
 
     Route::get('/dashboard', [App\DashboardController::class, 'index'])->name('dashboard');
 
+    /* ------ Minha Empresa & Minhas Lojas (dono/gerente — pedido 05/08) ------ */
+    Route::get('/empresa', [App\MinhaEmpresaController::class, 'edit'])->name('empresa.edit');
+    Route::put('/empresa', [App\MinhaEmpresaController::class, 'update'])->name('empresa.update');
+    Route::prefix('lojas')->name('lojas.')->group(function () {
+        Route::get('/', [App\LojaController::class, 'index'])->name('index')
+            ->middleware('permission:unidades');
+        Route::get('/nova', [App\LojaController::class, 'create'])->name('create')
+            ->middleware('permission:unidades,criar');
+        Route::post('/', [App\LojaController::class, 'store'])->name('store')
+            ->middleware('permission:unidades,criar');
+        Route::get('/{loja}/editar', [App\LojaController::class, 'edit'])->name('edit')
+            ->middleware('permission:unidades,editar');
+        Route::put('/{loja}', [App\LojaController::class, 'update'])->name('update')
+            ->middleware('permission:unidades,editar');
+    });
+
     /* ------ Plano / Assinatura ------ */
     Route::get('/plano', [App\PlanoController::class, 'index'])->name('plano.index');
     Route::get('/plano/expirado', [App\PlanoController::class, 'expirado'])->name('plano-expirado');

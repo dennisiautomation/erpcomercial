@@ -941,20 +941,38 @@
                         </div>
                     </li>
 
-                    {{-- ---- Gestao ---- --}}
-                    @if(auth()->user()->perfil && in_array(auth()->user()->perfil->value, ['dono', 'admin']))
+                    {{-- ---- Gestao (gerente só vê Minhas Lojas) ---- --}}
+                    @if(auth()->user()->perfil && in_array(auth()->user()->perfil->value, ['dono', 'admin', 'gerente']))
+                        @php
+                            $gestaoCompleta = in_array(auth()->user()->perfil->value, ['dono', 'admin']);
+                        @endphp
                         <li class="sidebar-heading">Gestao</li>
                         <li class="nav-item">
-                            <a class="nav-link nav-toggle {{ request()->routeIs('app.multilojas.*', 'app.plano-contas.*', 'app.centros-custo.*', 'app.configuracoes.*') ? '' : 'collapsed' }}"
+                            <a class="nav-link nav-toggle {{ request()->routeIs('app.multilojas.*', 'app.plano-contas.*', 'app.centros-custo.*', 'app.configuracoes.*', 'app.lojas.*', 'app.empresa.*') ? '' : 'collapsed' }}"
                                data-bs-toggle="collapse" href="#menuGestao" role="button"
-                               aria-expanded="{{ request()->routeIs('app.multilojas.*', 'app.plano-contas.*', 'app.centros-custo.*', 'app.configuracoes.*') ? 'true' : 'false' }}"
+                               aria-expanded="{{ request()->routeIs('app.multilojas.*', 'app.plano-contas.*', 'app.centros-custo.*', 'app.configuracoes.*', 'app.lojas.*', 'app.empresa.*') ? 'true' : 'false' }}"
                                aria-controls="menuGestao">
                                 <i class="bi bi-gear nav-icon"></i>
                                 <span class="nav-text">Gestao</span>
                                 <i class="bi bi-chevron-right toggle-icon"></i>
                             </a>
-                            <div class="collapse {{ request()->routeIs('app.multilojas.*', 'app.plano-contas.*', 'app.centros-custo.*', 'app.configuracoes.*') ? 'show' : '' }}" id="menuGestao">
+                            <div class="collapse {{ request()->routeIs('app.multilojas.*', 'app.plano-contas.*', 'app.centros-custo.*', 'app.configuracoes.*', 'app.lojas.*', 'app.empresa.*') ? 'show' : '' }}" id="menuGestao">
                                 <ul class="nav flex-column submenu">
+                                    @if(auth()->user()->isDono())
+                                        <li class="nav-item">
+                                            <a class="nav-link {{ request()->routeIs('app.empresa.*') ? 'active' : '' }}"
+                                               href="{{ route('app.empresa.edit') }}">
+                                                <i class="bi bi-building me-1"></i> Minha Empresa
+                                            </a>
+                                        </li>
+                                    @endif
+                                    <li class="nav-item">
+                                        <a class="nav-link {{ request()->routeIs('app.lojas.*') ? 'active' : '' }}"
+                                           href="{{ route('app.lojas.index') }}">
+                                            <i class="bi bi-shop me-1"></i> Minhas Lojas
+                                        </a>
+                                    </li>
+                                    @if($gestaoCompleta)
                                     <li class="nav-item">
                                         <a class="nav-link {{ request()->routeIs('app.multilojas.index', 'app.multilojas.comparar') ? 'active' : '' }}"
                                            href="{{ route('app.multilojas.index') }}">Multilojas</a>
@@ -983,6 +1001,7 @@
                                             <i class="bi bi-shield-check me-1"></i> Auditoria
                                         </a>
                                     </li>
+                                    @endif
                                 </ul>
                             </div>
                         </li>
