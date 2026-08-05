@@ -51,10 +51,12 @@ class PdvController extends Controller
             ->where('unidade_id', session('unidade_id'))
             ->first();
 
-        // Operadores (caixa/vendedor) for vendedor selection
+        // Quem pode ser o vendedor da venda: todos os perfis que vendem.
+        // O operador logado fica de fora da lista — ele já é o padrão do select.
         $operadores = User::where('empresa_id', session('empresa_id'))
             ->where('status', 'ativo')
-            ->whereIn('perfil', ['caixa', 'vendedor'])
+            ->whereIn('perfil', ['caixa', 'vendedor', 'gerente', 'dono'])
+            ->where('id', '!=', auth()->id())
             ->select('id', 'name', 'perfil')
             ->orderBy('name')
             ->get();

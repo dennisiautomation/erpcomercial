@@ -1070,6 +1070,20 @@ e `comparar` redirecionam não-donos ao dashboard com aviso; menu "Meu Plano", l
 `isDono()`. A tela `/app/plano/expirado` continua aberta a todos (é a de bloqueio).
 Admin da plataforma segue com o redirect próprio (armadilha 25).
 
+### Vendedor no PDV sempre visível + F3 (05/08, 3ª rodada)
+
+Pedido do Dennis: "onde eu seleciono o vendedor?". O select `vendedorSelect` JÁ
+existia no PDV (venda, comissão e — com `vendedor_responsavel_caixa` ligado na
+Config da Loja — o caixa vão para o selecionado), mas **só renderizava se a
+empresa tivesse usuários com perfil caixa/vendedor** — a STILO VINTE só tinha o
+Pedro (dono) e o campo sumia. Agora:
+
+- Lista inclui **vendedor, caixa, gerente e dono** ativos (menos o operador
+  logado, que é a opção padrão) e o select **renderiza sempre**.
+- Atalho **F3** foca o select (rodapé de atalhos atualizado).
+- Ao finalizar a venda o select **volta ao operador logado** — comissão não
+  vaza para a venda seguinte.
+
 ### Import robusto (bug "0 de 70 linhas — 11 com erro")
 
 Causas: linha sem CPF/CNPJ era pulada EM SILÊNCIO; cabeçalho "CPF/CNPJ" não virava

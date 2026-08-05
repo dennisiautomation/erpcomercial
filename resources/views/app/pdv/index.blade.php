@@ -866,17 +866,17 @@
                    style="width:100%; background:var(--bg-primary); border:1px solid var(--border); color:var(--text-primary); border-radius:8px; font-size:0.85rem; padding:8px 12px;">
         </div>
 
-        {{-- Vendedor --}}
-        @if(isset($operadores) && $operadores->count() > 0)
+        {{-- Vendedor — sempre visível; a venda, comissão e (se ligado na Config
+             da Loja) o caixa são atribuídos a quem estiver selecionado --}}
         <div class="cliente-section">
-            <select id="vendedorSelect" class="form-select" style="background:var(--bg-primary); border:1px solid var(--border); color:var(--text-primary); border-radius:8px; font-size:0.85rem; padding:8px 12px;">
+            <select id="vendedorSelect" class="form-select" title="Vendedor da venda (F3)"
+                    style="background:var(--bg-primary); border:1px solid var(--border); color:var(--text-primary); border-radius:8px; font-size:0.85rem; padding:8px 12px;">
                 <option value="">Vendedor: {{ auth()->user()->name }} (padrao)</option>
-                @foreach($operadores as $op)
+                @foreach(($operadores ?? collect()) as $op)
                     <option value="{{ $op->id }}">{{ $op->name }} ({{ $op->perfil }})</option>
                 @endforeach
             </select>
         </div>
-        @endif
 
         {{-- Summary --}}
         <div class="summary-section">
@@ -976,6 +976,7 @@
 <div class="pdv-bottombar">
     <span><kbd>F1</kbd> Buscar</span>
     <span><kbd>F2</kbd> Cliente</span>
+    <span><kbd>F3</kbd> Vendedor</span>
     <span><kbd>F4</kbd> Desconto</span>
     <span><kbd>F7</kbd> Sangria</span>
     <span><kbd>F8</kbd> Suprimento</span>
@@ -1321,6 +1322,10 @@ const PDV = {
                 case 'F2':
                     e.preventDefault();
                     this.openCliente();
+                    break;
+                case 'F3':
+                    e.preventDefault();
+                    document.getElementById('vendedorSelect')?.focus();
                     break;
                 case 'F4':
                     e.preventDefault();
@@ -2228,6 +2233,10 @@ const PDV = {
             b.classList.toggle('active', !b.dataset.doc));
         const cpfNotaEl = document.getElementById('cpfNota');
         if (cpfNotaEl) cpfNotaEl.value = '';
+
+        // Vendedor volta ao operador logado — evita comissão indo pro vendedor errado
+        const vendedorEl = document.getElementById('vendedorSelect');
+        if (vendedorEl) vendedorEl.value = '';
 
         // Reset UI
         this.renderItems();
