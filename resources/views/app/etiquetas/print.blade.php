@@ -178,7 +178,9 @@
         .formato-termica-50x30 .etiqueta .barcode-container svg { height: 12mm; }
         .formato-termica-60x40 .etiqueta .barcode-container svg { height: 16mm; }
         .formato-termica-33x22 .etiqueta .barcode-container svg { height: 8mm; }
-        .formato-termica-36x20-2col .etiqueta .barcode-container svg { height: 7mm; }
+        /* 36x20: a barra vai de ponta a ponta — width 100% e altura folgada para a
+           LARGURA ser o limite (com 7mm a altura mandava e a barra encolhia p/ ~16mm) */
+        .formato-termica-36x20-2col .etiqueta .barcode-container svg { width: 100%; height: 8.5mm; }
         .formato-termica-tag-35x60 .etiqueta .barcode-container svg { height: 13mm; }
 
         .formato-termica-60x40 .etiqueta .empresa { font-size: 6pt; }
@@ -189,12 +191,12 @@
         /* Argox 36×20mm, 2 colunas com espaço (equivalente ao layout 27 da Hiper):
            descrição + código interno + barras com número + preço. Sem nome/logo da
            empresa — não cabe em 20mm de altura. */
-        .formato-termica-36x20-2col .etiqueta { padding: 0.8mm 1.2mm; gap: 0.3mm; }
+        .formato-termica-36x20-2col .etiqueta { padding: 0.6mm 0.5mm; gap: 0.2mm; }
         .formato-termica-36x20-2col .etiqueta .empresa,
         .formato-termica-36x20-2col .etiqueta .empresa-logo { display: none; }
-        .formato-termica-36x20-2col .etiqueta .descricao { font-size: 5.5pt; -webkit-line-clamp: 1; max-height: 1.3em; }
-        .formato-termica-36x20-2col .etiqueta .codigo { display: block; font-size: 5pt; }
-        .formato-termica-36x20-2col .etiqueta .preco { font-size: 9pt; }
+        .formato-termica-36x20-2col .etiqueta .descricao { font-size: 6pt; -webkit-line-clamp: 1; max-height: 1.3em; }
+        .formato-termica-36x20-2col .etiqueta .codigo { display: block; font-size: 5.5pt; }
+        .formato-termica-36x20-2col .etiqueta .preco { font-size: 10.5pt; }
         /* Ordem da Hiper: nome → código interno → barras (com número) → preço.
            No template padrão o código vem por último; aqui é reordenado no flex. */
         .formato-termica-36x20-2col .etiqueta .descricao { order: 1; }
@@ -431,28 +433,35 @@
 
                 if (!code) return;
 
-                try {
-                    JsBarcode(svg, code, {
+                var barOpts = {
+                    format: format,
+                    width: 1.5,
+                    height: 50,
+                    displayValue: true,
+                    fontSize: 10,
+                    margin: 2,
+                    textMargin: 1
+                };
+                @if($formato === 'termica-36x20-2col')
+                    // 36x20: intrínseco achatado (~4:1) para a barra ocupar os 36mm
+                    // de ponta a ponta e os dígitos saírem grandes (padrão da Hiper)
+                    barOpts = {
                         format: format,
-                        width: 1.5,
-                        height: 50,
+                        width: 2,
+                        height: 30,
                         displayValue: true,
-                        fontSize: 10,
-                        margin: 2,
-                        textMargin: 1
-                    });
+                        fontSize: 14,
+                        margin: 0,
+                        textMargin: 0
+                    };
+                @endif
+
+                try {
+                    JsBarcode(svg, code, barOpts);
                 } catch (e) {
                     // Fallback to CODE128 if format fails
                     try {
-                        JsBarcode(svg, code, {
-                            format: 'CODE128',
-                            width: 1.5,
-                            height: 50,
-                            displayValue: true,
-                            fontSize: 10,
-                            margin: 2,
-                            textMargin: 1
-                        });
+                        JsBarcode(svg, code, Object.assign({}, barOpts, { format: 'CODE128' }));
                     } catch (e2) {
                         console.warn('Nao foi possivel gerar barcode para:', code);
                     }

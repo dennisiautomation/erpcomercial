@@ -867,6 +867,13 @@ empresa ficam ocultos (não cabem em 20 mm), barras de 7 mm.
 etiqueta é **36 mm de largura por 20 mm de altura** (deitada, como na prévia do sistema
 antigo). Se a bobina do cliente tiver espaçamento diferente de 2 mm, só a largura da
 página muda.
+⚠️ **Barra de ponta a ponta (feedback do Dennis 05/08)**: o SVG do JsBarcode escala
+mantendo a proporção — com o intrínseco padrão (~2,3:1) e altura CSS de 7 mm, a
+ALTURA vira o limite e a barra encolhia para ~16 mm com margens dos dois lados,
+dígitos ilegíveis. Neste formato o JsBarcode usa opções próprias (width 2, height 30,
+fontSize 14, margin 0 → ~4:1) + CSS `width:100%; height:8.5mm`, aí a LARGURA manda:
+barra nos 35 mm úteis e dígitos ~2,6 mm. Ao criar formato térmico novo, conferir qual
+dimensão está limitando o SVG antes de mexer em fonte.
 
 ---
 
