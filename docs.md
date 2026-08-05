@@ -856,6 +856,18 @@ código de barras de 13 mm e código do produto visível.
   disco público e apaga o anterior ao trocar.
 - Zero cinza também nas etiquetas (preço PIX era #333, código #777) — térmica.
 
+**Formato 36 × 20 mm — 2 colunas / Argox (05/08, DONA DOURO):** `termica-36x20-2col`,
+página de **74 mm** (2 × 36 mm + 2 mm de espaço entre colunas), `repeat(2, 36mm)`.
+Equivale ao layout **"27 – Etiqueta adesiva de produtos 2 col (com espaços) com preço"**
+da Hiper Loja, sistema de origem da DONA DOURO. Conteúdo na ordem da Hiper —
+descrição → código interno → código de barras (com número) → preço — obtida por
+`order` no flex, já que no template padrão o código vem por último. Nome/logo da
+empresa ficam ocultos (não cabem em 20 mm), barras de 7 mm.
+⚠️ A Hiper escreve o tamanho como **altura × largura** ("20.00mm X 36.00mm"); aqui a
+etiqueta é **36 mm de largura por 20 mm de altura** (deitada, como na prévia do sistema
+antigo). Se a bobina do cliente tiver espaçamento diferente de 2 mm, só a largura da
+página muda.
+
 ---
 
 ## E-mails transacionais + Financeiro da plataforma + Equipe IA365 (04/08/2026)
@@ -1075,6 +1087,13 @@ falha; log INFO filtrado em produção. Correções em `processImport`:
   exigindo documento.
 - Datas aceitam dd/mm/aaaa, aaaa-mm-dd e **serial do Excel** (célula formatada como
   data); `normalizarFormaPagamento()` mapeia "Cartão de Crédito"→`cartao_credito` etc.
+- **Round 2 (import real da STILO VINTE, 05/08 tarde)**: os "11 com erro" eram
+  registros SOFT-DELETADOS com o mesmo CPF (Dennis importou 04/08 e excluiu — o
+  updateOrCreate não enxerga a lixeira, tentava INSERT e estourava o unique).
+  `upsertComLixeira()` (clientes/produtos/fornecedores): acha inclusive trashed,
+  restaura e atualiza. E a regra "mínimo 2 células" virou "linha não vazia" —
+  cliente só com nome é válido. **Resultado: 70/70 clientes da planilha do Dennis
+  importados (11 com CPF, 59 sem documento), zero erros.**
 
 ---
 

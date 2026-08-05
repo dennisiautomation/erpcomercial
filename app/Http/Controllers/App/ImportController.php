@@ -34,8 +34,7 @@ class ImportController extends Controller
                 ? ['empresa_id' => $empresaId, 'cpf_cnpj' => $cpfCnpj]
                 : ['empresa_id' => $empresaId, 'cpf_cnpj' => null, 'nome_razao_social' => $nome];
 
-            return Cliente::updateOrCreate(
-                $chave,
+            return $this->upsertComLixeira(Cliente::class, $chave,
                 [
                     'tipo_pessoa'       => strlen($cpfCnpj) > 11 ? 'pj' : 'pf',
                     'nome_razao_social' => $nome !== '' ? $nome : 'Sem nome',
@@ -70,7 +69,7 @@ class ImportController extends Controller
                 $codigoInterno = str_pad(($last ? intval($last) + 1 : 1), 6, '0', STR_PAD_LEFT);
             }
 
-            $produto = Produto::updateOrCreate(
+            $produto = $this->upsertComLixeira(Produto::class,
                 ['empresa_id' => $empresaId, 'codigo_interno' => $codigoInterno],
                 [
                     'codigo_barras'    => $row['codigo_barras'] ?? $row['ean'] ?? $row['barcode'] ?? null,
@@ -123,7 +122,7 @@ class ImportController extends Controller
             $cpfCnpj = \App\Support\Cnpj::limparCpfCnpj($row['cpf_cnpj'] ?? $row['cnpj'] ?? '');
             if (empty($cpfCnpj)) return null;
 
-            return Fornecedor::updateOrCreate(
+            return $this->upsertComLixeira(Fornecedor::class,
                 ['empresa_id' => $empresaId, 'cpf_cnpj' => $cpfCnpj],
                 [
                     'razao_social'          => $row['razao_social'] ?? $row['nome'] ?? 'Sem nome',
@@ -452,6 +451,30 @@ class ImportController extends Controller
     // ─── Internal ───────────────────────────────────────────
 
     /**
+     * updateOrCreate que ENXERGA a lixeira: registro soft-deletado com a mesma
+     * chave é restaurado e atualizado (o updateOrCreate padrão não o encontra,
+     * tenta INSERT e estoura o unique — era o "11 com erro" do Dennis 04/08).
+     */
+    private function upsertComLixeira(string $model, array $chave, array $dados)
+    {
+        $query = $model::withoutGlobalScopes(); // remove tenant scopes E o SoftDeletingScope
+        foreach ($chave as $col => $val) {
+            $val === null ? $query->whereNull($col) : $query->where($col, $val);
+        }
+
+        $registro = $query->first();
+        if ($registro) {
+            if (method_exists($registro, 'trashed') && $registro->trashed()) {
+                $registro->restore();
+            }
+            $registro->fill($dados)->save();
+            return $registro;
+        }
+
+        return $model::create($chave + $dados);
+    }
+
+    /**
      * "CPF/CNPJ" → cpf_cnpj, "Razão Social" → razao_social, "Preço Venda" → preco_venda.
      * Remove acentos e troca qualquer sequência não alfanumérica por _.
      */
@@ -501,7 +524,9 @@ class ImportController extends Controller
 
             foreach ($matriz as $i => $values) {
                 try {
-                    if (count(array_filter($values, fn($v) => trim((string) $v) !== '')) < 2) continue;
+                    // Só pula linha TOTALMENTE vazia — cliente só com nome é válido
+                    // (a regra antiga de "mínimo 2 células" engolia 59 linhas em silêncio)
+                    if (count(array_filter($values, fn($v) => trim((string) $v) !== '')) < 1) continue;
 
                     $row = [];
                     foreach ($headers as $idx => $header) {
