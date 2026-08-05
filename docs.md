@@ -995,6 +995,31 @@ pedia token). As PRIME 05-07 tinham o focus_id copiado na mão, mas com
 focus_id 235712 + tokens/certificado da Matriz (config unidade 9); configs 15/16/17
 (PRIME) alinhadas ao ambiente `producao` + metadados de certificado da 04 PRIME MATRIZ.
 
+### Alinhamento fiscal por CNPJ + numeração contínua (05/08, 2ª rodada)
+
+Dennis trouxe os dados do sistema antigo e confirmou mistura entre os CNPJs:
+
+- **CSC**: as 8 configs (e a empresa Focus 235712 da JS!) estavam com o CSC da PRIME
+  (`...292326`). Corrigido: JS (unidades 9/13/14/18 + Focus 235712) usa
+  `23237062...443143`; PRIME mantém o dela. CSC/ID Token são por CNPJ.
+- **Responsável técnico**: todas as configs apontavam o CNPJ da JS. Configs PRIME
+  (10/15/16/17) agora com `responsavel_tecnico_cnpj=25105231000190`.
+- **Informações complementares** da PRIME: "EMPRESA OPTANTE PELO SIMPLES NACIONAL,
+  NÃO GERA DIREITO A CREDITO" (igual ao sistema antigo).
+- **Numeração — COMO FUNCIONA**: quem numera NFC-e/NF-e é a Focus, por
+  empresa-filha (CNPJ) + série, via `serie_*_producao`/`proximo_numero_*_producao`
+  no `PUT /v2/empresas/{id}` (a UI da Focus chama de "Última NFC-e"). Na migração
+  de sistema é ajuste ÚNICO: aponta o próximo número e daí a Focus incrementa
+  sozinha; o ERP só registra o número que a Focus devolve. Aplicado:
+  - JS 235712: série NFC-e produção 1→**2**, próximo **4564** (antigo parou em 4563).
+  - PRIME 235729: série NFC-e produção 1→**2**, próximo **4892** (antigo 4891);
+    NF-e próximo **8** (antigo 7, série 1).
+- ⚠️ A PRIME emitiu NFC-e 1–3 na série 1 pelo ERP (25/07) antes do alinhamento:
+  nº 2 e 3 canceladas; **nº 1 segue AUTORIZADA na série 1** — cancelamento já foi
+  recusado pela SEFAZ em 25/07 (janela de ~30 min da NFC-e). Não é irregular manter
+  série paralela; se quiser tentar de novo: página da nota → Cancelar (vai recusar
+  por prazo de novo, quase certo).
+
 ### Filtro por loja em /app/vendas
 
 - Select "Loja" (Todas + unidades ativas) **só para admin/dono** — os demais perfis já
