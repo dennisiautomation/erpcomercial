@@ -1317,6 +1317,17 @@ Pontos que mordem:
 
 ## Próximos passos
 
+- **DONA DOURO (empresa 5, migrada 05/08)**: base carregada (1.913 produtos + 2.842 un
+  de estoque na Matriz), mas o fiscal está ZERADO — falta IE da unidade, CSC + ID CSC
+  (portal SEFAZ-PI), certificado A1, responsável técnico, virar `ambiente=producao` e
+  **resincronizar os webhooks Focus** (`/admin/empresas/5/saude-focus` — focus_webhook_ids
+  está NULL, única config assim no banco). **Trial vence 18/08 sem cobrança configurada**
+  (bloqueio dia 19). Contador validar os 116 NCMs de média/baixa confiança
+  (`DONA_DOURO_3_ncm_revisar.xlsx` com o Dennis). Etiquetas: **validar impressão física
+  na Argox + bipar com o leitor** (36×20 assumiu largura 36 mm × altura 20 mm e 2 mm de
+  espaço entre colunas — se a bobina for outra, ajustar a página). Avisar o lojista:
+  3 produtos com venda < custo (códigos 3759, 3430, 3365) e 2 estoques negativos que
+  ficaram fora da carga (5146, 5029).
 - **STILO VINTE multi-CNPJ (05/08)**: emitir 1 NFC-e de teste numa filial JS (02/03/OUTLET)
   para confirmar o compartilhamento da empresa Focus; conferir CSC das PRIME (herdado da
   04 MATRIZ). Dennis reimportar a planilha de clientes que deu "0 de 70" (agora entra
