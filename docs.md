@@ -1130,6 +1130,10 @@ falha; log INFO filtrado em produção. Correções em `processImport`:
 37. **Import: linha pulada ≠ erro** — processor devolve null = "pulada" (campo
     obrigatório ausente) e entra no contador/modal. Ao criar novo import, validar e
     devolver null em vez de deixar exceção genérica estourar.
+38. **`withoutGlobalScopes()` remove TAMBÉM o SoftDeletingScope** — contagem/busca
+    passa a incluir registros soft-deletados (Venda/Cliente/ContaReceber têm
+    deleted_at). Para excluir de verdade dado de teste, `forceDelete()`; para contar
+    só vivos sem os scopes de tenant, adicionar `whereNull('deleted_at')`.
 
 ---
 
