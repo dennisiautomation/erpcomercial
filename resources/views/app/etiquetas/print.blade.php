@@ -178,6 +178,7 @@
         .formato-termica-50x30 .etiqueta .barcode-container svg { height: 12mm; }
         .formato-termica-60x40 .etiqueta .barcode-container svg { height: 16mm; }
         .formato-termica-33x22 .etiqueta .barcode-container svg { height: 8mm; }
+        .formato-termica-36x20-2col .etiqueta .barcode-container svg { height: 7mm; }
         .formato-termica-tag-35x60 .etiqueta .barcode-container svg { height: 13mm; }
 
         .formato-termica-60x40 .etiqueta .empresa { font-size: 6pt; }
@@ -185,6 +186,21 @@
         .formato-termica-60x40 .etiqueta .preco { font-size: 12pt; }
         .formato-termica-33x22 .etiqueta .empresa,
         .formato-termica-33x22 .etiqueta .empresa-logo { display: none; }
+        /* Argox 36×20mm, 2 colunas com espaço (equivalente ao layout 27 da Hiper):
+           descrição + código interno + barras com número + preço. Sem nome/logo da
+           empresa — não cabe em 20mm de altura. */
+        .formato-termica-36x20-2col .etiqueta { padding: 0.8mm 1.2mm; gap: 0.3mm; }
+        .formato-termica-36x20-2col .etiqueta .empresa,
+        .formato-termica-36x20-2col .etiqueta .empresa-logo { display: none; }
+        .formato-termica-36x20-2col .etiqueta .descricao { font-size: 5.5pt; -webkit-line-clamp: 1; max-height: 1.3em; }
+        .formato-termica-36x20-2col .etiqueta .codigo { display: block; font-size: 5pt; }
+        .formato-termica-36x20-2col .etiqueta .preco { font-size: 9pt; }
+        /* Ordem da Hiper: nome → código interno → barras (com número) → preço.
+           No template padrão o código vem por último; aqui é reordenado no flex. */
+        .formato-termica-36x20-2col .etiqueta .descricao { order: 1; }
+        .formato-termica-36x20-2col .etiqueta .codigo { order: 2; }
+        .formato-termica-36x20-2col .etiqueta .barcode-container { order: 3; }
+        .formato-termica-36x20-2col .etiqueta .preco { order: 4; }
         /* Tag de roupa (ilabel 35×60mm, furo no topo): conteúdo desce 6mm para não cair no furo */
         .formato-termica-tag-35x60 .etiqueta { padding: 7mm 2mm 2mm; justify-content: flex-start; gap: 1mm; }
         .formato-termica-tag-35x60 .etiqueta .empresa { font-size: 6pt; }
@@ -362,6 +378,7 @@
             'termica-50x30' => ['cols' => 1, 'rows' => 1, 'per_page' => 1],
             'termica-60x40' => ['cols' => 1, 'rows' => 1, 'per_page' => 1],
             'termica-33x22' => ['cols' => 2, 'rows' => 1, 'per_page' => 2],
+            'termica-36x20-2col' => ['cols' => 2, 'rows' => 1, 'per_page' => 2],
             'termica-tag-35x60' => ['cols' => 3, 'rows' => 1, 'per_page' => 3],
         ];
         $config = $formatos[$formato];

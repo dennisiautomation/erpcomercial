@@ -80,6 +80,14 @@
                         </label>
                     </div>
                 </div>
+                <div class="col-md-3">
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="formato" id="formatoT3620" value="termica-36x20-2col">
+                        <label class="form-check-label" for="formatoT3620">
+                            <strong>36 × 20 mm</strong> — 2 colunas (bobina 74 mm, Argox)
+                        </label>
+                    </div>
+                </div>
                 <div class="col-md-6">
                     <div class="form-check">
                         <input class="form-check-input" type="radio" name="formato" id="formatoTag3560" value="termica-tag-35x60">
