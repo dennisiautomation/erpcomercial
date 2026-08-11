@@ -2,7 +2,7 @@
 
 > SaaS ERP multi-tenant para PMEs. Admin (IA365) gerencia a plataforma; cada empresa-cliente tem múltiplas unidades com fiscal, estoque e caixa independentes. Integração 100% Focus NFe (NF-e, NFC-e, NFS-e, CC-e, manifestação do destinatário, backup XMLs).
 
-**Última revisão:** 2026-08-05 (filtro por loja em vendas + imports de vendas/contas a receber + import robusto + lojas mesmo CNPJ compartilham empresa Focus) · **Estado:** integração fiscal Fase 1-4 + multi-loja + regime de cobrança + auto-sync Focus + UX config fiscal + caixa por forma de pagamento (14/07) + Configurações da Loja/tabelas de preço/emissão parametrizada/adquirentes (24/07) + **Reforma Tributária NT 2025.002 (obrigatório 03/08/2026) + CNPJ alfanumérico NT 2025.001 (25/07)** + **e-mails/no-reply + cobrança direta mensal/anual com bloqueio + pode_ver_financeiro (04/08)** + **doc de alterações do Dennis (05/08)** — concluídos
+**Última revisão:** 2026-08-11 (fix do CRUD de categorias — `status` feminino, armadilha 42) · 2026-08-05 (filtro por loja em vendas + imports de vendas/contas a receber + import robusto + lojas mesmo CNPJ compartilham empresa Focus) · **Estado:** integração fiscal Fase 1-4 + multi-loja + regime de cobrança + auto-sync Focus + UX config fiscal + caixa por forma de pagamento (14/07) + Configurações da Loja/tabelas de preço/emissão parametrizada/adquirentes (24/07) + **Reforma Tributária NT 2025.002 (obrigatório 03/08/2026) + CNPJ alfanumérico NT 2025.001 (25/07)** + **e-mails/no-reply + cobrança direta mensal/anual com bloqueio + pode_ver_financeiro (04/08)** + **doc de alterações do Dennis (05/08)** — concluídos
 
 ---
 
@@ -1217,7 +1217,9 @@ Pontos que mordem:
 2. **Fornecedor NÃO tem `nome_razao_social`** — usa `razao_social`. Cliente SIM tem `nome_razao_social`.
 3. **Fornecedor NÃO tem `status`** — não filtrar por status.
 4. **Servico usa `codigo_lc116`** — NÃO `codigo` nem `codigo_servico_municipal`.
-5. **Unidade.status é `ativa/inativa`** — NÃO `ativo/inativo`.
+5. **Unidade.status é `ativa/inativa`** — NÃO `ativo/inativo`. **`categorias.status` também é feminino**
+   (`enum('ativa','inativa')`) — ver armadilha 42. As demais (`produtos`, `clientes`, `servicos`,
+   `users`, `empresas`, `contratos`) são masculinas. Confira o `SHOW COLUMNS` antes de escrever o literal.
 6. **Venda.status é `concluida`** — NÃO `finalizada`.
 7. **VendaItem.total é `total`** — NÃO `subtotal`.
 8. **ConfiguracaoFiscal unique (empresa_id, unidade_id)** — NÃO usar `updateOrCreate` direto. Usar `where()->first()` + `update()` ou `create()` em fallback.
@@ -1312,6 +1314,17 @@ Pontos que mordem:
     do delta `planilha − saldo atual`. É o que torna o reprocessamento seguro — mas
     significa que rodar depois de vendas **recompleta** o saldo até o valor do arquivo.
     Carga de migração, não ajuste de rotina.
+42. **`categorias.status` é `enum('ativa','inativa')` — o CRUD inteiro usava `'ativo'`** e nunca
+    funcionou (fix 11/08/2026). Com `sql_mode` STRICT o MySQL trunca o valor inválido e o
+    `INSERT` estoura: **criar categoria dava 500** (`SQLSTATE[01000] 1265 Data truncated for
+    column 'status'`, flagrado ao vivo na MISS MERLINDA em 11/08 16:14). Os `where('status','ativo')`
+    não davam erro — só **nunca casavam**, deixando o select de categoria-pai (`create`/`edit`) e o
+    **filtro de categoria em `/app/produtos`** permanentemente vazios; e as `<option>` do form de
+    edição nunca marcavam o valor real. 6 pontos corrigidos: `CategoriaController` (`create`,
+    `store`, `edit`, `update`), `categorias/edit.blade.php` e `ProdutoController::index`.
+    As 4 categorias que existiam no banco eram do seed da empresa 1 — **nenhum cliente jamais
+    conseguiu criar categoria pela tela**. O `<x-erp.status-badge>` e o CSS já tratavam os dois
+    gêneros, então a exibição nunca denunciou o problema.
 
 ---
 

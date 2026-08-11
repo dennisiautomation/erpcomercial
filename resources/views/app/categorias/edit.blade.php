@@ -31,8 +31,8 @@
             <div class="col-md-4">
                 <label for="status" class="form-label fw-semibold">Status <span class="text-danger">*</span></label>
                 <select name="status" id="status" class="form-select @error('status') is-invalid @enderror" required>
-                    <option value="ativo" {{ old('status', $categoria->status) === 'ativo' ? 'selected' : '' }}>Ativo</option>
-                    <option value="inativo" {{ old('status', $categoria->status) === 'inativo' ? 'selected' : '' }}>Inativo</option>
+                    <option value="ativa" {{ old('status', $categoria->status) === 'ativa' ? 'selected' : '' }}>Ativa</option>
+                    <option value="inativa" {{ old('status', $categoria->status) === 'inativa' ? 'selected' : '' }}>Inativa</option>
                 </select>
                 @error('status') <div class="invalid-feedback">{{ $message }}</div> @enderror
             </div>

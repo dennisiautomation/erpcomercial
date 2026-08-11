@@ -34,7 +34,8 @@ class ProdutoController extends Controller
         }
 
         $produtos = $query->orderBy('descricao')->paginate(15)->withQueryString();
-        $categorias = Categoria::where('status', 'ativo')->orderBy('nome')->get();
+        // categorias.status é FEMININO ('ativa') — com 'ativo' o filtro vinha sempre vazio
+        $categorias = Categoria::where('status', 'ativa')->orderBy('nome')->get();
 
         return view('app.produtos.index', compact('produtos', 'categorias'));
     }

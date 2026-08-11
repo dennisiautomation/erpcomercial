@@ -25,7 +25,7 @@ class CategoriaController extends Controller
     public function create()
     {
         $pais = Categoria::whereNull('parent_id')
-            ->where('status', 'ativo')
+            ->where('status', 'ativa')
             ->orderBy('nome')
             ->get();
 
@@ -47,7 +47,8 @@ class CategoriaController extends Controller
             'parent_id' => 'nullable|exists:categorias,id',
         ]);
 
-        $validated['status'] = 'ativo';
+        // categorias.status é enum('ativa','inativa') — feminino, como unidades (armadilha 5)
+        $validated['status'] = 'ativa';
 
         Categoria::create($validated);
 
@@ -67,7 +68,7 @@ class CategoriaController extends Controller
     public function edit(Categoria $categoria)
     {
         $pais = Categoria::whereNull('parent_id')
-            ->where('status', 'ativo')
+            ->where('status', 'ativa')
             ->where('id', '!=', $categoria->id)
             ->orderBy('nome')
             ->get();
@@ -88,7 +89,7 @@ class CategoriaController extends Controller
             ],
             'descricao' => 'nullable|string',
             'parent_id' => 'nullable|exists:categorias,id',
-            'status'    => 'required|in:ativo,inativo',
+            'status'    => 'required|in:ativa,inativa',
         ]);
 
         $categoria->update($validated);
