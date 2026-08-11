@@ -10,7 +10,10 @@
         // Os formatos fixos abaixo continuam exatamente como sempre foram.
         $formatoCustom = $formatoCustom ?? null;
         $ehCustom = (bool) $formatoCustom;
-        $L = $ehCustom ? $formatoCustom->layout() : null;
+        // Basta UM produto do lote com Cartão/PIX para a etiqueta ganhar a 2ª
+        // linha de preço — o layout inteiro do lote se ajusta a ela.
+        $temPrecoDuplo = collect($precosEtiqueta)->contains(fn ($p) => $p['dual'] ?? false);
+        $L = $ehCustom ? $formatoCustom->layout($temPrecoDuplo) : null;
 
         $ehTermica = $ehCustom || str_starts_with($formato, 'termica-');
         // largura x altura da MÍDIA (página) por formato térmico

@@ -136,8 +136,10 @@
             @php
                 // Erro de validação do cadastro reabre o painel — senão a mensagem
                 // apareceria dentro de um bloco recolhido e o lojista não veria o motivo.
+                // $errors pode ser null fora de um request HTTP (armadilha 10).
+                $bag = $errors ?? new \Illuminate\Support\ViewErrorBag();
                 $errosFormato = collect(['nome', 'largura_cm', 'altura_cm', 'colunas', 'espaco_cm'])
-                    ->filter(fn ($campo) => $errors->has($campo));
+                    ->filter(fn ($campo) => $bag->has($campo));
             @endphp
             <div class="collapse mt-3 {{ $errosFormato->isNotEmpty() ? 'show' : '' }}" id="novoFormatoEtiqueta">
                 <div class="border rounded p-3 bg-light">
@@ -145,7 +147,7 @@
                         <div class="alert alert-danger py-2 small mb-3">
                             <ul class="mb-0 ps-3">
                                 @foreach($errosFormato as $campo)
-                                    <li>{{ $errors->first($campo) }}</li>
+                                    <li>{{ $bag->first($campo) }}</li>
                                 @endforeach
                             </ul>
                         </div>
