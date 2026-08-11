@@ -256,7 +256,14 @@
             width: {{ $formatoCustom->largura_pagina_mm }}mm;
             height: {{ $formatoCustom->altura_mm }}mm;
             grid-template-columns: repeat({{ $formatoCustom->colunas }}, {{ $formatoCustom->largura_mm }}mm);
+            grid-template-rows: {{ $formatoCustom->altura_mm }}mm;
             gap: 0 {{ $formatoCustom->espaco_mm }}mm;
+            /* Redundante com o reset de [class*="formato-termica"], mas explícito
+               de propósito: sem zerar o min-height do A4 a linha da bobina se
+               espalha por dezenas de páginas em branco. */
+            min-height: 0;
+            margin: 0;
+            overflow: hidden;
         }
         .formato-{{ $formato }} .etiqueta { padding: {{ $L['padding'] }}mm 0.5mm; gap: 0.2mm; }
         .formato-{{ $formato }} .etiqueta .barcode-container { flex-direction: column; }

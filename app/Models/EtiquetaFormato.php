@@ -43,10 +43,18 @@ class EtiquetaFormato extends Model
         ];
     }
 
+    /**
+     * Prefixo da chave. O "termica-" NÃO é decorativo: o print.blade zera
+     * min-height/margin/borda dos formatos de bobina pelo seletor
+     * [class*="formato-termica"]. Sem ele a etiqueta herda min-height:297mm
+     * do A4 e uma linha da bobina se espalha por ~12 páginas em branco.
+     */
+    public const PREFIXO_CHAVE = 'termica-custom-';
+
     /** Chave usada no <input name="formato"> e no print.blade. */
     public function getChaveAttribute(): string
     {
-        return 'custom-' . $this->id;
+        return self::PREFIXO_CHAVE . $this->id;
     }
 
     /** Largura da MÍDIA (página) = colunas × etiqueta + espaços entre elas. */

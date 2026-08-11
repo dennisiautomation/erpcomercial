@@ -137,9 +137,10 @@ class EtiquetaController extends Controller
         // aceita os dois e a quantidade é clampada em 1..100.
         $request->validate([
             'produtos' => 'required|array|min:1',
-            // Fixos OU "custom-<id>" de um formato da própria empresa (validado abaixo).
+            // Fixos OU "termica-custom-<id>" de um formato da própria empresa (validado abaixo).
             'formato'  => ['required', 'string', function ($attr, $valor, $fail) {
-                if (! in_array($valor, self::FORMATOS_FIXOS, true) && ! preg_match('/^custom-\d+$/', $valor)) {
+                $padrao = '/^' . preg_quote(EtiquetaFormato::PREFIXO_CHAVE, '/') . '\d+$/';
+                if (! in_array($valor, self::FORMATOS_FIXOS, true) && ! preg_match($padrao, $valor)) {
                     $fail('Formato de etiqueta inválido.');
                 }
             }],
@@ -147,9 +148,9 @@ class EtiquetaController extends Controller
 
         // Formato personalizado: resolve e confere que é da empresa do usuário.
         $formatoCustom = null;
-        if (str_starts_with($request->formato, 'custom-')) {
+        if (str_starts_with($request->formato, EtiquetaFormato::PREFIXO_CHAVE)) {
             $formatoCustom = EtiquetaFormato::where('empresa_id', auth()->user()->empresa_id)
-                ->find((int) substr($request->formato, 7));
+                ->find((int) substr($request->formato, strlen(EtiquetaFormato::PREFIXO_CHAVE)));
 
             if (! $formatoCustom) {
                 return back()->with('error', 'Formato de etiqueta não encontrado.');

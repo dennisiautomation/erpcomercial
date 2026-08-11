@@ -916,6 +916,16 @@ deploy. Agora a medida é **dado**, não CSS.
   aparece se a empresa cadastrou algum, e o cadastro fica num `collapse` **recolhido**
   ("Cadastrar o formato da minha bobina"). Erro de validação **reabre o painel** — senão a
   mensagem ficaria escondida dentro do bloco fechado.
+- ⚠️⚠️ **A chave do formato PRECISA começar com `termica-`** (`termica-custom-<id>`, constante
+  `EtiquetaFormato::PREFIXO_CHAVE`). O `print.blade` zera `min-height`, `margin`, `gap` e a
+  **borda tracejada** dos formatos de bobina pelo seletor **`[class*="formato-termica"]`** —
+  casamento por SUBSTRING da classe. Na 1ª versão a chave era `custom-<id>` (classe
+  `formato-custom-1`), que não casava: a etiqueta herdava o `min-height: 297mm` do A4 e
+  **uma linha da bobina virava uma página A4 espalhada por ~12 páginas de 25 mm**, quase todas
+  em branco, com o conteúdo de UMA etiqueta partido em duas (nome+barras numa, Cartão/PIX na
+  outra) e as bordas tracejadas impressas. Pego pelo Dennis em 11/08 imprimindo em PDF antes de
+  gastar bobina. A regra do `.page.formato-*` custom repete `min-height: 0; margin: 0;
+  overflow: hidden` de propósito, para não depender só do substring.
 - ⚠️ **HTML não aceita form aninhado**: o cadastro e as exclusões são `<form>` separados,
   fora do `#formEtiquetas`, e os campos apontam para eles por `form="..."`. O `data-confirm`
   do erp-core já resolve isso porque usa `button.form` (respeita o atributo), não `closest('form')`.
