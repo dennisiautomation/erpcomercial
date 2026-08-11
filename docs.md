@@ -2,7 +2,7 @@
 
 > SaaS ERP multi-tenant para PMEs. Admin (IA365) gerencia a plataforma; cada empresa-cliente tem múltiplas unidades com fiscal, estoque e caixa independentes. Integração 100% Focus NFe (NF-e, NFC-e, NFS-e, CC-e, manifestação do destinatário, backup XMLs).
 
-**Última revisão:** 2026-08-11 (formato de etiqueta cadastrável pelo lojista + fix do CRUD de categorias — `status` feminino, armadilha 42) · 2026-08-05 (filtro por loja em vendas + imports de vendas/contas a receber + import robusto + lojas mesmo CNPJ compartilham empresa Focus) · **Estado:** integração fiscal Fase 1-4 + multi-loja + regime de cobrança + auto-sync Focus + UX config fiscal + caixa por forma de pagamento (14/07) + Configurações da Loja/tabelas de preço/emissão parametrizada/adquirentes (24/07) + **Reforma Tributária NT 2025.002 (obrigatório 03/08/2026) + CNPJ alfanumérico NT 2025.001 (25/07)** + **e-mails/no-reply + cobrança direta mensal/anual com bloqueio + pode_ver_financeiro (04/08)** + **doc de alterações do Dennis (05/08)** — concluídos
+**Última revisão:** 2026-08-11 (formato de etiqueta cadastrável pelo lojista + fix do CRUD de categorias — `status` feminino, armadilha 42) · 2026-08-05 (filtro por loja em vendas + imports de vendas/contas a receber + import robusto + lojas mesmo CNPJ compartilham empresa Focus) · **Estado:** integração fiscal Fase 1-4 + multi-loja + regime de cobrança + auto-sync Focus + UX config fiscal + caixa por forma de pagamento (14/07) + Configurações da Loja/tabelas de preço/emissão parametrizada/adquirentes (24/07) + **Reforma Tributária NT 2025.002 (obrigatório 03/08/2026) + CNPJ alfanumérico NT 2025.001 (25/07)** + **e-mails/no-reply + cobrança direta mensal/anual com bloqueio + pode_ver_financeiro (04/08)** + **doc de alterações do Dennis (05/08)** + **etiqueta cadastrável pelo lojista em cm + fix do CRUD de categorias + auditoria de produção (11/08)** — concluídos
 
 ---
 
@@ -1376,29 +1376,61 @@ Pontos que mordem:
 
 ## Próximos passos
 
+> Estado do banco conferido em **11/08/2026** (auditoria de produção). Onde a realidade
+> divergia do que estava escrito aqui, o texto foi corrigido — vale a auditoria, não a
+> memória do que se pretendia fazer.
+
+- 🔴 **`fiscal:backup-xmls` quebrado DE NOVO — 7 noites seguidas (05→11/08)**, todas as
+  unidades, **HTTP 404 da Focus** na solicitação do pacote mensal. `storage/app/fiscal/backups/`
+  **nem existe**: zero backups mensais, contra os "5 anos de retenção" prometidos acima.
+  É causa DIFERENTE da armadilha 31 (aquela era `BindingResolutionException`, corrigida em
+  04/08) — investigar o endpoint/rota do backup na API da Focus. **Mitigação em vigor:** a
+  cópia local por nota (`BaixarXmlNotaJob` + `fiscal:baixar-xmls-notas`) funciona — 5 XMLs em
+  `storage/app/private/fiscal/xmls/`. O risco é o pacote auditável, não o XML individual.
 - **DONA DOURO (empresa 5, migrada 05/08)**: base carregada (1.913 produtos + 2.842 un
-  de estoque na Matriz), mas o fiscal está ZERADO — falta IE da unidade, CSC + ID CSC
-  (portal SEFAZ-PI), certificado A1, responsável técnico, virar `ambiente=producao` e
-  **resincronizar os webhooks Focus** (`/admin/empresas/5/saude-focus` — focus_webhook_ids
-  está NULL, única config assim no banco). **Trial vence 18/08 sem cobrança configurada**
-  (bloqueio dia 19). Contador validar os 116 NCMs de média/baixa confiança
-  (`DONA_DOURO_3_ncm_revisar.xlsx` com o Dennis). Etiquetas: **validar impressão física
-  na Argox + bipar com o leitor** (36×20 assumiu largura 36 mm × altura 20 mm e 2 mm de
-  espaço entre colunas — se a bobina for outra, ajustar a página). Avisar o lojista:
-  3 produtos com venda < custo (códigos 3759, 3430, 3365) e 2 estoques negativos que
-  ficaram fora da carga (5146, 5029).
+  de estoque na Matriz). ✅ 11/08: o fiscal **não está mais zerado** — IE `198043368`,
+  CSC, certificado A1 válido até **06/02/2027**, responsável técnico e webhooks Focus
+  todos preenchidos. **Falta só virar `ambiente=producao`** (a config 15 segue em
+  `homologacao`, ou seja, hoje NÃO emite nota válida). Contador validar os 116 NCMs de
+  média/baixa confiança (`DONA_DOURO_3_ncm_revisar.xlsx` com o Dennis). Etiquetas:
+  **validar impressão física na Argox + bipar com o leitor** (36×20 assumiu largura 36 mm ×
+  altura 20 mm e 2 mm de espaço entre colunas — se a bobina for outra, ajustar a página).
+  Avisar o lojista: 3 produtos com venda < custo (códigos 3759, 3430, 3365) e 2 estoques
+  negativos que ficaram fora da carga (5146, 5029).
+- **`focus_webhook_ids` NULL migrou de dono**: não é mais a empresa 5 — hoje a única config
+  assim é a **21 (empresa 3 / unidade 18, STILO VINTE OUTLET)**. Resincronizar em
+  `/admin/empresas/3/saude-focus`. Como a unidade 18 compartilha o CNPJ da Matriz JS
+  (armadilha 35), os hooks são do CNPJ e provavelmente já existem na Focus — conferir antes
+  de recadastrar.
 - **STILO VINTE multi-CNPJ (05/08)**: emitir 1 NFC-e de teste numa filial JS (02/03/OUTLET)
   para confirmar o compartilhamento da empresa Focus; conferir CSC das PRIME (herdado da
   04 MATRIZ). Dennis reimportar a planilha de clientes que deu "0 de 70" (agora entra
   cliente sem CPF e o modal mostra o motivo de cada linha).
-- **Financeiro da plataforma (04/08)**: validar o 1º ciclo real — fatura 2026-08 da
-  MISS MERLINDA (R$ 710, vence 20/08) marcada como paga pelo Dennis; ligar o bloqueio
-  automático dela se for a intenção (hoje só avisa). STILO VINTE: gerar a anuidade
-  manualmente perto de 21/07/2027 (geração manual).
+- **Financeiro da plataforma (04/08)** — estado real em 11/08:
+  - **MISS MERLINDA**: a fatura 2026-08 (R$ 710, vence **20/08**) segue **`pendente`** —
+    NÃO foi marcada como paga. `cobranca_bloqueio_automatico = 0`, então no vencimento
+    ela só avisa, não suspende. Decidir se liga o bloqueio.
+  - ⚠️ **DONA DOURO nunca vai gerar a fatura do 1º ano**: cobrança **anual de R$ 6.264**
+    com `cobranca_geracao = manual` e `cobranca_proxima_renovacao = 2027-08-05`. O
+    `plataforma:processar-cobrancas` só gera anuidade 30 dias antes da renovação **e só
+    no modo automática** — ou seja, o ciclo 2026 (cliente entrou em 05/08) não tem fatura
+    nenhuma no banco. Gerar manualmente em `/admin/financeiro`.
+  - Mesmo desenho na **STILO VINTE** (R$ 7.000, renovação 21/07/2027, geração manual).
+  - **EB GESTÃO (empresa 2)**: trial venceu **13/07** e nunca teve cobrança nem regime
+    gratuito — está travada em "plano expirado" com zero produtos/clientes/vendas.
+    Decidir: cancelar, dar cortesia ou configurar cobrança.
+- **18 `failed_jobs` residuais** (`ProvisionarEmpresaFocusJob`, entre 25/07 e 04/08) —
+  resíduo do 422 de CNPJ duplicado que o `configIrmaMesmoCnpj()` já resolveu. Nenhuma
+  falha nova desde 04/08; só limpar (`queue:flush`).
 - **E-mails (04/08)**: validar o 1º boas-vindas de cadastro real e o 1º reset de senha
   de cliente; **trocar a senha da caixa no-reply na Hostinger** (foi exposta em chat)
   e atualizar os `.env`. ✅ 04/08 13:47: `/root/erp/.env` do host sincronizado com o
   do container (backup `.env.bak-20260804`) — recreate não regride mais o remetente.
+- **Etiqueta da MISS MERLINDA (11/08)**: formato **"Elgin 3 colunas"** já cadastrado
+  (3,2 × 2,5 cm, 3 colunas, espaço 0,2 cm → bobina 10,0 cm). ⚠️ **O espaço de 0,2 cm é
+  suposição** — imprimir 1 etiqueta física e conferir o alinhamento; se as colunas forem
+  derivando para a direita, medir a largura total do liner e corrigir o campo (10,2 cm ⇒
+  espaço 0,3 cm). A prévia em PDF já foi validada. Bipar com o leitor antes do lote.
 - **Validar em produção (24/07)**: tabelas de preço no PDV com produto piloto; 1º fechamento de
   caixa com conferência completa; 1º pedido faturado com NF-e + e-mail automático.
 - **Reforma Tributária**: emitir 1 NF-e de teste em homologação com os grupos IBS/CBS
