@@ -2,7 +2,7 @@
 
 > SaaS ERP multi-tenant para PMEs. Admin (IA365) gerencia a plataforma; cada empresa-cliente tem múltiplas unidades com fiscal, estoque e caixa independentes. Integração 100% Focus NFe (NF-e, NFC-e, NFS-e, CC-e, manifestação do destinatário, backup XMLs).
 
-**Última revisão:** 2026-08-11 (fix do CRUD de categorias — `status` feminino, armadilha 42) · 2026-08-05 (filtro por loja em vendas + imports de vendas/contas a receber + import robusto + lojas mesmo CNPJ compartilham empresa Focus) · **Estado:** integração fiscal Fase 1-4 + multi-loja + regime de cobrança + auto-sync Focus + UX config fiscal + caixa por forma de pagamento (14/07) + Configurações da Loja/tabelas de preço/emissão parametrizada/adquirentes (24/07) + **Reforma Tributária NT 2025.002 (obrigatório 03/08/2026) + CNPJ alfanumérico NT 2025.001 (25/07)** + **e-mails/no-reply + cobrança direta mensal/anual com bloqueio + pode_ver_financeiro (04/08)** + **doc de alterações do Dennis (05/08)** — concluídos
+**Última revisão:** 2026-08-11 (formato de etiqueta cadastrável pelo lojista + fix do CRUD de categorias — `status` feminino, armadilha 42) · 2026-08-05 (filtro por loja em vendas + imports de vendas/contas a receber + import robusto + lojas mesmo CNPJ compartilham empresa Focus) · **Estado:** integração fiscal Fase 1-4 + multi-loja + regime de cobrança + auto-sync Focus + UX config fiscal + caixa por forma de pagamento (14/07) + Configurações da Loja/tabelas de preço/emissão parametrizada/adquirentes (24/07) + **Reforma Tributária NT 2025.002 (obrigatório 03/08/2026) + CNPJ alfanumérico NT 2025.001 (25/07)** + **e-mails/no-reply + cobrança direta mensal/anual com bloqueio + pode_ver_financeiro (04/08)** + **doc de alterações do Dennis (05/08)** — concluídos
 
 ---
 
@@ -885,6 +885,42 @@ Os formatos de 1 coluna (40×25, 50×30, 60×40) seguem com o EAN-13 clássico �
 mudança scoped por `in_array($formato, [...])`.
 As melhorias do 33×22 e da Tag 35×60 valem para TODAS as empresas que os usam
 (STILO VINTE inclusa) — OK do Dennis 05/08 ("deixa as duas prontas" / "33×22 arruma este").
+
+### Formato de etiqueta cadastrado pelo lojista (11/08/2026)
+
+> Branch `feat/etiqueta-formato-personalizado`. Origem: bobina **~32 × 25 mm, 3 colunas**
+> (impressora **Elgin**, MISS MERLINDA) que não existia no sistema — o Dennis tentou o
+> `termica-tag-35x60` (único de 3 colunas) e saiu cortado nas laterais e fora da etiqueta.
+
+**Por que virou motor e não mais um formato fixo:** já eram 4 one-offs hardcoded em 3 semanas
+(33×22, 36×20 Argox, Tag 35×60 e agora 32×25). Cliente novo com bobina diferente = código +
+deploy. Agora a medida é **dado**, não CSS.
+
+- Tabela **`etiqueta_formatos`** (`empresa_id` + `nome` unique): `largura_mm`, `altura_mm`,
+  `colunas`, `espaco_mm`, `mostrar_empresa`, `ativo`. Model `EtiquetaFormato`.
+- **O lojista digita em CENTÍMETROS** (é o que ele mede com a régua) e aceita vírgula —
+  o controller converte para mm, que é a unidade do banco e do CSS. `espaco_cm` é a folga
+  entre uma etiqueta e a vizinha; a **largura da página** = `colunas × largura + (colunas−1) × espaço`.
+- **Tudo o mais é DERIVADO** em `EtiquetaFormato::layout()`: tamanhos de fonte, altura das
+  barras, se cabe nome/logo (≥ 22 mm de altura) e código interno (≥ 18 mm). As fórmulas foram
+  calibradas nos formatos fixos que já funcionam, então cadastrar "3,6 × 2,0 cm, 2 colunas,
+  0,2 cm" sai praticamente igual ao `termica-36x20-2col`. Tudo clampado — medida absurda não
+  gera etiqueta ilegível.
+- ⚠️ **O preço duplo (Cartão + PIX) é limitado pela LARGURA, não pela altura**: são 2 linhas de
+  ~16 caracteres ("Cartão R$ 110,00"). `fonte_preco_duplo` usa `(largura − 2) / 3,3` — foi o que
+  cortou o texto na tentativa do Dennis.
+- Formato personalizado entra **sempre** no tratamento de barra esticada
+  (`preserveAspectRatio="none"`) + dígitos em linha única embaixo — é o que torna etiqueta
+  pequena legível (mesmo padrão do 36×20 e do Tag).
+- **UI**: os formatos fixos continuam exatamente como estavam. "Meus formatos" (radios) só
+  aparece se a empresa cadastrou algum, e o cadastro fica num `collapse` **recolhido**
+  ("Cadastrar o formato da minha bobina"). Erro de validação **reabre o painel** — senão a
+  mensagem ficaria escondida dentro do bloco fechado.
+- ⚠️ **HTML não aceita form aninhado**: o cadastro e as exclusões são `<form>` separados,
+  fora do `#formEtiquetas`, e os campos apontam para eles por `form="..."`. O `data-confirm`
+  do erp-core já resolve isso porque usa `button.form` (respeita o atributo), não `closest('form')`.
+- Rota `DELETE /app/etiquetas/formatos/{etiquetaFormato}` — o parâmetro casa com a variável
+  tipada do controller (armadilha do route model binding).
 
 ---
 

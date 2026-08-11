@@ -155,6 +155,11 @@ Route::middleware(['auth', 'suspensao', 'unidade'])->prefix('app')->name('app.')
     /* ------ Etiquetas ------ */
     Route::get('/etiquetas', [App\EtiquetaController::class, 'index'])->name('etiquetas.index')->middleware('permission:produtos');
     Route::post('/etiquetas/gerar', [App\EtiquetaController::class, 'gerar'])->name('etiquetas.gerar')->middleware('permission:produtos');
+    // Formatos próprios da empresa. O parâmetro {etiquetaFormato} PRECISA casar com
+    // o nome da variável tipada no controller — binding que não casa entrega model
+    // VAZIO em silêncio (armadilha do route model binding, fix de 25/07).
+    Route::post('/etiquetas/formatos', [App\EtiquetaController::class, 'formatoStore'])->name('etiquetas.formatos.store')->middleware('permission:produtos,criar');
+    Route::delete('/etiquetas/formatos/{etiquetaFormato}', [App\EtiquetaController::class, 'formatoDestroy'])->name('etiquetas.formatos.destroy')->middleware('permission:produtos,criar');
 
     /* ------ Cadastros ------ */
     Route::post('clientes/quick', [App\ClienteController::class, 'quickStore'])

@@ -6,7 +6,13 @@
     <title>Etiquetas - Impressao</title>
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
     @php
-        $ehTermica = str_starts_with($formato, 'termica-');
+        // Formato cadastrado pelo lojista (largura × altura × colunas em etiqueta_formatos).
+        // Os formatos fixos abaixo continuam exatamente como sempre foram.
+        $formatoCustom = $formatoCustom ?? null;
+        $ehCustom = (bool) $formatoCustom;
+        $L = $ehCustom ? $formatoCustom->layout() : null;
+
+        $ehTermica = $ehCustom || str_starts_with($formato, 'termica-');
         // largura x altura da MÍDIA (página) por formato térmico
         $termicaPage = [
             'termica-40x25' => ['w' => '40mm', 'h' => '25mm'],
@@ -16,6 +22,19 @@
             'termica-36x20-2col' => ['w' => '74mm', 'h' => '20mm'], // Argox 2 col c/ espaço: 2 × 36mm + 2mm
             'termica-tag-35x60' => ['w' => '105mm', 'h' => '60mm'], // tag de roupa: 3 × 35mm
         ];
+        if ($ehCustom) {
+            $termicaPage[$formato] = [
+                'w' => $formatoCustom->largura_pagina_mm . 'mm',
+                'h' => $formatoCustom->altura_mm . 'mm',
+            ];
+        }
+        // Barras esticadas de ponta a ponta + dígitos em linha única embaixo:
+        // é o que torna etiqueta pequena legível (padrão Hiper). Formato
+        // personalizado entra sempre nesse tratamento.
+        $digitosEmLinha = $ehCustom || in_array($formato, ['termica-36x20-2col', 'termica-33x22', 'termica-tag-35x60']);
+        $alturaBarras = $ehCustom
+            ? $L['altura_barras'] . 'mm'
+            : (['termica-36x20-2col' => '6mm', 'termica-33x22' => '6.5mm', 'termica-tag-35x60' => '10mm'][$formato] ?? '6mm');
     @endphp
     <style>
         * {
@@ -226,6 +245,36 @@
         .formato-termica-tag-35x60 .etiqueta .preco { font-size: 13pt; }
         .formato-termica-tag-35x60 .etiqueta .codigo { display: block; font-size: 5pt; }
 
+        @if($ehCustom)
+        /* ---- Formato cadastrado pelo lojista ({{ $formatoCustom->nome }}:
+           {{ $formatoCustom->resumo }}). Tudo derivado das medidas — ver
+           EtiquetaFormato::layout(). ---- */
+        .page.formato-{{ $formato }} {
+            width: {{ $formatoCustom->largura_pagina_mm }}mm;
+            height: {{ $formatoCustom->altura_mm }}mm;
+            grid-template-columns: repeat({{ $formatoCustom->colunas }}, {{ $formatoCustom->largura_mm }}mm);
+            gap: 0 {{ $formatoCustom->espaco_mm }}mm;
+        }
+        .formato-{{ $formato }} .etiqueta { padding: {{ $L['padding'] }}mm 0.5mm; gap: 0.2mm; }
+        .formato-{{ $formato }} .etiqueta .barcode-container { flex-direction: column; }
+        .formato-{{ $formato }} .etiqueta .barcode-container svg { width: 100%; height: {{ $L['altura_barras'] }}mm; }
+        .formato-{{ $formato }} .etiqueta .barcode-digits { font-size: {{ $L['fonte_digitos'] }}pt; letter-spacing: 0.5px; }
+        .formato-{{ $formato }} .etiqueta .descricao { font-size: {{ $L['fonte_descricao'] }}pt; -webkit-line-clamp: 1; max-height: 1.3em; }
+        .formato-{{ $formato }} .etiqueta .preco { font-size: {{ $L['fonte_preco'] }}pt; }
+        .formato-{{ $formato }} .etiqueta .preco-forma { font-size: {{ $L['fonte_preco_duplo'] }}pt; }
+        @if($L['mostrar_empresa'])
+        .formato-{{ $formato }} .etiqueta .empresa { font-size: {{ $L['fonte_empresa'] }}pt; }
+        @else
+        .formato-{{ $formato }} .etiqueta .empresa,
+        .formato-{{ $formato }} .etiqueta .empresa-logo { display: none; }
+        @endif
+        @if($L['mostrar_codigo'])
+        .formato-{{ $formato }} .etiqueta .codigo { display: block; font-size: {{ $L['fonte_codigo'] }}pt; }
+        @else
+        .formato-{{ $formato }} .etiqueta .codigo { display: none; }
+        @endif
+        @endif
+
         @media screen {
             .page[class*="formato-termica"] {
                 outline: 1px dashed #bbb;
@@ -399,6 +448,14 @@
             'termica-36x20-2col' => ['cols' => 2, 'rows' => 1, 'per_page' => 2],
             'termica-tag-35x60' => ['cols' => 3, 'rows' => 1, 'per_page' => 3],
         ];
+        if ($ehCustom) {
+            // 1 "página" = 1 linha da bobina = N etiquetas lado a lado.
+            $formatos[$formato] = [
+                'cols'     => $formatoCustom->colunas,
+                'rows'     => 1,
+                'per_page' => $formatoCustom->colunas,
+            ];
+        }
         $config = $formatos[$formato];
         $pages = array_chunk($itens, $config['per_page']);
         $empresaNome = auth()->user()->empresa->razao_social ?? auth()->user()->empresa->nome_fantasia ?? 'Empresa';
@@ -458,8 +515,8 @@
                     margin: 2,
                     textMargin: 1
                 };
-                @if(in_array($formato, ['termica-36x20-2col', 'termica-33x22', 'termica-tag-35x60']))
-                    // 36x20, 33x22 e Tag 35x60: o SVG carrega SÓ as barras — os dígitos
+                @if($digitosEmLinha)
+                    // 36x20, 33x22, Tag 35x60 e formatos personalizados: o SVG carrega SÓ as barras — os dígitos
                     // saem numa div própria, em linha única centrada (padrão Hiper).
                     // O layout EAN-13 clássico (displayValue) joga o 1º dígito para
                     // fora das barras e ele encostava na borda da etiqueta.
@@ -485,7 +542,7 @@
                     }
                 }
 
-                @if(in_array($formato, ['termica-36x20-2col', 'termica-33x22', 'termica-tag-35x60']))
+                @if($digitosEmLinha)
                     // Blindagem: estica o SVG para a largura toda, sem depender do
                     // aspect-ratio da lib ('none' = preenche exatamente o box; a
                     // proporção horizontal das barras — o que o leitor lê — é
@@ -494,7 +551,7 @@
                     svg.removeAttribute('width');
                     svg.removeAttribute('height');
                     svg.style.width = '100%';
-                    svg.style.height = '{{ ['termica-36x20-2col' => '6mm', 'termica-33x22' => '6.5mm', 'termica-tag-35x60' => '10mm'][$formato] }}';
+                    svg.style.height = '{{ $alturaBarras }}';
                     // dígitos em linha única centrada embaixo das barras
                     var digits = document.createElement('div');
                     digits.className = 'barcode-digits';

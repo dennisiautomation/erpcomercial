@@ -100,6 +100,103 @@
             <p class="text-muted small mt-2 mb-0">
                 <i class="bi bi-info-circle me-1"></i>Na impressão, selecione a impressora térmica e desative margens ("Margens: Nenhuma") no diálogo do navegador.
             </p>
+
+            {{-- Formatos da própria empresa. Nasce recolhido: quem já imprime nos
+                 formatos de sempre não vê diferença nenhuma na tela. --}}
+            @if($formatosPersonalizados->isNotEmpty())
+                <hr class="my-3">
+                <h6 class="mb-2"><i class="bi bi-rulers me-1"></i>Meus formatos</h6>
+                <div class="row g-2">
+                    @foreach($formatosPersonalizados as $fmt)
+                        <div class="col-md-6">
+                            <div class="form-check d-flex align-items-start justify-content-between">
+                                <div>
+                                    <input class="form-check-input" type="radio" name="formato" id="formatoCustom{{ $fmt->id }}" value="{{ $fmt->chave }}">
+                                    <label class="form-check-label" for="formatoCustom{{ $fmt->id }}">
+                                        <strong>{{ $fmt->nome }}</strong><br>
+                                        <span class="text-muted small">{{ $fmt->resumo }}</span>
+                                    </label>
+                                </div>
+                                <button type="submit" form="formExcluirFormato{{ $fmt->id }}"
+                                        class="btn btn-sm btn-link text-danger p-0 ms-2"
+                                        data-confirm="Excluir o formato &quot;{{ $fmt->nome }}&quot;?"
+                                        title="Excluir formato">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            @endif
+
+            <hr class="my-3">
+            <a class="small text-decoration-none" data-bs-toggle="collapse" href="#novoFormatoEtiqueta" role="button">
+                <i class="bi bi-plus-circle me-1"></i>Cadastrar o formato da minha bobina
+            </a>
+            @php
+                // Erro de validação do cadastro reabre o painel — senão a mensagem
+                // apareceria dentro de um bloco recolhido e o lojista não veria o motivo.
+                $errosFormato = collect(['nome', 'largura_cm', 'altura_cm', 'colunas', 'espaco_cm'])
+                    ->filter(fn ($campo) => $errors->has($campo));
+            @endphp
+            <div class="collapse mt-3 {{ $errosFormato->isNotEmpty() ? 'show' : '' }}" id="novoFormatoEtiqueta">
+                <div class="border rounded p-3 bg-light">
+                    @if($errosFormato->isNotEmpty())
+                        <div class="alert alert-danger py-2 small mb-3">
+                            <ul class="mb-0 ps-3">
+                                @foreach($errosFormato as $campo)
+                                    <li>{{ $errors->first($campo) }}</li>
+                                @endforeach
+                            </ul>
+                        </div>
+                    @endif
+                    <p class="small text-muted mb-3">
+                        Meça a etiqueta com uma régua e informe <strong>em centímetros</strong>.
+                        O <em>espaço entre colunas</em> é a folga entre uma etiqueta e a vizinha
+                        (0 se elas se encostam). Imprima 1 etiqueta de teste antes de rodar o lote —
+                        se sair desalinhada, é só corrigir a medida aqui.
+                    </p>
+                    <div class="row g-2">
+                        <div class="col-md-4">
+                            <label class="form-label small mb-1">Nome do formato <span class="text-danger">*</span></label>
+                            <input type="text" name="nome" form="formNovoFormato" class="form-control form-control-sm"
+                                   maxlength="60" placeholder="Ex.: Elgin 3 colunas" value="{{ old('nome') }}" required>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small mb-1">Largura (cm) <span class="text-danger">*</span></label>
+                            <input type="text" name="largura_cm" form="formNovoFormato" class="form-control form-control-sm"
+                                   inputmode="decimal" placeholder="3,2" value="{{ old('largura_cm') }}" required>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small mb-1">Altura (cm) <span class="text-danger">*</span></label>
+                            <input type="text" name="altura_cm" form="formNovoFormato" class="form-control form-control-sm"
+                                   inputmode="decimal" placeholder="2,5" value="{{ old('altura_cm') }}" required>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small mb-1">Colunas <span class="text-danger">*</span></label>
+                            <input type="number" name="colunas" form="formNovoFormato" class="form-control form-control-sm"
+                                   min="1" max="6" value="{{ old('colunas', 1) }}" required>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small mb-1">Espaço entre colunas (cm)</label>
+                            <input type="text" name="espaco_cm" form="formNovoFormato" class="form-control form-control-sm"
+                                   inputmode="decimal" placeholder="0,2" value="{{ old('espaco_cm', '0,2') }}">
+                        </div>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mt-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="mostrar_empresa" value="1"
+                                   form="formNovoFormato" id="mostrarEmpresaFormato" {{ old('mostrar_empresa') ? 'checked' : '' }}>
+                            <label class="form-check-label small" for="mostrarEmpresaFormato">
+                                Imprimir nome/logo da empresa (só cabe a partir de 2,2 cm de altura)
+                            </label>
+                        </div>
+                        <button type="submit" form="formNovoFormato" class="btn btn-sm btn-primary">
+                            <i class="bi bi-check2 me-1"></i>Salvar formato
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -171,6 +268,18 @@
     {{-- Hidden inputs dinamicos --}}
     <div id="hiddenInputs"></div>
 </form>
+
+{{-- Forms dos formatos personalizados. Ficam FORA do #formEtiquetas (HTML não
+     aceita form aninhado) — os campos lá em cima apontam para cá via form="". --}}
+<form id="formNovoFormato" method="POST" action="{{ route('app.etiquetas.formatos.store') }}" class="d-none">
+    @csrf
+</form>
+@foreach($formatosPersonalizados as $fmt)
+    <form id="formExcluirFormato{{ $fmt->id }}" method="POST" action="{{ route('app.etiquetas.formatos.destroy', $fmt) }}" class="d-none">
+        @csrf
+        @method('DELETE')
+    </form>
+@endforeach
 
 @if($produtos->isEmpty())
     <div class="alert alert-info">
