@@ -303,9 +303,10 @@
         .formato-{{ $formato }} .etiqueta .empresa {
             font-weight: 800;
             line-height: 1.05;
-            /* Alinhado à direita como os preços: assim o fim do nome e o fim
-               dos valores caem na MESMA coluna (pedido do Dennis). */
-            text-align: right;
+            /* Centralizado: os preços já se alinham entre si na coluna da
+               direita, então o nome centrado equilibra melhor a etiqueta
+               (escolha do Dennis vendo a prévia). */
+            text-align: center;
             width: 100%;
             white-space: nowrap;
             overflow: hidden;
