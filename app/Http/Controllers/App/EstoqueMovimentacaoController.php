@@ -9,6 +9,7 @@ use App\Models\Estoque;
 use App\Models\EstoqueComodato;
 use App\Models\EstoqueMovimentacao;
 use App\Models\Produto;
+use App\Models\Unidade;
 use App\Services\SaldoEstoque;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -138,7 +139,11 @@ class EstoqueMovimentacaoController extends Controller
                 ->with('error', 'Esta loja não tem estoque cadastrado. Crie um em Configurações da Loja.');
         }
 
-        DB::transaction(function () use ($validated, $comComodato, $estoqueId, $unidadeId) {
+        // A empresa vem da LOJA, não do usuário: o admin da plataforma tem
+        // empresa_id NULL e gravar por ele estourava (armadilha 25).
+        $empresaId = Unidade::withoutGlobalScopes()->where('id', $unidadeId)->value('empresa_id');
+
+        DB::transaction(function () use ($validated, $comComodato, $estoqueId, $unidadeId, $empresaId) {
             $tipo = TipoMovimentacaoEstoque::from($validated['tipo']);
 
             foreach ($validated['itens'] as $item) {
@@ -158,7 +163,7 @@ class EstoqueMovimentacaoController extends Controller
                 };
 
                 $movimentacao = EstoqueMovimentacao::create([
-                    'empresa_id'          => auth()->user()->empresa_id,
+                    'empresa_id'          => $empresaId,
                     'unidade_id'          => $unidadeId,
                     'estoque_id'          => $estoqueId,
                     'produto_id'          => $produto->id,
@@ -174,7 +179,7 @@ class EstoqueMovimentacaoController extends Controller
                 // A peça saiu, mas é emprestada: registra com quem ficou e até quando.
                 if ($comComodato) {
                     EstoqueComodato::create([
-                        'empresa_id'              => auth()->user()->empresa_id,
+                        'empresa_id'              => $empresaId,
                         'unidade_id'              => $unidadeId,
                         'estoque_movimentacao_id' => $movimentacao->id,
                         'produto_id'              => $produto->id,

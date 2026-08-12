@@ -24,6 +24,11 @@
         <div>
             A folha sai <strong>sem a quantidade do sistema</strong> — de propósito. Quem conta
             anota o que achou na prateleira; a comparação vem depois, no seu conferido.
+            <br>
+            <strong>Uma coluna de quantidade por estoque da loja</strong> — esta tem
+            {{ $colunas->count() }} ({{ $colunas->pluck('nome')->join(', ') }}). Se você criar
+            outro estoque em <a href="{{ route('app.estoques.index') }}">Estoques da Loja</a>,
+            ele entra aqui como coluna nova automaticamente.
         </div>
     </div>
 
@@ -102,7 +107,11 @@
                     <th style="width:120px">Categoria</th>
                     <th style="width:50px">Un</th>
                     @foreach($colunas as $coluna)
-                        <th style="width:110px" class="text-center">{{ $coluna->nome }}</th>
+                        {{-- Cabeçalho diz o que escrever E de qual estoque --}}
+                        <th style="width:120px" class="text-center align-middle coluna-contagem">
+                            <div class="fw-bold">{{ $coluna->nome }}</div>
+                            <div class="fw-normal text-muted" style="font-size:.72rem">Qtd. contada</div>
+                        </th>
                     @endforeach
                 </tr>
             </thead>
@@ -116,8 +125,9 @@
                     <td class="small text-muted">{{ $produto->categoria->nome ?? '—' }}</td>
                     <td class="small text-center">{{ $produto->unidade_medida ?: 'UN' }}</td>
                     @foreach($colunas as $coluna)
-                        {{-- Vazia de propósito: é onde o conferente escreve --}}
-                        <td class="celula-contagem"></td>
+                        {{-- Vazia de propósito: é onde o conferente escreve.
+                             A linha pontilhada deixa claro que é campo de preencher. --}}
+                        <td class="celula-contagem"><span class="linha-escrita"></span></td>
                     @endforeach
                 </tr>
                 @empty
@@ -142,7 +152,18 @@
 @push('styles')
 <style>
     /* Altura para caber número escrito à mão */
-    .celula-contagem { height: 28px; }
+    .celula-contagem { height: 30px; vertical-align: bottom; }
+
+    /* Linha pontilhada dentro da célula: sinaliza "escreva aqui" */
+    .linha-escrita {
+        display: block;
+        border-bottom: 1px dotted #adb5bd;
+        margin: 0 4px 4px;
+        height: 1px;
+    }
+
+    /* Coluna de contagem se destaca do cadastro do produto */
+    .coluna-contagem { background: #f1f3f5; }
 
     @media print {
         /* Some com a moldura do sistema — só a folha vai para o papel */
@@ -152,7 +173,10 @@
 
         .tabela-contagem { font-size: 10pt; }
         .tabela-contagem th, .tabela-contagem td { padding: 3px 5px !important; }
-        .celula-contagem { height: 26px; background: #fff !important; }
+        .celula-contagem { height: 28px; background: #fff !important; }
+        /* Fundo cinza do cabeçalho tem que sair na impressora */
+        .coluna-contagem { background: #eceef0 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        .linha-escrita { border-bottom: 1px dotted #6c757d !important; }
 
         /* Cabeçalho da tabela repete em toda página */
         thead { display: table-header-group; }

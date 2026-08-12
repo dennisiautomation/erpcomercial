@@ -231,7 +231,7 @@ class RelatorioController extends Controller
     {
         $cabecalhos = ['SKU', 'Código', 'Código de barras', 'Produto', 'Categoria', 'Un'];
         foreach ($colunas as $coluna) {
-            $cabecalhos[] = 'Contado — ' . $coluna->nome;
+            $cabecalhos[] = 'Qtd. contada — ' . $coluna->nome;
         }
 
         $linhas = $produtos->map(function ($p) use ($colunas) {

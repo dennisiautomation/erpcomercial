@@ -4,6 +4,7 @@ namespace App\Http\Controllers\App;
 
 use App\Http\Controllers\Controller;
 use App\Models\Estoque;
+use App\Models\Unidade;
 use App\Services\SaldoEstoque;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -20,7 +21,9 @@ class EstoqueController extends Controller
 {
     public function index()
     {
-        $unidadeId = (int) session('unidade_id');
+        if (! $unidadeId = $this->unidadeAtual()) {
+            return $this->semLoja();
+        }
 
         $estoques = Estoque::withoutGlobalScopes()
             ->where('unidade_id', $unidadeId)
@@ -34,17 +37,28 @@ class EstoqueController extends Controller
 
     public function create()
     {
+        if (! $this->unidadeAtual()) {
+            return $this->semLoja();
+        }
+
         return view('app.estoque.locais.form', ['estoque' => new Estoque()]);
     }
 
     public function store(Request $request)
     {
-        $unidadeId = (int) session('unidade_id');
+        if (! $unidadeId = $this->unidadeAtual()) {
+            return $this->semLoja();
+        }
+
         $validated = $this->validar($request, $unidadeId);
 
-        DB::transaction(function () use ($validated, $unidadeId) {
+        // A empresa vem da LOJA, não do usuário: o admin da plataforma tem
+        // empresa_id NULL e criar por ele estourava (armadilha 25).
+        $empresaId = Unidade::withoutGlobalScopes()->where('id', $unidadeId)->value('empresa_id');
+
+        DB::transaction(function () use ($validated, $unidadeId, $empresaId) {
             $estoque = Estoque::create([
-                'empresa_id'    => auth()->user()->empresa_id,
+                'empresa_id'    => $empresaId,
                 'unidade_id'    => $unidadeId,
                 'nome'          => $validated['nome'],
                 'codigo'        => $validated['codigo'] ?? null,
@@ -63,14 +77,14 @@ class EstoqueController extends Controller
 
     public function edit(Estoque $estoque)
     {
-        abort_unless($estoque->unidade_id === (int) session('unidade_id'), 403);
+        abort_unless($estoque->unidade_id === $this->unidadeAtual(), 403);
 
         return view('app.estoque.locais.form', compact('estoque'));
     }
 
     public function update(Request $request, Estoque $estoque)
     {
-        abort_unless($estoque->unidade_id === (int) session('unidade_id'), 403);
+        abort_unless($estoque->unidade_id === $this->unidadeAtual(), 403);
 
         $validated = $this->validar($request, $estoque->unidade_id, $estoque->id);
 
@@ -112,7 +126,7 @@ class EstoqueController extends Controller
      */
     public function inativar(Estoque $estoque)
     {
-        abort_unless($estoque->unidade_id === (int) session('unidade_id'), 403);
+        abort_unless($estoque->unidade_id === $this->unidadeAtual(), 403);
 
         if ($estoque->permite_venda || $estoque->is_padrao) {
             return back()->with('error', 'O estoque de venda/padrão da loja não pode ser inativado. Promova outro antes.');
@@ -122,6 +136,23 @@ class EstoqueController extends Controller
 
         return redirect()->route('app.estoques.index')
             ->with('success', 'Estoque inativado. O histórico dele continua no extrato.');
+    }
+
+    /**
+     * Loja ativa da sessão, 0 quando não há nenhuma.
+     *
+     * O admin da plataforma passa batido pelo EnsureUnidadeSelected, então pode
+     * chegar aqui sem loja escolhida — daí o guard em vez de confiar na sessão.
+     */
+    private function unidadeAtual(): int
+    {
+        return (int) session('unidade_id');
+    }
+
+    private function semLoja()
+    {
+        return redirect()->route('app.dashboard')
+            ->with('error', 'Escolha uma loja no topo da tela antes de mexer nos estoques dela.');
     }
 
     /** @return array<string, mixed> */

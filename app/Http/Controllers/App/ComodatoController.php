@@ -68,7 +68,10 @@ class ComodatoController extends Controller
      */
     public function devolver(Request $request, EstoqueComodato $comodato)
     {
-        abort_unless($comodato->empresa_id === auth()->user()->empresa_id, 403);
+        // Admin da plataforma tem empresa_id NULL — usa a empresa do próprio
+        // registro em vez de comparar com a do usuário (armadilha 25).
+        $u = auth()->user();
+        abort_unless($u->is_admin || $comodato->empresa_id === $u->empresa_id, 403);
 
         if (! $comodato->status->emAberto()) {
             return back()->with('error', 'Este comodato já foi encerrado.');
@@ -126,7 +129,10 @@ class ComodatoController extends Controller
      */
     public function baixarPerda(Request $request, EstoqueComodato $comodato)
     {
-        abort_unless($comodato->empresa_id === auth()->user()->empresa_id, 403);
+        // Admin da plataforma tem empresa_id NULL — usa a empresa do próprio
+        // registro em vez de comparar com a do usuário (armadilha 25).
+        $u = auth()->user();
+        abort_unless($u->is_admin || $comodato->empresa_id === $u->empresa_id, 403);
 
         if (! $comodato->status->emAberto()) {
             return back()->with('error', 'Este comodato já foi encerrado.');
