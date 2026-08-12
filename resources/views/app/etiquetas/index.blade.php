@@ -199,7 +199,14 @@
                                    inputmode="decimal" placeholder="7,0" value="{{ old('bobina_cm') }}">
                             @error('bobina_cm')<div class="invalid-feedback">{{ $message }}</div>@enderror
                         </div>
-                        <div class="col-md-9">
+                        <div class="col-md-3">
+                            <label class="form-label small mb-1">&nbsp;</label>
+                            <button type="button" id="fmtCalcularEspaco" class="btn btn-sm btn-outline-secondary w-100">
+                                <i class="bi bi-magic me-1"></i>Calcular o espaço
+                            </button>
+                            <div class="form-text" style="font-size:.72rem">Do tamanho da bobina</div>
+                        </div>
+                        <div class="col-md-6">
                             <div id="fmtConferencia" class="alert alert-secondary py-2 px-3 mb-0 small">
                                 Preencha as medidas para eu conferir se cabem na bobina.
                             </div>
@@ -461,6 +468,30 @@ document.addEventListener('DOMContentLoaded', function() {
             saida.innerHTML = `<i class="bi bi-check-circle me-1"></i>${conta} = <strong>${br(exigido)} cm</strong> — cabe na bobina de ${br(bobina)} cm` + (sobra > 0.05 ? ` (sobra ${br(sobra)} cm).` : '.');
         }
     }
+
+    // O espaço entre colunas é a medida mais chata de pegar com régua — a
+    // bobina e a etiqueta são fáceis, então derivamos o espaço das duas.
+    const btnCalc = document.getElementById('fmtCalcularEspaco');
+    if (btnCalc) btnCalc.addEventListener('click', function () {
+        const largura = num(elLargura), colunas = parseInt(elColunas.value, 10) || 0, bobina = num(elBobina);
+        if (!largura || !colunas || !bobina) {
+            saida.className = 'alert alert-warning py-2 px-3 mb-0 small';
+            saida.innerHTML = 'Para calcular o espaço eu preciso da <strong>largura da etiqueta</strong>, do <strong>número de colunas</strong> e da <strong>largura da bobina</strong>.';
+            return;
+        }
+        if (colunas < 2) {
+            elEspaco.value = '0';
+            conferir();
+            return;
+        }
+        const espaco = (bobina - colunas * largura) / (colunas - 1);
+        if (espaco < 0) {
+            conferir();  // conferir() já explica quantas colunas cabem
+            return;
+        }
+        elEspaco.value = br(espaco);
+        conferir();
+    });
 
     [elLargura, elColunas, elEspaco, elBobina].forEach(el => el && el.addEventListener('input', conferir));
     conferir();
