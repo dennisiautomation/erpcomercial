@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Unidade;
 use App\Models\Venda;
 use App\Models\Produto;
+use App\Services\SaldoEstoque;
 use App\Models\ContaReceber;
 use App\Models\Caixa;
 use App\Models\EstoqueMovimentacao;
@@ -55,10 +56,8 @@ class MultilojaController extends Controller
                 ->whereRaw('estoque_minimo > 0')
                 ->get()
                 ->filter(function ($produto) use ($unidade) {
-                    $saldo = $produto->estoqueMovimentacoes()
-                        ->where('unidade_id', $unidade->id)
-                        ->latest()
-                        ->value('quantidade_posterior') ?? 0;
+                    // Soma dos estoques da loja, não a última movimentação solta
+                    $saldo = SaldoEstoque::naUnidade($unidade->id, $produto->id);
                     return $saldo <= $produto->estoque_minimo;
                 })
                 ->count();
@@ -294,29 +293,28 @@ class MultilojaController extends Controller
 
                     $novoSaldo = (float) $novoSaldo;
 
-                    $anterior = (float) (EstoqueMovimentacao::withoutGlobalScopes()
-                        ->where('empresa_id', $empresaId)
-                        ->where('produto_id', $produto->id)
-                        ->where('unidade_id', $unidadeId)
-                        ->latest('id')
-                        ->value('quantidade_posterior') ?? 0);
+                    // A tela é POR LOJA: o ajuste cai no estoque de venda dela.
+                    // O saldo comparado também é o da loja inteira, senão o
+                    // ajuste brigaria com o que a célula mostra.
+                    $estoqueId = SaldoEstoque::estoqueDeVendaId($unidadeId);
+                    $anterior = SaldoEstoque::naUnidade($unidadeId, $produto->id);
 
                     if (abs($novoSaldo - $anterior) < 0.0001) {
                         continue; // nada mudou nesta celula
                     }
 
-                    EstoqueMovimentacao::create([
-                        'empresa_id'           => $empresaId,
-                        'unidade_id'           => $unidadeId,
-                        'produto_id'           => $produto->id,
-                        'tipo'                 => TipoMovimentacaoEstoque::Ajuste,
-                        'quantidade'           => abs($novoSaldo - $anterior),
-                        'quantidade_anterior'  => $anterior,
-                        'quantidade_posterior' => $novoSaldo,
-                        'custo_unitario'       => $produto->preco_custo ?? 0,
-                        'user_id'              => auth()->id(),
-                        'observacoes'          => 'Ajuste manual (Estoque por Loja)',
-                    ]);
+                    SaldoEstoque::registrar(
+                        $empresaId,
+                        $unidadeId,
+                        $estoqueId,
+                        $produto->id,
+                        TipoMovimentacaoEstoque::Ajuste->value,
+                        $novoSaldo - $anterior,
+                        [
+                            'custo_unitario' => $produto->preco_custo ?? 0,
+                            'observacoes'    => 'Ajuste manual (Estoque por Loja)',
+                        ]
+                    );
 
                     $ajustes++;
                     $produtosAlterados[$produto->id] = true;

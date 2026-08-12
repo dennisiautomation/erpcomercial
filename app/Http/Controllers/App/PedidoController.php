@@ -12,6 +12,7 @@ use App\Models\EstoqueMovimentacao;
 use App\Models\Pedido;
 use App\Models\PedidoItem;
 use App\Models\Produto;
+use App\Services\SaldoEstoque;
 use App\Models\Servico;
 use App\Models\User;
 use App\Models\Venda;
@@ -501,26 +502,20 @@ class PedidoController extends Controller
     {
         foreach ($pedido->itens as $item) {
             if ($item->produto_id) {
-                $produto = Produto::find($item->produto_id);
-                $estoqueAnterior = $produto->estoqueMovimentacoes()
-                    ->where('unidade_id', $pedido->unidade_id)
-                    ->latest()
-                    ->value('quantidade_posterior') ?? 0;
-
-                EstoqueMovimentacao::create([
-                    'empresa_id'          => $pedido->empresa_id,
-                    'unidade_id'          => $pedido->unidade_id,
-                    'produto_id'          => $item->produto_id,
-                    'tipo'                => TipoMovimentacaoEstoque::Saida,
-                    'quantidade'          => $item->quantidade,
-                    'quantidade_anterior' => $estoqueAnterior,
-                    'quantidade_posterior' => $estoqueAnterior - $item->quantidade,
-                    'custo_unitario'      => $item->preco_unitario,
-                    'origem_tipo'         => Pedido::class,
-                    'origem_id'           => $pedido->id,
-                    'user_id'             => auth()->id(),
-                    'observacoes'         => "Faturamento Pedido #{$pedido->numero}",
-                ]);
+                SaldoEstoque::registrar(
+                    $pedido->empresa_id,
+                    $pedido->unidade_id,
+                    SaldoEstoque::estoqueDeVendaId($pedido->unidade_id),
+                    (int) $item->produto_id,
+                    TipoMovimentacaoEstoque::Saida->value,
+                    -(float) $item->quantidade,
+                    [
+                        'custo_unitario' => $item->preco_unitario,
+                        'origem_tipo'    => Pedido::class,
+                        'origem_id'      => $pedido->id,
+                        'observacoes'    => "Faturamento Pedido #{$pedido->numero}",
+                    ]
+                );
             }
         }
     }

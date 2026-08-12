@@ -21,6 +21,7 @@ use App\Models\VendaItem;
 use App\Models\ConfiguracaoFiscal;
 use App\Models\ConfiguracaoLoja;
 use App\Services\EstoqueMultiUnidadeService;
+use App\Services\SaldoEstoque;
 use App\Services\FocusNFe\FocusNFeClient;
 use App\Services\FocusNFe\NFCeService;
 use App\Services\TabelaPrecoService;
@@ -72,13 +73,9 @@ class PdvController extends Controller
         $empresa = $request->user()->empresa;
         $unidadeAtual = (int) session('unidade_id');
 
-        $estoque = EstoqueMovimentacao::withoutGlobalScopes()
-            ->where('produto_id', $produtoId)
-            ->where('unidade_id', $unidadeAtual)
-            ->orderByDesc('id')
-            ->first();
-
-        $saldoAtual = $estoque ? (float) $estoque->quantidade_posterior : 0;
+        // Saldo da LOJA (soma dos estoques dela) — o vendedor pensa em loja,
+        // não em depósito. A baixa é que sai do estoque de venda.
+        $saldoAtual = SaldoEstoque::naUnidade($unidadeAtual, (int) $produtoId);
 
         $response = [
             'produto_id' => $produtoId,
@@ -280,27 +277,21 @@ class PdvController extends Controller
                         }
                         $estoqueRemoto->registrarVendaRemota($venda, $vendaItem, $origemRemota, (int) auth()->id());
                     } else {
-                        // Venda local — baixa direto na unidade ativa
-                        $estoqueAnterior = EstoqueMovimentacao::withoutGlobalScopes()
-                            ->where('produto_id', $produtoId)
-                            ->where('unidade_id', $unidadeId)
-                            ->latest()
-                            ->value('quantidade_posterior') ?? 0;
-
-                        EstoqueMovimentacao::create([
-                            'empresa_id'           => $empresaId,
-                            'unidade_id'           => $unidadeId,
-                            'produto_id'           => $produtoId,
-                            'tipo'                 => TipoMovimentacaoEstoque::Saida,
-                            'quantidade'           => $qtd,
-                            'quantidade_anterior'  => $estoqueAnterior,
-                            'quantidade_posterior' => $estoqueAnterior - $qtd,
-                            'custo_unitario'       => $itemData['preco_unitario'],
-                            'origem_tipo'          => Venda::class,
-                            'origem_id'            => $venda->id,
-                            'user_id'              => auth()->id(),
-                            'observacoes'          => "Venda PDV #{$venda->numero}",
-                        ]);
+                        // Venda local — baixa no estoque de venda da loja ativa
+                        SaldoEstoque::registrar(
+                            $empresaId,
+                            $unidadeId,
+                            SaldoEstoque::estoqueDeVendaId($unidadeId),
+                            $produtoId,
+                            TipoMovimentacaoEstoque::Saida->value,
+                            -$qtd,
+                            [
+                                'custo_unitario' => $itemData['preco_unitario'],
+                                'origem_tipo'    => Venda::class,
+                                'origem_id'      => $venda->id,
+                                'observacoes'    => "Venda PDV #{$venda->numero}",
+                            ]
+                        );
                     }
                 }
 

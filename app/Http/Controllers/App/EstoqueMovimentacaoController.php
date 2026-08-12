@@ -5,9 +5,11 @@ namespace App\Http\Controllers\App;
 use App\Enums\StatusComodato;
 use App\Enums\TipoMovimentacaoEstoque;
 use App\Http\Controllers\Controller;
+use App\Models\Estoque;
 use App\Models\EstoqueComodato;
 use App\Models\EstoqueMovimentacao;
 use App\Models\Produto;
+use App\Services\SaldoEstoque;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -79,7 +81,16 @@ class EstoqueMovimentacaoController extends Controller
             ->orderBy('descricao')
             ->get(['id', 'descricao', 'estoque_minimo']);
 
-        return view('app.estoque.movimentacoes.create', compact('produtos'));
+        // A view só mostra o seletor se vier mais de um — loja com estoque
+        // único continua com a tela idêntica à de antes.
+        $estoques = Estoque::withoutGlobalScopes()
+            ->where('unidade_id', session('unidade_id'))
+            ->where('status', 'ativo')
+            ->orderByDesc('is_padrao')
+            ->orderBy('nome')
+            ->get(['id', 'nome', 'is_padrao']);
+
+        return view('app.estoque.movimentacoes.create', compact('produtos', 'estoques'));
     }
 
     public function store(Request $request)
@@ -90,6 +101,7 @@ class EstoqueMovimentacaoController extends Controller
             'itens.*.produto_id'      => 'required|exists:produtos,id',
             'itens.*.quantidade'      => 'required|numeric|min:0.001',
             'itens.*.custo_unitario'  => 'nullable|numeric|min:0',
+            'estoque_id'              => 'nullable|exists:estoques,id',
             'observacoes'             => 'nullable|string|max:500',
             // Bonificação que deve voltar (influencer, showroom, editorial)
             'retorno_previsto'        => 'nullable|boolean',
@@ -107,24 +119,34 @@ class EstoqueMovimentacaoController extends Controller
         $comComodato = $validated['tipo'] === 'bonificacao'
             && $request->boolean('retorno_previsto');
 
-        DB::transaction(function () use ($validated, $comComodato) {
+        $unidadeId = (int) session('unidade_id');
+
+        // Estoque escolhido precisa ser DESTA loja — senão a movimentação
+        // cairia no depósito de outra unidade.
+        $estoqueId = null;
+        if (! empty($validated['estoque_id'])) {
+            $estoqueId = Estoque::withoutGlobalScopes()
+                ->where('id', $validated['estoque_id'])
+                ->where('unidade_id', $unidadeId)
+                ->value('id');
+        }
+        // Loja com um estoque só nem manda o campo: cai no de venda.
+        $estoqueId ??= SaldoEstoque::estoqueDeVendaId($unidadeId);
+
+        if (! $estoqueId) {
+            return back()->withInput()
+                ->with('error', 'Esta loja não tem estoque cadastrado. Crie um em Configurações da Loja.');
+        }
+
+        DB::transaction(function () use ($validated, $comComodato, $estoqueId, $unidadeId) {
             $tipo = TipoMovimentacaoEstoque::from($validated['tipo']);
 
             foreach ($validated['itens'] as $item) {
                 $produto = Produto::lockForUpdate()->findOrFail($item['produto_id']);
 
-                // Saldo atual DA UNIDADE ATIVA (a cadeia anterior→posterior é
-                // por unidade; misturar unidades corrompia o histórico)
-                $ultimaMovimentacao = EstoqueMovimentacao::withoutGlobalScopes()
-                    ->where('produto_id', $produto->id)
-                    ->where('empresa_id', auth()->user()->empresa_id)
-                    ->where('unidade_id', session('unidade_id'))
-                    ->orderByDesc('id')
-                    ->first();
-
-                $estoqueAnterior = $ultimaMovimentacao
-                    ? (float) $ultimaMovimentacao->quantidade_posterior
-                    : 0;
+                // A cadeia anterior→posterior é por ESTOQUE (antes era por
+                // unidade); misturar estoques corromperia o histórico.
+                $estoqueAnterior = SaldoEstoque::noEstoque($estoqueId, $produto->id);
 
                 $quantidade = (float) $item['quantidade'];
 
@@ -137,7 +159,8 @@ class EstoqueMovimentacaoController extends Controller
 
                 $movimentacao = EstoqueMovimentacao::create([
                     'empresa_id'          => auth()->user()->empresa_id,
-                    'unidade_id'          => session('unidade_id'),
+                    'unidade_id'          => $unidadeId,
+                    'estoque_id'          => $estoqueId,
                     'produto_id'          => $produto->id,
                     'tipo'                => $validated['tipo'],
                     'quantidade'          => $quantidade,
@@ -152,7 +175,7 @@ class EstoqueMovimentacaoController extends Controller
                 if ($comComodato) {
                     EstoqueComodato::create([
                         'empresa_id'              => auth()->user()->empresa_id,
-                        'unidade_id'              => session('unidade_id'),
+                        'unidade_id'              => $unidadeId,
                         'estoque_movimentacao_id' => $movimentacao->id,
                         'produto_id'              => $produto->id,
                         'quantidade'              => $quantidade,

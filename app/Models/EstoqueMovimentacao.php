@@ -16,7 +16,7 @@ class EstoqueMovimentacao extends Model
 
     /** Trilha de auditoria: cada movimentação (balanço/ajuste/venda) vira activity. */
     protected $auditFields = [
-        'unidade_id', 'produto_id', 'tipo', 'quantidade',
+        'unidade_id', 'estoque_id', 'produto_id', 'tipo', 'quantidade',
         'quantidade_anterior', 'quantidade_posterior', 'observacoes',
     ];
 
@@ -25,6 +25,7 @@ class EstoqueMovimentacao extends Model
     protected $fillable = [
         'empresa_id',
         'unidade_id',
+        'estoque_id',
         'produto_id',
         'tipo',
         'quantidade',
@@ -60,6 +61,11 @@ class EstoqueMovimentacao extends Model
     public function unidade(): BelongsTo
     {
         return $this->belongsTo(Unidade::class);
+    }
+
+    public function estoque(): BelongsTo
+    {
+        return $this->belongsTo(Estoque::class);
     }
 
     public function produto(): BelongsTo

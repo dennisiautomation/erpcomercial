@@ -17,7 +17,9 @@ class TransferenciaEstoque extends Model
     protected $fillable = [
         'empresa_id',
         'unidade_origem_id',
+        'estoque_origem_id',
         'unidade_destino_id',
+        'estoque_destino_id',
         'user_solicitante_id',
         'user_aprovador_id',
         'status',

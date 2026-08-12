@@ -50,6 +50,31 @@
                 @enderror
             </x-erp.form-section>
 
+            {{-- Loja com um estoque só nem vê este bloco — a tela fica igual à de antes --}}
+            @if($estoques->count() > 1)
+            <x-erp.form-section title="Em qual estoque" icon="boxes">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <select name="estoque_id" class="form-select @error('estoque_id') is-invalid @enderror" required>
+                            @foreach($estoques as $e)
+                                <option value="{{ $e->id }}"
+                                    {{ (int) old('estoque_id', $estoques->firstWhere('is_padrao', true)?->id) === $e->id ? 'selected' : '' }}>
+                                    {{ $e->nome }}{{ $e->is_padrao ? ' (padrão)' : '' }}
+                                </option>
+                            @endforeach
+                        </select>
+                        @error('estoque_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                    </div>
+                    <div class="col-md-6 d-flex align-items-center">
+                        <small class="text-muted">
+                            Vale para todos os itens. Para mover peça entre estoques, use
+                            <a href="{{ route('app.transferencias.create') }}">Transferência</a>.
+                        </small>
+                    </div>
+                </div>
+            </x-erp.form-section>
+            @endif
+
             <x-erp.form-section title="Itens da Movimentacao" icon="box-seam">
                 <div class="d-flex justify-content-end mb-3">
                     <button type="button" class="btn btn-success btn-sm" id="btn-add-item">

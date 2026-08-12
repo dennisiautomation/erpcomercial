@@ -6,6 +6,7 @@ use App\Enums\StatusComodato;
 use App\Http\Controllers\Controller;
 use App\Models\EstoqueComodato;
 use App\Models\EstoqueMovimentacao;
+use App\Services\SaldoEstoque;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -21,7 +22,7 @@ class ComodatoController extends Controller
     {
         $empresaId = auth()->user()->empresa_id;
 
-        $query = EstoqueComodato::with(['produto', 'unidade', 'user'])
+        $query = EstoqueComodato::with(['produto', 'unidade', 'user', 'movimentacao'])
             ->where('empresa_id', $empresaId);
 
         // Padrão da tela: o que interessa é o que ainda está fora
@@ -86,30 +87,24 @@ class ComodatoController extends Controller
         DB::transaction(function () use ($validated, $comodato) {
             $quantidade = (float) $validated['quantidade'];
 
-            // Volta para a MESMA unidade de onde saiu — não a da sessão, senão
-            // a peça reaparece na loja errada.
-            $ultima = EstoqueMovimentacao::withoutGlobalScopes()
-                ->where('empresa_id', $comodato->empresa_id)
-                ->where('unidade_id', $comodato->unidade_id)
-                ->where('produto_id', $comodato->produto_id)
-                ->orderByDesc('id')
-                ->first();
+            // Volta para o MESMO estoque de onde saiu — não o da sessão, senão
+            // a peça reaparece na loja (ou no depósito) errado.
+            $estoqueId = $comodato->movimentacao?->estoque_id
+                ?? SaldoEstoque::estoqueDeVendaId($comodato->unidade_id);
 
-            $estoqueAnterior = $ultima ? (float) $ultima->quantidade_posterior : 0;
-
-            EstoqueMovimentacao::create([
-                'empresa_id'           => $comodato->empresa_id,
-                'unidade_id'           => $comodato->unidade_id,
-                'produto_id'           => $comodato->produto_id,
-                'tipo'                 => 'devolucao',
-                'quantidade'           => $quantidade,
-                'quantidade_anterior'  => $estoqueAnterior,
-                'quantidade_posterior' => $estoqueAnterior + $quantidade,
-                'origem_tipo'          => 'comodato',
-                'origem_id'            => $comodato->id,
-                'user_id'              => auth()->id(),
-                'observacoes'          => trim('Retorno de ' . $comodato->responsavel . '. ' . ($validated['observacoes'] ?? '')),
-            ]);
+            SaldoEstoque::registrar(
+                $comodato->empresa_id,
+                $comodato->unidade_id,
+                $estoqueId,
+                $comodato->produto_id,
+                'devolucao',
+                $quantidade,
+                [
+                    'origem_tipo' => 'comodato',
+                    'origem_id'   => $comodato->id,
+                    'observacoes' => trim('Retorno de ' . $comodato->responsavel . '. ' . ($validated['observacoes'] ?? '')),
+                ]
+            );
 
             $comodato->quantidade_devolvida = (float) $comodato->quantidade_devolvida + $quantidade;
             $comodato->status = $comodato->recalcularStatus();

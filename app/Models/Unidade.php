@@ -46,6 +46,11 @@ class Unidade extends Model
         return $this->hasMany(Caixa::class);
     }
 
+    public function estoques(): HasMany
+    {
+        return $this->hasMany(Estoque::class);
+    }
+
     public function vendas(): HasMany
     {
         return $this->hasMany(Venda::class);

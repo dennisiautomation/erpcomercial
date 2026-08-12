@@ -7,6 +7,7 @@ use App\Models\ContaPagar;
 use App\Models\ContaReceber;
 use App\Models\EstoqueMovimentacao;
 use App\Models\Produto;
+use App\Services\SaldoEstoque;
 use App\Models\Venda;
 use App\Models\VendaItem;
 use Carbon\Carbon;
@@ -99,23 +100,14 @@ class RelatorioController extends Controller
             ->orderBy('descricao')
             ->get();
 
-        // Saldo atual = soma do saldo de CADA unidade (última movimentação
-        // por produto+unidade). Pegar só a última da empresa misturava
-        // unidades e mostrava saldo errado em empresas multi-loja.
-        $saldosPorProduto = EstoqueMovimentacao::withoutGlobalScopes()
-            ->where('empresa_id', $empresaId)
-            ->whereIn('id', function ($q) use ($empresaId) {
-                $q->selectRaw('MAX(id)')
-                    ->from('estoque_movimentacoes')
-                    ->where('empresa_id', $empresaId)
-                    ->groupBy('produto_id', 'unidade_id');
-            })
-            ->get(['produto_id', 'unidade_id', 'quantidade_posterior'])
-            ->groupBy('produto_id');
+        // Saldo atual = soma do saldo de CADA estoque (última movimentação por
+        // produto+estoque). Pegar só a última da empresa misturava unidades e
+        // mostrava saldo errado em empresas multi-loja; desde 12/08 a chave é
+        // o estoque, então uma loja com depósito também soma certo.
+        $saldosPorProduto = SaldoEstoque::porProdutoDaEmpresa($empresaId);
 
         $produtos->each(function ($produto) use ($saldosPorProduto) {
-            $produto->estoque_atual = (float) ($saldosPorProduto[$produto->id] ?? collect())
-                ->sum('quantidade_posterior');
+            $produto->estoque_atual = (float) ($saldosPorProduto[$produto->id] ?? 0);
             $produto->estoque_status = 'ok';
 
             if ($produto->estoque_minimo && $produto->estoque_atual <= 0) {

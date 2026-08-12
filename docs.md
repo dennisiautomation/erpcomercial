@@ -2,7 +2,7 @@
 
 > SaaS ERP multi-tenant para PMEs. Admin (IA365) gerencia a plataforma; cada empresa-cliente tem múltiplas unidades com fiscal, estoque e caixa independentes. Integração 100% Focus NFe (NF-e, NFC-e, NFS-e, CC-e, manifestação do destinatário, backup XMLs).
 
-**Última revisão:** 2026-08-12 (bonificação que deve voltar — peças em poder de terceiros + fix do alerta de estoque baixo/trial que nunca disparou, armadilha 43) · 2026-08-11 (formato de etiqueta cadastrável pelo lojista + fix do CRUD de categorias — `status` feminino, armadilha 42) · 2026-08-05 (filtro por loja em vendas + imports de vendas/contas a receber + import robusto + lojas mesmo CNPJ compartilham empresa Focus) · **Estado:** integração fiscal Fase 1-4 + multi-loja + regime de cobrança + auto-sync Focus + UX config fiscal + caixa por forma de pagamento (14/07) + Configurações da Loja/tabelas de preço/emissão parametrizada/adquirentes (24/07) + **Reforma Tributária NT 2025.002 (obrigatório 03/08/2026) + CNPJ alfanumérico NT 2025.001 (25/07)** + **e-mails/no-reply + cobrança direta mensal/anual com bloqueio + pode_ver_financeiro (04/08)** + **doc de alterações do Dennis (05/08)** + **etiqueta cadastrável pelo lojista em cm + fix do CRUD de categorias + auditoria de produção (11/08)** — concluídos
+**Última revisão:** 2026-08-12 (vários estoques por loja com saldo por estoque + bonificação que deve voltar — peças em poder de terceiros + fix do alerta de estoque baixo/trial que nunca disparou; armadilhas 43-46) · 2026-08-11 (formato de etiqueta cadastrável pelo lojista + fix do CRUD de categorias — `status` feminino, armadilha 42) · 2026-08-05 (filtro por loja em vendas + imports de vendas/contas a receber + import robusto + lojas mesmo CNPJ compartilham empresa Focus) · **Estado:** integração fiscal Fase 1-4 + multi-loja + regime de cobrança + auto-sync Focus + UX config fiscal + caixa por forma de pagamento (14/07) + Configurações da Loja/tabelas de preço/emissão parametrizada/adquirentes (24/07) + **Reforma Tributária NT 2025.002 (obrigatório 03/08/2026) + CNPJ alfanumérico NT 2025.001 (25/07)** + **e-mails/no-reply + cobrança direta mensal/anual com bloqueio + pode_ver_financeiro (04/08)** + **doc de alterações do Dennis (05/08)** + **etiqueta cadastrável pelo lojista em cm + fix do CRUD de categorias + auditoria de produção (11/08)** — concluídos
 
 ---
 
@@ -17,7 +17,8 @@
 7. [Comandos artisan](#comandos-artisan)
 8. [Crons agendados](#crons-agendados)
 9. [Logins demo](#logins-demo)
-9b. [Bonificação que deve voltar](#bonificação-que-deve-voltar--peças-em-poder-de-terceiros-12082026)
+9b. [Vários estoques por loja](#vários-estoques-por-loja-12082026)
+9c. [Bonificação que deve voltar](#bonificação-que-deve-voltar--peças-em-poder-de-terceiros-12082026)
 10. [Armadilhas conhecidas](#armadilhas-conhecidas)
 11. [Próximos passos](#próximos-passos)
 
@@ -1322,6 +1323,74 @@ foram validados juntos.
 
 ---
 
+## Vários estoques por loja (12/08/2026)
+
+Pedido do documento do Dennis: **criar mais de um estoque por loja, nomear como
+quiser, transferir entre eles e saber em qual estoque o produto está.**
+
+### O que mudou por baixo
+
+Não existe tabela de saldo: o saldo é o `quantidade_posterior` da última
+movimentação. **A chave dessa cadeia passou de `(unidade, produto)` para
+`(estoque, produto)`** — e o saldo da LOJA virou a soma dos estoques dela.
+
+Toda leitura/gravação passa a ir por `App\Services\SaldoEstoque`:
+
+| Método | Para que serve |
+|---|---|
+| `noEstoque($estoqueId, $produtoId)` | saldo de um estoque |
+| `naUnidade($unidadeId, $produtoId)` | saldo da loja (soma dos estoques) |
+| `porEstoqueDaUnidade(...)` | quebra por estoque (inclui os zerados) |
+| `porProdutoDaEmpresa($empresaId)` | saldo consolidado — usado no relatório |
+| `estoqueDeVenda($unidadeId)` / `estoqueDeVendaId(...)` | de onde a venda baixa |
+| `registrar(...)` | grava mantendo a cadeia anterior→posterior |
+
+Foram 10 pontos que derivavam saldo na mão (PDV, venda balcão, pedido faturado,
+movimentação, transferência, multiloja, import, venda remota, relatório,
+comodato). Todos passaram a chamar o serviço.
+
+### Migration — por que o saldo não mexeu
+
+Três migrations em sequência (`2026_08_12_110000/110100/110200`):
+
+1. Cria `estoques` e **um "Principal" por unidade** (`is_padrao` + `permite_venda`).
+2. Adiciona `estoque_movimentacoes.estoque_id` **nullable**, faz o backfill de todo
+   o histórico para o Principal da unidade, **aborta se sobrar órfã** e só então
+   torna a coluna obrigatória. Como todo o histórico cai no mesmo estoque, a última
+   movimentação de cada par continua sendo a mesma → **nenhum saldo muda**.
+3. `transferencias_estoque` ganha `estoque_origem_id`/`estoque_destino_id`, com
+   backfill para o Principal de cada ponta.
+
+Validado em base com movimentação: saldos idênticos antes e depois, zero órfãs,
+e a cadeia `anterior→posterior` conferida movimentação a movimentação.
+
+### O que o lojista vê
+
+- **Configurações da Loja → Estoques da Loja** (`/app/configuracoes/estoques`):
+  CRUD com nome livre, código, situação. **Não virou item de menu** — loja com um
+  estoque só não precisa saber que isso existe.
+- **Um estoque de venda por loja** (`permite_venda`): é dele que o PDV e as vendas
+  baixam, e o **PDV não ganhou seletor**. Marcar outro desmarca o anterior, e o
+  sistema impede deixar a loja sem estoque de venda.
+- **Movimentação**: o seletor "Em qual estoque" só aparece se a loja tiver mais de
+  um. Com um só, a tela é idêntica à de antes.
+- **Transferência**: a loja atual passou a aparecer na lista de destino, então
+  transferir salão → depósito **dentro da mesma loja** é caso legítimo. O select de
+  estoque de destino é preenchido por JS conforme a loja escolhida, e só aparece se
+  aquela loja tiver mais de um estoque.
+- **Estoque não se exclui, inativa** — o histórico continua no extrato.
+
+### Onde ficou o saldo de cada tela
+
+| Tela | Mostra |
+|---|---|
+| PDV | saldo da **loja** (soma) — o vendedor pensa em loja; a baixa é que sai do estoque de venda |
+| Relatório de estoque | saldo consolidado da empresa |
+| Multilojas → Estoque por Loja | saldo por loja; o ajuste da célula cai no estoque de venda |
+| Movimentações | saldo do estoque escolhido |
+
+---
+
 ## Armadilhas conhecidas
 
 1. **EmpresaScope recursão**: `auth()->user()` dentro do scope chama User model que tem o scope → loop infinito. Scopes têm flag `static $applying`. Não remover.
@@ -1444,6 +1513,21 @@ foram validados juntos.
     (fix 12/08/2026). Duas lições: (a) para saldo, copie a derivação do
     `RelatorioController`; (b) `try/catch` que engole exceção esconde bug por meses —
     ao mexer em `gerarAlertas`, teste o método direto no tinker, não pelo dashboard.
+44. **A chave do saldo é `(estoque, produto)`, não `(unidade, produto)`** (desde
+    12/08/2026). Derivar saldo na mão com `GROUP BY unidade_id` volta a dar errado
+    numa loja com depósito — passa a devolver o saldo de um estoque só. **Use
+    `App\Services\SaldoEstoque`**, nunca escreva a derivação de novo. Para gravar,
+    `SaldoEstoque::registrar()` mantém a cadeia `anterior→posterior` do estoque certo.
+45. **`->latest()` em `estoque_movimentacoes` ordena por `created_at`, não por `id`** —
+    duas movimentações no mesmo segundo saem em ordem indefinida e a cadeia de saldo
+    pode ler a errada. O código antigo misturava `latest()` e `orderByDesc('id')`;
+    o `SaldoEstoque` usa **sempre `id`**. Se precisar consultar direto, use `id`.
+46. **O `bootstrap/app.php` de produção NÃO está na imagem `erp-com-app:latest`** —
+    o deploy padrão só empacota `app database resources routes config`. A imagem é
+    anterior ao middleware `suspensao`, então **um `--force-recreate` derruba o
+    `/app` inteiro** com `Target class [suspensao] does not exist`. Flagrado ao
+    montar o ambiente de teste em 12/08. Ao mexer em `bootstrap/`, `public/` ou
+    `composer.json`, **rebuild da imagem** — tar não resolve.
 
 ---
 

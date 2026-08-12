@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Cliente;
 use App\Models\ContaReceber;
 use App\Models\EstoqueMovimentacao;
+use App\Services\SaldoEstoque;
 use App\Models\Fornecedor;
 use App\Models\Produto;
 use App\Models\Venda;
@@ -253,30 +254,25 @@ class ImportController extends Controller
                 throw new \RuntimeException("produto de código {$codigo} não existe — importe os produtos primeiro.");
             }
 
-            $ultima = EstoqueMovimentacao::withoutGlobalScopes()
-                ->where('empresa_id', $empresaId)
-                ->where('unidade_id', $unidadeId)
-                ->where('produto_id', $produto->id)
-                ->orderByDesc('id')
-                ->first();
-
-            $anterior = $ultima ? (float) $ultima->quantidade_posterior : 0.0;
+            // Carga de migração entra no estoque de venda da loja
+            $estoqueId = SaldoEstoque::estoqueDeVendaId($unidadeId);
+            $anterior = SaldoEstoque::noEstoque($estoqueId, $produto->id);
             $delta = $quantidade - $anterior;
             if ($delta <= 0) return null;        // já está no saldo (ou acima): pulada
 
-            return EstoqueMovimentacao::create([
-                'empresa_id'           => $empresaId,
-                'unidade_id'           => $unidadeId,
-                'produto_id'           => $produto->id,
-                'tipo'                 => 'entrada',
-                'quantidade'           => $delta,
-                'quantidade_anterior'  => $anterior,
-                'quantidade_posterior' => $quantidade,
-                'custo_unitario'       => $this->parseNumber($row['custo_unitario'] ?? $row['custo'] ?? 0),
-                'origem_tipo'          => 'importacao_saldo_inicial',
-                'user_id'              => auth()->id(),
-                'observacoes'          => trim((string) ($row['observacao'] ?? $row['observacoes'] ?? 'Saldo inicial importado')),
-            ]);
+            return SaldoEstoque::registrar(
+                $empresaId,
+                $unidadeId,
+                $estoqueId,
+                $produto->id,
+                'entrada',
+                $delta,
+                [
+                    'custo_unitario' => $this->parseNumber($row['custo_unitario'] ?? $row['custo'] ?? 0),
+                    'origem_tipo'    => 'importacao_saldo_inicial',
+                    'observacoes'    => trim((string) ($row['observacao'] ?? $row['observacoes'] ?? 'Saldo inicial importado')),
+                ]
+            );
         });
     }
 

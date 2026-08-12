@@ -372,6 +372,17 @@ Route::middleware(['auth', 'suspensao', 'unidade'])->prefix('app')->name('app.')
         Route::put('/', [App\ConfiguracaoLojaController::class, 'update'])->name('update');
     });
 
+    // Estoques da loja (salão, depósito, avaria) — mora dentro de Configurações,
+    // não vira item de menu: loja com um estoque só não precisa saber que existe.
+    Route::prefix('configuracoes/estoques')->name('estoques.')->middleware('permission:configuracoes')->group(function () {
+        Route::get('/', [App\EstoqueController::class, 'index'])->name('index');
+        Route::get('/novo', [App\EstoqueController::class, 'create'])->name('create');
+        Route::post('/', [App\EstoqueController::class, 'store'])->name('store');
+        Route::get('/{estoque}/editar', [App\EstoqueController::class, 'edit'])->name('edit');
+        Route::put('/{estoque}', [App\EstoqueController::class, 'update'])->name('update');
+        Route::post('/{estoque}/inativar', [App\EstoqueController::class, 'inativar'])->name('inativar');
+    });
+
     /* ------ Configuração Fiscal ------ */
     Route::prefix('configuracao-fiscal')->name('configuracao-fiscal.')->middleware(['permission:configuracoes', 'plano:fiscal'])->group(function () {
         Route::get('/', [App\ConfiguracaoFiscalController::class, 'edit'])->name('edit');

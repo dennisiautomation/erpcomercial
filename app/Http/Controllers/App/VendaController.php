@@ -9,6 +9,7 @@ use App\Models\Comissao;
 use App\Models\ContaReceber;
 use App\Models\EstoqueMovimentacao;
 use App\Models\Produto;
+use App\Services\SaldoEstoque;
 use App\Models\User;
 use App\Models\Venda;
 use Illuminate\Http\Request;
@@ -208,26 +209,20 @@ class VendaController extends Controller
                         $produto = Produto::find($item['produto_id']);
                         if (!$produto) continue;
 
-                        $estoqueAnterior = EstoqueMovimentacao::withoutGlobalScopes()
-                            ->where('produto_id', $item['produto_id'])
-                            ->where('unidade_id', $unidadeId)
-                            ->latest()
-                            ->value('quantidade_posterior') ?? 0;
-
-                        EstoqueMovimentacao::create([
-                            'empresa_id'           => $empresaId,
-                            'unidade_id'           => $unidadeId,
-                            'produto_id'           => $item['produto_id'],
-                            'tipo'                 => TipoMovimentacaoEstoque::Saida,
-                            'quantidade'           => $item['quantidade'],
-                            'quantidade_anterior'  => $estoqueAnterior,
-                            'quantidade_posterior'  => $estoqueAnterior - $item['quantidade'],
-                            'custo_unitario'       => $item['preco_unitario'],
-                            'origem_tipo'          => Venda::class,
-                            'origem_id'            => $venda->id,
-                            'user_id'              => auth()->id(),
-                            'observacoes'          => "Venda Balcao #{$venda->numero}",
-                        ]);
+                        SaldoEstoque::registrar(
+                            $empresaId,
+                            $unidadeId,
+                            SaldoEstoque::estoqueDeVendaId($unidadeId),
+                            (int) $item['produto_id'],
+                            TipoMovimentacaoEstoque::Saida->value,
+                            -(float) $item['quantidade'],
+                            [
+                                'custo_unitario' => $item['preco_unitario'],
+                                'origem_tipo'    => Venda::class,
+                                'origem_id'      => $venda->id,
+                                'observacoes'    => "Venda Balcao #{$venda->numero}",
+                            ]
+                        );
                     }
                 }
 

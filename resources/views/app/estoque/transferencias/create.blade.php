@@ -14,18 +14,40 @@
         <form method="POST" action="{{ route('app.transferencias.store') }}" id="form-transferencia">
             @csrf
 
-            <x-erp.form-section title="Unidade Destino" icon="building">
-                <div class="row mb-4">
+            @php
+                $unidadeAtual = (int) session('unidade_id');
+                $estoquesOrigem = $estoques->where('unidade_id', $unidadeAtual)->values();
+                $temMultiplos = $estoques->count() > $unidades->count();
+            @endphp
+
+            <x-erp.form-section title="Origem e Destino" icon="building">
+                <div class="row g-3 mb-4">
+                    @if($temMultiplos && $estoquesOrigem->count() > 1)
+                    <div class="col-md-6">
+                        <label for="estoque_origem_id" class="form-label fw-semibold">
+                            <i class="bi bi-boxes me-1"></i> Estoque de origem
+                        </label>
+                        <select name="estoque_origem_id" id="estoque_origem_id" class="form-select form-select-lg">
+                            @foreach($estoquesOrigem as $e)
+                                <option value="{{ $e->id }}" {{ old('estoque_origem_id', $estoquesOrigem->firstWhere('is_padrao', true)?->id) == $e->id ? 'selected' : '' }}>
+                                    {{ $e->nome }}{{ $e->is_padrao ? ' (padrão)' : '' }}
+                                </option>
+                            @endforeach
+                        </select>
+                        <div class="form-text">Desta loja</div>
+                    </div>
+                    @endif
+
                     <div class="col-md-6">
                         <label for="unidade_destino_id" class="form-label fw-semibold">
-                            <i class="bi bi-building me-1"></i> Unidade Destino <span class="text-danger">*</span>
+                            <i class="bi bi-building me-1"></i> Loja destino <span class="text-danger">*</span>
                         </label>
                         <select name="unidade_destino_id" id="unidade_destino_id"
                             class="form-select form-select-lg @error('unidade_destino_id') is-invalid @enderror" required>
-                            <option value="">Selecione a unidade destino...</option>
+                            <option value="">Selecione...</option>
                             @foreach($unidades as $unidade)
                                 <option value="{{ $unidade->id }}" {{ old('unidade_destino_id') == $unidade->id ? 'selected' : '' }}>
-                                    {{ $unidade->nome }}
+                                    {{ $unidade->nome }}{{ $unidade->id === $unidadeAtual ? ' (esta loja)' : '' }}
                                 </option>
                             @endforeach
                         </select>
@@ -33,6 +55,19 @@
                             <div class="invalid-feedback">{{ $message }}</div>
                         @enderror
                     </div>
+
+                    @if($temMultiplos)
+                    <div class="col-md-6" id="wrap-estoque-destino" style="display:none">
+                        <label for="estoque_destino_id" class="form-label fw-semibold">
+                            <i class="bi bi-boxes me-1"></i> Estoque de destino
+                        </label>
+                        <select name="estoque_destino_id" id="estoque_destino_id"
+                            class="form-select form-select-lg @error('estoque_destino_id') is-invalid @enderror"></select>
+                        @error('estoque_destino_id')
+                            <div class="invalid-feedback d-block">{{ $message }}</div>
+                        @enderror
+                    </div>
+                    @endif
                 </div>
             </x-erp.form-section>
 
@@ -176,5 +211,36 @@
             row.querySelector('.item-number').textContent = i + 1;
         });
     }
+
+    /* --- Estoque de destino segue a loja escolhida ------------------- */
+    (function () {
+        const wrap = document.getElementById('wrap-estoque-destino');
+        if (!wrap) return; // empresa sem múltiplos estoques: bloco nem existe
+
+        const selLoja = document.getElementById('unidade_destino_id');
+        const selEstoque = document.getElementById('estoque_destino_id');
+        const estoques = @json($estoques);
+        const antigo = @json(old('estoque_destino_id'));
+
+        function sync() {
+            const lojaId = parseInt(selLoja.value, 10);
+            const daLoja = estoques.filter(e => e.unidade_id === lojaId);
+
+            selEstoque.innerHTML = '';
+            daLoja.forEach(e => {
+                const opt = document.createElement('option');
+                opt.value = e.id;
+                opt.textContent = e.nome + (e.is_padrao ? ' (padrão)' : '');
+                if (antigo && parseInt(antigo, 10) === e.id) opt.selected = true;
+                selEstoque.appendChild(opt);
+            });
+
+            // Só faz sentido perguntar se a loja destino tem mais de um
+            wrap.style.display = daLoja.length > 1 ? '' : 'none';
+        }
+
+        selLoja.addEventListener('change', sync);
+        sync();
+    })();
 </script>
 @endpush

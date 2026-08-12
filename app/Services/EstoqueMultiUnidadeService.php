@@ -11,6 +11,7 @@ use App\Models\Venda;
 use App\Models\VendaItem;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
+use App\Services\SaldoEstoque;
 
 /**
  * Consultas e operações de estoque cross-unidade.
@@ -43,19 +44,22 @@ class EstoqueMultiUnidadeService
             return [];
         }
 
-        // Última movimentação por unidade nos dá saldo atual
+        // Saldo da unidade = soma da última movimentação de CADA estoque dela.
+        // Antes agrupava só por unidade_id; com vários estoques por loja isso
+        // passaria a devolver o saldo de um estoque só.
         $saldos = DB::table('estoque_movimentacoes as e')
-            ->select('e.unidade_id', 'e.quantidade_posterior')
+            ->selectRaw('e.unidade_id, SUM(e.quantidade_posterior) as saldo')
             ->joinSub(
                 DB::table('estoque_movimentacoes')
-                    ->select('unidade_id', DB::raw('MAX(id) as ultimo_id'))
+                    ->select(DB::raw('MAX(id) as ultimo_id'))
                     ->where('empresa_id', $empresaId)
                     ->where('produto_id', $produtoId)
-                    ->groupBy('unidade_id'),
+                    ->groupBy('unidade_id', 'estoque_id'),
                 'u',
                 fn ($j) => $j->on('e.id', '=', 'u.ultimo_id')
             )
-            ->pluck('e.quantidade_posterior', 'e.unidade_id')
+            ->groupBy('e.unidade_id')
+            ->pluck('saldo', 'e.unidade_id')
             ->all();
 
         $resultado = $unidades->map(fn ($u) => [
@@ -113,11 +117,13 @@ class EstoqueMultiUnidadeService
             $produtoId = $item->produto_id;
             $quantidade = (float) $item->quantidade;
 
+            // Sai do estoque de venda da loja de origem.
+            $estoqueOrigemId = SaldoEstoque::estoqueDeVendaId($unidadeOrigemId);
+
             // Saldo atual na origem — lockForUpdate evita race entre vendas
-            // remotas concorrentes do mesmo produto na mesma unidade.
+            // remotas concorrentes do mesmo produto no mesmo estoque.
             $estoqueAnterior = (float) (EstoqueMovimentacao::withoutGlobalScopes()
-                ->where('empresa_id', $empresaId)
-                ->where('unidade_id', $unidadeOrigemId)
+                ->where('estoque_id', $estoqueOrigemId)
                 ->where('produto_id', $produtoId)
                 ->lockForUpdate()
                 ->latest('id')
@@ -135,6 +141,7 @@ class EstoqueMultiUnidadeService
             EstoqueMovimentacao::create([
                 'empresa_id' => $empresaId,
                 'unidade_id' => $unidadeOrigemId,
+                'estoque_id' => $estoqueOrigemId,
                 'produto_id' => $produtoId,
                 'tipo' => 'saida',
                 'quantidade' => $quantidade,
@@ -158,7 +165,9 @@ class EstoqueMultiUnidadeService
             $transferencia = TransferenciaEstoque::create([
                 'empresa_id' => $empresaId,
                 'unidade_origem_id' => $unidadeOrigemId,
+                'estoque_origem_id' => $estoqueOrigemId,
                 'unidade_destino_id' => $venda->unidade_id,
+                'estoque_destino_id' => SaldoEstoque::estoqueDeVendaId($venda->unidade_id),
                 'user_solicitante_id' => $userId,
                 'user_aprovador_id' => $userId,
                 'status' => 'concluida',
