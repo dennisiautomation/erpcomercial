@@ -73,6 +73,11 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
         ->name('empresas.saude-focus');
     Route::post('/empresas/{empresa}/saude-focus/resincronizar', [Admin\SaudeFocusController::class, 'resincronizar'])
         ->name('empresas.saude-focus.resincronizar');
+    // Tokens da API de Integração (Gersen) — aba Integração da empresa
+    Route::post('/empresas/{empresa}/integracao-tokens', [Admin\IntegracaoTokenController::class, 'store'])
+        ->name('empresas.integracao-tokens.store');
+    Route::post('/empresas/{empresa}/integracao-tokens/{token}/revogar', [Admin\IntegracaoTokenController::class, 'revogar'])
+        ->name('empresas.integracao-tokens.revogar');
     Route::resource('empresas', Admin\EmpresaController::class);
     Route::resource('empresas.unidades', Admin\UnidadeController::class)->shallow();
     Route::resource('usuarios', Admin\UsuarioController::class);
@@ -551,6 +556,23 @@ Route::middleware(['auth', 'suspensao', 'unidade'])->prefix('app')->name('app.')
         ->name('ordens-servico.converter-venda')
         ->middleware(['permission:vendas', 'plano:os']);
 });
+
+/* ------------------------------------------------------------------ */
+/*  API de Integração v1 (somente leitura — Gersen)                    */
+/* ------------------------------------------------------------------ */
+
+// Autenticação por token Bearer gerado no /admin (aba Integração da empresa).
+// O middleware entra POR CLASSE, sem alias: alias novo mora no bootstrap/app.php
+// e bootstrap/ só chega em produção com rebuild da imagem (armadilha 46).
+Route::prefix('api/integracao/v1')->name('api.integracao.')
+    ->middleware([\App\Http\Middleware\IntegracaoApiToken::class, 'throttle:300,1'])
+    ->group(function () {
+        Route::get('/ping', [\App\Http\Controllers\Api\IntegracaoGersenController::class, 'ping'])->name('ping');
+        Route::get('/lojas', [\App\Http\Controllers\Api\IntegracaoGersenController::class, 'lojas'])->name('lojas');
+        Route::get('/vendedores', [\App\Http\Controllers\Api\IntegracaoGersenController::class, 'vendedores'])->name('vendedores');
+        Route::get('/situacoes', [\App\Http\Controllers\Api\IntegracaoGersenController::class, 'situacoes'])->name('situacoes');
+        Route::get('/vendas', [\App\Http\Controllers\Api\IntegracaoGersenController::class, 'vendas'])->name('vendas');
+    });
 
 /* ------------------------------------------------------------------ */
 /*  Webhooks (sem autenticação)                                        */

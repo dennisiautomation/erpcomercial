@@ -136,6 +136,12 @@
             <span class="badge bg-primary bg-opacity-10 text-primary ms-1">{{ $empresa->users->count() }}</span>
         </button>
     </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="integracao-tab" data-bs-toggle="tab" data-bs-target="#integracao"
+                type="button" role="tab">
+            <i class="bi bi-plug me-1"></i> Integração
+        </button>
+    </li>
 </ul>
 
 <div class="tab-content" id="empresaTabContent">
@@ -421,5 +427,125 @@
             </div>
         </div>
     </div>
+
+    {{-- Tab Integração (API consumida pelo Gersen) --}}
+    <div class="tab-pane fade" id="integracao" role="tabpanel">
+        <div class="row g-4">
+            <div class="col-lg-8">
+                <div class="card detail-card shadow-sm">
+                    <div class="card-header">
+                        <h6 class="mb-0"><i class="bi bi-plug me-1"></i> API de Integração (Gersen)</h6>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted small mb-3">
+                            Tokens de <strong>leitura</strong> para o Gersen importar vendas, lojas e
+                            vendedores desta empresa (<code>/api/integracao/v1</code>). O token aparece
+                            <strong>uma única vez</strong>, logo após ser gerado — copie e cole no
+                            assistente de conexão do Gersen.
+                        </p>
+
+                        @if(session('novo_token'))
+                        <div class="alert alert-warning">
+                            <div class="fw-semibold mb-2">
+                                <i class="bi bi-exclamation-triangle me-1"></i>
+                                Copie o token agora — ele não será exibido de novo:
+                            </div>
+                            <div class="input-group">
+                                <input type="text" class="form-control font-monospace" id="novoTokenValor"
+                                       value="{{ session('novo_token') }}" readonly onclick="this.select()">
+                                <button class="btn btn-outline-secondary" type="button"
+                                        onclick="navigator.clipboard.writeText(document.getElementById('novoTokenValor').value); this.innerText='Copiado!'">
+                                    <i class="bi bi-clipboard me-1"></i>Copiar
+                                </button>
+                            </div>
+                        </div>
+                        @endif
+
+                        <div class="table-responsive">
+                            <table class="table align-middle table-details mb-0">
+                                <thead>
+                                    <tr>
+                                        <th class="ps-3">Nome</th>
+                                        <th>Criado em</th>
+                                        <th>Último uso</th>
+                                        <th>Status</th>
+                                        <th class="text-end pe-3">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @forelse($empresa->integracaoTokens->sortByDesc('created_at') as $token)
+                                    <tr>
+                                        <td class="ps-3 fw-semibold">{{ $token->nome }}</td>
+                                        <td class="text-muted small">{{ $token->created_at->format('d/m/Y H:i') }}</td>
+                                        <td class="text-muted small">
+                                            @if($token->last_used_at)
+                                                {{ $token->last_used_at->format('d/m/Y H:i') }}
+                                                <span class="opacity-75">({{ $token->last_used_ip }})</span>
+                                            @else
+                                                Nunca usado
+                                            @endif
+                                        </td>
+                                        <td>
+                                            @if($token->ativo)
+                                                <span class="badge bg-success bg-opacity-10 text-success">Ativo</span>
+                                            @else
+                                                <span class="badge bg-secondary bg-opacity-10 text-secondary">Revogado</span>
+                                            @endif
+                                        </td>
+                                        <td class="text-end pe-3">
+                                            @if($token->ativo)
+                                            <form method="POST"
+                                                  action="{{ route('admin.empresas.integracao-tokens.revogar', [$empresa, $token]) }}"
+                                                  onsubmit="return confirm('Revogar este token? O Gersen para de sincronizar na hora.')">
+                                                @csrf
+                                                <button type="submit" class="btn btn-sm btn-outline-danger">Revogar</button>
+                                            </form>
+                                            @endif
+                                        </td>
+                                    </tr>
+                                    @empty
+                                    <tr>
+                                        <td colspan="5" class="text-center py-4 text-muted">Nenhum token gerado.</td>
+                                    </tr>
+                                    @endforelse
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <div class="card detail-card shadow-sm">
+                    <div class="card-header"><h6 class="mb-0">Gerar token novo</h6></div>
+                    <div class="card-body">
+                        <form method="POST" action="{{ route('admin.empresas.integracao-tokens.store', $empresa) }}">
+                            @csrf
+                            <div class="mb-3">
+                                <label class="form-label detail-label">Nome</label>
+                                <input type="text" name="nome" class="form-control" value="Gersen" maxlength="80">
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="bi bi-key me-1"></i> Gerar token
+                            </button>
+                        </form>
+                        <p class="text-muted small mt-3 mb-0">
+                            Acesso somente leitura (vendas, lojas, vendedores, situações), escopado a
+                            esta empresa. Cada request fica registrada em
+                            <code>storage/logs/integracao-*.log</code>.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
+
+@if(session('abrir_integracao'))
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        new bootstrap.Tab(document.getElementById('integracao-tab')).show();
+    });
+</script>
+@endif
 @endsection

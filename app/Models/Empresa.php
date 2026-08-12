@@ -109,6 +109,11 @@ class Empresa extends Model
         return $this->hasMany(User::class);
     }
 
+    public function integracaoTokens(): HasMany
+    {
+        return $this->hasMany(IntegracaoToken::class);
+    }
+
     public function clientes(): HasMany
     {
         return $this->hasMany(Cliente::class);

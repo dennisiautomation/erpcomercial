@@ -130,7 +130,7 @@ class EmpresaController extends Controller
     {
         abort_unless($request->user()->is_admin, 403);
 
-        $empresa->load('unidades', 'users');
+        $empresa->load('unidades', 'users', 'integracaoTokens');
 
         return view('admin.empresas.show', compact('empresa'));
     }
