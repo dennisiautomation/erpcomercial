@@ -19,6 +19,22 @@
             <h6 class="mb-0"><i class="bi bi-grid me-2"></i>Formato da Etiqueta</h6>
         </div>
         <div class="card-body">
+            @php
+                // Lápis que abre o editor de layout do formato. Os formatos abaixo
+                // continuam sendo exatamente os mesmos — isto só acrescenta o
+                // "editar" a cada um. Quem nunca clicar imprime como sempre.
+                $layoutsDeFixos = $layoutsDeFixos ?? collect();
+                $linkEditar = function (string $chave) use ($layoutsDeFixos) {
+                    $personalizado = optional($layoutsDeFixos->get($chave))->temLayoutLivre();
+
+                    return sprintf(
+                        '<a href="%s" class="small text-decoration-none ms-1 text-nowrap" title="Editar o layout desta etiqueta">'
+                        . '<i class="bi bi-pencil-square"></i> layout%s</a>',
+                        route('app.etiquetas.formatos.editor-fixo', $chave),
+                        $personalizado ? ' <span class="badge text-bg-primary">seu</span>' : ''
+                    );
+                };
+            @endphp
             <div class="row g-3">
                 <div class="col-md-4">
                     <div class="form-check">
@@ -26,6 +42,7 @@
                         <label class="form-check-label" for="formato2x5">
                             <strong>2 x 5</strong> — 10 etiquetas por pagina (grande)
                         </label>
+                        {!! $linkEditar('2x5') !!}
                     </div>
                 </div>
                 <div class="col-md-4">
@@ -34,6 +51,7 @@
                         <label class="form-check-label" for="formato3x7">
                             <strong>3 x 7</strong> — 21 etiquetas por pagina (media)
                         </label>
+                        {!! $linkEditar('3x7') !!}
                     </div>
                 </div>
                 <div class="col-md-4">
@@ -42,6 +60,7 @@
                         <label class="form-check-label" for="formato4x10">
                             <strong>4 x 10</strong> — 40 etiquetas por pagina (pequena)
                         </label>
+                        {!! $linkEditar('4x10') !!}
                     </div>
                 </div>
             </div>
@@ -54,6 +73,7 @@
                         <label class="form-check-label" for="formatoT4025">
                             <strong>40 × 25 mm</strong> — 1 coluna
                         </label>
+                        {!! $linkEditar('termica-40x25') !!}
                     </div>
                 </div>
                 <div class="col-md-3">
@@ -62,6 +82,7 @@
                         <label class="form-check-label" for="formatoT5030">
                             <strong>50 × 30 mm</strong> — 1 coluna
                         </label>
+                        {!! $linkEditar('termica-50x30') !!}
                     </div>
                 </div>
                 <div class="col-md-3">
@@ -70,6 +91,7 @@
                         <label class="form-check-label" for="formatoT6040">
                             <strong>60 × 40 mm</strong> — 1 coluna
                         </label>
+                        {!! $linkEditar('termica-60x40') !!}
                     </div>
                 </div>
                 <div class="col-md-3">
@@ -78,6 +100,7 @@
                         <label class="form-check-label" for="formatoT3322">
                             <strong>33 × 22 mm</strong> — 2 colunas
                         </label>
+                        {!! $linkEditar('termica-33x22') !!}
                     </div>
                 </div>
                 <div class="col-md-3">
@@ -86,6 +109,7 @@
                         <label class="form-check-label" for="formatoT3620">
                             <strong>36 × 20 mm</strong> — 2 colunas (bobina 74 mm, Argox)
                         </label>
+                        {!! $linkEditar('termica-36x20-2col') !!}
                     </div>
                 </div>
                 <div class="col-md-6">
@@ -94,6 +118,7 @@
                         <label class="form-check-label" for="formatoTag3560">
                             <strong>Tag Roupa 35 × 60 mm</strong> — 3 colunas (bobina 105 mm, com furo)
                         </label>
+                        {!! $linkEditar('termica-tag-35x60') !!}
                     </div>
                 </div>
             </div>
@@ -117,12 +142,22 @@
                                         <span class="text-muted small">{{ $fmt->resumo }}</span>
                                     </label>
                                 </div>
-                                <button type="submit" form="formExcluirFormato{{ $fmt->id }}"
-                                        class="btn btn-sm btn-link text-danger p-0 ms-2"
-                                        data-confirm="Excluir o formato &quot;{{ $fmt->nome }}&quot;?"
-                                        title="Excluir formato">
-                                    <i class="bi bi-trash"></i>
-                                </button>
+                                <div class="d-flex gap-2 ms-2">
+                                    <a href="{{ route('app.etiquetas.formatos.editor', $fmt) }}"
+                                       class="btn btn-sm btn-link p-0 text-nowrap"
+                                       title="Editar o layout desta etiqueta">
+                                        <i class="bi bi-pencil-square"></i>
+                                        @if($fmt->temLayoutLivre())
+                                            <span class="badge text-bg-primary">layout seu</span>
+                                        @endif
+                                    </a>
+                                    <button type="submit" form="formExcluirFormato{{ $fmt->id }}"
+                                            class="btn btn-sm btn-link text-danger p-0"
+                                            data-confirm="Excluir o formato &quot;{{ $fmt->nome }}&quot;?"
+                                            title="Excluir formato">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     @endforeach

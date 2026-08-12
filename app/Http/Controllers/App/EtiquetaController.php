@@ -5,6 +5,7 @@ namespace App\Http\Controllers\App;
 use App\Http\Controllers\Controller;
 use App\Models\ConfiguracaoLoja;
 use App\Models\EtiquetaFormato;
+use App\Models\EtiquetaImagem;
 use App\Models\Produto;
 use App\Services\TabelaPrecoService;
 use Illuminate\Http\Request;
@@ -31,12 +32,21 @@ class EtiquetaController extends Controller
 
         $formatosPersonalizados = $this->formatosDaEmpresa();
 
-        return view('app.etiquetas.index', compact('produtos', 'formatosPersonalizados'));
+        return view('app.etiquetas.index', [
+            'produtos'               => $produtos,
+            'formatosPersonalizados' => $formatosPersonalizados,
+            // Chave do formato fixo => registro que guarda o desenho dele.
+            // A tela usa para marcar "layout personalizado" e abrir o editor.
+            'layoutsDeFixos'         => $this->layoutsDeFixos(),
+        ]);
     }
 
     /**
      * Formatos cadastrados pela empresa. Admin da plataforma não tem empresa
      * (armadilha 25) — devolve coleção vazia em vez de estourar.
+     *
+     * Personalizações de formato fixo (formato_base preenchido) ficam de fora:
+     * elas não são uma opção de formato, são o desenho de uma opção que já existe.
      */
     private function formatosDaEmpresa()
     {
@@ -47,9 +57,25 @@ class EtiquetaController extends Controller
         }
 
         return EtiquetaFormato::where('empresa_id', $empresaId)
+            ->whereNull('formato_base')
             ->where('ativo', true)
             ->orderBy('nome')
             ->get();
+    }
+
+    /** Personalizações de formato fixo da empresa, indexadas pela chave do fixo. */
+    private function layoutsDeFixos()
+    {
+        $empresaId = auth()->user()->empresa_id;
+
+        if (! $empresaId) {
+            return collect();
+        }
+
+        return EtiquetaFormato::where('empresa_id', $empresaId)
+            ->whereNotNull('formato_base')
+            ->get()
+            ->keyBy('formato_base');
     }
 
     /**
@@ -135,14 +161,294 @@ class EtiquetaController extends Controller
 
     public function formatoDestroy(EtiquetaFormato $etiquetaFormato)
     {
-        if ($etiquetaFormato->empresa_id !== auth()->user()->empresa_id) {
-            abort(403);
-        }
+        $this->autorizarFormato($etiquetaFormato);
 
         $etiquetaFormato->delete();
 
         return redirect()->route('app.etiquetas.index')
             ->with('success', 'Formato removido.');
+    }
+
+    /* ===================== EDITOR VISUAL DE LAYOUT ===================== */
+
+    /**
+     * Tela de arrastar-e-soltar do layout. Abre com o desenho atual: o layout
+     * salvo, ou o automático convertido em itens posicionados (layoutInicial),
+     * para o lojista ajustar em vez de começar de uma etiqueta vazia.
+     */
+    public function editor(EtiquetaFormato $etiquetaFormato)
+    {
+        $this->autorizarFormato($etiquetaFormato);
+
+        $elementos = $etiquetaFormato->temLayoutLivre()
+            ? $etiquetaFormato->elementosLayout()
+            : $etiquetaFormato->layoutInicial();
+
+        return view('app.etiquetas.editor', [
+            'formato'   => $etiquetaFormato,
+            'elementos' => $elementos,
+            'exemplo'   => $this->produtoExemplo(),
+            'imagens'   => EtiquetaImagem::where('empresa_id', $etiquetaFormato->empresa_id)
+                ->orderByDesc('id')
+                ->get()
+                ->map(fn ($i) => ['id' => $i->id, 'nome' => $i->nome, 'url' => $i->url])
+                ->values(),
+        ]);
+    }
+
+    /**
+     * Abre o editor em cima de um formato FIXO. O fixo continua intocado (é
+     * constante compartilhada por todas as empresas): o que nasce aqui é um
+     * registro só com o desenho, amarrado a ele e à empresa. Enquanto esse
+     * registro não tiver layout salvo, a impressão segue no automático.
+     */
+    public function editorFixo(string $chave)
+    {
+        $empresaId = auth()->user()->empresa_id;
+
+        if (! $empresaId) {
+            return redirect()->route('app.etiquetas.index')
+                ->with('error', 'Selecione uma empresa para editar o layout das etiquetas.');
+        }
+
+        if (! isset(EtiquetaFormato::MEDIDAS_FIXOS[$chave])) {
+            abort(404);
+        }
+
+        $medidas = EtiquetaFormato::MEDIDAS_FIXOS[$chave];
+
+        $formato = EtiquetaFormato::firstOrCreate(
+            ['empresa_id' => $empresaId, 'formato_base' => $chave],
+            [
+                'nome'            => 'Layout · ' . $medidas['rotulo'],
+                'largura_mm'      => $medidas['w'],
+                'altura_mm'       => $medidas['h'],
+                'colunas'         => 1,
+                'espaco_mm'       => 0,
+                'estilo'          => 'padrao',
+                // O nome da loja já sai nos formatos fixos que têm altura para ele.
+                'mostrar_empresa' => $medidas['h'] >= 22,
+                'ativo'           => true,
+            ]
+        );
+
+        return redirect()->route('app.etiquetas.formatos.editor', $formato);
+    }
+
+    /** Salva o desenho. O JSON do navegador é normalizado antes de encostar no banco. */
+    public function layoutUpdate(Request $request, EtiquetaFormato $etiquetaFormato)
+    {
+        $this->autorizarFormato($etiquetaFormato);
+
+        $bruto = json_decode((string) $request->input('layout'), true);
+
+        if (! is_array($bruto) || ! is_array($bruto['elementos'] ?? null)) {
+            return back()->with('error', 'Não consegui ler o layout enviado. Tente salvar de novo.');
+        }
+
+        $elementos = $this->sanitizarElementos($bruto['elementos'], $etiquetaFormato);
+
+        if ($elementos === []) {
+            return back()->with('error', 'A etiqueta precisa de pelo menos um item. Adicione um campo antes de salvar.');
+        }
+
+        $etiquetaFormato->update([
+            'layout_json' => ['versao' => 1, 'elementos' => $elementos],
+        ]);
+
+        return redirect()->route('app.etiquetas.index')
+            ->with('success', 'Layout salvo! Imprima 1 etiqueta de teste antes de rodar o lote.');
+    }
+
+    /** Volta o formato para o layout automático (derivado das medidas). */
+    public function layoutReset(EtiquetaFormato $etiquetaFormato)
+    {
+        $this->autorizarFormato($etiquetaFormato);
+
+        $etiquetaFormato->update(['layout_json' => null]);
+
+        return redirect()->route('app.etiquetas.formatos.editor', $etiquetaFormato)
+            ->with('success', 'Layout automático restaurado.');
+    }
+
+    /* ---------- Galeria de imagens da empresa (usadas no editor) ---------- */
+
+    /**
+     * Sobe uma imagem para a galeria. Responde JSON porque o envio acontece com
+     * o editor aberto: um POST comum recarregaria a página e levaria junto o
+     * desenho ainda não salvo.
+     */
+    public function imagemStore(Request $request)
+    {
+        $empresaId = auth()->user()->empresa_id;
+
+        if (! $empresaId) {
+            return response()->json(['erro' => 'Selecione uma empresa antes de enviar imagens.'], 422);
+        }
+
+        $validador = validator($request->all(), [
+            // 2 MB e só formatos que a impressora resolve. SVG fica de fora de
+            // propósito: é XML executável, e o arquivo vai ser servido do nosso domínio.
+            'arquivo' => 'required|file|mimes:png,jpg,jpeg,gif,webp|max:2048',
+            'nome'    => 'nullable|string|max:60',
+        ], [], ['arquivo' => 'imagem']);
+
+        if ($validador->fails()) {
+            return response()->json(['erro' => $validador->errors()->first()], 422);
+        }
+
+        if (EtiquetaImagem::where('empresa_id', $empresaId)->count() >= 30) {
+            return response()->json(['erro' => 'Limite de 30 imagens na galeria. Apague alguma antes de enviar outra.'], 422);
+        }
+
+        $arquivo = $request->file('arquivo');
+        // Pasta por empresa: o caminho nunca é montado com dado do cliente.
+        $caminho = $arquivo->store('etiquetas/' . $empresaId, 'public');
+
+        $imagem = EtiquetaImagem::create([
+            'empresa_id' => $empresaId,
+            'nome'       => mb_substr($request->input('nome') ?: $arquivo->getClientOriginalName(), 0, 60),
+            'caminho'    => $caminho,
+        ]);
+
+        return response()->json([
+            'id'   => $imagem->id,
+            'nome' => $imagem->nome,
+            'url'  => $imagem->url,
+        ]);
+    }
+
+    /** Remove a imagem da galeria (e o arquivo do disco). */
+    public function imagemDestroy(EtiquetaImagem $etiquetaImagem)
+    {
+        if ($etiquetaImagem->empresa_id !== auth()->user()->empresa_id) {
+            abort(403);
+        }
+
+        $etiquetaImagem->delete();
+
+        return response()->json(['ok' => true]);
+    }
+
+    private function autorizarFormato(EtiquetaFormato $formato): void
+    {
+        if (! $formato->exists || $formato->empresa_id !== auth()->user()->empresa_id) {
+            abort(403);
+        }
+    }
+
+    /**
+     * Normaliza cada item: tipo na whitelist, medidas dentro da etiqueta, fonte
+     * conhecida, cor em hex. Vale como segurança (o JSON vem do cliente e cai
+     * direto num style=) e como garantia de que um item não nasce fora da área
+     * imprimível — fora da etiqueta ele some no `overflow: hidden` e o lojista
+     * fica procurando um campo que "não salvou".
+     */
+    private function sanitizarElementos(array $elementos, EtiquetaFormato $formato): array
+    {
+        $tipos = EtiquetaFormato::tiposValidos();
+        $imagensDaEmpresa = EtiquetaImagem::where('empresa_id', $formato->empresa_id)
+            ->pluck('id')->map(fn ($id) => (int) $id)->all();
+        $limpos = [];
+
+        foreach (array_slice($elementos, 0, EtiquetaFormato::MAX_ELEMENTOS) as $el) {
+            if (! is_array($el) || ! in_array($el['tipo'] ?? null, $tipos, true)) {
+                continue;
+            }
+
+            $tipo = $el['tipo'];
+            $num = fn ($v, $min, $max, $padrao) => is_numeric($v)
+                ? round(max($min, min($max, (float) $v)), 2)
+                : $padrao;
+
+            // Largura/altura primeiro: a posição máxima depende do tamanho do item.
+            $w = $num($el['w'] ?? null, 0.5, $formato->largura_mm, min(10, $formato->largura_mm));
+            $h = $num($el['h'] ?? null, 0.3, $formato->altura_mm, min(5, $formato->altura_mm));
+
+            $item = [
+                'tipo' => $tipo,
+                'x'    => $num($el['x'] ?? null, 0, max(0, $formato->largura_mm - $w), 0),
+                'y'    => $num($el['y'] ?? null, 0, max(0, $formato->altura_mm - $h), 0),
+                'w'    => $w,
+                'h'    => $h,
+            ];
+
+            if (in_array($tipo, EtiquetaFormato::TIPOS_TEXTO, true)) {
+                $fonte = $el['fonte'] ?? null;
+                $item['fonte'] = in_array($fonte, EtiquetaFormato::FONTES, true) ? $fonte : 'Arial';
+                $item['tamanho'] = $num($el['tamanho'] ?? null, 3, 72, 8);
+                $item['negrito'] = (bool) ($el['negrito'] ?? false);
+                $item['italico'] = (bool) ($el['italico'] ?? false);
+                $alinhamento = $el['alinhamento'] ?? null;
+                $item['alinhamento'] = in_array($alinhamento, EtiquetaFormato::ALINHAMENTOS, true)
+                    ? $alinhamento
+                    : 'center';
+            }
+
+            if ($tipo === 'imagem') {
+                // Só imagens da galeria DESTA empresa. O id vem do navegador;
+                // sem esta conferência, um id chutado exibiria a arte de outro
+                // lojista na etiqueta.
+                $id = (int) ($el['imagem_id'] ?? 0);
+                if (! in_array($id, $imagensDaEmpresa, true)) {
+                    continue;
+                }
+                $item['imagem_id'] = $id;
+            }
+
+            if (in_array($tipo, ['retangulo', 'linha'], true)) {
+                $item['espessura'] = $num($el['espessura'] ?? null, 0.1, 5, 0.3);
+                $item['preenchido'] = $tipo === 'retangulo' && (bool) ($el['preenchido'] ?? false);
+                // Cor só entra se for hex de 6 dígitos — o valor cai dentro de um style=.
+                $cor = (string) ($el['cor'] ?? '');
+                $item['cor'] = preg_match('/^#[0-9A-Fa-f]{6}$/', $cor) ? $cor : '#000000';
+            }
+
+            $limpos[] = $item;
+        }
+
+        // Campo do ERP duas vezes é o mesmo dado impresso em dois lugares —
+        // sempre erro de arrastar. Já linha/moldura/imagem repetem à vontade:
+        // é disso que desenho é feito.
+        $vistos = [];
+        $unicos = EtiquetaFormato::tiposUnicos();
+
+        return array_values(array_filter($limpos, function (array $el) use (&$vistos, $unicos) {
+            if (! in_array($el['tipo'], $unicos, true)) {
+                return true;
+            }
+            if (in_array($el['tipo'], $vistos, true)) {
+                return false;
+            }
+            $vistos[] = $el['tipo'];
+
+            return true;
+        }));
+    }
+
+    /**
+     * Produto de mentira para a pré-visualização do editor. Usa um produto real
+     * da empresa quando existe — nome curto demais no exemplo esconde justamente
+     * o problema de descrição que estoura a caixa.
+     */
+    private function produtoExemplo(): array
+    {
+        $produto = Produto::where('empresa_id', auth()->user()->empresa_id)
+            ->where('status', 'ativo')
+            ->orderByDesc('id')
+            ->first();
+
+        $empresa = auth()->user()->empresa;
+
+        return [
+            'tem_logo'       => (bool) $empresa?->logo,
+            'descricao'      => $produto->descricao ?? 'CAMISETA BÁSICA ALGODÃO PRETA M',
+            'preco'          => number_format((float) ($produto->preco_venda ?? 89.90), 2, ',', '.'),
+            'codigo_interno' => $produto->codigo_interno ?? 'PRD-0001',
+            'codigo_barras'  => $produto->codigo_barras ?: ($produto->codigo_interno ?? '7891234567895'),
+            'empresa_nome'   => $empresa->nome_fantasia ?: $empresa->razao_social ?: 'Minha Loja',
+            'empresa_logo'   => $empresa?->logo ? asset('storage/' . $empresa->logo) : null,
+        ];
     }
 
     /** Aceita "3,2" e "3.2" — o lojista digita com vírgula. */
@@ -183,12 +489,32 @@ class EtiquetaController extends Controller
         $formatoCustom = null;
         if (str_starts_with($request->formato, EtiquetaFormato::PREFIXO_CHAVE)) {
             $formatoCustom = EtiquetaFormato::where('empresa_id', auth()->user()->empresa_id)
+                // Personalização de formato fixo não é um formato imprimível por si:
+                // ela não tem a medida da bobina, e imprimir por ela sairia na
+                // página errada. Só o formato próprio do lojista entra aqui.
+                ->whereNull('formato_base')
                 ->find((int) substr($request->formato, strlen(EtiquetaFormato::PREFIXO_CHAVE)));
 
             if (! $formatoCustom) {
                 return back()->with('error', 'Formato de etiqueta não encontrado.');
             }
         }
+
+        // Quem manda no DESENHO do miolo. Para formato próprio é ele mesmo; para
+        // formato fixo é a personalização da empresa, se ela existir e tiver
+        // layout salvo. Sem isso, cai no arranjo automático de sempre.
+        $layoutFormato = $formatoCustom ?: EtiquetaFormato::where('empresa_id', auth()->user()->empresa_id)
+            ->where('formato_base', $request->formato)
+            ->first();
+
+        if ($layoutFormato && ! $layoutFormato->temLayoutLivre()) {
+            $layoutFormato = null;
+        }
+
+        // Só carrega a galeria se o desenho realmente usa imagem.
+        $imagensLayout = $layoutFormato
+            ? EtiquetaImagem::where('empresa_id', auth()->user()->empresa_id)->get()->keyBy('id')
+            : collect();
 
         // Compat: aceita também o formato antigo produtos[][id]/[quantidade]
         $selecao = [];
@@ -240,6 +566,8 @@ class EtiquetaController extends Controller
 
         $formato = $request->formato;
 
-        return view('app.etiquetas.print', compact('itens', 'formato', 'precosEtiqueta', 'formatoCustom'));
+        return view('app.etiquetas.print', compact(
+            'itens', 'formato', 'precosEtiqueta', 'formatoCustom', 'layoutFormato', 'imagensLayout'
+        ));
     }
 }

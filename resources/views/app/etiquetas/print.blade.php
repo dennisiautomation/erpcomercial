@@ -10,6 +10,13 @@
         // Os formatos fixos abaixo continuam exatamente como sempre foram.
         $formatoCustom = $formatoCustom ?? null;
         $ehCustom = (bool) $formatoCustom;
+
+        // Layout desenhado no editor. Vale para formato próprio E para formato
+        // fixo (nesse caso vem da personalização da empresa). Quando é nulo,
+        // absolutamente nada muda: cai no arranjo automático de sempre.
+        $layoutFormato = $layoutFormato ?? null;
+        $layoutLivre = $layoutFormato && $layoutFormato->temLayoutLivre();
+        $elementosLayout = $layoutLivre ? $layoutFormato->elementosLayout() : [];
         // Basta UM produto do lote com Cartão/PIX para a etiqueta ganhar a 2ª
         // linha de preço — o layout inteiro do lote se ajusta a ela.
         $temPrecoDuplo = collect($precosEtiqueta)->contains(fn ($p) => $p['dual'] ?? false);
@@ -36,7 +43,10 @@
         // Barras esticadas de ponta a ponta + dígitos em linha única embaixo:
         // é o que torna etiqueta pequena legível (padrão Hiper). Formato
         // personalizado entra sempre nesse tratamento.
-        $digitosEmLinha = $ehCustom || in_array($formato, ['termica-36x20-2col', 'termica-33x22', 'termica-tag-35x60']);
+        // No layout livre os dígitos são um item posicionado pelo lojista — o JS
+        // não pode pendurar uma segunda via deles embaixo das barras.
+        $digitosEmLinha = ! $layoutLivre
+            && ($ehCustom || in_array($formato, ['termica-36x20-2col', 'termica-33x22', 'termica-tag-35x60']));
         $alturaBarras = $ehCustom
             ? $L['altura_barras'] . 'mm'
             : (['termica-36x20-2col' => '6mm', 'termica-33x22' => '6.5mm', 'termica-tag-35x60' => '10mm'][$formato] ?? '6mm');
@@ -46,6 +56,12 @@
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            /* O navegador NÃO imprime cor de fundo por padrão ("Gráficos em
+               segundo plano" vem desmarcado no diálogo do Chrome). Sem isto,
+               linha e retângulo preenchido do layout aparecem na tela e somem
+               no papel — e o lojista não tem como adivinhar o motivo. */
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
         }
 
         body {
@@ -395,6 +411,18 @@
             align-items: center;
         }
 
+        /* ---- Layout livre: a etiqueta vira uma tela de coordenadas ----
+           Cada item carrega left/top/width/height em mm no próprio style, então
+           esta classe só precisa desligar o empilhamento (flex + padding) que
+           vale para todos os outros formatos. O !important existe porque as
+           regras por formato acima são mais específicas que esta. */
+        .etiqueta.etiqueta-livre {
+            display: block !important;
+            position: relative;
+            padding: 0 !important;
+            overflow: hidden;
+        }
+
         .etiqueta .barcode-container svg {
             width: 90%;
         }
@@ -551,7 +579,21 @@
                         ? 'EAN13'
                         : ($produto->codigo_barras && strlen($produto->codigo_barras) == 8 ? 'EAN8' : 'CODE128');
                 @endphp
-                <div class="etiqueta">
+                <div class="etiqueta {{ $layoutLivre ? 'etiqueta-livre' : '' }}">
+                    @if($layoutLivre)
+                        @foreach($elementosLayout as $el)
+                            @include('app.etiquetas._elemento', [
+                                'el'            => $el,
+                                'produto'       => $produto,
+                                'pe'            => $pe,
+                                'empresaNome'   => $empresaNome,
+                                'empresaLogo'   => $empresaLogo,
+                                'codigoBarras'  => $codigoBarras,
+                                'formatoBarras' => $formatoBarras,
+                                'imagensLayout' => $imagensLayout ?? collect(),
+                            ])
+                        @endforeach
+                    @else
                     @if($empresaLogo)
                         <div class="empresa-logo"><img src="{{ $empresaLogo }}" alt=""></div>
                     @else
@@ -595,6 +637,7 @@
                         @endif
                         <div class="codigo">{{ $produto->codigo_interno }}</div>
                     @endif
+                    @endif
                 </div>
             @endforeach
 
@@ -637,6 +680,18 @@
                         margin: 10
                     };
                 @endif
+                @if($layoutLivre)
+                    // Layout livre: o SVG carrega só as barras e preenche o box
+                    // que o lojista desenhou. Os dígitos, quando ele quer, são um
+                    // item separado — por isso displayValue fica desligado aqui.
+                    barOpts = {
+                        format: format,
+                        width: 2,
+                        height: 30,
+                        displayValue: false,
+                        margin: 10
+                    };
+                @endif
 
                 try {
                     JsBarcode(svg, code, barOpts);
@@ -647,6 +702,17 @@
                     } catch (e2) {
                         console.warn('Nao foi possivel gerar barcode para:', code);
                     }
+                }
+
+                if (svg.classList.contains('barcode-livre')) {
+                    // Estica as barras no box exato do item. 'none' preenche o
+                    // retângulo; a proporção horizontal — o que o leitor lê —
+                    // continua garantida pelo viewBox.
+                    svg.setAttribute('preserveAspectRatio', 'none');
+                    svg.removeAttribute('width');
+                    svg.removeAttribute('height');
+                    svg.style.width = '100%';
+                    svg.style.height = '100%';
                 }
 
                 @if($digitosEmLinha)

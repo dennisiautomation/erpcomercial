@@ -160,6 +160,17 @@ Route::middleware(['auth', 'suspensao', 'unidade'])->prefix('app')->name('app.')
     // VAZIO em silêncio (armadilha do route model binding, fix de 25/07).
     Route::post('/etiquetas/formatos', [App\EtiquetaController::class, 'formatoStore'])->name('etiquetas.formatos.store')->middleware('permission:produtos,criar');
     Route::delete('/etiquetas/formatos/{etiquetaFormato}', [App\EtiquetaController::class, 'formatoDestroy'])->name('etiquetas.formatos.destroy')->middleware('permission:produtos,criar');
+    // Editor visual do layout. O formato FIXO entra pela rota /layout-fixo/{chave}:
+    // ela cria (uma vez) o registro que guarda o desenho daquele fixo para esta
+    // empresa e cai no mesmo editor — o fixo em si continua sendo constante.
+    Route::get('/etiquetas/formatos/{etiquetaFormato}/editor', [App\EtiquetaController::class, 'editor'])->name('etiquetas.formatos.editor')->middleware('permission:produtos,criar');
+    Route::put('/etiquetas/formatos/{etiquetaFormato}/layout', [App\EtiquetaController::class, 'layoutUpdate'])->name('etiquetas.formatos.layout')->middleware('permission:produtos,criar');
+    Route::delete('/etiquetas/formatos/{etiquetaFormato}/layout', [App\EtiquetaController::class, 'layoutReset'])->name('etiquetas.formatos.layout.reset')->middleware('permission:produtos,criar');
+    Route::get('/etiquetas/layout-fixo/{chave}', [App\EtiquetaController::class, 'editorFixo'])->name('etiquetas.formatos.editor-fixo')->middleware('permission:produtos,criar');
+    // Galeria de imagens do editor — respondem JSON (o envio acontece com o
+    // editor aberto e o desenho ainda não salvo na tela).
+    Route::post('/etiquetas/imagens', [App\EtiquetaController::class, 'imagemStore'])->name('etiquetas.imagens.store')->middleware('permission:produtos,criar');
+    Route::delete('/etiquetas/imagens/{etiquetaImagem}', [App\EtiquetaController::class, 'imagemDestroy'])->name('etiquetas.imagens.destroy')->middleware('permission:produtos,criar');
 
     /* ------ Cadastros ------ */
     Route::post('clientes/quick', [App\ClienteController::class, 'quickStore'])
