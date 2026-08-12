@@ -2,7 +2,7 @@
 
 > SaaS ERP multi-tenant para PMEs. Admin (IA365) gerencia a plataforma; cada empresa-cliente tem múltiplas unidades com fiscal, estoque e caixa independentes. Integração 100% Focus NFe (NF-e, NFC-e, NFS-e, CC-e, manifestação do destinatário, backup XMLs).
 
-**Última revisão:** 2026-08-12 (vários estoques por loja + contagem cega + bonificação que deve voltar — peças em poder de terceiros + fix do alerta de estoque baixo/trial que nunca disparou; armadilhas 43-46) · 2026-08-11 (formato de etiqueta cadastrável pelo lojista + fix do CRUD de categorias — `status` feminino, armadilha 42) · 2026-08-05 (filtro por loja em vendas + imports de vendas/contas a receber + import robusto + lojas mesmo CNPJ compartilham empresa Focus) · **Estado:** integração fiscal Fase 1-4 + multi-loja + regime de cobrança + auto-sync Focus + UX config fiscal + caixa por forma de pagamento (14/07) + Configurações da Loja/tabelas de preço/emissão parametrizada/adquirentes (24/07) + **Reforma Tributária NT 2025.002 (obrigatório 03/08/2026) + CNPJ alfanumérico NT 2025.001 (25/07)** + **e-mails/no-reply + cobrança direta mensal/anual com bloqueio + pode_ver_financeiro (04/08)** + **doc de alterações do Dennis (05/08)** + **etiqueta cadastrável pelo lojista em cm + fix do CRUD de categorias + auditoria de produção (11/08)** — concluídos
+**Última revisão:** 2026-08-12 (vários estoques por loja + contagem cega + bonificação que deve voltar + estilo de etiqueta "nome no topo" + conferência de bobina; armadilhas 43-47; **imagem rebuildada** e main promovida) · 2026-08-11 (formato de etiqueta cadastrável pelo lojista + fix do CRUD de categorias — `status` feminino, armadilha 42) · 2026-08-05 (filtro por loja em vendas + imports de vendas/contas a receber + import robusto + lojas mesmo CNPJ compartilham empresa Focus) · **Estado:** integração fiscal Fase 1-4 + multi-loja + regime de cobrança + auto-sync Focus + UX config fiscal + caixa por forma de pagamento (14/07) + Configurações da Loja/tabelas de preço/emissão parametrizada/adquirentes (24/07) + **Reforma Tributária NT 2025.002 (obrigatório 03/08/2026) + CNPJ alfanumérico NT 2025.001 (25/07)** + **e-mails/no-reply + cobrança direta mensal/anual com bloqueio + pode_ver_financeiro (04/08)** + **doc de alterações do Dennis (05/08)** + **etiqueta cadastrável pelo lojista em cm + fix do CRUD de categorias + auditoria de produção (11/08)** — concluídos
 
 ---
 
@@ -1611,12 +1611,23 @@ recebe a contagem de volta** para gerar os ajustes e o relatório de divergênci
     duas movimentações no mesmo segundo saem em ordem indefinida e a cadeia de saldo
     pode ler a errada. O código antigo misturava `latest()` e `orderByDesc('id')`;
     o `SaldoEstoque` usa **sempre `id`**. Se precisar consultar direto, use `id`.
-46. **O `bootstrap/app.php` de produção NÃO está na imagem `erp-com-app:latest`** —
-    o deploy padrão só empacota `app database resources routes config`. A imagem é
-    anterior ao middleware `suspensao`, então **um `--force-recreate` derruba o
-    `/app` inteiro** com `Target class [suspensao] does not exist`. Flagrado ao
-    montar o ambiente de teste em 12/08. Ao mexer em `bootstrap/`, `public/` ou
-    `composer.json`, **rebuild da imagem** — tar não resolve.
+46. **A imagem `erp-com-app:latest` envelhece calada.** O deploy padrão só
+    empacota `app database resources routes config` — `bootstrap/`, `public/`,
+    `vendor/` e `composer.json` ficam congelados no que a imagem trouxe. Em 12/08 a
+    imagem ainda era anterior ao middleware `suspensao`, então **um
+    `--force-recreate` derrubaria o `/app` inteiro** com `Target class [suspensao]
+    does not exist` (flagrado ao montar o ambiente de teste). **Resolvido em 12/08
+    com rebuild da imagem a partir de `/root/erp`.** Ao mexer em `bootstrap/`,
+    `public/` ou `composer.json`, rebuild — tar não resolve. E o `.env` **não está
+    na imagem**: todo recreate exige `docker cp /root/erp/.env erp-com-app:/var/www/.env`
+    depois (o do host está sincronizado desde 04/08).
+47. **`estoque_movimentacoes.estoque_id` é OBRIGATÓRIO** desde 12/08 — gravar
+    movimentação sem ele estoura `SQLSTATE[HY000] 1364`. Foi assim que o
+    **cancelamento de venda** quebrou por 2h em produção (`VendaController::cancelar`
+    escapou da varredura dos 10 pontos) e o `EmpresaDemoSeeder` parou de rodar.
+    Sempre gravar por `SaldoEstoque::registrar()`. Loja nova ganha o estoque
+    "Principal" por `Unidade::booted()` — cobre admin, Minhas Lojas e seeder de uma
+    vez; sem isso a loja nasceria sem lugar de onde o PDV baixar.
 
 ---
 
