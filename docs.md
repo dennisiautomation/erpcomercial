@@ -1561,6 +1561,12 @@ recebe a contagem de volta** para gerar os ajustes e o relatório de divergênci
     `opcache.validate_timestamps=0`: o FPM congela o bytecode quando o container sobe e IGNORA
     arquivos novos no disco (tinker/CLI enxergam o código novo, o site não — armadilha dupla:
     a validação por CLI passa e o navegador segue no antigo). Todo deploy termina com restart.
+    **Sem poder reiniciar o container, a ordem importa (12/08 noite):** o boot roda `optimize`,
+    então existe **cache de rotas/config** (`bootstrap/cache/routes-v7.php`) preso no opcache.
+    Deploy com ROTA NOVA via `kill -USR2` no php-fpm exige: (1) tar do código, (2) `php artisan
+    optimize` (recacheia rotas), (3) chown www-data dos caches (o exec roda como root —
+    armadilha 34), (4) **USR2 DEPOIS do optimize** — reload antes do optimize serve a view nova
+    com rotas velhas e `route()` estoura 500 ("Route not defined") na tela inteira.
 27. **Upload 500 sem log no Laravel = permissão do nginx no container** — conferir
     `docker logs erp-com-app | grep client_body`. `/var/lib/nginx` tem que ser de `www-data`.
 28. **Campo em branco no produto é `''`, não `null`** — `?? ` não pega. Em dado fiscal isso vira
