@@ -164,7 +164,10 @@ class RelatorioController extends Controller
      */
     public function estoqueCego(Request $request)
     {
-        $empresaId = auth()->user()->empresa_id;
+        // O admin da plataforma tem empresa_id NULL (armadilha 25): sem este
+        // fallback a lista de lojas vinha vazia e a folha saía sem coluna
+        // nenhuma. A empresa da sessão é quem manda.
+        $empresaId = auth()->user()->empresa_id ?? session('empresa_id');
 
         $lojas = Unidade::withoutGlobalScopes()
             ->where('empresa_id', $empresaId)
@@ -175,6 +178,11 @@ class RelatorioController extends Controller
         $lojaId = (int) ($request->input('unidade_id') ?: session('unidade_id'));
         if (! $lojas->contains('id', $lojaId)) {
             $lojaId = (int) ($lojas->first()->id ?? 0);
+        }
+
+        if (! $lojaId) {
+            return redirect()->route('app.dashboard')
+                ->with('error', 'Escolha uma loja no topo da tela para montar a folha de contagem.');
         }
 
         $estoques = Estoque::withoutGlobalScopes()
