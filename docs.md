@@ -1260,6 +1260,33 @@ Pontos que mordem:
 
 ---
 
+### Bobina x formato: a conta que precisa fechar (12/08/2026)
+
+**A página que o navegador manda TEM que ter a largura do papel.** Se for maior,
+a impressora encolhe, corta ou gira — e o lojista vê etiqueta torta sem
+mensagem de erro nenhuma.
+
+```
+colunas × largura + (colunas − 1) × espaço  =  largura da bobina
+```
+
+**Caso MISS MERLINDA (Elgin L42PRO FULL):** o formato foi cadastrado como
+3 colunas × 3,3 cm + 0,2 = **página de 10,3 cm**, mas o driver da Elgin estava
+em `USER (70,0 mm × 40,0 mm)` — **bobina de 7 cm**. 3,3 cm cabem só **2 vezes**
+em 7 cm (2 × 3,3 + 0,4 = 7,0). Daí a impressão saiu girada e fora de registro.
+
+Por isso o cadastro de formato ganhou o campo **"Largura da bobina (cm)"**
+(só validação, não persiste): a tela mostra a conta ao vivo enquanto se digita
+— verde quando cabe, vermelho dizendo **quantas colunas cabem** quando não cabe —
+e o `formatoStore` recusa o formato mais largo que a bobina.
+
+⚠️ **Três medidas têm que bater**, não duas: a etiqueta física (régua), o tamanho
+de página no **driver** da impressora (`USER` em Preferências → Configuração de
+página) e o formato no ERP. O driver da MISS MERLINDA também declara
+`Altura do intervalo: 3,1 mm` — esse é o vão entre as fileiras e **não** entra na
+conta da largura.
+
+
 ## Bonificação que deve voltar — peças em poder de terceiros (12/08/2026)
 
 Pedido do documento do Dennis: na movimentação de estoque, quando a saída é para
