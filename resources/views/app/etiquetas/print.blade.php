@@ -303,10 +303,18 @@
         .formato-{{ $formato }} .etiqueta .empresa {
             font-weight: 800;
             line-height: 1.05;
-            text-align: center;
+            /* Alinhado à direita como os preços: assim o fim do nome e o fim
+               dos valores caem na MESMA coluna (pedido do Dennis). */
+            text-align: right;
             width: 100%;
             white-space: nowrap;
             overflow: hidden;
+            /* Sem reticências: nome cortado com "..." fica pior que nome cheio.
+               O nome fantasia já cabe; se um dia não couber, some a sobra. */
+            text-overflow: clip;
+            /* Cinza sai fraco na térmica — preto puro (mesma lição do cupom). */
+            color: #000;
+            letter-spacing: 0;
         }
         .formato-{{ $formato }} .etiqueta .bloco-precos {
             width: 100%;
@@ -501,7 +509,13 @@
         }
         $config = $formatos[$formato];
         $pages = array_chunk($itens, $config['per_page']);
-        $empresaNome = auth()->user()->empresa->razao_social ?? auth()->user()->empresa->nome_fantasia ?? 'Empresa';
+        // No estilo "nome no topo" o nome é o layout: usa o NOME FANTASIA, que é
+        // como a loja se chama na rua. A razão social ("... COMERCIO LTDA") não
+        // cabe na largura e saía cortada com reticências.
+        $empresa = auth()->user()->empresa;
+        $empresaNome = $ehNomeTopo
+            ? ($empresa->nome_fantasia ?: $empresa->razao_social ?: 'Empresa')
+            : ($empresa->razao_social ?? $empresa->nome_fantasia ?? 'Empresa');
         // Logo da empresa substitui o nome na etiqueta (vale para todas as unidades)
         $empresaLogo = auth()->user()->empresa?->logo ? asset('storage/' . auth()->user()->empresa->logo) : null;
     @endphp
