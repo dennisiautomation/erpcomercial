@@ -138,7 +138,7 @@
                 // apareceria dentro de um bloco recolhido e o lojista não veria o motivo.
                 // $errors pode ser null fora de um request HTTP (armadilha 10).
                 $bag = $errors ?? new \Illuminate\Support\ViewErrorBag();
-                $errosFormato = collect(['nome', 'largura_cm', 'altura_cm', 'colunas', 'espaco_cm'])
+                $errosFormato = collect(['nome', 'largura_cm', 'altura_cm', 'colunas', 'espaco_cm', 'bobina_cm'])
                     ->filter(fn ($campo) => $bag->has($campo));
             @endphp
             <div class="collapse mt-3 {{ $errosFormato->isNotEmpty() ? 'show' : '' }}" id="novoFormatoEtiqueta">
@@ -166,7 +166,7 @@
                         </div>
                         <div class="col-md-2">
                             <label class="form-label small mb-1">Largura (cm) <span class="text-danger">*</span></label>
-                            <input type="text" name="largura_cm" form="formNovoFormato" class="form-control form-control-sm"
+                            <input type="text" name="largura_cm" id="fmtLargura" form="formNovoFormato" class="form-control form-control-sm"
                                    inputmode="decimal" placeholder="3,2" value="{{ old('largura_cm') }}" required>
                         </div>
                         <div class="col-md-2">
@@ -176,15 +176,36 @@
                         </div>
                         <div class="col-md-2">
                             <label class="form-label small mb-1">Colunas <span class="text-danger">*</span></label>
-                            <input type="number" name="colunas" form="formNovoFormato" class="form-control form-control-sm"
+                            <input type="number" name="colunas" id="fmtColunas" form="formNovoFormato" class="form-control form-control-sm"
                                    min="1" max="6" value="{{ old('colunas', 1) }}" required>
                         </div>
                         <div class="col-md-2">
                             <label class="form-label small mb-1">Espaço entre colunas (cm)</label>
-                            <input type="text" name="espaco_cm" form="formNovoFormato" class="form-control form-control-sm"
+                            <input type="text" name="espaco_cm" id="fmtEspaco" form="formNovoFormato" class="form-control form-control-sm"
                                    inputmode="decimal" placeholder="0,2" value="{{ old('espaco_cm', '0,2') }}">
                         </div>
                     </div>
+                    {{-- A conta que ninguém faz de cabeça: colunas × largura + espaços
+                         TEM que caber na bobina. Formato mais largo que o papel faz a
+                         impressora encolher, cortar ou girar a etiqueta. --}}
+                    <div class="row g-2 mt-2 align-items-end">
+                        <div class="col-md-3">
+                            <label class="form-label small mb-1">
+                                Largura da bobina (cm)
+                                <i class="bi bi-question-circle text-muted" title="A medida do papel, não da etiqueta. Está nas preferências da impressora, em 'Papel de etiquetas'."></i>
+                            </label>
+                            <input type="text" name="bobina_cm" id="fmtBobina" form="formNovoFormato"
+                                   class="form-control form-control-sm @error('bobina_cm') is-invalid @enderror"
+                                   inputmode="decimal" placeholder="7,0" value="{{ old('bobina_cm') }}">
+                            @error('bobina_cm')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                        </div>
+                        <div class="col-md-9">
+                            <div id="fmtConferencia" class="alert alert-secondary py-2 px-3 mb-0 small">
+                                Preencha as medidas para eu conferir se cabem na bobina.
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="d-flex justify-content-between align-items-center mt-3">
                         <div class="form-check">
                             <input class="form-check-input" type="checkbox" name="mostrar_empresa" value="1"
@@ -396,4 +417,53 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 </script>
+
+/* --- Conferência da bobina: colunas x largura + espaços TEM que caber ------
+   Formato mais largo que o papel faz a impressora encolher, cortar ou girar.
+   Mostrar a conta enquanto digita evita descobrir isso na etiqueta impressa. */
+(function () {
+    const elLargura = document.getElementById('fmtLargura');
+    const elColunas = document.getElementById('fmtColunas');
+    const elEspaco  = document.getElementById('fmtEspaco');
+    const elBobina  = document.getElementById('fmtBobina');
+    const saida     = document.getElementById('fmtConferencia');
+    if (!elLargura || !saida) return;
+
+    const num = el => parseFloat(String(el?.value ?? '').replace(',', '.')) || 0;
+    const br  = v => v.toFixed(1).replace('.', ',');
+
+    function conferir() {
+        const largura = num(elLargura), colunas = parseInt(elColunas.value, 10) || 0;
+        const espaco = num(elEspaco), bobina = num(elBobina);
+
+        if (!largura || !colunas) {
+            saida.className = 'alert alert-secondary py-2 px-3 mb-0 small';
+            saida.innerHTML = 'Preencha as medidas para eu conferir se cabem na bobina.';
+            return;
+        }
+
+        const exigido = colunas * largura + Math.max(0, colunas - 1) * espaco;
+        const conta = `${colunas} × ${br(largura)} cm` + (espaco > 0 && colunas > 1 ? ` + ${colunas - 1} espaço(s) de ${br(espaco)} cm` : '');
+
+        if (!bobina) {
+            saida.className = 'alert alert-info py-2 px-3 mb-0 small';
+            saida.innerHTML = `${conta} = <strong>bobina de ${br(exigido)} cm</strong>. Informe a largura da sua bobina para eu conferir.`;
+            return;
+        }
+
+        if (exigido > bobina + 0.001) {
+            const cabem = Math.max(1, Math.floor((bobina + espaco) / (largura + espaco)));
+            saida.className = 'alert alert-danger py-2 px-3 mb-0 small';
+            saida.innerHTML = `<i class="bi bi-exclamation-triangle me-1"></i>${conta} = <strong>${br(exigido)} cm</strong>, mas a bobina tem <strong>${br(bobina)} cm</strong>. Não cabe — a impressora vai encolher ou cortar. Nessa bobina cabem <strong>${cabem} coluna(s)</strong>.`;
+        } else {
+            const sobra = bobina - exigido;
+            saida.className = 'alert alert-success py-2 px-3 mb-0 small';
+            saida.innerHTML = `<i class="bi bi-check-circle me-1"></i>${conta} = <strong>${br(exigido)} cm</strong> — cabe na bobina de ${br(bobina)} cm` + (sobra > 0.05 ? ` (sobra ${br(sobra)} cm).` : '.');
+        }
+    }
+
+    [elLargura, elColunas, elEspaco, elBobina].forEach(el => el && el.addEventListener('input', conferir));
+    conferir();
+})();
+
 @endpush

@@ -69,6 +69,7 @@ class EtiquetaController extends Controller
             'largura_cm' => $this->numeroBr($request->input('largura_cm')),
             'altura_cm'  => $this->numeroBr($request->input('altura_cm')),
             'espaco_cm'  => $this->numeroBr($request->input('espaco_cm')),
+            'bobina_cm'  => $this->numeroBr($request->input('bobina_cm')),
         ]);
 
         $dados = $request->validate([
@@ -80,11 +81,37 @@ class EtiquetaController extends Controller
             'altura_cm'  => 'required|numeric|min:0.8|max:30',
             'colunas'    => 'required|integer|min:1|max:6',
             'espaco_cm'  => 'nullable|numeric|min:0|max:2',
+            'bobina_cm'  => 'nullable|numeric|min:1|max:40',
         ], [], [
             'largura_cm' => 'largura',
             'altura_cm'  => 'altura',
             'espaco_cm'  => 'espaço entre colunas',
+            'bobina_cm'  => 'largura da bobina',
         ]);
+
+        // Se a soma das colunas não cabe na bobina, o navegador manda uma página
+        // mais larga que o papel e a impressora encolhe, corta ou gira — foi o
+        // que aconteceu na MISS MERLINDA (formato de 10,3 cm em bobina de 7 cm).
+        // Barrar aqui é mais barato que descobrir na etiqueta impressa.
+        if (! empty($dados['bobina_cm'])) {
+            $espaco = (float) ($dados['espaco_cm'] ?? 0);
+            $exigido = $dados['colunas'] * $dados['largura_cm'] + max(0, $dados['colunas'] - 1) * $espaco;
+
+            if (round($exigido, 2) > round((float) $dados['bobina_cm'], 2) + 0.001) {
+                $cabem = max(1, (int) floor(
+                    ((float) $dados['bobina_cm'] + $espaco) / ((float) $dados['largura_cm'] + $espaco)
+                ));
+                $n = fn ($v) => number_format($v, 1, ',', '');
+
+                return back()->withInput()->withErrors(['colunas' => sprintf(
+                    '%s colunas de %s cm com %s cm de espaço exigem uma bobina de %s cm, '
+                    . 'mas a sua tem %s cm. Nessa bobina cabem %s coluna(s) — '
+                    . 'use %s colunas, ou reduza a largura da etiqueta.',
+                    $dados['colunas'], $n($dados['largura_cm']), $n($espaco),
+                    $n($exigido), $n($dados['bobina_cm']), $cabem, $cabem
+                )]);
+            }
+        }
 
         EtiquetaFormato::create([
             'empresa_id'      => $empresaId,
