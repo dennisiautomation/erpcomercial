@@ -321,7 +321,27 @@
             text-align: right;
             line-height: 1.15;
         }
-        .formato-{{ $formato }} .etiqueta .preco { font-weight: 600; }
+        .formato-{{ $formato }} .etiqueta .preco { font-weight: 600; color: #000; }
+        /* Rótulo à esquerda, valor à direita: os valores formam uma coluna e
+           terminam todos no mesmo ponto — junto com o fim do nome da loja. */
+        .formato-{{ $formato }} .etiqueta .preco-forma {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            gap: 1mm;
+            width: 100%;
+        }
+        .formato-{{ $formato }} .etiqueta .preco-forma .rotulo {
+            font-weight: 500;
+            white-space: nowrap;
+        }
+        .formato-{{ $formato }} .etiqueta .preco .valor {
+            white-space: nowrap;
+            /* tabular-nums mantém os dígitos com a mesma largura, então
+               155,00 e 150,00 casam coluna a coluna, não só na ponta. */
+            font-variant-numeric: tabular-nums;
+            font-feature-settings: "tnum";
+        }
         .formato-{{ $formato }} .etiqueta .barcode-container { width: 100%; margin-top: auto; }
         @endif
         @endif
@@ -540,12 +560,21 @@
                     @if($ehNomeTopo)
                         {{-- Estilo "nome no topo": nome (acima), preços recuados, barras
                              no rodapé. Replica o layout do BarTender da MISS MERLINDA. --}}
+                        {{-- Rótulo e valor em spans separados: o valor vira uma
+                             COLUNA à direita, então "155,00" e "150,00" terminam
+                             no mesmo ponto (e no mesmo ponto do nome da loja). --}}
                         <div class="bloco-precos">
                             @if($pe && $pe['dual'])
-                                <div class="preco preco-forma">Cartão R$ {{ number_format($pe['credito'], 2, ',', '.') }}</div>
-                                <div class="preco preco-forma">PIX R$ {{ number_format($pe['base'], 2, ',', '.') }}</div>
+                                <div class="preco preco-forma">
+                                    <span class="rotulo">Cartão</span><span class="valor">R$ {{ number_format($pe['credito'], 2, ',', '.') }}</span>
+                                </div>
+                                <div class="preco preco-forma">
+                                    <span class="rotulo">PIX</span><span class="valor">R$ {{ number_format($pe['base'], 2, ',', '.') }}</span>
+                                </div>
                             @else
-                                <div class="preco">R$ {{ number_format($produto->preco_venda, 2, ',', '.') }}</div>
+                                <div class="preco">
+                                    <span class="valor">R$ {{ number_format($produto->preco_venda, 2, ',', '.') }}</span>
+                                </div>
                             @endif
                         </div>
                         <div class="barcode-container">
