@@ -7,6 +7,11 @@ use App\Models\ContaPagar;
 use App\Models\ContaReceber;
 use App\Models\EstoqueMovimentacao;
 use App\Models\Produto;
+use Illuminate\Support\Str;
+use App\Support\Planilha;
+use App\Models\Unidade;
+use App\Models\Estoque;
+use App\Models\Categoria;
 use App\Services\SaldoEstoque;
 use App\Models\Venda;
 use App\Models\VendaItem;
@@ -148,6 +153,107 @@ class RelatorioController extends Controller
         }
 
         return view('app.relatorios.estoque', compact('produtos', 'curvaABC'));
+    }
+
+    /**
+     * Contagem cega: folha para conferir estoque físico SEM mostrar o saldo do
+     * sistema — quem conta não pode ser induzido pelo número esperado.
+     *
+     * Uma coluna em branco por estoque, mais SKU e código de barras para achar
+     * o produto na prateleira.
+     */
+    public function estoqueCego(Request $request)
+    {
+        $empresaId = auth()->user()->empresa_id;
+
+        $lojas = Unidade::withoutGlobalScopes()
+            ->where('empresa_id', $empresaId)
+            ->where('status', 'ativa')
+            ->orderBy('nome')
+            ->get(['id', 'nome']);
+
+        $lojaId = (int) ($request->input('unidade_id') ?: session('unidade_id'));
+        if (! $lojas->contains('id', $lojaId)) {
+            $lojaId = (int) ($lojas->first()->id ?? 0);
+        }
+
+        $estoques = Estoque::withoutGlobalScopes()
+            ->where('unidade_id', $lojaId)
+            ->where('status', 'ativo')
+            ->orderByDesc('is_padrao')
+            ->orderBy('nome')
+            ->get(['id', 'nome']);
+
+        // Filtro de estoques: por padrão todos os da loja
+        $selecionados = collect($request->input('estoques', []))->map(fn ($v) => (int) $v)->filter();
+        $colunas = $selecionados->isNotEmpty()
+            ? $estoques->whereIn('id', $selecionados->all())->values()
+            : $estoques;
+
+        $produtos = Produto::where('empresa_id', $empresaId)
+            ->where('status', 'ativo')
+            ->when($request->filled('categoria_id'), fn ($q) => $q->where('categoria_id', $request->categoria_id))
+            ->when($request->filled('busca'), function ($q) use ($request) {
+                $busca = $request->busca;
+                $q->where(fn ($s) => $s->where('descricao', 'like', "%{$busca}%")
+                    ->orWhere('sku', 'like', "%{$busca}%")
+                    ->orWhere('codigo_interno', 'like', "%{$busca}%")
+                    ->orWhere('codigo_barras', 'like', "%{$busca}%"));
+            })
+            ->with('categoria:id,nome')
+            ->orderBy('descricao')
+            ->get(['id', 'codigo_interno', 'sku', 'codigo_barras', 'descricao', 'categoria_id', 'unidade_medida']);
+
+        // "Só o que tem saldo" evita imprimir catálogo inteiro numa contagem
+        // cíclica — mas o saldo NÃO vai para a folha, só decide a linha entrar.
+        if ($request->boolean('somente_com_saldo')) {
+            $saldos = SaldoEstoque::porProdutoDaEmpresa($empresaId);
+            $produtos = $produtos->filter(fn ($p) => ($saldos[$p->id] ?? 0) > 0)->values();
+        }
+
+        $categorias = Categoria::where('empresa_id', $empresaId)
+            ->orderBy('nome')
+            ->get(['id', 'nome']);
+
+        $loja = $lojas->firstWhere('id', $lojaId);
+
+        if ($request->input('formato') === 'xlsx') {
+            return $this->estoqueCegoXlsx($produtos, $colunas, $loja);
+        }
+
+        return view('app.relatorios.estoque-cego', compact(
+            'produtos', 'colunas', 'estoques', 'lojas', 'lojaId', 'loja', 'categorias', 'selecionados'
+        ));
+    }
+
+    /** Mesma folha em .xlsx — nunca CSV (armadilha 26: Excel come zero à esquerda). */
+    private function estoqueCegoXlsx($produtos, $colunas, $loja)
+    {
+        $cabecalhos = ['SKU', 'Código', 'Código de barras', 'Produto', 'Categoria', 'Un'];
+        foreach ($colunas as $coluna) {
+            $cabecalhos[] = 'Contado — ' . $coluna->nome;
+        }
+
+        $linhas = $produtos->map(function ($p) use ($colunas) {
+            $linha = [
+                (string) ($p->sku ?? ''),
+                (string) ($p->codigo_interno ?? ''),
+                (string) ($p->codigo_barras ?? ''),
+                $p->descricao,
+                $p->categoria->nome ?? '',
+                $p->unidade_medida ?? 'UN',
+            ];
+            // Colunas de contagem saem VAZIAS — é o ponto do cego
+            foreach ($colunas as $_) {
+                $linha[] = '';
+            }
+
+            return $linha;
+        })->all();
+
+        $nome = 'contagem-cega-' . Str::slug($loja->nome ?? 'loja') . '-' . now()->format('Y-m-d');
+
+        return Planilha::download($cabecalhos, $linhas, $nome, 'Contagem');
     }
 
     public function financeiro(Request $request)

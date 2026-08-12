@@ -930,6 +930,10 @@
                                        href="{{ route('app.relatorios.estoque') }}">Estoque</a>
                                 </li>
                                 <li class="nav-item">
+                                    <a class="nav-link {{ request()->routeIs('app.relatorios.estoque-cego') ? 'active' : '' }}"
+                                       href="{{ route('app.relatorios.estoque-cego') }}">Contagem cega</a>
+                                </li>
+                                <li class="nav-item">
                                     <a class="nav-link {{ request()->routeIs('app.relatorios.financeiro') ? 'active' : '' }}"
                                        href="{{ route('app.relatorios.financeiro') }}">Financeiro</a>
                                 </li>

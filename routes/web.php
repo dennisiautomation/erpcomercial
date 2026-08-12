@@ -431,6 +431,8 @@ Route::middleware(['auth', 'suspensao', 'unidade'])->prefix('app')->name('app.')
     Route::prefix('relatorios')->name('relatorios.')->middleware('permission:relatorios')->group(function () {
         Route::get('/vendas', [App\RelatorioController::class, 'vendas'])->name('vendas');
         Route::get('/estoque', [App\RelatorioController::class, 'estoque'])->name('estoque');
+        // Folha de contagem física — sem o saldo do sistema, de propósito
+        Route::get('/estoque-cego', [App\RelatorioController::class, 'estoqueCego'])->name('estoque-cego');
         Route::get('/financeiro', [App\RelatorioController::class, 'financeiro'])->name('financeiro');
     });
 

@@ -2,7 +2,7 @@
 
 > SaaS ERP multi-tenant para PMEs. Admin (IA365) gerencia a plataforma; cada empresa-cliente tem múltiplas unidades com fiscal, estoque e caixa independentes. Integração 100% Focus NFe (NF-e, NFC-e, NFS-e, CC-e, manifestação do destinatário, backup XMLs).
 
-**Última revisão:** 2026-08-12 (vários estoques por loja com saldo por estoque + bonificação que deve voltar — peças em poder de terceiros + fix do alerta de estoque baixo/trial que nunca disparou; armadilhas 43-46) · 2026-08-11 (formato de etiqueta cadastrável pelo lojista + fix do CRUD de categorias — `status` feminino, armadilha 42) · 2026-08-05 (filtro por loja em vendas + imports de vendas/contas a receber + import robusto + lojas mesmo CNPJ compartilham empresa Focus) · **Estado:** integração fiscal Fase 1-4 + multi-loja + regime de cobrança + auto-sync Focus + UX config fiscal + caixa por forma de pagamento (14/07) + Configurações da Loja/tabelas de preço/emissão parametrizada/adquirentes (24/07) + **Reforma Tributária NT 2025.002 (obrigatório 03/08/2026) + CNPJ alfanumérico NT 2025.001 (25/07)** + **e-mails/no-reply + cobrança direta mensal/anual com bloqueio + pode_ver_financeiro (04/08)** + **doc de alterações do Dennis (05/08)** + **etiqueta cadastrável pelo lojista em cm + fix do CRUD de categorias + auditoria de produção (11/08)** — concluídos
+**Última revisão:** 2026-08-12 (vários estoques por loja + contagem cega + bonificação que deve voltar — peças em poder de terceiros + fix do alerta de estoque baixo/trial que nunca disparou; armadilhas 43-46) · 2026-08-11 (formato de etiqueta cadastrável pelo lojista + fix do CRUD de categorias — `status` feminino, armadilha 42) · 2026-08-05 (filtro por loja em vendas + imports de vendas/contas a receber + import robusto + lojas mesmo CNPJ compartilham empresa Focus) · **Estado:** integração fiscal Fase 1-4 + multi-loja + regime de cobrança + auto-sync Focus + UX config fiscal + caixa por forma de pagamento (14/07) + Configurações da Loja/tabelas de preço/emissão parametrizada/adquirentes (24/07) + **Reforma Tributária NT 2025.002 (obrigatório 03/08/2026) + CNPJ alfanumérico NT 2025.001 (25/07)** + **e-mails/no-reply + cobrança direta mensal/anual com bloqueio + pode_ver_financeiro (04/08)** + **doc de alterações do Dennis (05/08)** + **etiqueta cadastrável pelo lojista em cm + fix do CRUD de categorias + auditoria de produção (11/08)** — concluídos
 
 ---
 
@@ -18,7 +18,8 @@
 8. [Crons agendados](#crons-agendados)
 9. [Logins demo](#logins-demo)
 9b. [Vários estoques por loja](#vários-estoques-por-loja-12082026)
-9c. [Bonificação que deve voltar](#bonificação-que-deve-voltar--peças-em-poder-de-terceiros-12082026)
+9c. [Relatório de contagem cega](#relatório-de-contagem-cega-12082026)
+9d. [Bonificação que deve voltar](#bonificação-que-deve-voltar--peças-em-poder-de-terceiros-12082026)
 10. [Armadilhas conhecidas](#armadilhas-conhecidas)
 11. [Próximos passos](#próximos-passos)
 
@@ -1388,6 +1389,35 @@ e a cadeia `anterior→posterior` conferida movimentação a movimentação.
 | Relatório de estoque | saldo consolidado da empresa |
 | Multilojas → Estoque por Loja | saldo por loja; o ajuste da célula cai no estoque de venda |
 | Movimentações | saldo do estoque escolhido |
+
+---
+
+## Relatório de contagem cega (12/08/2026)
+
+Pedido do documento do Dennis: **folha de conferência sem a quantidade, com os
+campos de cada estoque e o SKU para identificar o produto.**
+
+`/app/relatorios/estoque-cego`, ao lado dos outros relatórios no menu.
+
+- **Colunas**: SKU · código interno · código de barras · produto · categoria ·
+  unidade · **uma coluna em branco por estoque** da loja.
+- **Sem saldo, de propósito** — quem conta não pode ser induzido pelo número que
+  o sistema espera. Verificado no teste: as células do corpo saem vazias e
+  nenhum dos saldos reais aparece no HTML.
+- **Filtros**: loja, categoria, busca (SKU/código/descrição) e quais estoques
+  entram na folha. Há um "só produtos com saldo" para contagem cíclica — o saldo
+  decide a linha entrar, mas continua fora do papel.
+- **Impressão** via `@media print`: some com sidebar/topbar, `thead` repete em
+  toda página (`display: table-header-group`), linha não quebra no meio, margem
+  de 12 mm. O cabeçalho com data e nome do conferente só existe no papel.
+- **Exportação .xlsx** por `App\Support\Planilha` (armadilha 26 — nunca CSV, o
+  Excel destrói zero à esquerda de SKU/EAN). As colunas de contagem saem vazias;
+  como o helper grava referência de célula explícita (`r="B2"`), célula vazia
+  **não desloca coluna**.
+
+**Não implementado (decisão a tomar):** a folha só sai. O sistema ainda **não
+recebe a contagem de volta** para gerar os ajustes e o relatório de divergência
+— era a pergunta em aberto do plano. Enquanto isso, a conferência é manual.
 
 ---
 
