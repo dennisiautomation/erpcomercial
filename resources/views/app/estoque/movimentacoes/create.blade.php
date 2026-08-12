@@ -92,6 +92,70 @@
                 </div>
             </x-erp.form-section>
 
+            {{-- Só aparece em Bonificação; dentro dela, os campos só abrem se marcar
+                 que a peça volta. Nas outras movimentações a tela fica igual à de antes. --}}
+            <div id="bloco-comodato" class="d-none">
+                <x-erp.form-section title="A peça volta?" icon="arrow-counterclockwise">
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input" type="checkbox" role="switch"
+                               name="retorno_previsto" value="1" id="retorno_previsto"
+                               {{ old('retorno_previsto') ? 'checked' : '' }}>
+                        <label class="form-check-label fw-semibold" for="retorno_previsto">
+                            Esta peça deve retornar
+                        </label>
+                        <div class="form-text">
+                            Marque quando a peça sai emprestada — influencer, editorial, showroom, prova.
+                            O estoque baixa igual, mas a peça entra em <strong>Peças em poder de terceiros</strong>
+                            até voltar.
+                        </div>
+                    </div>
+
+                    <div id="campos-comodato" class="row g-3 d-none">
+                        <div class="col-md-5">
+                            <label for="responsavel" class="form-label fw-semibold">
+                                Com quem fica <span class="text-danger">*</span>
+                            </label>
+                            <input type="text" name="responsavel" id="responsavel"
+                                   class="form-control @error('responsavel') is-invalid @enderror"
+                                   value="{{ old('responsavel') }}" maxlength="120"
+                                   placeholder="Nome da influencer, produtora, cliente...">
+                            @error('responsavel')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                        </div>
+                        <div class="col-md-4">
+                            <label for="contato" class="form-label fw-semibold">Contato</label>
+                            <input type="text" name="contato" id="contato"
+                                   class="form-control @error('contato') is-invalid @enderror"
+                                   value="{{ old('contato') }}" maxlength="120"
+                                   placeholder="@ do Instagram ou telefone">
+                            @error('contato')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                        </div>
+                        <div class="col-md-3">
+                            <label for="data_prevista_retorno" class="form-label fw-semibold">
+                                Volta em <span class="text-danger">*</span>
+                            </label>
+                            <input type="date" name="data_prevista_retorno" id="data_prevista_retorno"
+                                   class="form-control @error('data_prevista_retorno') is-invalid @enderror"
+                                   value="{{ old('data_prevista_retorno') }}"
+                                   min="{{ now()->toDateString() }}">
+                            @error('data_prevista_retorno')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                        </div>
+                        <div class="col-12">
+                            <div class="alert alert-info mb-0 py-2 small">
+                                <i class="bi bi-info-circle me-1"></i>
+                                Vale para <strong>todos os itens</strong> desta movimentação. Passada a data,
+                                a peça aparece como atrasada e o dono recebe aviso no sino.
+                            </div>
+                        </div>
+                    </div>
+                </x-erp.form-section>
+            </div>
+
             <x-erp.form-section title="Observacoes" icon="chat-text">
                 <div class="mb-4">
                     <label for="observacoes" class="form-label fw-semibold">Observacoes</label>
@@ -210,5 +274,33 @@
             row.querySelector('.item-number').textContent = i + 1;
         });
     }
+
+    /* --- Bonificação que deve voltar --------------------------------- */
+    const blocoComodato = document.getElementById('bloco-comodato');
+    const switchRetorno = document.getElementById('retorno_previsto');
+    const camposComodato = document.getElementById('campos-comodato');
+
+    function syncBlocoComodato() {
+        const ehBonificacao = document.querySelector('input[name="tipo"]:checked')?.value === 'bonificacao';
+        blocoComodato.classList.toggle('d-none', !ehBonificacao);
+
+        // Saiu de bonificação: desliga o switch para não mandar comodato órfão
+        if (!ehBonificacao && switchRetorno.checked) {
+            switchRetorno.checked = false;
+        }
+        syncCamposComodato();
+    }
+
+    function syncCamposComodato() {
+        const ligado = switchRetorno.checked;
+        camposComodato.classList.toggle('d-none', !ligado);
+        // required só quando visível, senão o browser bloqueia o submit num campo escondido
+        document.getElementById('responsavel').required = ligado;
+        document.getElementById('data_prevista_retorno').required = ligado;
+    }
+
+    document.getElementById('tipo-cards').addEventListener('change', syncBlocoComodato);
+    switchRetorno.addEventListener('change', syncCamposComodato);
+    syncBlocoComodato();
 </script>
 @endpush

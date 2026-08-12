@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers\App;
 
+use App\Enums\StatusComodato;
 use App\Enums\TipoMovimentacaoEstoque;
 use App\Http\Controllers\Controller;
+use App\Models\EstoqueComodato;
 use App\Models\EstoqueMovimentacao;
 use App\Models\Produto;
 use Illuminate\Http\Request;
@@ -89,9 +91,23 @@ class EstoqueMovimentacaoController extends Controller
             'itens.*.quantidade'      => 'required|numeric|min:0.001',
             'itens.*.custo_unitario'  => 'nullable|numeric|min:0',
             'observacoes'             => 'nullable|string|max:500',
+            // Bonificação que deve voltar (influencer, showroom, editorial)
+            'retorno_previsto'        => 'nullable|boolean',
+            'responsavel'             => 'nullable|string|max:120|required_if:retorno_previsto,1',
+            'contato'                 => 'nullable|string|max:120',
+            'data_prevista_retorno'   => 'nullable|date|after_or_equal:today|required_if:retorno_previsto,1',
+        ], [
+            'responsavel.required_if' => 'Diga com quem a peça vai ficar.',
+            'data_prevista_retorno.required_if' => 'Informe a data prevista de retorno.',
+            'data_prevista_retorno.after_or_equal' => 'A data prevista de retorno não pode ser no passado.',
         ]);
 
-        DB::transaction(function () use ($validated) {
+        // Só bonificação gera controle de retorno — nos outros tipos o bloco
+        // nem aparece na tela, mas a guarda evita comodato órfão via POST torto.
+        $comComodato = $validated['tipo'] === 'bonificacao'
+            && $request->boolean('retorno_previsto');
+
+        DB::transaction(function () use ($validated, $comComodato) {
             $tipo = TipoMovimentacaoEstoque::from($validated['tipo']);
 
             foreach ($validated['itens'] as $item) {
@@ -119,7 +135,7 @@ class EstoqueMovimentacaoController extends Controller
                     default => $quantidade,
                 };
 
-                EstoqueMovimentacao::create([
+                $movimentacao = EstoqueMovimentacao::create([
                     'empresa_id'          => auth()->user()->empresa_id,
                     'unidade_id'          => session('unidade_id'),
                     'produto_id'          => $produto->id,
@@ -131,6 +147,25 @@ class EstoqueMovimentacaoController extends Controller
                     'user_id'             => auth()->id(),
                     'observacoes'         => $validated['observacoes'] ?? null,
                 ]);
+
+                // A peça saiu, mas é emprestada: registra com quem ficou e até quando.
+                if ($comComodato) {
+                    EstoqueComodato::create([
+                        'empresa_id'              => auth()->user()->empresa_id,
+                        'unidade_id'              => session('unidade_id'),
+                        'estoque_movimentacao_id' => $movimentacao->id,
+                        'produto_id'              => $produto->id,
+                        'quantidade'              => $quantidade,
+                        'quantidade_devolvida'    => 0,
+                        'responsavel'             => $validated['responsavel'],
+                        'contato'                 => $validated['contato'] ?? null,
+                        'data_saida'              => now()->toDateString(),
+                        'data_prevista_retorno'   => $validated['data_prevista_retorno'],
+                        'status'                  => StatusComodato::Pendente,
+                        'observacoes'             => $validated['observacoes'] ?? null,
+                        'user_id'                 => auth()->id(),
+                    ]);
+                }
             }
         });
 

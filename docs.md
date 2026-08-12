@@ -2,7 +2,7 @@
 
 > SaaS ERP multi-tenant para PMEs. Admin (IA365) gerencia a plataforma; cada empresa-cliente tem múltiplas unidades com fiscal, estoque e caixa independentes. Integração 100% Focus NFe (NF-e, NFC-e, NFS-e, CC-e, manifestação do destinatário, backup XMLs).
 
-**Última revisão:** 2026-08-11 (formato de etiqueta cadastrável pelo lojista + fix do CRUD de categorias — `status` feminino, armadilha 42) · 2026-08-05 (filtro por loja em vendas + imports de vendas/contas a receber + import robusto + lojas mesmo CNPJ compartilham empresa Focus) · **Estado:** integração fiscal Fase 1-4 + multi-loja + regime de cobrança + auto-sync Focus + UX config fiscal + caixa por forma de pagamento (14/07) + Configurações da Loja/tabelas de preço/emissão parametrizada/adquirentes (24/07) + **Reforma Tributária NT 2025.002 (obrigatório 03/08/2026) + CNPJ alfanumérico NT 2025.001 (25/07)** + **e-mails/no-reply + cobrança direta mensal/anual com bloqueio + pode_ver_financeiro (04/08)** + **doc de alterações do Dennis (05/08)** + **etiqueta cadastrável pelo lojista em cm + fix do CRUD de categorias + auditoria de produção (11/08)** — concluídos
+**Última revisão:** 2026-08-12 (bonificação que deve voltar — peças em poder de terceiros + fix do alerta de estoque baixo/trial que nunca disparou, armadilha 43) · 2026-08-11 (formato de etiqueta cadastrável pelo lojista + fix do CRUD de categorias — `status` feminino, armadilha 42) · 2026-08-05 (filtro por loja em vendas + imports de vendas/contas a receber + import robusto + lojas mesmo CNPJ compartilham empresa Focus) · **Estado:** integração fiscal Fase 1-4 + multi-loja + regime de cobrança + auto-sync Focus + UX config fiscal + caixa por forma de pagamento (14/07) + Configurações da Loja/tabelas de preço/emissão parametrizada/adquirentes (24/07) + **Reforma Tributária NT 2025.002 (obrigatório 03/08/2026) + CNPJ alfanumérico NT 2025.001 (25/07)** + **e-mails/no-reply + cobrança direta mensal/anual com bloqueio + pode_ver_financeiro (04/08)** + **doc de alterações do Dennis (05/08)** + **etiqueta cadastrável pelo lojista em cm + fix do CRUD de categorias + auditoria de produção (11/08)** — concluídos
 
 ---
 
@@ -17,6 +17,7 @@
 7. [Comandos artisan](#comandos-artisan)
 8. [Crons agendados](#crons-agendados)
 9. [Logins demo](#logins-demo)
+9b. [Bonificação que deve voltar](#bonificação-que-deve-voltar--peças-em-poder-de-terceiros-12082026)
 10. [Armadilhas conhecidas](#armadilhas-conhecidas)
 11. [Próximos passos](#próximos-passos)
 
@@ -1257,6 +1258,70 @@ Pontos que mordem:
 
 ---
 
+## Bonificação que deve voltar — peças em poder de terceiros (12/08/2026)
+
+Pedido do documento do Dennis: na movimentação de estoque, quando a saída é para
+influencer, marcar que **a peça deve retornar**, com quem está e a data prevista de
+volta — e enxergar isso nos relatórios.
+
+### Como funciona
+
+A **baixa de estoque continua sendo a bonificação normal** — nada mudou no saldo.
+A tabela `estoque_comodatos` é só o controle de responsabilidade: quem está com a
+peça, desde quando e até quando.
+
+- No formulário de movimentação, o bloco **"A peça volta?"** só aparece quando o tipo
+  escolhido é **Bonificação**; dentro dele, os campos só abrem ao ligar o switch.
+  Nas outras movimentações a tela é idêntica à de antes.
+- Campos: **com quem fica** (obrigatório), contato (@ ou telefone) e **volta em**
+  (obrigatório, não aceita data no passado). Valem para todos os itens da movimentação.
+- Trocar o tipo para algo que não é bonificação **desliga o switch** — não existe
+  comodato órfão. O `store` também guarda contra POST torto.
+
+### Tela `/app/estoque/comodatos` — "Em poder de terceiros"
+
+Entrou como 3º item **dentro do grupo Estoque** do menu, que segue recolhido por
+padrão (tela operacional não muda).
+
+- Cards: aguardando retorno · atrasadas · peças fora · já voltaram.
+- Filtro padrão é **"ainda fora"** — o que interessa. Linha de atrasada fica vermelha
+  com "N dias de atraso".
+- **Registrar retorno**: aceita devolução **parcial** (status vira `parcial`) e recusa
+  quantidade maior do que falta. A entrada volta para a **unidade de onde a peça saiu**,
+  não a da sessão — senão a peça reaparece na loja errada.
+- **Não voltou**: encerra como `perdido` e **não devolve estoque** (a baixa da
+  bonificação já refletiu a perda). Pede confirmação.
+- Comodato encerrado não aceita novo lançamento.
+
+### Aviso no sino
+
+`NotificacaoService::gerarAlertas` ganhou o alerta `comodato_atrasado`, que leva
+direto para `/app/estoque/comodatos?situacao=atrasado`.
+
+### Schema
+
+```
+estoque_comodatos: empresa_id, unidade_id, estoque_movimentacao_id, produto_id,
+  quantidade, quantidade_devolvida, responsavel, contato,
+  data_saida, data_prevista_retorno, data_retorno,
+  status enum('pendente','parcial','devolvido','perdido'),  -- palavras neutras de gênero
+  observacoes, user_id
+```
+
+Sem `softDeletes`: é trilha de responsabilidade sobre a peça.
+
+### Bug pré-existente corrigido junto (armadilha 43)
+
+Ao ligar o alerta do sino descobriu-se que `gerarAlertas` consultava
+`produtos.estoque` — **coluna que nunca existiu** (o saldo é derivado das
+movimentações). A consulta estourava, e como o `DashboardController` chama o método
+dentro de um `try/catch` que engole tudo, o alerta de **estoque baixo** e o de
+**trial expirando** (que vem depois no método) **nunca dispararam em produção**.
+Corrigido com a mesma derivação de saldo do `RelatorioController`; os 3 alertas
+foram validados juntos.
+
+---
+
 ## Armadilhas conhecidas
 
 1. **EmpresaScope recursão**: `auth()->user()` dentro do scope chama User model que tem o scope → loop infinito. Scopes têm flag `static $applying`. Não remover.
@@ -1371,6 +1436,14 @@ Pontos que mordem:
     As 4 categorias que existiam no banco eram do seed da empresa 1 — **nenhum cliente jamais
     conseguiu criar categoria pela tela**. O `<x-erp.status-badge>` e o CSS já tratavam os dois
     gêneros, então a exibição nunca denunciou o problema.
+43. **NÃO existe coluna `produtos.estoque`** — o saldo é sempre derivado do
+    `quantidade_posterior` da ÚLTIMA movimentação de cada par (produto, unidade).
+    `NotificacaoService::gerarAlertas` consultava essa coluna fantasma e estourava;
+    o `DashboardController` chama o método dentro de `try/catch` **silencioso**, então
+    o alerta de estoque baixo e o de trial expirando morreram sem deixar rastro
+    (fix 12/08/2026). Duas lições: (a) para saldo, copie a derivação do
+    `RelatorioController`; (b) `try/catch` que engole exceção esconde bug por meses —
+    ao mexer em `gerarAlertas`, teste o método direto no tinker, não pelo dashboard.
 
 ---
 

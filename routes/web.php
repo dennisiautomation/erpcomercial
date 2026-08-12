@@ -246,6 +246,18 @@ Route::middleware(['auth', 'suspensao', 'unidade'])->prefix('app')->name('app.')
         ->name('transferencias.cancelar')
         ->middleware('permission:estoque');
 
+    // Peças em poder de terceiros (bonificação que deve voltar)
+    // {comodato} casa com $comodato do controller — ver armadilha do binding
+    Route::get('estoque/comodatos', [App\ComodatoController::class, 'index'])
+        ->name('comodatos.index')
+        ->middleware('permission:estoque');
+    Route::post('estoque/comodatos/{comodato}/devolver', [App\ComodatoController::class, 'devolver'])
+        ->name('comodatos.devolver')
+        ->middleware('permission:estoque');
+    Route::post('estoque/comodatos/{comodato}/perda', [App\ComodatoController::class, 'baixarPerda'])
+        ->name('comodatos.perda')
+        ->middleware('permission:estoque');
+
     /* ------ Financeiro ------ */
     Route::resource('financeiro/contas-receber', App\ContaReceberController::class)
         ->except(['edit', 'update']) // fluxo é baixar/estornar, não editar

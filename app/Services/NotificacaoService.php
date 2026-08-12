@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\ContaReceber;
+use App\Models\EstoqueComodato;
 use App\Models\Notificacao;
 use App\Models\Produto;
 use App\Models\Empresa;
@@ -70,11 +71,30 @@ class NotificacaoService
             }
         }
 
-        // Estoque baixo (produtos com estoque_minimo > 0 onde estoque atual <= estoque_minimo)
-        $estoqueBaixo = Produto::withoutGlobalScopes()
-            ->where('empresa_id', $empresaId)
-            ->whereColumn('estoque_minimo', '>', DB::raw('0'))
-            ->whereColumn('estoque', '<=', 'estoque_minimo')
+        // Estoque baixo (produtos com estoque_minimo > 0 onde o saldo <= mínimo).
+        //
+        // NÃO existe coluna `produtos.estoque` — o saldo é a soma da ÚLTIMA
+        // movimentação de cada par (produto, unidade), igual ao RelatorioController.
+        // A versão antiga consultava a coluna inexistente e estourava; como o
+        // DashboardController engole a exceção, este alerta e todos os seguintes
+        // (trial expirando) nunca dispararam. Ver armadilha 43.
+        $estoqueBaixo = DB::table('produtos as p')
+            ->leftJoinSub(
+                DB::table('estoque_movimentacoes as e')
+                    ->select('e.produto_id', DB::raw('SUM(e.quantidade_posterior) as saldo'))
+                    ->whereIn('e.id', function ($q) use ($empresaId) {
+                        $q->selectRaw('MAX(id)')
+                            ->from('estoque_movimentacoes')
+                            ->where('empresa_id', $empresaId)
+                            ->groupBy('produto_id', 'unidade_id');
+                    })
+                    ->groupBy('e.produto_id'),
+                's',
+                fn ($j) => $j->on('s.produto_id', '=', 'p.id')
+            )
+            ->where('p.empresa_id', $empresaId)
+            ->where('p.estoque_minimo', '>', 0)
+            ->whereRaw('COALESCE(s.saldo, 0) <= p.estoque_minimo')
             ->count();
 
         if ($estoqueBaixo > 0) {
@@ -95,6 +115,34 @@ class NotificacaoService
                     route('app.relatorios.estoque'),
                     'box-seam',
                     'warning'
+                );
+            }
+        }
+
+        // Peças em poder de terceiros com a data prevista de retorno vencida
+        $comodatosAtrasados = EstoqueComodato::withoutGlobalScopes()
+            ->where('empresa_id', $empresaId)
+            ->atrasado()
+            ->count();
+
+        if ($comodatosAtrasados > 0) {
+            $jaExiste = Notificacao::withoutGlobalScopes()
+                ->where('user_id', $userId)
+                ->where('tipo', 'comodato_atrasado')
+                ->where('lida', false)
+                ->where('created_at', '>=', now()->startOfDay())
+                ->exists();
+
+            if (! $jaExiste) {
+                self::criar(
+                    $userId,
+                    $empresaId,
+                    'comodato_atrasado',
+                    "{$comodatosAtrasados} peça(s) não voltaram na data prevista",
+                    'Veja com quem estão e cobre o retorno',
+                    route('app.comodatos.index', ['situacao' => 'atrasado']),
+                    'arrow-counterclockwise',
+                    'danger'
                 );
             }
         }

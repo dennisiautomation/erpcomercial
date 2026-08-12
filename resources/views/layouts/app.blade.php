@@ -796,15 +796,15 @@
                     {{-- ---- Estoque ---- --}}
                     <li class="sidebar-heading">Estoque</li>
                     <li class="nav-item">
-                        <a class="nav-link nav-toggle {{ request()->routeIs('app.movimentacoes.*', 'app.transferencias.*') ? '' : 'collapsed' }}"
+                        <a class="nav-link nav-toggle {{ request()->routeIs('app.movimentacoes.*', 'app.transferencias.*', 'app.comodatos.*') ? '' : 'collapsed' }}"
                            data-bs-toggle="collapse" href="#menuEstoque" role="button"
-                           aria-expanded="{{ request()->routeIs('app.movimentacoes.*', 'app.transferencias.*') ? 'true' : 'false' }}"
+                           aria-expanded="{{ request()->routeIs('app.movimentacoes.*', 'app.transferencias.*', 'app.comodatos.*') ? 'true' : 'false' }}"
                            aria-controls="menuEstoque">
                             <i class="bi bi-boxes nav-icon"></i>
                             <span class="nav-text">Estoque</span>
                             <i class="bi bi-chevron-right toggle-icon"></i>
                         </a>
-                        <div class="collapse {{ request()->routeIs('app.movimentacoes.*', 'app.transferencias.*') ? 'show' : '' }}" id="menuEstoque">
+                        <div class="collapse {{ request()->routeIs('app.movimentacoes.*', 'app.transferencias.*', 'app.comodatos.*') ? 'show' : '' }}" id="menuEstoque">
                             <ul class="nav flex-column submenu">
                                 <li class="nav-item">
                                     <a class="nav-link {{ request()->routeIs('app.movimentacoes.*') ? 'active' : '' }}"
@@ -813,6 +813,10 @@
                                 <li class="nav-item">
                                     <a class="nav-link {{ request()->routeIs('app.transferencias.*') ? 'active' : '' }}"
                                        href="{{ route('app.transferencias.index') }}">Transferencias</a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link {{ request()->routeIs('app.comodatos.*') ? 'active' : '' }}"
+                                       href="{{ route('app.comodatos.index') }}">Em poder de terceiros</a>
                                 </li>
                             </ul>
                         </div>
