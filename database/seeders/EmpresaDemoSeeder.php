@@ -7,6 +7,7 @@ use App\Models\Categoria;
 use App\Models\Cliente;
 use App\Models\ConfiguracaoFiscal;
 use App\Models\Empresa;
+use App\Models\Estoque;
 use App\Models\EstoqueMovimentacao;
 use App\Models\Fornecedor;
 use App\Models\Plano;
@@ -209,6 +210,19 @@ class EmpresaDemoSeeder extends Seeder
             ]
         );
 
+        // Toda loja precisa de um estoque; num banco recém-criado a migration
+        // que cria o "Principal" rodou antes desta unidade existir.
+        $estoque = Estoque::withoutGlobalScopes()->firstOrCreate(
+            ['unidade_id' => $unidade->id, 'nome' => 'Principal'],
+            [
+                'empresa_id'    => $empresa->id,
+                'codigo'        => 'PRINCIPAL',
+                'permite_venda' => true,
+                'is_padrao'     => true,
+                'status'        => 'ativo',
+            ]
+        );
+
         // EstoqueMovimentacao para cada produto (entrada inicial de 100 unidades)
         foreach ([$prod1, $prod2, $prod3] as $produto) {
             EstoqueMovimentacao::withoutGlobalScopes()->updateOrCreate(
@@ -219,6 +233,7 @@ class EmpresaDemoSeeder extends Seeder
                     'tipo' => 'entrada',
                 ],
                 [
+                    'estoque_id' => $estoque->id,
                     'quantidade' => 100,
                     'quantidade_anterior' => 0,
                     'quantidade_posterior' => 100,

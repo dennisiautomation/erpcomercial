@@ -82,6 +82,7 @@ class EtiquetaController extends Controller
             'colunas'    => 'required|integer|min:1|max:6',
             'espaco_cm'  => 'nullable|numeric|min:0|max:2',
             'bobina_cm'  => 'nullable|numeric|min:1|max:40',
+            'estilo'     => 'nullable|in:padrao,nome_topo',
         ], [], [
             'largura_cm' => 'largura',
             'altura_cm'  => 'altura',
@@ -120,7 +121,12 @@ class EtiquetaController extends Controller
             'altura_mm'       => round($dados['altura_cm'] * 10, 1),
             'colunas'         => $dados['colunas'],
             'espaco_mm'       => round(($dados['espaco_cm'] ?? 0) * 10, 1),
-            'mostrar_empresa' => $request->boolean('mostrar_empresa'),
+            'estilo'          => $dados['estilo'] ?? 'padrao',
+            // No estilo "nome no topo" o nome da loja É o layout — não faz
+            // sentido cadastrar o estilo e deixar o nome escondido.
+            'mostrar_empresa' => ($dados['estilo'] ?? 'padrao') === 'nome_topo'
+                ? true
+                : $request->boolean('mostrar_empresa'),
         ]);
 
         return redirect()->route('app.etiquetas.index')

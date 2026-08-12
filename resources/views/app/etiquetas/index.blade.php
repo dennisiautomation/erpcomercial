@@ -213,6 +213,24 @@
                         </div>
                     </div>
 
+                    <div class="row g-2 mt-2">
+                        <div class="col-md-6">
+                            <label class="form-label small mb-1">Arranjo da etiqueta</label>
+                            <select name="estilo" form="formNovoFormato" class="form-select form-select-sm">
+                                <option value="padrao" {{ old('estilo') === 'nome_topo' ? '' : 'selected' }}>
+                                    Padrão — descrição, barras, preço
+                                </option>
+                                <option value="nome_topo" {{ old('estilo') === 'nome_topo' ? 'selected' : '' }}>
+                                    Nome da loja no topo — preço pequeno, barras grandes embaixo
+                                </option>
+                            </select>
+                            <div class="form-text" style="font-size:.72rem">
+                                No arranjo "nome no topo" a descrição do produto sai (não cabe) e o
+                                nome da loja aparece sempre.
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="d-flex justify-content-between align-items-center mt-3">
                         <div class="form-check">
                             <input class="form-check-input" type="checkbox" name="mostrar_empresa" value="1"

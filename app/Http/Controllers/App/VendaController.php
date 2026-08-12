@@ -321,26 +321,22 @@ class VendaController extends Controller
             // Revert estoque
             foreach ($venda->itens as $item) {
                 if ($item->produto_id) {
-                    $produto = Produto::find($item->produto_id);
-                    $estoqueAnterior = $produto->estoqueMovimentacoes()
-                        ->where('unidade_id', $venda->unidade_id)
-                        ->latest()
-                        ->value('quantidade_posterior') ?? 0;
-
-                    EstoqueMovimentacao::create([
-                        'empresa_id'          => $venda->empresa_id,
-                        'unidade_id'          => $venda->unidade_id,
-                        'produto_id'          => $item->produto_id,
-                        'tipo'                => TipoMovimentacaoEstoque::Devolucao,
-                        'quantidade'          => $item->quantidade,
-                        'quantidade_anterior' => $estoqueAnterior,
-                        'quantidade_posterior' => $estoqueAnterior + $item->quantidade,
-                        'custo_unitario'      => $item->preco_unitario,
-                        'origem_tipo'         => Venda::class,
-                        'origem_id'           => $venda->id,
-                        'user_id'             => auth()->id(),
-                        'observacoes'         => "Cancelamento Venda #{$venda->numero}",
-                    ]);
+                    // Volta para o estoque de venda da MESMA loja da venda —
+                    // não a da sessão, senão a peça reaparece na loja errada.
+                    SaldoEstoque::registrar(
+                        $venda->empresa_id,
+                        $venda->unidade_id,
+                        SaldoEstoque::estoqueDeVendaId($venda->unidade_id),
+                        (int) $item->produto_id,
+                        TipoMovimentacaoEstoque::Devolucao->value,
+                        (float) $item->quantidade,
+                        [
+                            'custo_unitario' => $item->preco_unitario,
+                            'origem_tipo'    => Venda::class,
+                            'origem_id'      => $venda->id,
+                            'observacoes'    => "Cancelamento Venda #{$venda->numero}",
+                        ]
+                    );
                 }
             }
 

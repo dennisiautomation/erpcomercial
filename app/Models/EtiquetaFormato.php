@@ -27,6 +27,7 @@ class EtiquetaFormato extends Model
         'altura_mm',
         'colunas',
         'espaco_mm',
+        'estilo',
         'mostrar_empresa',
         'ativo',
     ];
@@ -89,6 +90,12 @@ class EtiquetaFormato extends Model
      * DUAS linhas de preço em vez de uma. Em etiqueta baixa isso é a diferença
      * entre caber e ser cortado pelo `overflow: hidden` (falha silenciosa).
      */
+    /** O nome da loja é o herói da etiqueta neste estilo. */
+    public function ehNomeTopo(): bool
+    {
+        return $this->estilo === 'nome_topo';
+    }
+
     public function layout(bool $precoDuplo = false): array
     {
         $w = $this->largura_mm;
@@ -96,7 +103,29 @@ class EtiquetaFormato extends Model
 
         $clamp = fn (float $v, float $min, float $max) => round(max($min, min($max, $v)), 1);
 
+        // Estilo "nome no topo": o nome da loja manda, o preço recua e as
+        // barras ganham o rodapé inteiro. A descrição do produto sai — não
+        // sobra altura, e o layout de referência (BarTender) também não tem.
+        if ($this->ehNomeTopo()) {
+            return [
+                'mostrar_empresa'   => true,   // é o ponto do estilo; não esconde
+                'mostrar_descricao' => false,
+                'mostrar_codigo'    => false,  // os dígitos já saem sob as barras
+                'fonte_empresa'     => $clamp($w * 0.28, 6, 12),
+                'fonte_descricao'   => $clamp($w * 0.18, 4.5, 8),
+                // Preço recuado: metade do destaque do estilo padrão
+                'fonte_preco'       => $clamp($w * 0.17, 5, 8),
+                'fonte_preco_duplo' => $clamp(min($w * 0.17, ($w - 2) / 4.2), 4.5, 7),
+                'fonte_codigo'      => $clamp($w * 0.15, 4, 6),
+                'fonte_digitos'     => $clamp($w * 0.20, 4.5, 8),
+                // Barras maiores: é o que o leitor precisa e o que sobra de espaço
+                'altura_barras'     => $clamp($h * 0.36, 5, 14),
+                'padding'           => $h <= 25 ? 0.6 : 1.2,
+            ];
+        }
+
         return [
+            'mostrar_descricao' => true,
             // O nome/logo da empresa só cabe a partir de ~22mm de altura (o 36×20
             // e o 33×22 escondem por isso) — e ainda assim só se o lojista pedir.
             'mostrar_empresa' => $this->mostrar_empresa && $h >= 22 && ! ($precoDuplo && $h < 30),

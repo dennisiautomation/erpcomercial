@@ -1260,6 +1260,25 @@ Pontos que mordem:
 
 ---
 
+### Estilo "nome no topo" (12/08/2026)
+
+`etiqueta_formatos.estilo` = `padrao` | `nome_topo`. Como o formato é por
+empresa, o estilo **nunca vaza para outro cliente**.
+
+No `nome_topo` (pedido da MISS MERLINDA, replicando o BarTender que ela já
+usava): nome da loja em destaque no topo, **preços pequenos à direita**, código
+de barras **grande no rodapé**. A descrição do produto e o código interno saem —
+não cabem, e o layout de referência também não os tem. As fontes saem de
+`EtiquetaFormato::layout()`, num ramo próprio: numa etiqueta 33 × 26 mm dá nome
+9,2pt (era 5,6), preço 5,6pt (era 9,4) e barras 9,4 mm (eram 6,8).
+
+⚠️ **`EstoqueMovimentacao` sem `estoque_id` estoura** desde a migration de
+12/08. Foi assim que o cancelamento de venda quebrou (`VendaController::cancelar`
+ficou de fora da varredura inicial) e o `EmpresaDemoSeeder` parou de rodar.
+Toda gravação deve passar por `SaldoEstoque::registrar()`. Loja nova ganha o
+estoque "Principal" por `Unidade::booted()` — cobre admin, Minhas Lojas e seeder
+de uma vez.
+
 ### Bobina x formato: a conta que precisa fechar (12/08/2026)
 
 **A página que o navegador manda TEM que ter a largura do papel.** Se for maior,

@@ -15,6 +15,8 @@
         $temPrecoDuplo = collect($precosEtiqueta)->contains(fn ($p) => $p['dual'] ?? false);
         $L = $ehCustom ? $formatoCustom->layout($temPrecoDuplo) : null;
 
+        // Estilo do arranjo: só o formato cadastrado tem estilo; os fixos são padrão.
+        $ehNomeTopo = $ehCustom && $formatoCustom->ehNomeTopo();
         $ehTermica = $ehCustom || str_starts_with($formato, 'termica-');
         // largura x altura da MÍDIA (página) por formato térmico
         $termicaPage = [
@@ -283,6 +285,37 @@
         @else
         .formato-{{ $formato }} .etiqueta .codigo { display: none; }
         @endif
+        @if(! ($L['mostrar_descricao'] ?? true))
+        .formato-{{ $formato }} .etiqueta .descricao { display: none; }
+        @endif
+
+        @if($ehNomeTopo)
+        /* ---- Estilo "nome no topo" ----------------------------------------
+           Nome da loja ocupa a largura toda e manda na etiqueta; os preços
+           recuam para a direita em corpo pequeno; as barras tomam o rodapé.
+           `justify-content: space-between` gruda o nome em cima e as barras
+           embaixo, independente de o preço ter 1 ou 2 linhas. */
+        .formato-{{ $formato }} .etiqueta {
+            justify-content: space-between;
+            align-items: stretch;
+            text-align: left;
+        }
+        .formato-{{ $formato }} .etiqueta .empresa {
+            font-weight: 800;
+            line-height: 1.05;
+            text-align: center;
+            width: 100%;
+            white-space: nowrap;
+            overflow: hidden;
+        }
+        .formato-{{ $formato }} .etiqueta .bloco-precos {
+            width: 100%;
+            text-align: right;
+            line-height: 1.15;
+        }
+        .formato-{{ $formato }} .etiqueta .preco { font-weight: 600; }
+        .formato-{{ $formato }} .etiqueta .barcode-container { width: 100%; margin-top: auto; }
+        @endif
         @endif
 
         @media screen {
@@ -476,28 +509,48 @@
     @foreach($pages as $pageItens)
         <div class="page formato-{{ $formato }}">
             @foreach($pageItens as $produto)
+                @php
+                    $pe = $precosEtiqueta[$produto->id] ?? null;
+                    $codigoBarras = $produto->codigo_barras ?: $produto->codigo_interno;
+                    $formatoBarras = $produto->codigo_barras && strlen($produto->codigo_barras) == 13
+                        ? 'EAN13'
+                        : ($produto->codigo_barras && strlen($produto->codigo_barras) == 8 ? 'EAN8' : 'CODE128');
+                @endphp
                 <div class="etiqueta">
                     @if($empresaLogo)
                         <div class="empresa-logo"><img src="{{ $empresaLogo }}" alt=""></div>
                     @else
                         <div class="empresa">{{ $empresaNome }}</div>
                     @endif
-                    <div class="descricao">{{ $produto->descricao }}</div>
-                    <div class="barcode-container">
-                        <svg class="barcode"
-                             data-code="{{ $produto->codigo_barras ?: $produto->codigo_interno }}"
-                             data-format="{{ $produto->codigo_barras && strlen($produto->codigo_barras) == 13 ? 'EAN13' : ($produto->codigo_barras && strlen($produto->codigo_barras) == 8 ? 'EAN8' : 'CODE128') }}">
-                        </svg>
-                    </div>
-                    @php $pe = $precosEtiqueta[$produto->id] ?? null; @endphp
-                    @if($pe && $pe['dual'])
-                        {{-- valores secos por forma — sem parcelamento (pedido do Dennis 25/07) --}}
-                        <div class="preco preco-forma">Cartão R$ {{ number_format($pe['credito'], 2, ',', '.') }}</div>
-                        <div class="preco preco-forma">PIX R$ {{ number_format($pe['base'], 2, ',', '.') }}</div>
+
+                    @if($ehNomeTopo)
+                        {{-- Estilo "nome no topo": nome (acima), preços recuados, barras
+                             no rodapé. Replica o layout do BarTender da MISS MERLINDA. --}}
+                        <div class="bloco-precos">
+                            @if($pe && $pe['dual'])
+                                <div class="preco preco-forma">Cartão R$ {{ number_format($pe['credito'], 2, ',', '.') }}</div>
+                                <div class="preco preco-forma">PIX R$ {{ number_format($pe['base'], 2, ',', '.') }}</div>
+                            @else
+                                <div class="preco">R$ {{ number_format($produto->preco_venda, 2, ',', '.') }}</div>
+                            @endif
+                        </div>
+                        <div class="barcode-container">
+                            <svg class="barcode" data-code="{{ $codigoBarras }}" data-format="{{ $formatoBarras }}"></svg>
+                        </div>
                     @else
-                        <div class="preco">R$ {{ number_format($produto->preco_venda, 2, ',', '.') }}</div>
+                        <div class="descricao">{{ $produto->descricao }}</div>
+                        <div class="barcode-container">
+                            <svg class="barcode" data-code="{{ $codigoBarras }}" data-format="{{ $formatoBarras }}"></svg>
+                        </div>
+                        @if($pe && $pe['dual'])
+                            {{-- valores secos por forma — sem parcelamento (pedido do Dennis 25/07) --}}
+                            <div class="preco preco-forma">Cartão R$ {{ number_format($pe['credito'], 2, ',', '.') }}</div>
+                            <div class="preco preco-forma">PIX R$ {{ number_format($pe['base'], 2, ',', '.') }}</div>
+                        @else
+                            <div class="preco">R$ {{ number_format($produto->preco_venda, 2, ',', '.') }}</div>
+                        @endif
+                        <div class="codigo">{{ $produto->codigo_interno }}</div>
                     @endif
-                    <div class="codigo">{{ $produto->codigo_interno }}</div>
                 </div>
             @endforeach
 

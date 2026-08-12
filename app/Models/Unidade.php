@@ -32,6 +32,30 @@ class Unidade extends Model
         'status',
     ];
 
+    /**
+     * Toda loja nasce com um estoque "Principal".
+     *
+     * Sem isso, loja criada depois de 12/08 ficaria sem estoque nenhum e o PDV
+     * não teria de onde baixar (`SaldoEstoque::estoqueDeVendaId` devolveria
+     * null). Fica no model de propósito: pega o admin, o Minhas Lojas, o
+     * seeder e qualquer caminho futuro de uma vez só.
+     */
+    protected static function booted(): void
+    {
+        static::created(function (self $unidade) {
+            Estoque::withoutGlobalScopes()->firstOrCreate(
+                ['unidade_id' => $unidade->id, 'nome' => 'Principal'],
+                [
+                    'empresa_id'    => $unidade->empresa_id,
+                    'codigo'        => 'PRINCIPAL',
+                    'permite_venda' => true,
+                    'is_padrao'     => true,
+                    'status'        => 'ativo',
+                ]
+            );
+        });
+    }
+
     /* ------------------------------------------------------------------ */
     /*  Relationships                                                      */
     /* ------------------------------------------------------------------ */
