@@ -1400,7 +1400,11 @@ campos de cada estoque e o SKU para identificar o produto.**
 `/app/relatorios/estoque-cego`, ao lado dos outros relatórios no menu.
 
 - **Colunas**: SKU · código interno · código de barras · produto · categoria ·
-  unidade · **uma coluna em branco por estoque** da loja.
+  unidade · **uma coluna em branco por estoque** da loja. O cabeçalho traz o
+  **nome do estoque + "Qtd. contada"**, a célula tem linha pontilhada e a coluna
+  ganha fundo cinza (com `print-color-adjust: exact`, senão a impressora ignora)
+  — sem isso a coluna era lida como espaço sobrando, não como campo de preencher.
+  Criar um estoque novo em Configurações da Loja faz a coluna aparecer sozinha.
 - **Sem saldo, de propósito** — quem conta não pode ser induzido pelo número que
   o sistema espera. Verificado no teste: as células do corpo saem vazias e
   nenhum dos saldos reais aparece no HTML.
@@ -1463,6 +1467,15 @@ recebe a contagem de volta** para gerar os ajustes e o relatório de divergênci
     Corrigido no review de 25/07 — antes `valor_bruto` recebia o líquido e desconto de
     item causaria rejeição SEFAZ (qtd×unitário ≠ vProd) + desconto em dobro.
 25. **Admin da plataforma tem `empresa_id` NULL** — `auth()->user()->empresa` retorna null e qualquer deref direto (`->regime_tributario`, `->getPlanoAtivo()`) dá 500. O `EnsureUnidadeSelected` e o `CheckPlano` dão bypass para admin, então telas `/app/*` PRECISAM de guard próprio. Padrão adotado (fix 24/07/2026): telas de criação redirecionam com aviso (`ProdutoController::create/store`), telas de item existente usam a empresa do próprio registro (`ProdutoController::edit/show` → `?? $produto->empresa`), telas de plano redirecionam para `admin.dashboard` (`PlanoController`). Ao criar tela nova em `/app/*`, nunca derefar `->empresa->` sem guard — usar `?->` ou redirect. 25/07: `ConfiguracaoFiscalController::edit/update` ganharam o mesmo guard (dava 500 pro admin da plataforma).
+    **12/08: mordeu de novo em 3 telas novas de uma vez** — `EstoqueController::store` e
+    `EstoqueMovimentacaoController::store` gravavam `empresa_id => auth()->user()->empresa_id`
+    (NULL → `Column 'empresa_id' cannot be null`, 500 na cara do usuário), `ComodatoController`
+    dava 403 comparando com a empresa do usuário, e `RelatorioController::estoqueCego` montava a
+    folha **sem coluna nenhuma** porque a lista de lojas vinha filtrada por NULL. Regra prática:
+    em tela `/app/*`, **`empresa_id` de gravação vem da LOJA** (`Unidade::value('empresa_id')`),
+    de leitura vem de `auth()->user()->empresa_id ?? session('empresa_id')`, e comparação de
+    posse aceita `$user->is_admin`. Sempre teste a tela nova logado como admin da plataforma —
+    é o caminho que ninguém exercita e que o cliente nunca reproduz.
 26. **NUNCA gerar CSV como "modelo de planilha"** — usar `App\Support\Planilha` (.xlsx).
     Colunas de código precisam sair como texto, senão o Excel destrói zero à esquerda e EAN.
 26b. **DEPLOY NÃO APARECE = faltou `docker restart erp-com-app`** — o php.ini de produção tem
