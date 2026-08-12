@@ -5,37 +5,38 @@ namespace App\Console\Commands;
 use App\Models\ConfiguracaoFiscal;
 use App\Models\Unidade;
 use App\Services\FocusNFe\BackupXmlService;
-use App\Services\FocusNFe\FocusNFeClient;
+use App\Support\Cnpj;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
 
 /**
- * Solicita à Focus NFe o backup mensal de XMLs (NF-e, NFC-e, CT-e, MDF-e)
- * para cada unidade com emissão fiscal ativa.
+ * Monta o pacote mensal de XMLs fiscais por CNPJ, a partir das cópias locais
+ * que o ERP já guarda por nota (BaixarXmlNotaJob / fiscal:baixar-xmls-notas).
  *
- * Roda diariamente no agendador. No dia 5 de cada mês, solicita o backup
- * do mês anterior. Nos demais dias, apenas verifica e baixa backups
- * já gerados pela Focus para o mês corrente e anteriores.
+ * Não fala mais com a Focus: o endpoint /v2/backups dela não existe (404 em
+ * todas as 7 noites de 05→12/08/2026). Os XMLs transmitidos já estão aqui —
+ * o pacote auditável é só juntá-los.
+ *
+ * Roda diariamente no agendador. Sem --mes, remonta o mês corrente E o
+ * anterior (pega nota atrasada/cancelamento que entrou depois da virada).
  *
  * Retenção: 5 anos (exigência fiscal). Arquivos em
- *   storage/app/fiscal/backups/{cnpj}/{YYYY-MM}.zip
+ *   storage/app/private/fiscal/backups/{cnpj}/{YYYY-MM}.zip
  */
 class BackupXmlsFiscaisCommand extends Command
 {
     protected $signature = 'fiscal:backup-xmls
-                            {--mes= : Mês YYYY-MM (default: mês anterior se hoje >=5, senão atual)}
-                            {--unidade= : ID da unidade específica}
-                            {--apenas-download : pular solicitação, só baixar prontos}';
+                            {--mes= : Mês YYYY-MM (default: mês corrente + anterior)}
+                            {--unidade= : ID da unidade específica}';
 
-    protected $description = 'Solicita e baixa backups mensais de XMLs fiscais da Focus NFe';
+    protected $description = 'Monta os pacotes mensais de XMLs fiscais (por CNPJ) a partir das cópias locais';
 
-    // NUNCA injetar BackupXmlService aqui: o container tenta resolver
-    // FocusNFeClient sem token e explode (armadilha 13) ANTES do handle —
-    // o backup falhou todas as noites de 29/05 a 04/08 por isso.
     public function handle(): int
     {
-        $mes = $this->option('mes') ?: $this->mesPadrao();
+        $meses = $this->option('mes')
+            ? [$this->option('mes')]
+            : [now()->format('Y-m'), now()->subMonthNoOverflow()->format('Y-m')];
+
         $unidadeId = $this->option('unidade');
 
         $configs = ConfiguracaoFiscal::withoutGlobalScopes()
@@ -43,71 +44,62 @@ class BackupXmlsFiscaisCommand extends Command
             ->when($unidadeId, fn ($q) => $q->where('unidade_id', $unidadeId))
             ->get();
 
-        $this->info("Processando {$configs->count()} unidade(s) — mês {$mes}");
-        $sucesso = 0; $falha = 0; $aguardando = 0;
-
+        // 1 pacote por (empresa, CNPJ) — lojas do mesmo CNPJ compartilham o zip
+        // (armadilha 35: certificado, numeração e notas são do CNPJ).
+        $alvos = [];
         foreach ($configs as $config) {
             $unidade = Unidade::withoutGlobalScopes()->with('empresa')->find($config->unidade_id);
-            if (! $unidade) continue;
+            if (! $unidade) {
+                continue;
+            }
 
-            $cnpj = \App\Support\Cnpj::limpar($unidade->cnpj ?: $unidade->empresa->cnpj);
-            if (! $cnpj) continue;
+            $cnpj = Cnpj::limpar((string) ($unidade->cnpj ?: $unidade->empresa?->cnpj));
+            if (! $cnpj) {
+                continue;
+            }
 
-            try {
-                $client = FocusNFeClient::fromConfig($config);
-                $svc = new BackupXmlService($client);
+            $alvos[$unidade->empresa_id . ':' . $cnpj] = [
+                'empresa_id' => $unidade->empresa_id,
+                'cnpj' => $cnpj,
+                'nome' => $unidade->empresa?->razao_social ?: $unidade->nome,
+            ];
+        }
 
-                // Solicitar se ainda não foi pedido este mês
-                if (! $this->option('apenas-download')) {
-                    $svc->solicitar($mes);
+        $svc = new BackupXmlService();
+        $this->info('Pacotes: ' . count($alvos) . ' CNPJ(s) × ' . count($meses) . ' mês(es)');
+        $gerados = 0;
+        $vazios = 0;
+        $falhas = 0;
+
+        foreach ($meses as $mes) {
+            foreach ($alvos as $alvo) {
+                try {
+                    $r = $svc->gerar($alvo['empresa_id'], $alvo['cnpj'], $mes);
+
+                    if ($r['status'] === 'concluido') {
+                        $aviso = $r['sem_xml'] ? ' (⚠ ' . count($r['sem_xml']) . ' sem XML)' : '';
+                        $this->info("  ✓ {$alvo['nome']} ({$alvo['cnpj']}) {$mes} → {$r['arquivos']} XML(s){$aviso}");
+                        $gerados++;
+                    } else {
+                        $this->line("  · {$alvo['nome']} ({$alvo['cnpj']}) {$mes} → sem notas");
+                        $vazios++;
+                    }
+                } catch (\Throwable $e) {
+                    $this->error("  ✗ {$alvo['nome']} {$mes}: " . $e->getMessage());
+                    Log::error('[BackupFiscal] falha', [
+                        'empresa_id' => $alvo['empresa_id'],
+                        'cnpj' => $alvo['cnpj'],
+                        'mes' => $mes,
+                        'erro' => $e->getMessage(),
+                    ]);
+                    $falhas++;
                 }
-
-                $status = $svc->consultar($mes);
-
-                if (! empty($status['url']) && in_array($status['status'] ?? '', ['pronto', 'concluido', 'concluído'])) {
-                    $this->baixarParaStorage($cnpj, $mes, $status['url']);
-                    $this->info("  ✓ {$unidade->nome} ({$cnpj}) → backup salvo");
-                    $sucesso++;
-                } else {
-                    $this->line("  ⏳ {$unidade->nome} ({$cnpj}) → status: " . ($status['status'] ?? 'pendente'));
-                    $aguardando++;
-                }
-            } catch (\Throwable $e) {
-                $this->error("  ✗ {$unidade->nome}: " . $e->getMessage());
-                Log::error('[BackupFiscal] falha', [
-                    'unidade_id' => $unidade->id,
-                    'mes' => $mes,
-                    'erro' => $e->getMessage(),
-                ]);
-                $falha++;
             }
         }
 
         $this->newLine();
-        $this->info("✓ {$sucesso} salvos · ⏳ {$aguardando} aguardando · ✗ {$falha} falhas");
+        $this->info("✓ {$gerados} pacotes · · {$vazios} sem notas · ✗ {$falhas} falhas");
 
-        return self::SUCCESS;
-    }
-
-    private function mesPadrao(): string
-    {
-        // Dia 5+: backup do mês anterior. Antes do dia 5: mês corrente
-        // (a Focus normalmente leva 2-3 dias para fechar)
-        return now()->day >= 5
-            ? now()->subMonth()->format('Y-m')
-            : now()->format('Y-m');
-    }
-
-    private function baixarParaStorage(string $cnpj, string $mes, string $url): void
-    {
-        $path = "fiscal/backups/{$cnpj}/{$mes}.zip";
-        if (Storage::disk('local')->exists($path)) {
-            return; // já temos
-        }
-        $bytes = file_get_contents($url);
-        if ($bytes === false) {
-            throw new \RuntimeException("Download falhou: {$url}");
-        }
-        Storage::disk('local')->put($path, $bytes);
+        return $falhas > 0 ? self::FAILURE : self::SUCCESS;
     }
 }

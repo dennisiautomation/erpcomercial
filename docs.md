@@ -2,7 +2,7 @@
 
 > SaaS ERP multi-tenant para PMEs. Admin (IA365) gerencia a plataforma; cada empresa-cliente tem múltiplas unidades com fiscal, estoque e caixa independentes. Integração 100% Focus NFe (NF-e, NFC-e, NFS-e, CC-e, manifestação do destinatário, backup XMLs).
 
-**Última revisão:** 2026-08-12 noite (**editor visual de layout de etiqueta** — arrasta-e-solta com imagens e formas, branch `layout-etiquetas` DEPLOYADA em produção; armadilha 48 + lição de deploy na 26b) · 2026-08-12 (vários estoques por loja + contagem cega + bonificação que deve voltar + estilo de etiqueta "nome no topo" + conferência de bobina; armadilhas 43-47; **imagem rebuildada** e main promovida) · 2026-08-11 (formato de etiqueta cadastrável pelo lojista + fix do CRUD de categorias — `status` feminino, armadilha 42) · 2026-08-05 (filtro por loja em vendas + imports de vendas/contas a receber + import robusto + lojas mesmo CNPJ compartilham empresa Focus) · **Estado:** integração fiscal Fase 1-4 + multi-loja + regime de cobrança + auto-sync Focus + UX config fiscal + caixa por forma de pagamento (14/07) + Configurações da Loja/tabelas de preço/emissão parametrizada/adquirentes (24/07) + **Reforma Tributária NT 2025.002 (obrigatório 03/08/2026) + CNPJ alfanumérico NT 2025.001 (25/07)** + **e-mails/no-reply + cobrança direta mensal/anual com bloqueio + pode_ver_financeiro (04/08)** + **doc de alterações do Dennis (05/08)** + **etiqueta cadastrável pelo lojista em cm + fix do CRUD de categorias + auditoria de produção (11/08)** — concluídos
+**Última revisão:** 2026-08-12 madrugada (**backup mensal de XMLs virou pacote LOCAL** — o `/v2/backups` da Focus não existe, armadilha 49; **DONA DOURO em `producao`** com série 2 e CSC na Focus) · 2026-08-12 noite (**editor visual de layout de etiqueta** — arrasta-e-solta com imagens e formas, branch `layout-etiquetas` DEPLOYADA em produção; armadilha 48 + lição de deploy na 26b) · 2026-08-12 (vários estoques por loja + contagem cega + bonificação que deve voltar + estilo de etiqueta "nome no topo" + conferência de bobina; armadilhas 43-47; **imagem rebuildada** e main promovida) · 2026-08-11 (formato de etiqueta cadastrável pelo lojista + fix do CRUD de categorias — `status` feminino, armadilha 42) · 2026-08-05 (filtro por loja em vendas + imports de vendas/contas a receber + import robusto + lojas mesmo CNPJ compartilham empresa Focus) · **Estado:** integração fiscal Fase 1-4 + multi-loja + regime de cobrança + auto-sync Focus + UX config fiscal + caixa por forma de pagamento (14/07) + Configurações da Loja/tabelas de preço/emissão parametrizada/adquirentes (24/07) + **Reforma Tributária NT 2025.002 (obrigatório 03/08/2026) + CNPJ alfanumérico NT 2025.001 (25/07)** + **e-mails/no-reply + cobrança direta mensal/anual com bloqueio + pode_ver_financeiro (04/08)** + **doc de alterações do Dennis (05/08)** + **etiqueta cadastrável pelo lojista em cm + fix do CRUD de categorias + auditoria de produção (11/08)** — concluídos
 
 ---
 
@@ -161,7 +161,12 @@ O builder consulta via `$item->fiscal('ncm')` — com fallback no produto se sna
 
 ### Robustez operacional (Fase 4 — commit `56b1616`)
 
-- **Backup XMLs** (`fiscal:backup-xmls`, diário 3h): solicita backup mensal Focus, baixa para `storage/app/fiscal/backups/{cnpj}/{YYYY-MM}.zip`. Retenção 5 anos.
+- **Backup XMLs** (`fiscal:backup-xmls`, diário 3h): monta LOCALMENTE o pacote mensal por
+  CNPJ a partir das cópias por nota (`BaixarXmlNotaJob`/`fiscal:baixar-xmls-notas`) em
+  `storage/app/private/fiscal/backups/{cnpj}/{YYYY-MM}.zip` (XMLs + `manifest.json`;
+  sem `--mes`, remonta mês corrente + anterior; lojas do mesmo CNPJ no mesmo zip).
+  Retenção 5 anos. Download do cliente em `/app/backups-xml` (rota `download/{mes}` serve
+  do nosso disco). **Não fala mais com a Focus** — ver armadilha 49.
 - **Saúde de webhooks** (`fiscal:saude-webhooks`, segunda 4h): compara `focus_webhook_ids` locais vs lista remota Focus; recadastra ausentes; notifica dono.
 - **Alerta certificado** (`fiscal:alertar-certificado`, diário 8h): janelas 30/15/7/1 dias antes do vencimento.
 - **Dashboard fiscal** `/app/fiscal/dashboard`: NF-es por status (30d), top 5 erros, série diária 14d (Chart.js), saúde por unidade, status SEFAZ por UF.
@@ -1673,6 +1678,11 @@ recebe a contagem de volta** para gerar os ajustes e o relatório de divergênci
     esses registros ao resolver `termica-custom-N`. Esquecer o filtro duplica o
     formato na tela ou imprime na página errada. E em `produtoExemplo()`/previews:
     empresa pode ter ZERO produtos ativos — deref de produto só com `?->`/`??`.
+49. **O endpoint `/v2/backups` da Focus NÃO existe** — 404 em toda chamada (7 noites de
+    05→12/08/2026; antes disso a armadilha 31 escondia o problema porque o command nem
+    rodava). O pacote mensal auditável é montado LOCALMENTE pelo `BackupXmlService`
+    a partir das cópias por nota. Se a Focus um dia lançar backup de verdade, avaliar —
+    até lá, nenhum código deve chamar `/v2/backups`.
 
 ---
 
@@ -1682,23 +1692,21 @@ recebe a contagem de volta** para gerar os ajustes e o relatório de divergênci
 > divergia do que estava escrito aqui, o texto foi corrigido — vale a auditoria, não a
 > memória do que se pretendia fazer.
 
-- 🔴 **`fiscal:backup-xmls` quebrado DE NOVO — 7 noites seguidas (05→11/08)**, todas as
-  unidades, **HTTP 404 da Focus** na solicitação do pacote mensal. `storage/app/fiscal/backups/`
-  **nem existe**: zero backups mensais, contra os "5 anos de retenção" prometidos acima.
-  É causa DIFERENTE da armadilha 31 (aquela era `BindingResolutionException`, corrigida em
-  04/08) — investigar o endpoint/rota do backup na API da Focus. **Mitigação em vigor:** a
-  cópia local por nota (`BaixarXmlNotaJob` + `fiscal:baixar-xmls-notas`) funciona — 5 XMLs em
-  `storage/app/private/fiscal/xmls/`. O risco é o pacote auditável, não o XML individual.
-- **DONA DOURO (empresa 5, migrada 05/08)**: base carregada (1.913 produtos + 2.842 un
-  de estoque na Matriz). ✅ 11/08: o fiscal **não está mais zerado** — IE `198043368`,
-  CSC, certificado A1 válido até **06/02/2027**, responsável técnico e webhooks Focus
-  todos preenchidos. **Falta só virar `ambiente=producao`** (a config 15 segue em
-  `homologacao`, ou seja, hoje NÃO emite nota válida). Contador validar os 116 NCMs de
-  média/baixa confiança (`DONA_DOURO_3_ncm_revisar.xlsx` com o Dennis). Etiquetas:
-  **validar impressão física na Argox + bipar com o leitor** (36×20 assumiu largura 36 mm ×
-  altura 20 mm e 2 mm de espaço entre colunas — se a bobina for outra, ajustar a página).
-  Avisar o lojista: 3 produtos com venda < custo (códigos 3759, 3430, 3365) e 2 estoques
-  negativos que ficaram fora da carga (5146, 5029).
+- ✅ **`fiscal:backup-xmls` RESOLVIDO (12/08 madrugada)**: o 404 era o endpoint `/v2/backups`
+  que **não existe** na Focus (armadilha 49). O command foi reescrito para montar o pacote
+  localmente das cópias por nota — 1ª rodada gerou os zips da JS (2026-08, 2 XMLs) e da
+  PRIME (2026-07, 3 XMLs) com `manifest.json`. Tela `/app/backups-xml` agora gera/baixa
+  do nosso disco.
+- **DONA DOURO (empresa 5, migrada 05/08)**: ✅ **12/08 madrugada: `ambiente=producao`** —
+  config 15 virada; na Focus (empresa 239437) foram gravados o **CSC + ID Token** (estavam
+  SÓ no banco local — NFC-e falharia no QR Code) e **série 2 / próximo 1** para NFC-e e
+  NF-e (série nova porque não temos o último número do Hiper — série 2 é imune à
+  duplicidade, armadilha 30). Token de produção validado (404 autenticado em consulta de
+  ref). Registro local: `serie_nfce=2`, `serie_nfe=2`. Pendências que seguem: contador
+  validar os 116 NCMs (`DONA_DOURO_3_ncm_revisar.xlsx`); etiquetas — **validar impressão
+  física na Argox + bipar com o leitor**; avisar o lojista dos 3 produtos com venda < custo
+  (3759, 3430, 3365) e 2 estoques negativos fora da carga (5146, 5029); **fatura anual de
+  R$ 6.264 continua sem gerar** (geração manual — `/admin/financeiro`).
 - **`focus_webhook_ids` NULL migrou de dono**: não é mais a empresa 5 — hoje a única config
   assim é a **21 (empresa 3 / unidade 18, STILO VINTE OUTLET)**. Resincronizar em
   `/admin/empresas/3/saude-focus`. Como a unidade 18 compartilha o CNPJ da Matriz JS

@@ -7,15 +7,16 @@
 
 <div class="alert alert-info small">
     <i class="bi bi-info-circle me-1"></i>
-    Backup mensal de todos os XMLs fiscais (NF-e, NFC-e, NFS-e autorizadas e canceladas)
-    em um único arquivo ZIP. A Focus NFe retém XMLs por 5 anos, mas é <strong>obrigação do
-    contribuinte manter cópia própria</strong>. Gere o backup e guarde em local seguro.
+    Pacote mensal com todos os XMLs fiscais transmitidos (NF-e, NFC-e, NFS-e — autorizadas e
+    canceladas) num único ZIP, montado a partir das cópias que o sistema guarda de cada nota.
+    É <strong>obrigação do contribuinte manter cópia própria</strong> — baixe e guarde em
+    local seguro. O ZIP traz um <code>manifest.json</code> com o índice das notas.
 </div>
 
 @if(! $fiscalAtivo)
     <div class="alert alert-warning">
         <i class="bi bi-exclamation-triangle me-1"></i>
-        Ative a emissão fiscal e configure o token Focus NFe para gerar backups.
+        Ative a emissão fiscal para gerar os pacotes mensais de XML.
     </div>
 @else
     <x-erp.data-table>
@@ -30,33 +31,32 @@
         <tbody>
             @foreach($meses as $mes)
                 @php
-                    $b = $backups[$mes] ?? ['status' => 'indisponivel', 'url' => null];
+                    $b = $backups[$mes] ?? ['status' => 'indisponivel', 'arquivos' => null, 'atualizado_em' => null];
                     [$ano, $m] = explode('-', $mes);
                     $nomeMes = \Carbon\Carbon::createFromDate($ano, (int) $m, 1)->translatedFormat('F / Y');
+                    $mesCorrente = $mes === now()->format('Y-m');
                 @endphp
                 <tr>
                     <td>
                         <strong>{{ $nomeMes }}</strong>
+                        @if($mesCorrente)
+                            <span class="badge text-bg-light border ms-1">em andamento</span>
+                        @endif
                         <br><small class="text-muted font-monospace">{{ $mes }}</small>
                     </td>
                     <td>
-                        @switch($b['status'])
-                            @case('concluido')
-                                <span class="badge bg-success"><i class="bi bi-check2 me-1"></i>Pronto</span>
-                                @break
-                            @case('processando')
-                                <span class="badge bg-warning text-dark"><i class="bi bi-hourglass-split me-1"></i>Processando</span>
-                                @break
-                            @case('indisponivel')
-                                <span class="badge bg-secondary">Não gerado</span>
-                                @break
-                            @default
-                                <span class="badge bg-secondary">{{ ucfirst($b['status']) }}</span>
-                        @endswitch
+                        @if($b['status'] === 'concluido')
+                            <span class="badge bg-success"><i class="bi bi-check2 me-1"></i>Pronto</span>
+                            <br><small class="text-muted">{{ $b['arquivos'] }} XML(s)
+                                @if($b['atualizado_em']) · {{ \Carbon\Carbon::parse($b['atualizado_em'])->format('d/m H:i') }}@endif
+                            </small>
+                        @else
+                            <span class="badge bg-secondary">Não gerado</span>
+                        @endif
                     </td>
                     <td>
-                        @if($b['url'])
-                            <a href="{{ $b['url'] }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                        @if($b['status'] === 'concluido')
+                            <a href="{{ route('app.backups-xml.download', $mes) }}" class="btn btn-sm btn-outline-primary">
                                 <i class="bi bi-download me-1"></i>Baixar ZIP
                             </a>
                         @else
@@ -64,8 +64,7 @@
                         @endif
                     </td>
                     <td class="text-end">
-                        <form action="{{ route('app.backups-xml.gerar') }}" method="POST" class="d-inline"
-                              data-confirm="Gerar backup de {{ $nomeMes }}? Pode demorar alguns minutos.">
+                        <form action="{{ route('app.backups-xml.gerar') }}" method="POST" class="d-inline">
                             @csrf
                             <input type="hidden" name="mes" value="{{ $mes }}">
                             <button type="submit" class="btn btn-sm btn-outline-secondary">

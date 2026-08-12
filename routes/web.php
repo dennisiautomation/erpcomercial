@@ -436,6 +436,9 @@ Route::middleware(['auth', 'suspensao', 'unidade'])->prefix('app')->name('app.')
         ->group(function () {
             Route::get('/', [App\BackupsXmlController::class, 'index'])->name('index');
             Route::post('/gerar', [App\BackupsXmlController::class, 'gerar'])->name('gerar');
+            // Serve o zip do NOSSO storage (pacote montado localmente — o
+            // /v2/backups da Focus não existe; ver BackupXmlService).
+            Route::get('/download/{mes}', [App\BackupsXmlController::class, 'download'])->name('download');
         });
 
     /* ------ Relatorios ------ */
