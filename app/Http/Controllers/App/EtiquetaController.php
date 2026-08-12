@@ -445,7 +445,7 @@ class EtiquetaController extends Controller
             'descricao'      => $produto->descricao ?? 'CAMISETA BÁSICA ALGODÃO PRETA M',
             'preco'          => number_format((float) ($produto->preco_venda ?? 89.90), 2, ',', '.'),
             'codigo_interno' => $produto->codigo_interno ?? 'PRD-0001',
-            'codigo_barras'  => $produto->codigo_barras ?: ($produto->codigo_interno ?? '7891234567895'),
+            'codigo_barras'  => $produto?->codigo_barras ?: ($produto->codigo_interno ?? '7891234567895'),
             'empresa_nome'   => $empresa->nome_fantasia ?: $empresa->razao_social ?: 'Minha Loja',
             'empresa_logo'   => $empresa?->logo ? asset('storage/' . $empresa->logo) : null,
         ];

@@ -2,7 +2,7 @@
 
 > SaaS ERP multi-tenant para PMEs. Admin (IA365) gerencia a plataforma; cada empresa-cliente tem múltiplas unidades com fiscal, estoque e caixa independentes. Integração 100% Focus NFe (NF-e, NFC-e, NFS-e, CC-e, manifestação do destinatário, backup XMLs).
 
-**Última revisão:** 2026-08-12 (vários estoques por loja + contagem cega + bonificação que deve voltar + estilo de etiqueta "nome no topo" + conferência de bobina; armadilhas 43-47; **imagem rebuildada** e main promovida) · 2026-08-11 (formato de etiqueta cadastrável pelo lojista + fix do CRUD de categorias — `status` feminino, armadilha 42) · 2026-08-05 (filtro por loja em vendas + imports de vendas/contas a receber + import robusto + lojas mesmo CNPJ compartilham empresa Focus) · **Estado:** integração fiscal Fase 1-4 + multi-loja + regime de cobrança + auto-sync Focus + UX config fiscal + caixa por forma de pagamento (14/07) + Configurações da Loja/tabelas de preço/emissão parametrizada/adquirentes (24/07) + **Reforma Tributária NT 2025.002 (obrigatório 03/08/2026) + CNPJ alfanumérico NT 2025.001 (25/07)** + **e-mails/no-reply + cobrança direta mensal/anual com bloqueio + pode_ver_financeiro (04/08)** + **doc de alterações do Dennis (05/08)** + **etiqueta cadastrável pelo lojista em cm + fix do CRUD de categorias + auditoria de produção (11/08)** — concluídos
+**Última revisão:** 2026-08-12 noite (**editor visual de layout de etiqueta** — arrasta-e-solta com imagens e formas, branch `layout-etiquetas`; armadilha 48) · 2026-08-12 (vários estoques por loja + contagem cega + bonificação que deve voltar + estilo de etiqueta "nome no topo" + conferência de bobina; armadilhas 43-47; **imagem rebuildada** e main promovida) · 2026-08-11 (formato de etiqueta cadastrável pelo lojista + fix do CRUD de categorias — `status` feminino, armadilha 42) · 2026-08-05 (filtro por loja em vendas + imports de vendas/contas a receber + import robusto + lojas mesmo CNPJ compartilham empresa Focus) · **Estado:** integração fiscal Fase 1-4 + multi-loja + regime de cobrança + auto-sync Focus + UX config fiscal + caixa por forma de pagamento (14/07) + Configurações da Loja/tabelas de preço/emissão parametrizada/adquirentes (24/07) + **Reforma Tributária NT 2025.002 (obrigatório 03/08/2026) + CNPJ alfanumérico NT 2025.001 (25/07)** + **e-mails/no-reply + cobrança direta mensal/anual com bloqueio + pode_ver_financeiro (04/08)** + **doc de alterações do Dennis (05/08)** + **etiqueta cadastrável pelo lojista em cm + fix do CRUD de categorias + auditoria de produção (11/08)** — concluídos
 
 ---
 
@@ -1306,6 +1306,39 @@ página) e o formato no ERP. O driver da MISS MERLINDA também declara
 conta da largura.
 
 
+## Editor visual de layout de etiqueta (12/08/2026, noite)
+
+> Branch `layout-etiquetas`. O lojista desenha a etiqueta: arrasta nome, preços,
+> barras, imagens da galeria e formas (linha/retângulo) para onde quiser.
+
+- **`etiqueta_formatos.layout_json`** (nullable): NULL = layout automático de sempre
+  (`layout()`/`layoutInicial()`); preenchido = modo livre. "Voltar ao automático" é
+  UPDATE para NULL. **Nenhum formato existente muda de comportamento** — os 3 da
+  MISS MERLINDA seguiram idênticos no deploy.
+- **Formatos FIXOS também são editáveis** sem mexer na constante: `formato_base`
+  (unique `empresa_id+formato_base`) guarda só o desenho daquele fixo para aquela
+  empresa (`editorFixo` cria via `firstOrCreate` e cai no mesmo editor). Esses
+  registros NÃO aparecem em "Meus formatos" (filtro `whereNull('formato_base')`)
+  e NÃO são imprimíveis por si (o `gerar()` também os exclui do resolve de
+  `termica-custom-N` — imprimir por eles sairia na página errada).
+- **Galeria `etiqueta_imagens`** (por empresa, máx. 30, sem SVG — é XML executável):
+  o item do layout guarda só o `imagem_id`; quem resolve o arquivo é o servidor,
+  conferindo a empresa dona. Upload em `storage/app/public/etiquetas/{empresa_id}/`
+  (disco public — exige o symlink `public/storage`, já presente no container).
+  Apagar imagem da galeria remove o arquivo; item de layout que apontava para ela
+  é pulado em silêncio na impressão.
+- **Sanitização no `layoutUpdate`** (o JSON vem do navegador e cai num `style=`):
+  whitelist de tipos (`EtiquetaFormato::CAMPOS` + `DESENHOS`), fontes e alinhamentos
+  fixos, cor só `#RRGGBB`, posição/tamanho clampados na etiqueta, máx. 40 itens,
+  campos do ERP não repetem (linha/moldura/imagem repetem à vontade).
+- **`print.blade`**: etiqueta com layout livre vira `position:relative` + itens
+  absolutos em mm (`_elemento.blade.php`); barras com `preserveAspectRatio=none`
+  no box exato e dígitos como item separado (`digitos_barras`). Sem layout salvo,
+  o HTML é o mesmo de antes. `print-color-adjust: exact` global — retângulo
+  preenchido some no papel sem isso ("Gráficos em segundo plano" do Chrome).
+- `MEDIDAS_FIXOS` documenta a medida real de cada formato fixo (nas folhas A4 a
+  medida cai do grid: 2x5 = 98,5×55 mm etc.) — é o tamanho da tela de desenho.
+
 ## Bonificação que deve voltar — peças em poder de terceiros (12/08/2026)
 
 Pedido do documento do Dennis: na movimentação de estoque, quando a saída é para
@@ -1628,6 +1661,12 @@ recebe a contagem de volta** para gerar os ajustes e o relatório de divergênci
     Sempre gravar por `SaldoEstoque::registrar()`. Loja nova ganha o estoque
     "Principal" por `Unidade::booted()` — cobre admin, Minhas Lojas e seeder de uma
     vez; sem isso a loja nasceria sem lugar de onde o PDV baixar.
+48. **Registro de `etiqueta_formatos` com `formato_base` preenchido NÃO é formato
+    imprimível** — é só o desenho de um formato fixo para uma empresa. Toda listagem
+    de "formatos da empresa" filtra `whereNull('formato_base')`, e o `gerar()` exclui
+    esses registros ao resolver `termica-custom-N`. Esquecer o filtro duplica o
+    formato na tela ou imprime na página errada. E em `produtoExemplo()`/previews:
+    empresa pode ter ZERO produtos ativos — deref de produto só com `?->`/`??`.
 
 ---
 
