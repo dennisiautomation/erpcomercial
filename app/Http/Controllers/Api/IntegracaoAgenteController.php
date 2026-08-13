@@ -672,10 +672,30 @@ class IntegracaoAgenteController extends Controller
             }
         }
 
+        // Fase 2 (13/08): empresa com Asaas ativo → link de CARTÃO junto do
+        // pedido (best-effort, mesmo contrato do PIX: falha não derruba nada).
+        $cartaoLink = null;
+        if ($asaas = \App\Services\Pagamento\AsaasService::ativoPara($token->empresa_id)) {
+            try {
+                $cartaoLink = $asaas->linkCartaoParaPedido($pedido->fresh(['cliente']))['link'] ?: null;
+            } catch (\Throwable $e) {
+                Log::channel('integracao')->error('Agente IA: falha ao gerar link de cartão Asaas', [
+                    'pedido_id' => $pedido->id,
+                    'erro' => $e->getMessage(),
+                ]);
+            }
+        }
+
         $mensagem = "Pedido #{$pedido->numero} registrado! Total R$ " . number_format((float) $pedido->total, 2, ',', '.') . '.';
-        $mensagem .= $pix
-            ? ' Para pagar agora, use o PIX copia-e-cola enviado. Assim que o pagamento cair, o pedido é confirmado automaticamente.'
-            : ' Um atendente vai confirmar com você a forma de pagamento e a entrega/retirada.';
+        if ($pix && $cartaoLink) {
+            $mensagem .= ' Para pagar agora, use o PIX copia-e-cola enviado OU o link de cartão. Assim que o pagamento cair, o pedido é confirmado automaticamente.';
+        } elseif ($pix) {
+            $mensagem .= ' Para pagar agora, use o PIX copia-e-cola enviado. Assim que o pagamento cair, o pedido é confirmado automaticamente.';
+        } elseif ($cartaoLink) {
+            $mensagem .= ' Para pagar no cartão, use o link enviado. Assim que o pagamento cair, o pedido é confirmado automaticamente.';
+        } else {
+            $mensagem .= ' Um atendente vai confirmar com você a forma de pagamento e a entrega/retirada.';
+        }
 
         return response()->json([
             'dados' => [
@@ -684,6 +704,7 @@ class IntegracaoAgenteController extends Controller
                 'total' => (float) $pedido->total,
                 'status' => $pedido->status->value,
                 'pix' => $pix,
+                'cartao_link' => $cartaoLink,
                 'mensagem' => $mensagem,
             ],
         ], 201);

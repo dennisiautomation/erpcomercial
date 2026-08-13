@@ -580,6 +580,153 @@
                 </div>
             </div>
         </div>
+        @php($gatewayAsaas = \App\Models\EmpresaGateway::where('empresa_id', $empresa->id)->where('provedor', \App\Models\EmpresaGateway::PROVEDOR_ASAAS)->first())
+        @php($gatewayUber = \App\Models\EmpresaGateway::where('empresa_id', $empresa->id)->where('provedor', \App\Models\EmpresaGateway::PROVEDOR_UBER_DIRECT)->first())
+        <div class="row g-4 mb-1">
+            {{-- Fase 2 (13/08/2026): cartão via link Asaas no pedido do agente --}}
+            <div class="col-lg-6">
+                <div class="card detail-card shadow-sm h-100">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0"><i class="bi bi-credit-card me-1"></i> Cartão do Vendedor IA (Asaas)</h6>
+                        @if($gatewayAsaas?->ativo && filled($gatewayAsaas->client_secret))
+                            <span class="badge bg-success bg-opacity-10 text-success">Ativo</span>
+                        @elseif($gatewayAsaas?->ativo)
+                            <span class="badge bg-warning bg-opacity-10 text-warning">Incompleto</span>
+                        @else
+                            <span class="badge bg-secondary bg-opacity-10 text-secondary">Inativo</span>
+                        @endif
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted small mb-3">
+                            Com o Asaas ativo, o pedido do agente sai também com <strong>link de pagamento
+                            no cartão</strong>; o pagamento confirma o pedido automaticamente (igual ao PIX).
+                            Cadastre o webhook no painel do Asaas apontando para
+                            <code>{{ url('/api/integracao/v1/webhooks/asaas') }}</code> com o token abaixo.
+                        </p>
+                        <form method="POST" action="{{ route('admin.empresas.gateway-asaas.store', $empresa) }}" class="row g-2 align-items-end">
+                            @csrf
+                            <div class="col-12">
+                                <label class="form-label small mb-1">api_key</label>
+                                <input type="password" name="api_key" class="form-control form-control-sm"
+                                       placeholder="{{ $gatewayAsaas?->client_secret ? '•••• salva — preencha p/ trocar' : 'chave de API do Asaas ($aact_...)' }}">
+                            </div>
+                            <div class="col-auto form-check ms-2 mt-3">
+                                <input type="hidden" name="sandbox" value="0">
+                                <input class="form-check-input" type="checkbox" name="sandbox" value="1" id="asaasSandbox" @checked($gatewayAsaas?->config['sandbox'] ?? false)>
+                                <label class="form-check-label small" for="asaasSandbox">Sandbox</label>
+                            </div>
+                            <div class="col-auto form-check ms-2 mt-3">
+                                <input type="hidden" name="ativo" value="0">
+                                <input class="form-check-input" type="checkbox" name="ativo" value="1" id="asaasAtivo" @checked($gatewayAsaas?->ativo)>
+                                <label class="form-check-label small" for="asaasAtivo">Ativo</label>
+                            </div>
+                            <div class="col-auto">
+                                <button type="submit" class="btn btn-sm btn-primary">Salvar</button>
+                            </div>
+                        </form>
+                        <div class="d-flex flex-wrap align-items-center gap-2 mt-3">
+                            <form method="POST" action="{{ route('admin.empresas.gateway-asaas.testar', $empresa) }}">
+                                @csrf
+                                <button type="submit" class="btn btn-sm btn-outline-secondary" @disabled(blank($gatewayAsaas?->client_secret))>
+                                    <i class="bi bi-activity me-1"></i> Testar conexão
+                                </button>
+                            </form>
+                            @if(filled($gatewayAsaas?->config['webhook_token'] ?? null))
+                                <span class="small text-muted">Token do webhook: <code>{{ $gatewayAsaas->config['webhook_token'] }}</code></span>
+                            @endif
+                            @if($gatewayAsaas?->ultima_falha)
+                                <span class="small text-danger"><i class="bi bi-x-circle me-1"></i>{{ $gatewayAsaas->ultima_falha }}</span>
+                            @endif
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {{-- Fase 3 (13/08/2026): entrega local Uber Direct, credenciais POR EMPRESA (porte do China Mix) --}}
+            <div class="col-lg-6">
+                <div class="card detail-card shadow-sm h-100">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0"><i class="bi bi-scooter me-1"></i> Entrega — Uber Direct</h6>
+                        @if($gatewayUber?->ativo && filled($gatewayUber->client_id) && filled($gatewayUber->config['customer_id'] ?? null))
+                            <span class="badge bg-success bg-opacity-10 text-success">Ativo</span>
+                        @elseif($gatewayUber?->ativo)
+                            <span class="badge bg-warning bg-opacity-10 text-warning">Incompleto</span>
+                        @else
+                            <span class="badge bg-secondary bg-opacity-10 text-secondary">Inativo</span>
+                        @endif
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted small mb-3">
+                            Pagamento confirmado → o sistema chama o Uber sozinho (coleta na loja do pedido,
+                            entrega no endereço do cliente). Se o Uber falhar ou estiver fora da janela, o
+                            pedido segue confirmado e o despacho fica manual. Cada empresa usa as
+                            <strong>próprias credenciais</strong> do Uber Direct.
+                        </p>
+                        <form method="POST" action="{{ route('admin.empresas.gateway-uber.store', $empresa) }}" class="row g-2 align-items-end">
+                            @csrf
+                            <div class="col-md-6">
+                                <label class="form-label small mb-1">Client ID</label>
+                                <input type="text" name="client_id" class="form-control form-control-sm"
+                                       placeholder="{{ $gatewayUber?->client_id ? '•••• salvo — preencha p/ trocar' : 'client_id do app Uber' }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small mb-1">Client Secret</label>
+                                <input type="password" name="client_secret" class="form-control form-control-sm"
+                                       placeholder="{{ $gatewayUber?->client_secret ? '•••• salvo — preencha p/ trocar' : 'client_secret do app Uber' }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small mb-1">Customer ID</label>
+                                <input type="text" name="customer_id" class="form-control form-control-sm"
+                                       value="{{ $gatewayUber?->config['customer_id'] ?? '' }}" placeholder="customer_id da conta Direct">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small mb-1">Faixas de CEP atendidas</label>
+                                <input type="text" name="ceps" class="form-control form-control-sm"
+                                       value="{{ $gatewayUber?->config['ceps'] ?? '' }}" placeholder="64000-64099,65630-65639 (vazio = todos)">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small mb-1">Seg–sex de</label>
+                                <input type="number" step="0.5" name="hora_inicio" class="form-control form-control-sm"
+                                       value="{{ $gatewayUber?->config['hora_inicio'] ?? 8 }}">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small mb-1">até</label>
+                                <input type="number" step="0.5" name="hora_fim" class="form-control form-control-sm"
+                                       value="{{ $gatewayUber?->config['hora_fim'] ?? 16.5 }}">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small mb-1">Sáb de</label>
+                                <input type="number" step="0.5" name="hora_inicio_sab" class="form-control form-control-sm"
+                                       value="{{ $gatewayUber?->config['hora_inicio_sab'] ?? 9 }}">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small mb-1">até</label>
+                                <input type="number" step="0.5" name="hora_fim_sab" class="form-control form-control-sm"
+                                       value="{{ $gatewayUber?->config['hora_fim_sab'] ?? 12 }}">
+                            </div>
+                            <div class="col-auto form-check ms-2 mt-3">
+                                <input type="hidden" name="ativo" value="0">
+                                <input class="form-check-input" type="checkbox" name="ativo" value="1" id="uberAtivo" @checked($gatewayUber?->ativo)>
+                                <label class="form-check-label small" for="uberAtivo">Ativo</label>
+                            </div>
+                            <div class="col-auto">
+                                <button type="submit" class="btn btn-sm btn-primary">Salvar</button>
+                            </div>
+                        </form>
+                        <div class="d-flex flex-wrap align-items-center gap-2 mt-3">
+                            <form method="POST" action="{{ route('admin.empresas.gateway-uber.testar', $empresa) }}">
+                                @csrf
+                                <button type="submit" class="btn btn-sm btn-outline-secondary" @disabled(blank($gatewayUber?->client_id))>
+                                    <i class="bi bi-activity me-1"></i> Testar conexão
+                                </button>
+                            </form>
+                            @if($gatewayUber?->ultima_falha)
+                                <span class="small text-danger"><i class="bi bi-x-circle me-1"></i>{{ $gatewayUber->ultima_falha }}</span>
+                            @endif
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
         <div class="row g-4">
             <div class="col-lg-8">
                 <div class="card detail-card shadow-sm">

@@ -97,6 +97,16 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
         ->name('empresas.gateway-pix.testar');
     Route::post('/empresas/{empresa}/gateway-pix/webhook', [Admin\EmpresaGatewayController::class, 'registrarWebhook'])
         ->name('empresas.gateway-pix.webhook');
+    // Entrega Uber Direct por empresa (Fase 3) — aba Integração
+    Route::post('/empresas/{empresa}/gateway-uber', [Admin\EmpresaEntregaController::class, 'store'])
+        ->name('empresas.gateway-uber.store');
+    Route::post('/empresas/{empresa}/gateway-uber/testar', [Admin\EmpresaEntregaController::class, 'testar'])
+        ->name('empresas.gateway-uber.testar');
+    // Asaas (cartão via link) por empresa (Fase 2) — aba Integração
+    Route::post('/empresas/{empresa}/gateway-asaas', [Admin\EmpresaAsaasController::class, 'store'])
+        ->name('empresas.gateway-asaas.store');
+    Route::post('/empresas/{empresa}/gateway-asaas/testar', [Admin\EmpresaAsaasController::class, 'testar'])
+        ->name('empresas.gateway-asaas.testar');
     Route::resource('empresas', Admin\EmpresaController::class);
     Route::resource('empresas.unidades', Admin\UnidadeController::class)->shallow();
     Route::resource('usuarios', Admin\UsuarioController::class);
@@ -622,6 +632,12 @@ Route::post('/api/integracao/v1/webhooks/sicredi', [\App\Http\Controllers\Webhoo
     ->name('webhooks.sicredi');
 Route::post('/api/integracao/v1/webhooks/sicredi/pix', [\App\Http\Controllers\Webhook\SicrediPixWebhookController::class, 'handle'])
     ->name('webhooks.sicredi.pix');
+
+// Webhook Asaas (cartão do pedido do agente) — SEM Bearer (o Asaas chama),
+// autenticado pelo asaas-access-token do gateway; sob api/integracao/* p/
+// herdar a isenção de CSRF (mesma razão do Sicredi acima).
+Route::post('/api/integracao/v1/webhooks/asaas', [\App\Http\Controllers\Webhook\AsaasWebhookController::class, 'handle'])
+    ->name('webhooks.asaas');
 
 /* ------------------------------------------------------------------ */
 /*  Webhooks (sem autenticação)                                        */

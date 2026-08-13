@@ -1969,3 +1969,36 @@ acessar-como')` → **500 "Route not defined" em /admin/empresas**. Antes de dep
 de TODAS as branches recentes (o que está no container pode não estar na sua base), mergear o que a
 produção já roda, e mandar o conjunto completo `app database resources routes config`. Corrigido com
 merge de `admin-acesso-como` em `feat/agente-busca-preco-json` @3a517af + redeploy completo.
+
+### Fase 2 (Asaas — cartão) + Fase 3 (Uber Direct — entrega) por empresa (13/08/2026)
+
+Aba Integração da empresa ganhou 2 cards novos (`admin/empresas/show`, rotas `gateway-asaas.*` e
+`gateway-uber.*`), ambos sobre `empresa_gateways` (agora com coluna `config` JSON p/ extras de cada
+provedor — migration `2026_08_13_230000`):
+
+**Cartão do Vendedor IA (Asaas)** — provedor `asaas`, `api_key` CIFRADA em `client_secret`, config:
+`sandbox` + `webhook_token` (gerado ao salvar, exibido no card). Com o gateway ativo, o
+`POST /api/integracao/v1/pedidos` devolve também **`cartao_link`** (invoiceUrl de cobrança
+CREDIT_CARD, `externalReference pedido:{id}`, best-effort — falha não derruba o pedido) e o webhook
+`POST /api/integracao/v1/webhooks/asaas` (SEM Bearer; valida `asaas-access-token` contra o
+webhook_token; **SEMPRE 200** — 4xx faz o Asaas desativar o webhook, modo de falha do §240 do
+app.ia365) confirma o pedido no PAYMENT_CONFIRMED/RECEIVED, igual ao PIX. `AsaasService`
+(`app/Services/Pagamento/`): customer achado/criado por CPF/CNPJ. Os 2 agentes existentes foram
+ensinados por SQL a enviar o cartao_link; o template do wizard idem.
+
+**Entrega — Uber Direct** — provedor `uber_direct`, credenciais POR EMPRESA (client_id/secret
+cifrados; `config`: customer_id, faixas de CEP `64000-64099,65630-...` — vazio = todos —, janelas
+seg-sex/sáb + fuso). Porte do `uberDirectService.ts` validado no China Mix
+(`app/Services/Entrega/UberDirectService.php`): token client_credentials scope `eats.deliveries`
+cacheado por gateway, cotação (`delivery_quotes`), criação (`deliveries` com manifest de
+peso_bruto→size e dimensões default 16×10×10 — produto do ERP não tem dimensões), consulta.
+**Despacho AUTOMÁTICO no pagamento** (decisão do Dennis): `PixPedidoService::confirmarPedido` e o
+webhook Asaas despacham `DespacharEntregaUberJob` (fila; workers já rodam no container) — pickup na
+UNIDADE do pedido, dropoff no endereço do CLIENTE; pula sem erro se: gateway inativo, cliente sem
+endereço, CEP fora das faixas ou fora da janela (nesse caso grava aviso em `pedido_entregas` p/ o
+humano); **falha no Uber NUNCA desfaz a confirmação** (regra portada do despachoService China Mix);
+`tries=1` — sem retry automático (lição §267.3 do app.ia365). Resultado em **`pedido_entregas`**
+(quote/delivery/status/tracking_url/valor/courier/erro). Pendências: UI de entrega no show do pedido
+(botão manual cotar/despachar + rastreio) e cotação de frete pelo agente na conversa — próxima fase.
+⚠️ Cada cliente usa as PRÓPRIAS chaves Uber (as do China Mix seguem no .env de lá — colar no card
+apenas as da empresa dona).

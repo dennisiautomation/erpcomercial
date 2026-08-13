@@ -21,6 +21,14 @@ class EmpresaGateway extends Model
 
     public const PROVEDOR_SICREDI_PIX = 'sicredi_pix';
 
+    // Fase 3 (13/08/2026): entrega local via Uber Direct — client_id/secret da
+    // conta Uber da EMPRESA (cada cliente tem a própria); customer_id + faixas
+    // de CEP + janelas de horário vivem no `config` JSON.
+    public const PROVEDOR_UBER_DIRECT = 'uber_direct';
+
+    // Fase 2 (13/08/2026): Asaas p/ cartão (link) — api_key no client_secret.
+    public const PROVEDOR_ASAAS = 'asaas';
+
     protected $fillable = [
         'empresa_id',
         'provedor',
@@ -34,6 +42,7 @@ class EmpresaGateway extends Model
         'expiracao_segundos',
         'webhook_registrado_em',
         'ultima_falha',
+        'config',
     ];
 
     protected function casts(): array
@@ -44,6 +53,7 @@ class EmpresaGateway extends Model
             'client_secret' => 'encrypted',
             'expiracao_segundos' => 'integer',
             'webhook_registrado_em' => 'datetime',
+            'config' => 'array',
         ];
     }
 
@@ -54,8 +64,13 @@ class EmpresaGateway extends Model
 
     public static function sicrediAtivoPara(int $empresaId): ?self
     {
+        return static::ativoPara($empresaId, self::PROVEDOR_SICREDI_PIX);
+    }
+
+    public static function ativoPara(int $empresaId, string $provedor): ?self
+    {
         return static::where('empresa_id', $empresaId)
-            ->where('provedor', self::PROVEDOR_SICREDI_PIX)
+            ->where('provedor', $provedor)
             ->where('ativo', true)
             ->first();
     }

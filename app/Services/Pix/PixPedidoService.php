@@ -171,6 +171,10 @@ class PixPedidoService
 
         $pedido->save();
 
+        // Fase 3 (13/08): pagamento caiu → despacho automático Uber Direct
+        // (job em fila; falha lá NUNCA desfaz a confirmação do pedido).
+        \App\Jobs\DespacharEntregaUberJob::dispatch($pedido->id, (int) $cobranca->empresa_id);
+
         Log::channel('integracao')->info('Sicredi PIX: pedido confirmado por pagamento', [
             'empresa_id' => $cobranca->empresa_id,
             'pedido_id' => $pedido->id,
