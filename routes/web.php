@@ -388,6 +388,14 @@ Route::middleware(['auth', 'suspensao', 'unidade'])->prefix('app')->name('app.')
         Route::put('/', [App\ConfiguracaoLojaController::class, 'update'])->name('update');
     });
 
+    /* ------ Integrações (tokens da API — Gersen) ------ */
+    // {token} casa com $token do controller (armadilha do route model binding)
+    Route::prefix('configuracoes/integracao')->name('integracao.')->middleware('permission:configuracoes')->group(function () {
+        Route::get('/', [App\IntegracaoTokenController::class, 'index'])->name('index');
+        Route::post('/', [App\IntegracaoTokenController::class, 'store'])->name('store');
+        Route::post('/{token}/revogar', [App\IntegracaoTokenController::class, 'revogar'])->name('revogar');
+    });
+
     // Estoques da loja (salão, depósito, avaria) — mora dentro de Configurações,
     // não vira item de menu: loja com um estoque só não precisa saber que existe.
     Route::prefix('configuracoes/estoques')->name('estoques.')->middleware('permission:configuracoes')->group(function () {
