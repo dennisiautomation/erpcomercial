@@ -303,6 +303,122 @@ class IntegracaoAgenteController extends Controller
         ]);
     }
 
+    /**
+     * Dashboard do cliente no app.ia365 (padrão China Mix): vendas concluídas,
+     * pedidos do agente, série diária, top produtos e últimos pedidos.
+     */
+    public function dashboard(Request $request): JsonResponse
+    {
+        $token = $this->token($request);
+
+        if ($erro = $this->exigirAgenteAtivo($token)) {
+            return $erro;
+        }
+
+        $dias = min(90, max(7, (int) $request->query('dias', 30)));
+        $inicio = now()->subDays($dias)->startOfDay();
+
+        $vendasBase = \App\Models\Venda::withoutGlobalScope(EmpresaScope::class)
+            ->withoutGlobalScope(UnidadeScope::class)
+            ->where('empresa_id', $token->empresa_id)
+            ->where('status', \App\Enums\StatusVenda::Concluida)
+            ->where('created_at', '>=', $inicio);
+
+        $vendas = (clone $vendasBase)
+            ->selectRaw('COUNT(*) as qtd, COALESCE(SUM(total), 0) as receita')
+            ->first();
+
+        $serieVendas = (clone $vendasBase)
+            ->selectRaw('DATE(created_at) as dia, COUNT(*) as qtd, COALESCE(SUM(total), 0) as valor')
+            ->groupBy('dia')
+            ->pluck('valor', 'dia')
+            ->map(fn ($v) => (float) $v);
+
+        $pedidosBase = Pedido::withoutGlobalScope(EmpresaScope::class)
+            ->withoutGlobalScope(UnidadeScope::class)
+            ->where('empresa_id', $token->empresa_id)
+            ->where('created_at', '>=', $inicio);
+
+        $pedidosPorStatus = (clone $pedidosBase)
+            ->selectRaw('status, COUNT(*) as qtd')
+            ->groupBy('status')
+            ->pluck('qtd', 'status');
+
+        $seriePedidos = (clone $pedidosBase)
+            ->selectRaw('DATE(created_at) as dia, COUNT(*) as qtd')
+            ->groupBy('dia')
+            ->pluck('qtd', 'dia');
+
+        // Série contínua (dias sem movimento entram zerados — eixo estável)
+        $serie = [];
+        for ($d = 0; $d < $dias; $d++) {
+            $dia = now()->subDays($dias - 1 - $d)->format('Y-m-d');
+            $serie[] = [
+                'dia' => $dia,
+                'valor_vendas' => (float) ($serieVendas[$dia] ?? 0),
+                'pedidos' => (int) ($seriePedidos[$dia] ?? 0),
+            ];
+        }
+
+        $topProdutos = DB::table('venda_itens as vi')
+            ->join('vendas as v', 'v.id', '=', 'vi.venda_id')
+            ->where('v.empresa_id', $token->empresa_id)
+            ->where('v.status', 'concluida')
+            ->where('v.created_at', '>=', $inicio)
+            ->whereNull('v.deleted_at')
+            ->whereNull('vi.deleted_at')
+            ->selectRaw('vi.descricao, SUM(vi.quantidade) as quantidade, SUM(vi.total) as valor')
+            ->groupBy('vi.descricao')
+            ->orderByDesc('valor')
+            ->limit(5)
+            ->get()
+            ->map(fn ($r) => [
+                'descricao' => $r->descricao,
+                'quantidade' => (float) $r->quantidade,
+                'valor' => (float) $r->valor,
+            ]);
+
+        $ultimosPedidos = (clone $pedidosBase)
+            ->with('cliente:id,nome_razao_social')
+            ->orderByDesc('id')
+            ->limit(5)
+            ->get()
+            ->map(fn (Pedido $p) => [
+                'numero' => (int) $p->numero,
+                'cliente' => $p->cliente?->nome_razao_social,
+                'total' => (float) $p->total,
+                'status' => $p->status->value,
+                'data' => $p->created_at->format('d/m H:i'),
+            ]);
+
+        $catalogoAtivo = Produto::withoutGlobalScope(EmpresaScope::class)
+            ->where('empresa_id', $token->empresa_id)
+            ->where('status', 'ativo')
+            ->count();
+
+        $qtdVendas = (int) ($vendas->qtd ?? 0);
+        $receita = (float) ($vendas->receita ?? 0);
+
+        return response()->json([
+            'dados' => [
+                'dias' => $dias,
+                'vendas' => [
+                    'qtd' => $qtdVendas,
+                    'receita' => $receita,
+                    'ticket_medio' => $qtdVendas > 0 ? round($receita / $qtdVendas, 2) : 0,
+                ],
+                'pedidos' => [
+                    'total' => (int) $pedidosPorStatus->sum(),
+                    'por_status' => $pedidosPorStatus,
+                ],
+                'catalogo_ativo' => $catalogoAtivo,
+                'serie' => $serie,
+                'top_produtos' => $topProdutos,
+                'ultimos_pedidos' => $ultimosPedidos,
+            ],
+        ]);
+    }
+
     /** KPIs da aba Pedidos do app.ia365: contagem por status + receita 30d. */
     public function resumoPedidos(Request $request): JsonResponse
     {
