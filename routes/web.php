@@ -82,6 +82,13 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
         ->name('empresas.agente-ia.toggle');
     Route::post('/empresas/{empresa}/agente-ia/reindexar', [Admin\AgenteIaController::class, 'reindexar'])
         ->name('empresas.agente-ia.reindexar');
+    // Gateway PIX Sicredi (Agente IA) — aba Integração da empresa
+    Route::post('/empresas/{empresa}/gateway-pix', [Admin\EmpresaGatewayController::class, 'store'])
+        ->name('empresas.gateway-pix.store');
+    Route::post('/empresas/{empresa}/gateway-pix/testar', [Admin\EmpresaGatewayController::class, 'testar'])
+        ->name('empresas.gateway-pix.testar');
+    Route::post('/empresas/{empresa}/gateway-pix/webhook', [Admin\EmpresaGatewayController::class, 'registrarWebhook'])
+        ->name('empresas.gateway-pix.webhook');
     Route::resource('empresas', Admin\EmpresaController::class);
     Route::resource('empresas.unidades', Admin\UnidadeController::class)->shallow();
     Route::resource('usuarios', Admin\UsuarioController::class);
@@ -597,7 +604,16 @@ Route::prefix('api/integracao/v1')->name('api.integracao.')
         Route::get('/dashboard', [\App\Http\Controllers\Api\IntegracaoAgenteController::class, 'dashboard'])->name('dashboard');
         Route::get('/pedidos/{id}', [\App\Http\Controllers\Api\IntegracaoAgenteController::class, 'pedido'])->whereNumber('id')->name('pedidos.show');
         Route::post('/pedidos', [\App\Http\Controllers\Api\IntegracaoAgenteController::class, 'criarPedido'])->name('pedidos.store');
+        Route::post('/pedidos/{id}/pix', [\App\Http\Controllers\Api\IntegracaoAgenteController::class, 'pixPedido'])->whereNumber('id')->name('pedidos.pix');
     });
+
+// Webhook PIX Sicredi — SEM Bearer (o PSP chama), mas sob api/integracao/*
+// para herdar a isenção de CSRF sem tocar no bootstrap/ (armadilha 46).
+// O Sicredi registra {url} e entrega em {url}/pix — aceitamos os dois.
+Route::post('/api/integracao/v1/webhooks/sicredi', [\App\Http\Controllers\Webhook\SicrediPixWebhookController::class, 'handle'])
+    ->name('webhooks.sicredi');
+Route::post('/api/integracao/v1/webhooks/sicredi/pix', [\App\Http\Controllers\Webhook\SicrediPixWebhookController::class, 'handle'])
+    ->name('webhooks.sicredi.pix');
 
 /* ------------------------------------------------------------------ */
 /*  Webhooks (sem autenticação)                                        */

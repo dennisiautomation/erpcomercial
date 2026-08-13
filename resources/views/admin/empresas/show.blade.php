@@ -487,6 +487,92 @@
                 </div>
             </div>
         </div>
+        @php($gatewayPix = \App\Models\EmpresaGateway::where('empresa_id', $empresa->id)->where('provedor', \App\Models\EmpresaGateway::PROVEDOR_SICREDI_PIX)->first())
+        <div class="row g-4 mb-1">
+            <div class="col-12">
+                <div class="card detail-card shadow-sm">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0"><i class="bi bi-qr-code me-1"></i> PIX do Vendedor IA (Sicredi)</h6>
+                        @if($gatewayPix?->ativo && $gatewayPix->utilizavel())
+                            <span class="badge bg-success bg-opacity-10 text-success">Ativo</span>
+                        @elseif($gatewayPix?->ativo)
+                            <span class="badge bg-warning bg-opacity-10 text-warning">Incompleto</span>
+                        @else
+                            <span class="badge bg-secondary bg-opacity-10 text-secondary">Inativo</span>
+                        @endif
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted small mb-3">
+                            Com o gateway ativo, o pedido criado pelo agente já sai com PIX copia-e-cola e o
+                            pagamento confirma o pedido automaticamente (rascunho → confirmado). O faturamento
+                            continua manual. A chave privada deve ser a versão <strong>sem senha</strong>.
+                            ⚠️ O webhook do Sicredi é <strong>por chave PIX</strong> — registrar aqui sobrescreve
+                            webhook anterior da mesma chave em outro sistema.
+                        </p>
+                        <form method="POST" action="{{ route('admin.empresas.gateway-pix.store', $empresa) }}" enctype="multipart/form-data" class="row g-2 align-items-end">
+                            @csrf
+                            <div class="col-md-4">
+                                <label class="form-label small mb-1">Client ID</label>
+                                <input type="text" name="client_id" class="form-control form-control-sm"
+                                       placeholder="{{ $gatewayPix?->client_id ? '•••• salvo — preencha p/ trocar' : 'client_id do app Sicredi' }}">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small mb-1">Client Secret</label>
+                                <input type="password" name="client_secret" class="form-control form-control-sm"
+                                       placeholder="{{ $gatewayPix?->client_secret ? '•••• salvo — preencha p/ trocar' : 'client_secret do app Sicredi' }}">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small mb-1">Chave PIX da conta</label>
+                                <input type="text" name="chave_pix" class="form-control form-control-sm"
+                                       value="{{ $gatewayPix?->chave_pix }}" placeholder="CNPJ, e-mail ou chave aleatória">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small mb-1">Certificado mTLS (.cer/.pem) {{ $gatewayPix?->cert_path ? '✓ enviado' : '' }}</label>
+                                <input type="file" name="certificado" class="form-control form-control-sm">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small mb-1">Chave privada SEM senha (.key) {{ $gatewayPix?->key_path ? '✓ enviada' : '' }}</label>
+                                <input type="file" name="chave_privada" class="form-control form-control-sm">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label small mb-1">Expiração (s)</label>
+                                <input type="number" name="expiracao_segundos" class="form-control form-control-sm"
+                                       value="{{ $gatewayPix?->expiracao_segundos ?? 86400 }}" min="300" max="604800">
+                            </div>
+                            <div class="col-md-2">
+                                <div class="form-check form-switch mb-1">
+                                    <input class="form-check-input" type="checkbox" name="ativo" value="1" id="pixAtivo"
+                                           @checked($gatewayPix?->ativo)>
+                                    <label class="form-check-label small" for="pixAtivo">Ativo</label>
+                                </div>
+                                <button type="submit" class="btn btn-sm btn-primary w-100">Salvar</button>
+                            </div>
+                        </form>
+                        <div class="d-flex flex-wrap gap-2 mt-3 align-items-center">
+                            <form method="POST" action="{{ route('admin.empresas.gateway-pix.testar', $empresa) }}">
+                                @csrf
+                                <button type="submit" class="btn btn-sm btn-outline-secondary" @disabled(! $gatewayPix?->utilizavel())>
+                                    <i class="bi bi-activity me-1"></i> Testar conexão
+                                </button>
+                            </form>
+                            <form method="POST" action="{{ route('admin.empresas.gateway-pix.webhook', $empresa) }}"
+                                  onsubmit="return confirm('Registrar o webhook desta chave PIX apontando para ESTE ERP? Sobrescreve webhook anterior da chave.')">
+                                @csrf
+                                <button type="submit" class="btn btn-sm btn-outline-secondary" @disabled(! $gatewayPix?->utilizavel())>
+                                    <i class="bi bi-broadcast me-1"></i> Registrar webhook
+                                </button>
+                            </form>
+                            @if($gatewayPix?->webhook_registrado_em)
+                                <span class="small text-muted">Webhook registrado em {{ $gatewayPix->webhook_registrado_em->format('d/m/Y H:i') }}</span>
+                            @endif
+                            @if($gatewayPix?->ultima_falha)
+                                <span class="small text-danger"><i class="bi bi-x-circle me-1"></i>Última falha: {{ $gatewayPix->ultima_falha }}</span>
+                            @endif
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
         <div class="row g-4">
             <div class="col-lg-8">
                 <div class="card detail-card shadow-sm">

@@ -8,9 +8,12 @@ use App\Models\AgenteIaConfig;
 use App\Models\Cliente;
 use App\Models\IntegracaoToken;
 use App\Models\Pedido;
+use App\Models\PedidoCobranca;
 use App\Models\PedidoItem;
 use App\Models\Produto;
 use App\Models\Unidade;
+use App\Services\Pix\PixPedidoService;
+use App\Services\Pix\SicrediPixService;
 use App\Scopes\EmpresaScope;
 use App\Scopes\UnidadeScope;
 use App\Services\AgenteIa\EmbeddingService;
@@ -585,16 +588,87 @@ class IntegracaoAgenteController extends Controller
             'total' => (float) $pedido->total,
         ]);
 
+        // Empresa com gateway PIX ativo: cobrança nasce junto com o pedido.
+        // Best-effort — falha no PSP NÃO derruba o pedido (cai no fluxo
+        // antigo: humano cobra).
+        $pix = null;
+        if (SicrediPixService::paraEmpresa($token->empresa_id)) {
+            try {
+                $resultado = app(PixPedidoService::class)->cobrancaParaPedido($pedido->fresh(['cliente', 'unidade']));
+                if ($resultado['success'] && $resultado['cobranca']->copia_cola) {
+                    $pix = $this->cobrancaParaResposta($resultado['cobranca']);
+                }
+            } catch (\Throwable $e) {
+                Log::channel('integracao')->error('Agente IA: falha ao gerar PIX do pedido', [
+                    'pedido_id' => $pedido->id,
+                    'erro' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        $mensagem = "Pedido #{$pedido->numero} registrado! Total R$ " . number_format((float) $pedido->total, 2, ',', '.') . '.';
+        $mensagem .= $pix
+            ? ' Para pagar agora, use o PIX copia-e-cola enviado. Assim que o pagamento cair, o pedido é confirmado automaticamente.'
+            : ' Um atendente vai confirmar com você a forma de pagamento e a entrega/retirada.';
+
         return response()->json([
             'dados' => [
                 'id' => (string) $pedido->id,
                 'numero' => (int) $pedido->numero,
                 'total' => (float) $pedido->total,
                 'status' => $pedido->status->value,
-                'mensagem' => "Pedido #{$pedido->numero} registrado! Total R$ " . number_format((float) $pedido->total, 2, ',', '.')
-                    . '. Um atendente vai confirmar com você a forma de pagamento e a entrega/retirada.',
+                'pix' => $pix,
+                'mensagem' => $mensagem,
             ],
         ], 201);
+    }
+
+    /**
+     * Gera (ou devolve a 2ª via de) a cobrança PIX de um pedido.
+     *
+     * Usada pela intenção "PAGAR PEDIDO" do agente e pelo painel. Se o
+     * pedido já foi pago, devolve o comprovante em vez de nova cobrança.
+     */
+    public function pixPedido(Request $request, int $id): JsonResponse
+    {
+        $token = $this->token($request);
+
+        if ($erro = $this->exigirAgenteAtivo($token)) {
+            return $erro;
+        }
+
+        $pedido = Pedido::withoutGlobalScope(EmpresaScope::class)
+            ->withoutGlobalScope(UnidadeScope::class)
+            ->where('empresa_id', $token->empresa_id)
+            ->with(['cliente', 'unidade'])
+            ->whereKey($id)
+            ->first();
+
+        if (! $pedido) {
+            return response()->json(['erro' => 'Pedido não encontrado.'], 404);
+        }
+
+        if (! SicrediPixService::paraEmpresa($token->empresa_id)) {
+            return response()->json(['erro' => 'PIX não está configurado para esta empresa.'], 409);
+        }
+
+        $resultado = app(PixPedidoService::class)->cobrancaParaPedido($pedido);
+
+        if (! $resultado['success']) {
+            return response()->json(['erro' => $resultado['error']], 422);
+        }
+
+        $cobranca = $resultado['cobranca'];
+
+        return response()->json([
+            'dados' => array_merge($this->cobrancaParaResposta($cobranca), [
+                'pedido_numero' => (int) $pedido->numero,
+                'mensagem' => $cobranca->paga()
+                    ? "O pedido #{$pedido->numero} já está PAGO (em " . $cobranca->pago_em->format('d/m/Y H:i') . ').'
+                    : "PIX do pedido #{$pedido->numero}: R$ " . number_format((float) $cobranca->valor, 2, ',', '.')
+                        . '. Copie o código e pague no app do seu banco.',
+            ]),
+        ]);
     }
 
     /* ---------------------------------------------------------------- */
@@ -653,8 +727,28 @@ class IntegracaoAgenteController extends Controller
     }
 
     /** @return array<string, mixed> */
+    private function cobrancaParaResposta(PedidoCobranca $cobranca): array
+    {
+        return [
+            'txid' => $cobranca->txid,
+            'valor' => (float) $cobranca->valor,
+            'status' => $cobranca->status,
+            'pago' => $cobranca->paga(),
+            'pago_em' => $cobranca->pago_em?->format('Y-m-d H:i'),
+            'copia_cola' => $cobranca->paga() ? null : $cobranca->copia_cola,
+            'expira_em' => $cobranca->expira_em?->format('Y-m-d H:i'),
+        ];
+    }
+
+    /** @return array<string, mixed> */
     private function pedidoParaResposta(Pedido $pedido): array
     {
+        $cobranca = PedidoCobranca::where('empresa_id', $pedido->empresa_id)
+            ->where('pedido_id', $pedido->id)
+            ->whereNot('status', 'ERRO')
+            ->orderByDesc('id')
+            ->first();
+
         return [
             'id' => (string) $pedido->id,
             'numero' => (int) $pedido->numero,
@@ -679,6 +773,7 @@ class IntegracaoAgenteController extends Controller
                     : null,
             ])->values(),
             'observacoes' => $pedido->observacoes_internas,
+            'pagamento' => $cobranca ? $this->cobrancaParaResposta($cobranca) : null,
         ];
     }
 

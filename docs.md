@@ -2,7 +2,7 @@
 
 > SaaS ERP multi-tenant para PMEs. Admin (IA365) gerencia a plataforma; cada empresa-cliente tem múltiplas unidades com fiscal, estoque e caixa independentes. Integração 100% Focus NFe (NF-e, NFC-e, NFS-e, CC-e, manifestação do destinatário, backup XMLs).
 
-**Última revisão:** 2026-08-13 (**Agente IA** — banco vetorial pgvector `erp-com-vector` + busca semântica multi-tenant + pedidos rascunho via API, módulo ativável por empresa no admin; consumido pelo app.ia365; seção 9f) · 2026-08-12 (**API de Integração v1 — Gersen**: primeira API externa do ERP, somente leitura, token por empresa gerado no admin; seção própria) · 2026-08-12 madrugada (**backup mensal de XMLs virou pacote LOCAL** — o `/v2/backups` da Focus não existe, armadilha 49; **DONA DOURO em `producao`** com série 2 e CSC na Focus) · 2026-08-12 noite (**editor visual de layout de etiqueta** — arrasta-e-solta com imagens e formas, branch `layout-etiquetas` DEPLOYADA em produção; armadilha 48 + lição de deploy na 26b) · 2026-08-12 (vários estoques por loja + contagem cega + bonificação que deve voltar + estilo de etiqueta "nome no topo" + conferência de bobina; armadilhas 43-47; **imagem rebuildada** e main promovida) · 2026-08-11 (formato de etiqueta cadastrável pelo lojista + fix do CRUD de categorias — `status` feminino, armadilha 42) · 2026-08-05 (filtro por loja em vendas + imports de vendas/contas a receber + import robusto + lojas mesmo CNPJ compartilham empresa Focus) · **Estado:** integração fiscal Fase 1-4 + multi-loja + regime de cobrança + auto-sync Focus + UX config fiscal + caixa por forma de pagamento (14/07) + Configurações da Loja/tabelas de preço/emissão parametrizada/adquirentes (24/07) + **Reforma Tributária NT 2025.002 (obrigatório 03/08/2026) + CNPJ alfanumérico NT 2025.001 (25/07)** + **e-mails/no-reply + cobrança direta mensal/anual com bloqueio + pode_ver_financeiro (04/08)** + **doc de alterações do Dennis (05/08)** + **etiqueta cadastrável pelo lojista em cm + fix do CRUD de categorias + auditoria de produção (11/08)** — concluídos
+**Última revisão:** 2026-08-13 noite (**PIX Sicredi no Agente IA** — gateway por empresa em `empresa_gateways` com credenciais cifradas + cobrança automática no pedido do agente + webhook re-consultado via mTLS + cron de sincronização; piloto DONA DOURO; seção 9f) · 2026-08-13 (**Agente IA** — banco vetorial pgvector `erp-com-vector` + busca semântica multi-tenant + pedidos rascunho via API, módulo ativável por empresa no admin; consumido pelo app.ia365; seção 9f) · 2026-08-12 (**API de Integração v1 — Gersen**: primeira API externa do ERP, somente leitura, token por empresa gerado no admin; seção própria) · 2026-08-12 madrugada (**backup mensal de XMLs virou pacote LOCAL** — o `/v2/backups` da Focus não existe, armadilha 49; **DONA DOURO em `producao`** com série 2 e CSC na Focus) · 2026-08-12 noite (**editor visual de layout de etiqueta** — arrasta-e-solta com imagens e formas, branch `layout-etiquetas` DEPLOYADA em produção; armadilha 48 + lição de deploy na 26b) · 2026-08-12 (vários estoques por loja + contagem cega + bonificação que deve voltar + estilo de etiqueta "nome no topo" + conferência de bobina; armadilhas 43-47; **imagem rebuildada** e main promovida) · 2026-08-11 (formato de etiqueta cadastrável pelo lojista + fix do CRUD de categorias — `status` feminino, armadilha 42) · 2026-08-05 (filtro por loja em vendas + imports de vendas/contas a receber + import robusto + lojas mesmo CNPJ compartilham empresa Focus) · **Estado:** integração fiscal Fase 1-4 + multi-loja + regime de cobrança + auto-sync Focus + UX config fiscal + caixa por forma de pagamento (14/07) + Configurações da Loja/tabelas de preço/emissão parametrizada/adquirentes (24/07) + **Reforma Tributária NT 2025.002 (obrigatório 03/08/2026) + CNPJ alfanumérico NT 2025.001 (25/07)** + **e-mails/no-reply + cobrança direta mensal/anual com bloqueio + pode_ver_financeiro (04/08)** + **doc de alterações do Dennis (05/08)** + **etiqueta cadastrável pelo lojista em cm + fix do CRUD de categorias + auditoria de produção (11/08)** — concluídos
 
 ---
 
@@ -1574,8 +1574,43 @@ WhatsApp → app.ia365 (agente por cliente) → /api/integracao/v1/* (Bearer da 
 | `GET /api/integracao/v1/pedidos/resumo` | KPIs: contagem por status + qtd/valor 30d (cards da aba Pedidos) |
 | `POST /api/integracao/v1/agente/ativar` | **Ativa o módulo** para a empresa do token + dispara a indexação (idempotente; único endpoint SEM o gate de módulo ativo). Chamado pelo wizard "Criar agente" do app.ia365 — criar o agente lá = ativar aqui, sem segundo clique no admin (§270.1, feedback do Dennis 13/08) |
 | `GET /api/integracao/v1/dashboard?dias=7..90` | Dashboard padrão do cliente no app.ia365: vendas concluídas (receita/ticket médio), pedidos por status, série diária contínua, top 5 produtos por valor (venda_itens), últimos 5 pedidos, catálogo ativo |
-| `GET /api/integracao/v1/pedidos/{id}` | Detalhe com itens |
-| `POST /api/integracao/v1/pedidos` | **Única escrita da API**: `{unidade_id, cliente{nome,telefone,cpf_cnpj?,email?}, itens[{produto_id,quantidade}], observacoes?, origem?}` → acha/cria o cliente pelo telefone (sufixo 8 dígitos, tolera 9º dígito; CNPJ alfanumérico preservado — armadilha 33), cria pedido **RASCUNHO** com `numero = max+1` sob lock, preço = `preco_venda` atual (agente NÃO define preço). Não movimenta estoque, não fatura, não emite fiscal — humano confirma no ERP. |
+| `GET /api/integracao/v1/pedidos/{id}` | Detalhe com itens (+ bloco `pagamento` com status da cobrança PIX, quando houver) |
+| `POST /api/integracao/v1/pedidos` | Escrita principal: `{unidade_id, cliente{nome,telefone,cpf_cnpj?,email?}, itens[{produto_id,quantidade}], observacoes?, origem?}` → acha/cria o cliente pelo telefone (sufixo 8 dígitos, tolera 9º dígito; CNPJ alfanumérico preservado — armadilha 33), cria pedido **RASCUNHO** com `numero = max+1` sob lock, preço = `preco_venda` atual (agente NÃO define preço). Não movimenta estoque, não fatura, não emite fiscal. **Se a empresa tem gateway PIX ativo, a resposta já vem com `pix{txid, copia_cola, expira_em}`** (best-effort: falha no PSP não derruba o pedido). |
+| `POST /api/integracao/v1/pedidos/{id}/pix` | Gera/reaproveita a cobrança PIX do pedido (2ª via). Reuso só de cobrança ATIVA com copia-e-cola e não vencida (lição JL). Pedido já pago → devolve `pago: true` com data, sem nova cobrança. |
+| `POST /api/integracao/v1/webhooks/sicredi[/pix]` | **SEM Bearer** (PSP chama; sob `api/integracao/*` só p/ herdar a isenção de CSRF sem rebuild). Payload BACEN tratado como DICA: cada txid conhecido é **re-consultado na API mTLS** antes de confirmar (pago = `CONCLUIDA` + array `pix` não-vazio). Sempre responde 200. |
+
+### PIX Sicredi por empresa — pagamento do pedido do agente (13/08/2026)
+
+Fase de pagamento da integração (branch `feat/pix-sicredi-agente`, base `fix/webhook-focusnfe-csrf`).
+Piloto: **DONA DOURO** (empresa 5, chave PIX `64169650000148`). Cartão fica para fase futura.
+
+```
+agente cria pedido → ERP gera cobrança PIX (Sicredi API v3, mTLS por empresa)
+                   → copia-e-cola volta na resposta → agente manda no WhatsApp
+pagamento → webhook Sicredi (ou cron 15min) → re-consulta mTLS → pedido rascunho→confirmado
+                                              (faturamento continua HUMANO)
+```
+
+- **`empresa_gateways`** (multi-tenant desde o dia 1): `provedor='sicredi_pix'`, `client_id`/`client_secret`
+  **cifrados com APP_KEY** (cast `encrypted`), `chave_pix`, `cert_path`/`key_path` relativos a
+  `storage/app/private/` (volume `app_storage` — sobrevive a rebuild), `expiracao_segundos` (default 86400).
+  Config no admin: `/admin/empresas/{id}` aba Integração, card "PIX do Vendedor IA (Sicredi)"
+  (upload cert/key, testar conexão, registrar webhook). A chave privada vai **SEM senha**.
+- **`pedido_cobrancas`**: txid único (`erp{empresa}p{pedido}` + timestamp+hash, 26-35 minúsc/números —
+  prefixo rastreável p/ fan-out futuro se a chave for compartilhada), status BACEN + `ERRO` local,
+  `copia_cola`, `e2eid`, `pago_em`, payload da consulta.
+- **`App\Services\Pix\SicrediPixService`** portado do JL-ERP (validado lá com dinheiro real), mas
+  **por empresa** (credenciais do `EmpresaGateway`, cache de token por empresa; token Sicredi expira em 300s).
+  `PixPedidoService` orquestra: criar/reutilizar cobrança, sincronizar (consulta) e confirmar pedido.
+- **Pagamento confirma, não fatura**: pedido `rascunho→confirmado` + observação interna com txid/e2e.
+  Estoque/caixa/fiscal intocados — humano fatura no ERP (desenho da fase 1 preservado).
+- **Rede de segurança**: `agente:pix-sincronizar` a cada 15 min (scheduler) re-consulta cobranças ATIVAS
+  e expira vencidas — pagamentos não dependem só do webhook.
+- ⚠️ **Webhook Sicredi é POR CHAVE PIX (um único)** — registrar aqui sobrescreve webhook anterior da
+  mesma chave em outro sistema. URL registrada: `{APP_URL}/api/integracao/v1/webhooks/sicredi`
+  (Sicredi entrega em `…/sicredi/pix`; as duas rotas respondem).
+- ⚠️ A rota do webhook fica **sob `api/integracao/*` de propósito**: herda a isenção de CSRF existente
+  sem tocar em `bootstrap/` (armadilha 46 — bootstrap só entra com rebuild).
 
 ### Deploy (exige rebuild + restart — fora do rito USR2)
 

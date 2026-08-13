@@ -91,3 +91,12 @@ Schedule::command('fiscal:baixar-xmls-notas')
     ->dailyAt('03:30')
     ->name('baixar-xmls-notas')
     ->withoutOverlapping();
+
+// ──────────────────────────────────────────────────────────────────
+// PIX do Agente IA — rede de segurança do webhook Sicredi: consulta
+// cobranças ATIVAS e confirma pagamentos perdidos; expira vencidas.
+// ──────────────────────────────────────────────────────────────────
+Schedule::command('agente:pix-sincronizar')
+    ->everyFifteenMinutes()
+    ->name('agente-pix-sincronizar')
+    ->withoutOverlapping();
