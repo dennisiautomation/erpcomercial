@@ -591,6 +591,7 @@ Route::prefix('api/integracao/v1')->name('api.integracao.')
         Route::get('/produtos/{id}', [\App\Http\Controllers\Api\IntegracaoAgenteController::class, 'produto'])->whereNumber('id')->name('produtos.show');
         Route::get('/produtos/{id}/estoque', [\App\Http\Controllers\Api\IntegracaoAgenteController::class, 'estoqueProduto'])->whereNumber('id')->name('produtos.estoque');
         Route::get('/pedidos', [\App\Http\Controllers\Api\IntegracaoAgenteController::class, 'pedidos'])->name('pedidos.index');
+        Route::get('/pedidos/resumo', [\App\Http\Controllers\Api\IntegracaoAgenteController::class, 'resumoPedidos'])->name('pedidos.resumo');
         Route::get('/pedidos/{id}', [\App\Http\Controllers\Api\IntegracaoAgenteController::class, 'pedido'])->whereNumber('id')->name('pedidos.show');
         Route::post('/pedidos', [\App\Http\Controllers\Api\IntegracaoAgenteController::class, 'criarPedido'])->name('pedidos.store');
     });

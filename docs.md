@@ -1571,6 +1571,7 @@ WhatsApp → app.ia365 (agente por cliente) → /api/integracao/v1/* (Bearer da 
 | `GET /api/integracao/v1/produtos/{id}` | Detalhe + `precos_modalidade` (produto_precos) + `estoque_por_loja` (`SaldoEstoque::naUnidade`) |
 | `GET /api/integracao/v1/produtos/{id}/estoque` | Só o estoque por loja |
 | `GET /api/integracao/v1/pedidos?status&telefone&pagina` | Lista pedidos da empresa (50/página) — alimenta a aba Pedidos do app.ia365 |
+| `GET /api/integracao/v1/pedidos/resumo` | KPIs: contagem por status + qtd/valor 30d (cards da aba Pedidos) |
 | `GET /api/integracao/v1/pedidos/{id}` | Detalhe com itens |
 | `POST /api/integracao/v1/pedidos` | **Única escrita da API**: `{unidade_id, cliente{nome,telefone,cpf_cnpj?,email?}, itens[{produto_id,quantidade}], observacoes?, origem?}` → acha/cria o cliente pelo telefone (sufixo 8 dígitos, tolera 9º dígito; CNPJ alfanumérico preservado — armadilha 33), cria pedido **RASCUNHO** com `numero = max+1` sob lock, preço = `preco_venda` atual (agente NÃO define preço). Não movimenta estoque, não fatura, não emite fiscal — humano confirma no ERP. |
 

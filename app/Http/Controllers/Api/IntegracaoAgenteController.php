@@ -262,6 +262,39 @@ class IntegracaoAgenteController extends Controller
         ]);
     }
 
+    /** KPIs da aba Pedidos do app.ia365: contagem por status + receita 30d. */
+    public function resumoPedidos(Request $request): JsonResponse
+    {
+        $token = $this->token($request);
+
+        if ($erro = $this->exigirAgenteAtivo($token)) {
+            return $erro;
+        }
+
+        $base = Pedido::withoutGlobalScope(EmpresaScope::class)
+            ->withoutGlobalScope(UnidadeScope::class)
+            ->where('empresa_id', $token->empresa_id);
+
+        $porStatus = (clone $base)
+            ->selectRaw('status, COUNT(*) as qtd')
+            ->groupBy('status')
+            ->pluck('qtd', 'status');
+
+        $ultimos30 = (clone $base)
+            ->where('created_at', '>=', now()->subDays(30))
+            ->selectRaw('COUNT(*) as qtd, COALESCE(SUM(total), 0) as valor')
+            ->first();
+
+        return response()->json([
+            'dados' => [
+                'por_status' => $porStatus,
+                'total' => (clone $base)->count(),
+                'qtd_30d' => (int) ($ultimos30->qtd ?? 0),
+                'valor_30d' => (float) ($ultimos30->valor ?? 0),
+            ],
+        ]);
+    }
+
     public function pedido(Request $request, int $id): JsonResponse
     {
         $token = $this->token($request);
