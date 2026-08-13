@@ -23,13 +23,18 @@ return Application::configure(basePath: dirname(__DIR__))
             Request::HEADER_X_FORWARDED_AWS_ELB
         );
 
-        // API de Integração é máquina-a-máquina (Bearer, sem sessão) — CSRF
-        // não se aplica. Os endpoints GET do Gersen nunca esbarraram nisso;
-        // os POST do Agente IA (buscar/pedidos) sim (419 sem esta exceção).
+        // Endpoints máquina-a-máquina (sem sessão/cookie) — CSRF não se aplica.
+        // - api/integracao/*: Bearer token (Gersen + Agente IA); os POST davam
+        //   419 sem esta exceção.
+        // - webhooks/focusnfe: a Focus POSTa sem cookie e tomava 419 — zero
+        //   webhooks recebidos desde pelo menos 24/04/2026; status de NF-e só
+        //   era atualizado pelo polling do ConsultarNotaFiscalJob. O controller
+        //   tem validação própria por webhook_secret.
         // Lembrete: mudança em bootstrap/ SÓ chega em produção com rebuild
-        // da imagem (armadilha 46) — este deploy já é um rebuild.
+        // da imagem (armadilha 46).
         $middleware->validateCsrfTokens(except: [
             'api/integracao/*',
+            'webhooks/focusnfe',
         ]);
 
         $middleware->alias([

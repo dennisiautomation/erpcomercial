@@ -1583,6 +1583,28 @@ WhatsApp → app.ia365 (agente por cliente) → /api/integracao/v1/* (Bearer da 
 4. `php artisan migrate --force` (cria `agente_ia_configs` no MySQL e o schema no vector).
 5. Ativar a empresa piloto no admin e conferir `produtos_indexados` na aba.
 
+## Webhook Focus NFe destravado do CSRF (13/08/2026)
+
+O `POST /webhooks/focusnfe` vive no `routes/web.php` (grupo `web`) e por isso passava
+pelo `ValidateCsrfTokens` — a Focus POSTa sem cookie de sessão e tomava **419** em todo
+disparo. Evidências: teste direto em produção retornou 419, e o `laravel.log` (janela
+desde 24/04/2026) tem **zero** ocorrências de "Webhook Focus NFe recebido" (primeira
+linha do `FocusNFeWebhookController::handle`), embora os gatilhos estejam cadastrados
+na Focus (recadastro devolve "Já existe um gatilho para este evento, empresa e url").
+Ninguém percebeu porque NFC-e é síncrona e NF-e/NFS-e eram atualizadas pelo polling do
+`ConsultarNotaFiscalJob` (10 tentativas, backoff 30s→600s) — o webhook nunca foi a
+fonte real dos status.
+
+**Fix** (branch `fix/webhook-focusnfe-csrf`): `webhooks/focusnfe` adicionado ao
+`validateCsrfTokens(except:)` no `bootstrap/app.php`, ao lado de `api/integracao/*`.
+Exceção explícita por rota (não `webhooks/*`) para não isentar rotas futuras sem
+decisão consciente. A autenticidade fica por conta da validação de assinatura própria
+do controller (`webhook_secret`) — atenção: config sem `webhook_secret` aceita o POST
+sem validação (o controller loga `notice`); conferir os secrets das unidades ativas.
+Deploy exige **rebuild da imagem** (armadilha 46 — `bootstrap/` é baked). Validação
+pós-deploy: `curl -X POST .../webhooks/focusnfe` deve sair de 419 para resposta do
+controller, e "Webhook Focus NFe recebido" passa a aparecer no laravel.log.
+
 ## Armadilhas conhecidas
 
 1. **EmpresaScope recursão**: `auth()->user()` dentro do scope chama User model que tem o scope → loop infinito. Scopes têm flag `static $applying`. Não remover.
@@ -1757,6 +1779,13 @@ WhatsApp → app.ia365 (agente por cliente) → /api/integracao/v1/* (Bearer da 
     rodava). O pacote mensal auditável é montado LOCALMENTE pelo `BackupXmlService`
     a partir das cópias por nota. Se a Focus um dia lançar backup de verdade, avaliar —
     até lá, nenhum código deve chamar `/v2/backups`.
+50. **Rota nova de webhook/integração no `routes/web.php` nasce BLOQUEADA por CSRF** —
+    todo o arquivo passa pelo grupo `web` e POST externo sem cookie toma 419 silencioso
+    (a Focus apanhou disso de 24/04 a 13/08/2026 sem nenhum log no app; o 419 só aparece
+    no access log do nginx). Endpoint máquina-a-máquina precisa entrar no
+    `validateCsrfTokens(except:)` do `bootstrap/app.php` — e isso só chega em produção
+    com rebuild da imagem (armadilha 46). Teste de fumaça obrigatório após criar rota
+    dessas: `curl -X POST` externo tem que passar do middleware.
 
 ---
 
