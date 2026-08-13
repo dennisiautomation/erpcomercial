@@ -23,6 +23,15 @@ return Application::configure(basePath: dirname(__DIR__))
             Request::HEADER_X_FORWARDED_AWS_ELB
         );
 
+        // API de Integração é máquina-a-máquina (Bearer, sem sessão) — CSRF
+        // não se aplica. Os endpoints GET do Gersen nunca esbarraram nisso;
+        // os POST do Agente IA (buscar/pedidos) sim (419 sem esta exceção).
+        // Lembrete: mudança em bootstrap/ SÓ chega em produção com rebuild
+        // da imagem (armadilha 46) — este deploy já é um rebuild.
+        $middleware->validateCsrfTokens(except: [
+            'api/integracao/*',
+        ]);
+
         $middleware->alias([
             'permission' => \App\Http\Middleware\CheckPermission::class,
             'unidade' => \App\Http\Middleware\EnsureUnidadeSelected::class,
