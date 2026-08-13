@@ -1611,6 +1611,16 @@ pagamento → webhook Sicredi (ou cron 15min) → re-consulta mTLS → pedido ra
   (Sicredi entrega em `…/sicredi/pix`; as duas rotas respondem).
 - ⚠️ A rota do webhook fica **sob `api/integracao/*` de propósito**: herda a isenção de CSRF existente
   sem tocar em `bootstrap/` (armadilha 46 — bootstrap só entra com rebuild).
+- **Estado 13/08/2026 (piloto FECHADO em produção)**: gateway da DONA DOURO ativo (certs no volume
+  em `gateways/5/`), cobrança real de R$ 1 validada de ponta a ponta (EMV ok, 2ª via reutiliza,
+  sync mTLS ok; pedido de teste cancelado), **webhook registrado no Sicredi às 05:39**
+  (`erp.ia365.com.br/api/integracao/v1/webhooks/sicredi`, confirmado por GET na API) e cron
+  `agente:pix-sincronizar` a cada 15 min ativo no scheduler. Lado app.ia365: template com a 5ª
+  intenção + agentes existentes sincronizados + rebuild feito (§271 lá). Cartão = fase futura.
+- ⚠️ **Deploy sem restart neste container: `kill -USR2 1` NÃO recarrega o opcache** — o PID 1 é o
+  supervisord; o master do php-fpm é outro PID. Rito validado: tar → migrate → `artisan optimize` →
+  script temporário `<?php opcache_reset();` em `public/` chamado via curl e removido. Sintoma
+  clássico de opcache velho: `route:list` (CLI) enxerga a rota nova e o web devolve 404.
 
 ### Deploy (exige rebuild + restart — fora do rito USR2)
 
