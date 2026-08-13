@@ -1676,6 +1676,12 @@ controller, e "Webhook Focus NFe recebido" passa a aparecer no laravel.log.
 - **Voltar**: `POST /acesso-como/voltar` (fora do grupo /admin — quem clica está
   logado como o cliente) restaura o admin e limpa a sessão. Encadear acesso-como
   é recusado; voltar sem a chave na sessão é 403.
+- **Quem tem o botão**: qualquer usuário da equipe IA365 (`is_admin=1`) — não é
+  exclusivo do Dennis. Para conceder a alguém: Admin → Usuários → Novo, switch
+  "Acesso administrativo à plataforma" (a senha vai por e-mail, fluxo `equipe`).
+  `pode_ver_financeiro` é separado e independente: admin SEM a flag acessa
+  clientes normalmente, só não vê faturas/receita da plataforma — combinação
+  típica para suporte.
 - Validado E2E no erp-test-app (:8099): fluxo completo, 403 para não-admin,
   403 no voltar sem sessão, rastro `acesso_como_admin_id` em cliente criado
   impersonado, menu do cliente renderizado (PDV etc.) sem menu admin.
