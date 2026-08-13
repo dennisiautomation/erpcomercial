@@ -1572,6 +1572,8 @@ WhatsApp → app.ia365 (agente por cliente) → /api/integracao/v1/* (Bearer da 
 | `GET /api/integracao/v1/produtos/{id}/estoque` | Só o estoque por loja |
 | `GET /api/integracao/v1/pedidos?status&telefone&pagina` | Lista pedidos da empresa (50/página) — alimenta a aba Pedidos do app.ia365 |
 | `GET /api/integracao/v1/pedidos/resumo` | KPIs: contagem por status + qtd/valor 30d (cards da aba Pedidos) |
+| `POST /api/integracao/v1/agente/ativar` | **Ativa o módulo** para a empresa do token + dispara a indexação (idempotente; único endpoint SEM o gate de módulo ativo). Chamado pelo wizard "Criar agente" do app.ia365 — criar o agente lá = ativar aqui, sem segundo clique no admin (§270.1, feedback do Dennis 13/08) |
+| `GET /api/integracao/v1/dashboard?dias=7..90` | Dashboard padrão do cliente no app.ia365: vendas concluídas (receita/ticket médio), pedidos por status, série diária contínua, top 5 produtos por valor (venda_itens), últimos 5 pedidos, catálogo ativo |
 | `GET /api/integracao/v1/pedidos/{id}` | Detalhe com itens |
 | `POST /api/integracao/v1/pedidos` | **Única escrita da API**: `{unidade_id, cliente{nome,telefone,cpf_cnpj?,email?}, itens[{produto_id,quantidade}], observacoes?, origem?}` → acha/cria o cliente pelo telefone (sufixo 8 dígitos, tolera 9º dígito; CNPJ alfanumérico preservado — armadilha 33), cria pedido **RASCUNHO** com `numero = max+1` sob lock, preço = `preco_venda` atual (agente NÃO define preço). Não movimenta estoque, não fatura, não emite fiscal — humano confirma no ERP. |
 
