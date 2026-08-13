@@ -34,14 +34,24 @@ class AppServiceProvider extends ServiceProvider
 
         // Enriquecer toda Activity com empresa_id do subject (multi-tenant)
         Activity::creating(function (Activity $activity) {
-            if ($activity->subject && isset($activity->subject->empresa_id)) {
-                $props = $activity->properties ?? collect();
-                if (is_array($props)) {
-                    $props = collect($props);
-                }
-                if (! $props->has('empresa_id')) {
-                    $activity->properties = $props->put('empresa_id', $activity->subject->empresa_id);
-                }
+            $props = $activity->properties ?? collect();
+            if (is_array($props)) {
+                $props = collect($props);
+            }
+
+            if ($activity->subject && isset($activity->subject->empresa_id)
+                && ! $props->has('empresa_id')) {
+                $props = $props->put('empresa_id', $activity->subject->empresa_id);
+            }
+
+            // Sessão "acessar como": tudo que o admin fizer logado como o
+            // cliente fica marcado com o id do admin real (rastro de auditoria)
+            if (session()->has('acesso_como_admin_id')) {
+                $props = $props->put('acesso_como_admin_id', session('acesso_como_admin_id'));
+            }
+
+            if ($props->isNotEmpty()) {
+                $activity->properties = $props;
             }
         });
     }

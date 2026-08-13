@@ -19,7 +19,11 @@ class CheckSuspensao
     {
         $user = $request->user();
 
-        if ($user && ! $user->is_admin && $user->empresa && $user->empresa->estaSuspensa()) {
+        // Admin da plataforma em "acesso como" entra mesmo com a empresa
+        // suspensa — é justamente quando ele precisa inspecionar (o banner
+        // do layout sinaliza a suspensão).
+        if ($user && ! $user->is_admin && $user->empresa && $user->empresa->estaSuspensa()
+            && ! session()->has('acesso_como_admin_id')) {
             return redirect()->route('acesso-suspenso');
         }
 
