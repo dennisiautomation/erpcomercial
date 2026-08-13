@@ -1059,6 +1059,30 @@
          Main Wrapper
          ================================================================ --}}
     <div class="main-wrapper">
+        {{-- Banner "acessar como" (admin da plataforma dentro do cliente) --}}
+        @if(session('acesso_como_admin_id'))
+            @php
+                $empresaAcessada = auth()->user()->empresa;
+            @endphp
+            <div class="d-flex align-items-center gap-2 px-3 py-2"
+                 style="background:#7c2d12;color:#fff7ed;font-size:.85rem;position:sticky;top:0;z-index:1055">
+                <i class="bi bi-incognito"></i>
+                <span class="flex-grow-1">
+                    Acessando como <strong>{{ auth()->user()->name }}</strong>
+                    — {{ $empresaAcessada?->nome_fantasia ?: $empresaAcessada?->razao_social }}
+                    @if($empresaAcessada?->estaSuspensa())
+                        <span class="badge bg-danger ms-1">EMPRESA SUSPENSA</span>
+                    @endif
+                </span>
+                <form method="POST" action="{{ route('acesso-como.voltar') }}" class="m-0">
+                    @csrf
+                    <button class="btn btn-sm btn-outline-light py-0" style="font-size:.8rem">
+                        <i class="bi bi-box-arrow-left me-1"></i>Voltar ao admin
+                    </button>
+                </form>
+            </div>
+        @endif
+
         {{-- Top Bar --}}
         <div class="topbar">
             {{-- Mobile toggle --}}

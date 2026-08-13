@@ -105,6 +105,13 @@
         </div>
     </div>
     <div class="mt-3 d-flex flex-wrap gap-2">
+        <form method="POST" action="{{ route('admin.empresas.acessar-como', $empresa) }}" class="m-0">
+            @csrf
+            <button class="btn btn-warning btn-sm"
+                    data-confirm="Acessar o sistema como o responsável da empresa {{ $empresa->razao_social }}? Suas ações ficam registradas na auditoria.">
+                <i class="bi bi-incognito me-1"></i> Acessar como cliente
+            </button>
+        </form>
         <a href="{{ route('admin.empresas.edit', $empresa) }}" class="btn btn-light btn-sm">
             <i class="bi bi-pencil me-1"></i> Editar
         </a>

@@ -185,6 +185,14 @@
                                    class="btn btn-outline-secondary" title="Editar">
                                     <i class="bi bi-pencil"></i>
                                 </a>
+                                <form method="POST" action="{{ route('admin.empresas.acessar-como', $empresa) }}" class="d-inline">
+                                    @csrf
+                                    <button class="btn btn-outline-dark"
+                                            data-confirm="Acessar o sistema como o responsável da empresa {{ $empresa->razao_social }}? Suas ações ficam registradas na auditoria."
+                                            title="Acessar como cliente">
+                                        <i class="bi bi-incognito"></i>
+                                    </button>
+                                </form>
                                 @if($empresa->regime_cobranca?->value === 'padrao' || $empresa->regime_cobranca === null)
                                     <form method="POST" action="{{ route('admin.empresas.estender-trial', $empresa) }}" class="d-inline">
                                         @csrf

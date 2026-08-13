@@ -55,6 +55,11 @@ Route::middleware('auth')->group(function () {
         ->name('selecionar-unidade');
     Route::post('/selecionar-unidade', [UnidadeSelecaoController::class, 'selecionar'])
         ->name('selecionar-unidade.store');
+
+    // Fim do "acessar como" — quem clica está logado como o cliente,
+    // por isso a rota fica fora do grupo /admin
+    Route::post('/acesso-como/voltar', [Admin\AcessoComoController::class, 'sair'])
+        ->name('acesso-como.voltar');
 });
 
 /* ------------------------------------------------------------------ */
@@ -68,6 +73,9 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
         ->name('empresas.estender-trial');
     Route::post('/empresas/{empresa}/reenviar-acesso', [Admin\EmpresaController::class, 'reenviarAcesso'])
         ->name('empresas.reenviar-acesso');
+    // "Acessar como": loga como o dono da empresa-cliente
+    Route::post('/empresas/{empresa}/acessar-como', [Admin\AcessoComoController::class, 'entrar'])
+        ->name('empresas.acessar-como');
     // Saúde da integração Focus (antes do resource para não bater com show/{id})
     Route::get('/empresas/{empresa}/saude-focus', [Admin\SaudeFocusController::class, 'show'])
         ->name('empresas.saude-focus');

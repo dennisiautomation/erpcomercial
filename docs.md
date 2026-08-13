@@ -2,7 +2,7 @@
 
 > SaaS ERP multi-tenant para PMEs. Admin (IA365) gerencia a plataforma; cada empresa-cliente tem múltiplas unidades com fiscal, estoque e caixa independentes. Integração 100% Focus NFe (NF-e, NFC-e, NFS-e, CC-e, manifestação do destinatário, backup XMLs).
 
-**Última revisão:** 2026-08-13 noite (**PIX Sicredi no Agente IA** — gateway por empresa em `empresa_gateways` com credenciais cifradas + cobrança automática no pedido do agente + webhook re-consultado via mTLS + cron de sincronização; piloto DONA DOURO; seção 9f) · 2026-08-13 (**Agente IA** — banco vetorial pgvector `erp-com-vector` + busca semântica multi-tenant + pedidos rascunho via API, módulo ativável por empresa no admin; consumido pelo app.ia365; seção 9f) · 2026-08-12 (**API de Integração v1 — Gersen**: primeira API externa do ERP, somente leitura, token por empresa gerado no admin; seção própria) · 2026-08-12 madrugada (**backup mensal de XMLs virou pacote LOCAL** — o `/v2/backups` da Focus não existe, armadilha 49; **DONA DOURO em `producao`** com série 2 e CSC na Focus) · 2026-08-12 noite (**editor visual de layout de etiqueta** — arrasta-e-solta com imagens e formas, branch `layout-etiquetas` DEPLOYADA em produção; armadilha 48 + lição de deploy na 26b) · 2026-08-12 (vários estoques por loja + contagem cega + bonificação que deve voltar + estilo de etiqueta "nome no topo" + conferência de bobina; armadilhas 43-47; **imagem rebuildada** e main promovida) · 2026-08-11 (formato de etiqueta cadastrável pelo lojista + fix do CRUD de categorias — `status` feminino, armadilha 42) · 2026-08-05 (filtro por loja em vendas + imports de vendas/contas a receber + import robusto + lojas mesmo CNPJ compartilham empresa Focus) · **Estado:** integração fiscal Fase 1-4 + multi-loja + regime de cobrança + auto-sync Focus + UX config fiscal + caixa por forma de pagamento (14/07) + Configurações da Loja/tabelas de preço/emissão parametrizada/adquirentes (24/07) + **Reforma Tributária NT 2025.002 (obrigatório 03/08/2026) + CNPJ alfanumérico NT 2025.001 (25/07)** + **e-mails/no-reply + cobrança direta mensal/anual com bloqueio + pode_ver_financeiro (04/08)** + **doc de alterações do Dennis (05/08)** + **etiqueta cadastrável pelo lojista em cm + fix do CRUD de categorias + auditoria de produção (11/08)** — concluídos
+**Última revisão:** 2026-08-13 (**"Acessar como"** — admin da plataforma entra no sistema logado como o dono de qualquer empresa-cliente, com banner, bypass de suspensão e rastro `acesso_como_admin_id` em toda activity da sessão) · 2026-08-13 noite (**PIX Sicredi no Agente IA** — gateway por empresa em `empresa_gateways` com credenciais cifradas + cobrança automática no pedido do agente + webhook re-consultado via mTLS + cron de sincronização; piloto DONA DOURO; seção 9f) · 2026-08-13 (**Agente IA** — banco vetorial pgvector `erp-com-vector` + busca semântica multi-tenant + pedidos rascunho via API, módulo ativável por empresa no admin; consumido pelo app.ia365; seção 9f) · 2026-08-12 (**API de Integração v1 — Gersen**: primeira API externa do ERP, somente leitura, token por empresa gerado no admin; seção própria) · 2026-08-12 madrugada (**backup mensal de XMLs virou pacote LOCAL** — o `/v2/backups` da Focus não existe, armadilha 49; **DONA DOURO em `producao`** com série 2 e CSC na Focus) · 2026-08-12 noite (**editor visual de layout de etiqueta** — arrasta-e-solta com imagens e formas, branch `layout-etiquetas` DEPLOYADA em produção; armadilha 48 + lição de deploy na 26b) · 2026-08-12 (vários estoques por loja + contagem cega + bonificação que deve voltar + estilo de etiqueta "nome no topo" + conferência de bobina; armadilhas 43-47; **imagem rebuildada** e main promovida) · 2026-08-11 (formato de etiqueta cadastrável pelo lojista + fix do CRUD de categorias — `status` feminino, armadilha 42) · 2026-08-05 (filtro por loja em vendas + imports de vendas/contas a receber + import robusto + lojas mesmo CNPJ compartilham empresa Focus) · **Estado:** integração fiscal Fase 1-4 + multi-loja + regime de cobrança + auto-sync Focus + UX config fiscal + caixa por forma de pagamento (14/07) + Configurações da Loja/tabelas de preço/emissão parametrizada/adquirentes (24/07) + **Reforma Tributária NT 2025.002 (obrigatório 03/08/2026) + CNPJ alfanumérico NT 2025.001 (25/07)** + **e-mails/no-reply + cobrança direta mensal/anual com bloqueio + pode_ver_financeiro (04/08)** + **doc de alterações do Dennis (05/08)** + **etiqueta cadastrável pelo lojista em cm + fix do CRUD de categorias + auditoria de produção (11/08)** — concluídos
 
 ---
 
@@ -1656,6 +1656,45 @@ sem validação (o controller loga `notice`); conferir os secrets das unidades a
 Deploy exige **rebuild da imagem** (armadilha 46 — `bootstrap/` é baked). Validação
 pós-deploy: `curl -X POST .../webhooks/focusnfe` deve sair de 419 para resposta do
 controller, e "Webhook Focus NFe recebido" passa a aparecer no laravel.log.
+
+## "Acessar como" — admin dentro do sistema do cliente (13/08/2026)
+
+> Branch `admin-acesso-como`. Pedido do Dennis: do admin, visualizar qualquer
+> cliente **como se tivesse logado como o admin dele**. Implementado como
+> impersonação real (não "visão de admin") — evita a mina inteira da armadilha 25.
+
+- **Entrar**: botão 🥸 na listagem `/admin/empresas` (btn-group) e "Acessar como
+  cliente" no show da empresa → `POST /admin/empresas/{id}/acessar-como`
+  (`AcessoComoController::entrar`). Só admin da plataforma; escolhe o usuário
+  **ativo** de maior perfil da empresa (dono primeiro, nunca outro admin da
+  plataforma; sem usuário ativo → aviso e nada acontece). Faz `Auth::login` no
+  alvo, limpa `empresa_id`/`unidade_id` da sessão e cai no fluxo normal do
+  cliente (seleção de unidade inclusa). A senha do cliente NÃO é tocada.
+- **Sessão marca `acesso_como_admin_id`** (id do admin real). É essa chave que:
+  banner âmbar fixo no topo do layout ("Acessando como {user} — {empresa} ·
+  Voltar ao admin", com badge quando a empresa está suspensa); bypass do
+  middleware `suspensao` (inspecionar cliente bloqueado é justamente o caso de
+  uso); e **auditoria** — o listener de Activity no `AppServiceProvider` carimba
+  `acesso_como_admin_id` nas properties de TODA activity criada na sessão
+  impersonada, além dos eventos `acesso_como_iniciado/encerrado` (log_name
+  `acesso_como`, causer = admin real).
+- **Voltar**: `POST /acesso-como/voltar` (fora do grupo /admin — quem clica está
+  logado como o cliente) restaura o admin e limpa a sessão. Encadear acesso-como
+  é recusado; voltar sem a chave na sessão é 403.
+- **Quem tem o botão**: qualquer usuário da equipe IA365 (`is_admin=1`) — não é
+  exclusivo do Dennis. Para conceder a alguém: Admin → Usuários → Novo, switch
+  "Acesso administrativo à plataforma" (a senha vai por e-mail, fluxo `equipe`).
+  `pode_ver_financeiro` é separado e independente: admin SEM a flag acessa
+  clientes normalmente, só não vê faturas/receita da plataforma — combinação
+  típica para suporte.
+- Validado E2E no erp-test-app (:8099): fluxo completo, 403 para não-admin,
+  403 no voltar sem sessão, rastro `acesso_como_admin_id` em cliente criado
+  impersonado, menu do cliente renderizado (PDV etc.) sem menu admin.
+- ⚠️ O PDV e views standalone que não usam `layouts/app` não mostram o banner —
+  a sessão continua marcada e auditada; só falta o aviso visual.
+- ⚠️ O ambiente de teste não tem o Postgres `vector` do Agente IA: a migration
+  `2026_08_13_200100` precisa ser marcada à mão em `migrations` (INSERT) para o
+  entrypoint do erp-test-app não morrer em loop de boot.
 
 ## Armadilhas conhecidas
 
