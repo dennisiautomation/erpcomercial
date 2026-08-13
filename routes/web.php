@@ -585,8 +585,10 @@ Route::prefix('api/integracao/v1')->name('api.integracao.')
         Route::get('/situacoes', [\App\Http\Controllers\Api\IntegracaoGersenController::class, 'situacoes'])->name('situacoes');
         Route::get('/vendas', [\App\Http\Controllers\Api\IntegracaoGersenController::class, 'vendas'])->name('vendas');
 
-        // Agente IA (app.ia365) — exige módulo ativo na empresa do token.
-        // POST /pedidos é a única escrita: pedido RASCUNHO, humano confirma.
+        // Agente IA (app.ia365) — exige módulo ativo na empresa do token
+        // (exceto /agente/ativar, que é quem liga o módulo).
+        // POST /pedidos é a única escrita de negócio: pedido RASCUNHO, humano confirma.
+        Route::post('/agente/ativar', [\App\Http\Controllers\Api\IntegracaoAgenteController::class, 'ativarAgente'])->name('agente.ativar');
         Route::post('/produtos/buscar', [\App\Http\Controllers\Api\IntegracaoAgenteController::class, 'buscarProdutos'])->name('produtos.buscar');
         Route::get('/produtos/{id}', [\App\Http\Controllers\Api\IntegracaoAgenteController::class, 'produto'])->whereNumber('id')->name('produtos.show');
         Route::get('/produtos/{id}/estoque', [\App\Http\Controllers\Api\IntegracaoAgenteController::class, 'estoqueProduto'])->whereNumber('id')->name('produtos.estoque');

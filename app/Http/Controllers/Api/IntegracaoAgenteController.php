@@ -46,6 +46,47 @@ class IntegracaoAgenteController extends Controller
     }
 
     /* ---------------------------------------------------------------- */
+    /*  Ativação                                                         */
+    /* ---------------------------------------------------------------- */
+
+    /**
+     * Ativa o módulo para a empresa do token e dispara a indexação.
+     *
+     * Chamado pelo provisionamento do app.ia365 ("Criar agente") — o token
+     * já prova que o admin da empresa autorizou a integração, então exigir
+     * um segundo clique no admin do ERP era burocracia (pedido do Dennis).
+     * É o ÚNICO endpoint do agente que não passa por exigirAgenteAtivo.
+     * Idempotente: já ativo → só re-dispara a indexação.
+     */
+    public function ativarAgente(Request $request): JsonResponse
+    {
+        $token = $this->token($request);
+
+        $config = AgenteIaConfig::firstOrCreate(['empresa_id' => $token->empresa_id]);
+        $jaEstavaAtivo = (bool) $config->ativo;
+
+        if (! $jaEstavaAtivo) {
+            $config->update(['ativo' => true]);
+        }
+
+        \App\Jobs\IndexarEmpresaAgenteJob::dispatch($token->empresa_id);
+
+        Log::channel('integracao')->info('Agente IA: ativado via API de integração', [
+            'empresa_id' => $token->empresa_id,
+            'ja_estava_ativo' => $jaEstavaAtivo,
+        ]);
+
+        return response()->json([
+            'dados' => [
+                'ativo' => true,
+                'ja_estava_ativo' => $jaEstavaAtivo,
+                'produtos_indexados' => (int) $config->produtos_indexados,
+                'indexado_em' => $config->indexado_em?->toIso8601String(),
+            ],
+        ]);
+    }
+
+    /* ---------------------------------------------------------------- */
     /*  Produtos                                                         */
     /* ---------------------------------------------------------------- */
 
