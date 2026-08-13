@@ -191,7 +191,11 @@ class IntegracaoAgenteController extends Controller
             ->unique()
             ->values();
 
-        if ($ids->isEmpty()) {
+        $fallbackCatalogo = false;
+
+        // Sem candidato e sem modo preço → vazio direto. Com modo preço o fluxo
+        // segue até o fallback de catálogo (§272.2) lá embaixo.
+        if ($ids->isEmpty() && ! $modoPreco) {
             return response()->json(['dados' => [], 'consulta' => $validated['consulta']]);
         }
 
@@ -228,10 +232,46 @@ class IntegracaoAgenteController extends Controller
             ->take($limite)
             ->values();
 
+        // Fallback de catálogo (§272.2): consulta genérica ("produto", "alguma
+        // coisa") com filtro/ordenação de preço não casa textual nem passa do
+        // corte semântico, mas o catálogo TEM itens na faixa — devolve o
+        // catálogo na faixa pedida, marcado como fallback_catalogo para o
+        // agente avisar que não é um match da descrição.
+        if ($dados->isEmpty() && $modoPreco) {
+            $fb = Produto::withoutGlobalScope(EmpresaScope::class)
+                ->with(['categoria:id,nome', 'precos'])
+                ->where('empresa_id', $token->empresa_id)
+                ->where('status', 'ativo');
+            if ($precoMin !== null) {
+                $fb->where('preco_venda', '>=', $precoMin);
+            }
+            if ($precoMax !== null) {
+                $fb->where('preco_venda', '<=', $precoMax);
+            }
+            $fb->orderBy('preco_venda', $ordenar === 'preco_desc' ? 'desc' : 'asc');
+
+            $saldosFb = $unidadeId ? null : ($saldosEmpresa ?? SaldoEstoque::porProdutoDaEmpresa($token->empresa_id));
+
+            $dados = $fb->limit($pool)->get()
+                ->map(function ($produto) use ($unidadeId, $saldosFb) {
+                    $estoque = $unidadeId
+                        ? SaldoEstoque::naUnidade($unidadeId, $produto->id)
+                        : (float) ($saldosFb[$produto->id] ?? 0.0);
+
+                    return $this->produtoParaResposta($produto, $estoque) + ['similaridade' => 0.0];
+                })
+                ->when(! $incluirSemEstoque, fn ($c) => $c->filter(fn ($p) => $p['estoque'] > 0))
+                ->take($limite)
+                ->values();
+
+            $fallbackCatalogo = $dados->isNotEmpty();
+        }
+
         return response()->json([
             'dados' => $dados,
             'consulta' => $validated['consulta'],
             'ordenar' => $ordenar,
+            'fallback_catalogo' => $fallbackCatalogo,
         ]);
     }
 
