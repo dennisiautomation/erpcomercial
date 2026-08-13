@@ -114,6 +114,11 @@ class Empresa extends Model
         return $this->hasMany(IntegracaoToken::class);
     }
 
+    public function agenteIaConfig()
+    {
+        return $this->hasOne(AgenteIaConfig::class);
+    }
+
     public function clientes(): HasMany
     {
         return $this->hasMany(Cliente::class);

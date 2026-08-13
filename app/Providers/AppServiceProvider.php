@@ -2,7 +2,9 @@
 
 namespace App\Providers;
 
+use App\Models\Produto;
 use App\Models\VendaItem;
+use App\Observers\ProdutoObserver;
 use App\Observers\VendaItemObserver;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\ServiceProvider;
@@ -25,6 +27,10 @@ class AppServiceProvider extends ServiceProvider
         // Snapshot fiscal automático: copia NCM/CFOP/CST/alíquotas do produto
         // para o venda_item na criação. Imuniza histórico contra edições do produto.
         VendaItem::observe(VendaItemObserver::class);
+
+        // Agente IA: produto alterado → re-indexa no banco vetorial (só
+        // dispara job para empresas com o módulo ativo — ver o Observer)
+        Produto::observe(ProdutoObserver::class);
 
         // Enriquecer toda Activity com empresa_id do subject (multi-tenant)
         Activity::creating(function (Activity $activity) {

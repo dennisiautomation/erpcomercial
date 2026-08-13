@@ -78,6 +78,10 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
         ->name('empresas.integracao-tokens.store');
     Route::post('/empresas/{empresa}/integracao-tokens/{token}/revogar', [Admin\IntegracaoTokenController::class, 'revogar'])
         ->name('empresas.integracao-tokens.revogar');
+    Route::post('/empresas/{empresa}/agente-ia/toggle', [Admin\AgenteIaController::class, 'toggle'])
+        ->name('empresas.agente-ia.toggle');
+    Route::post('/empresas/{empresa}/agente-ia/reindexar', [Admin\AgenteIaController::class, 'reindexar'])
+        ->name('empresas.agente-ia.reindexar');
     Route::resource('empresas', Admin\EmpresaController::class);
     Route::resource('empresas.unidades', Admin\UnidadeController::class)->shallow();
     Route::resource('usuarios', Admin\UsuarioController::class);
@@ -580,6 +584,15 @@ Route::prefix('api/integracao/v1')->name('api.integracao.')
         Route::get('/vendedores', [\App\Http\Controllers\Api\IntegracaoGersenController::class, 'vendedores'])->name('vendedores');
         Route::get('/situacoes', [\App\Http\Controllers\Api\IntegracaoGersenController::class, 'situacoes'])->name('situacoes');
         Route::get('/vendas', [\App\Http\Controllers\Api\IntegracaoGersenController::class, 'vendas'])->name('vendas');
+
+        // Agente IA (app.ia365) — exige módulo ativo na empresa do token.
+        // POST /pedidos é a única escrita: pedido RASCUNHO, humano confirma.
+        Route::post('/produtos/buscar', [\App\Http\Controllers\Api\IntegracaoAgenteController::class, 'buscarProdutos'])->name('produtos.buscar');
+        Route::get('/produtos/{id}', [\App\Http\Controllers\Api\IntegracaoAgenteController::class, 'produto'])->whereNumber('id')->name('produtos.show');
+        Route::get('/produtos/{id}/estoque', [\App\Http\Controllers\Api\IntegracaoAgenteController::class, 'estoqueProduto'])->whereNumber('id')->name('produtos.estoque');
+        Route::get('/pedidos', [\App\Http\Controllers\Api\IntegracaoAgenteController::class, 'pedidos'])->name('pedidos.index');
+        Route::get('/pedidos/{id}', [\App\Http\Controllers\Api\IntegracaoAgenteController::class, 'pedido'])->whereNumber('id')->name('pedidos.show');
+        Route::post('/pedidos', [\App\Http\Controllers\Api\IntegracaoAgenteController::class, 'criarPedido'])->name('pedidos.store');
     });
 
 /* ------------------------------------------------------------------ */

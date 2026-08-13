@@ -47,6 +47,29 @@ services:
     networks:
       - erpcom-internal
 
+  # Banco vetorial do Agente IA (busca semântica de produtos).
+  # Índice reconstruível: a fonte da verdade continua sendo o MySQL —
+  # se este volume sumir, `php artisan agente:reindex --all` refaz tudo.
+  vector:
+    image: pgvector/pgvector:pg16
+    container_name: erp-com-vector
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${VECTOR_DB_DATABASE:-agente_busca}
+      POSTGRES_USER: ${VECTOR_DB_USERNAME:-agente}
+      POSTGRES_PASSWORD: ${VECTOR_DB_PASSWORD}
+    volumes:
+      - vector_data:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:${VECTOR_DB_EXTERNAL_PORT:-5462}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${VECTOR_DB_USERNAME:-agente} -d ${VECTOR_DB_DATABASE:-agente_busca}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - erpcom-internal
+
   redis:
     image: redis:7-alpine
     container_name: erp-com-redis
@@ -66,4 +89,5 @@ networks:
 volumes:
   mysql_data:
   redis_data:
+  vector_data:
   app_storage:

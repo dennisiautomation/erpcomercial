@@ -53,4 +53,15 @@ return [
         'webhook_base_url' => env('FOCUS_WEBHOOK_BASE_URL', env('APP_URL')),
     ],
 
+    /*
+    | OpenAI — embeddings da busca semântica do Agente IA.
+    | Chave ÚNICA da plataforma (não é por empresa): o custo de indexação
+    | é de centavos e o token de integração já isola os tenants.
+    */
+    'openai' => [
+        'key' => env('OPENAI_API_KEY'),
+        'embedding_model' => env('OPENAI_EMBEDDING_MODEL', 'text-embedding-3-small'),
+        'embedding_dimensions' => 1536,
+    ],
+
 ];

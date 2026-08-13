@@ -430,6 +430,63 @@
 
     {{-- Tab Integração (API consumida pelo Gersen) --}}
     <div class="tab-pane fade" id="integracao" role="tabpanel">
+        @php($agenteIa = $empresa->agenteIaConfig)
+        <div class="row g-4 mb-1">
+            <div class="col-12">
+                <div class="card detail-card shadow-sm">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0"><i class="bi bi-robot me-1"></i> Agente IA (WhatsApp via app.ia365)</h6>
+                        @if($agenteIa?->ativo)
+                            <span class="badge bg-success bg-opacity-10 text-success">Ativo</span>
+                        @else
+                            <span class="badge bg-secondary bg-opacity-10 text-secondary">Inativo</span>
+                        @endif
+                    </div>
+                    <div class="card-body d-flex flex-wrap align-items-center gap-3">
+                        <div class="flex-grow-1">
+                            <p class="text-muted small mb-1">
+                                Indexa os produtos desta empresa para busca semântica e libera os endpoints
+                                do agente (<code>/api/integracao/v1/produtos/buscar</code> e
+                                <code>/api/integracao/v1/pedidos</code>) — autenticados pelos mesmos tokens abaixo.
+                            </p>
+                            @if($agenteIa?->indexado_em)
+                                <p class="small mb-0">
+                                    <i class="bi bi-check-circle text-success me-1"></i>
+                                    {{ $agenteIa->produtos_indexados }} produtos indexados
+                                    (última indexação {{ $agenteIa->indexado_em->format('d/m/Y H:i') }})
+                                </p>
+                            @elseif($agenteIa?->ativo)
+                                <p class="small mb-0 text-muted">
+                                    <i class="bi bi-hourglass-split me-1"></i> Indexação inicial na fila…
+                                </p>
+                            @endif
+                            @if($agenteIa?->ultima_falha)
+                                <p class="small mb-0 text-danger">
+                                    <i class="bi bi-x-circle me-1"></i> Última falha: {{ $agenteIa->ultima_falha }}
+                                </p>
+                            @endif
+                        </div>
+                        <div class="d-flex gap-2">
+                            @if($agenteIa?->ativo)
+                            <form method="POST" action="{{ route('admin.empresas.agente-ia.reindexar', $empresa) }}">
+                                @csrf
+                                <button type="submit" class="btn btn-sm btn-outline-secondary">
+                                    <i class="bi bi-arrow-repeat me-1"></i> Reindexar
+                                </button>
+                            </form>
+                            @endif
+                            <form method="POST" action="{{ route('admin.empresas.agente-ia.toggle', $empresa) }}"
+                                  @if($agenteIa?->ativo) onsubmit="return confirm('Desativar o Agente IA? Os endpoints de busca e pedidos param de responder para esta empresa.')" @endif>
+                                @csrf
+                                <button type="submit" class="btn btn-sm {{ $agenteIa?->ativo ? 'btn-outline-danger' : 'btn-primary' }}">
+                                    {{ $agenteIa?->ativo ? 'Desativar' : 'Ativar Agente IA' }}
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
         <div class="row g-4">
             <div class="col-lg-8">
                 <div class="card detail-card shadow-sm">

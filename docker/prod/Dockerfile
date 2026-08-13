@@ -6,14 +6,14 @@ FROM php:8.4-fpm-alpine AS base
 
 # Extensões necessárias para Laravel 12 + MySQL + Redis + imagick (etiquetas)
 RUN apk add --no-cache --virtual .build-deps \
-        autoconf g++ make linux-headers pkgconf \
+        autoconf g++ make linux-headers pkgconf postgresql-dev \
     && apk add --no-cache \
         bash curl git unzip icu-dev libzip-dev oniguruma-dev \
-        libpng-dev libjpeg-turbo-dev freetype-dev \
+        libpng-dev libjpeg-turbo-dev freetype-dev libpq \
         nginx supervisor tzdata \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install -j$(nproc) \
-        pdo_mysql mysqli bcmath intl zip pcntl gd opcache exif \
+        pdo_mysql mysqli pdo_pgsql bcmath intl zip pcntl gd opcache exif \
     && pecl install redis \
     && docker-php-ext-enable redis \
     && cp /usr/share/zoneinfo/America/Sao_Paulo /etc/localtime \

@@ -99,6 +99,22 @@ return [
             'sslmode' => env('DB_SSLMODE', 'prefer'),
         ],
 
+        // Banco vetorial do Agente IA (container erp-com-vector, pgvector).
+        // Só guarda o índice de busca semântica — o MySQL segue a fonte da verdade.
+        'vector' => [
+            'driver' => 'pgsql',
+            'host' => env('VECTOR_DB_HOST', 'vector'),
+            'port' => env('VECTOR_DB_PORT', '5432'),
+            'database' => env('VECTOR_DB_DATABASE', 'agente_busca'),
+            'username' => env('VECTOR_DB_USERNAME', 'agente'),
+            'password' => env('VECTOR_DB_PASSWORD', ''),
+            'charset' => 'utf8',
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'search_path' => 'public',
+            'sslmode' => 'prefer',
+        ],
+
         'sqlsrv' => [
             'driver' => 'sqlsrv',
             'url' => env('DB_URL'),

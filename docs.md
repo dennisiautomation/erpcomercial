@@ -2,7 +2,7 @@
 
 > SaaS ERP multi-tenant para PMEs. Admin (IA365) gerencia a plataforma; cada empresa-cliente tem múltiplas unidades com fiscal, estoque e caixa independentes. Integração 100% Focus NFe (NF-e, NFC-e, NFS-e, CC-e, manifestação do destinatário, backup XMLs).
 
-**Última revisão:** 2026-08-12 (**API de Integração v1 — Gersen**: primeira API externa do ERP, somente leitura, token por empresa gerado no admin; seção própria) · 2026-08-12 madrugada (**backup mensal de XMLs virou pacote LOCAL** — o `/v2/backups` da Focus não existe, armadilha 49; **DONA DOURO em `producao`** com série 2 e CSC na Focus) · 2026-08-12 noite (**editor visual de layout de etiqueta** — arrasta-e-solta com imagens e formas, branch `layout-etiquetas` DEPLOYADA em produção; armadilha 48 + lição de deploy na 26b) · 2026-08-12 (vários estoques por loja + contagem cega + bonificação que deve voltar + estilo de etiqueta "nome no topo" + conferência de bobina; armadilhas 43-47; **imagem rebuildada** e main promovida) · 2026-08-11 (formato de etiqueta cadastrável pelo lojista + fix do CRUD de categorias — `status` feminino, armadilha 42) · 2026-08-05 (filtro por loja em vendas + imports de vendas/contas a receber + import robusto + lojas mesmo CNPJ compartilham empresa Focus) · **Estado:** integração fiscal Fase 1-4 + multi-loja + regime de cobrança + auto-sync Focus + UX config fiscal + caixa por forma de pagamento (14/07) + Configurações da Loja/tabelas de preço/emissão parametrizada/adquirentes (24/07) + **Reforma Tributária NT 2025.002 (obrigatório 03/08/2026) + CNPJ alfanumérico NT 2025.001 (25/07)** + **e-mails/no-reply + cobrança direta mensal/anual com bloqueio + pode_ver_financeiro (04/08)** + **doc de alterações do Dennis (05/08)** + **etiqueta cadastrável pelo lojista em cm + fix do CRUD de categorias + auditoria de produção (11/08)** — concluídos
+**Última revisão:** 2026-08-13 (**Agente IA** — banco vetorial pgvector `erp-com-vector` + busca semântica multi-tenant + pedidos rascunho via API, módulo ativável por empresa no admin; consumido pelo app.ia365; seção 9f) · 2026-08-12 (**API de Integração v1 — Gersen**: primeira API externa do ERP, somente leitura, token por empresa gerado no admin; seção própria) · 2026-08-12 madrugada (**backup mensal de XMLs virou pacote LOCAL** — o `/v2/backups` da Focus não existe, armadilha 49; **DONA DOURO em `producao`** com série 2 e CSC na Focus) · 2026-08-12 noite (**editor visual de layout de etiqueta** — arrasta-e-solta com imagens e formas, branch `layout-etiquetas` DEPLOYADA em produção; armadilha 48 + lição de deploy na 26b) · 2026-08-12 (vários estoques por loja + contagem cega + bonificação que deve voltar + estilo de etiqueta "nome no topo" + conferência de bobina; armadilhas 43-47; **imagem rebuildada** e main promovida) · 2026-08-11 (formato de etiqueta cadastrável pelo lojista + fix do CRUD de categorias — `status` feminino, armadilha 42) · 2026-08-05 (filtro por loja em vendas + imports de vendas/contas a receber + import robusto + lojas mesmo CNPJ compartilham empresa Focus) · **Estado:** integração fiscal Fase 1-4 + multi-loja + regime de cobrança + auto-sync Focus + UX config fiscal + caixa por forma de pagamento (14/07) + Configurações da Loja/tabelas de preço/emissão parametrizada/adquirentes (24/07) + **Reforma Tributária NT 2025.002 (obrigatório 03/08/2026) + CNPJ alfanumérico NT 2025.001 (25/07)** + **e-mails/no-reply + cobrança direta mensal/anual com bloqueio + pode_ver_financeiro (04/08)** + **doc de alterações do Dennis (05/08)** + **etiqueta cadastrável pelo lojista em cm + fix do CRUD de categorias + auditoria de produção (11/08)** — concluídos
 
 ---
 
@@ -21,6 +21,7 @@
 9c. [Relatório de contagem cega](#relatório-de-contagem-cega-12082026)
 9d. [Bonificação que deve voltar](#bonificação-que-deve-voltar--peças-em-poder-de-terceiros-12082026)
 9e. [API de Integração — Gersen](#api-de-integração-gersen-12082026)
+9f. [Agente IA — busca semântica + pedidos](#agente-ia--busca-semântica--pedidos-via-whatsapp-13082026)
 10. [Armadilhas conhecidas](#armadilhas-conhecidas)
 11. [Próximos passos](#próximos-passos)
 
@@ -1544,6 +1545,42 @@ Canal dedicado `integracao` (`config/logging.php`, daily, 30 dias → `storage/l
 ### Consumidor (lado Gersen)
 
 Provider `ERPIA365` no Gersen (repo `gersen-work`, `src/lib/integrations/providers/erpia365.ts`). Tráfego não sai do servidor: o container do Gersen resolve `erp.ia365.com.br` para o gateway Docker via `extra_hosts` (hairpin NAT não funciona de dentro da LAN; o nginx do host escuta em 0.0.0.0:443 e o certificado valida normalmente). Cancelamento propagado ao Gersen só dentro da janela de re-varredura dele (`rescanDays`, padrão 7 dias) — mesma limitação do Gestão Click; extensão futura: cursor por `updated_at`.
+
+## Agente IA — busca semântica + pedidos via WhatsApp (13/08/2026)
+
+Módulo que transforma o ERP no "lado da loja" de um agente de IA no WhatsApp (mesma arquitetura da ChinaMix: o cérebro é o **app.ia365**, que chama estes endpoints como ferramentas). Branch `feat/agente-ia`.
+
+### Arquitetura
+
+```
+WhatsApp → app.ia365 (agente por cliente) → /api/integracao/v1/* (Bearer da empresa)
+                                             ├─ produtos/buscar → pgvector (erp-com-vector)
+                                             └─ pedidos (POST)  → pedido RASCUNHO no MySQL
+```
+
+- **Banco vetorial**: container `erp-com-vector` (`pgvector/pgvector:pg16`, porta host `127.0.0.1:5462`, volume `vector_data`, conexão Laravel `vector`). É um **índice reconstruível**: guarda só `produtos_busca(produto_id, empresa_id, texto, embedding vector(1536))` + função SQL `buscar_produtos(empresa, embedding, limite, similaridade_minima)` (coseno, filtro de empresa OBRIGATÓRIO). Preço/estoque/foto são lidos do MySQL na resposta. Se o volume sumir: `php artisan agente:reindex --all`.
+- **Embeddings**: OpenAI `text-embedding-3-small` (1536 dims), chave ÚNICA da plataforma (`OPENAI_API_KEY` no `.env`), texto sempre lowercase (`descricao | categoria | descricao_detalhada | codigo_interno | sku`). `App\Services\AgenteIa\EmbeddingService` (batch 100) + `IndexadorProdutos` (ponto único de escrita no índice, upsert + poda).
+- **Quando os embeddings são gerados**: (1) ao ATIVAR o módulo → `IndexarEmpresaAgenteJob` indexa a empresa inteira na fila; (2) produto criado/editado/excluído → `ProdutoObserver` despacha `IndexarProdutoAgenteJob` (só para empresas com módulo ativo — quem não usa não gera custo); (3) manual: `php artisan agente:reindex {empresa|--all}`. Cada busca gera 1 embedding da consulta (~300 ms).
+- **Ativação por empresa**: `/admin/empresas/{id}` → aba Integração → card "Agente IA" (`Admin\AgenteIaController`, tabela `agente_ia_configs`: ativo, vendedor_padrao_id, indexado_em, produtos_indexados, ultima_falha). Endpoints respondem **403** para empresa sem módulo ativo.
+
+### Endpoints novos (mesmo grupo, Bearer + throttle 300/min + log canal `integracao`)
+
+| Rota | O quê |
+|---|---|
+| `POST /api/integracao/v1/produtos/buscar` | Busca **híbrida** `{consulta, limite≤10, unidade_id?, incluir_sem_estoque?}` — textual (LIKE, todos os termos >2 chars em descrição/códigos, similaridade 1.0) + semântica (pgvector ≥ 0.3), merge com textual na frente. Sem estoque some por padrão. Se OpenAI/vector caírem, **degrada para só textual** (não dá 500). |
+| `GET /api/integracao/v1/produtos/{id}` | Detalhe + `precos_modalidade` (produto_precos) + `estoque_por_loja` (`SaldoEstoque::naUnidade`) |
+| `GET /api/integracao/v1/produtos/{id}/estoque` | Só o estoque por loja |
+| `GET /api/integracao/v1/pedidos?status&telefone&pagina` | Lista pedidos da empresa (50/página) — alimenta a aba Pedidos do app.ia365 |
+| `GET /api/integracao/v1/pedidos/{id}` | Detalhe com itens |
+| `POST /api/integracao/v1/pedidos` | **Única escrita da API**: `{unidade_id, cliente{nome,telefone,cpf_cnpj?,email?}, itens[{produto_id,quantidade}], observacoes?, origem?}` → acha/cria o cliente pelo telefone (sufixo 8 dígitos, tolera 9º dígito; CNPJ alfanumérico preservado — armadilha 33), cria pedido **RASCUNHO** com `numero = max+1` sob lock, preço = `preco_venda` atual (agente NÃO define preço). Não movimenta estoque, não fatura, não emite fiscal — humano confirma no ERP. |
+
+### Deploy (exige rebuild + restart — fora do rito USR2)
+
+1. `.env`: bloco `VECTOR_DB_*` + `OPENAI_API_KEY` (ver `.env.example`) e `docker cp` para o container (env não é bind-mounted).
+2. `docker compose -f docker-compose.prod.yml up -d vector` (sobe o pgvector ANTES do migrate).
+3. Rebuild da imagem (Dockerfile ganhou `pdo_pgsql`) + recreate do app.
+4. `php artisan migrate --force` (cria `agente_ia_configs` no MySQL e o schema no vector).
+5. Ativar a empresa piloto no admin e conferir `produtos_indexados` na aba.
 
 ## Armadilhas conhecidas
 
