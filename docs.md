@@ -2,7 +2,7 @@
 
 > SaaS ERP multi-tenant para PMEs. Admin (IA365) gerencia a plataforma; cada empresa-cliente tem múltiplas unidades com fiscal, estoque e caixa independentes. Integração 100% Focus NFe (NF-e, NFC-e, NFS-e, CC-e, manifestação do destinatário, backup XMLs).
 
-**Última revisão:** 2026-08-13 tarde (**Agente IA v2** — busca com ordenar/preco_min/max + fallback de catálogo + JSON forçado no api/integracao + merge do admin-acesso-como + armadilha 50; seção 9f) · 2026-08-13 (**"Acessar como"** — admin da plataforma entra no sistema logado como o dono de qualquer empresa-cliente, com banner, bypass de suspensão e rastro `acesso_como_admin_id` em toda activity da sessão) · 2026-08-13 noite (**PIX Sicredi no Agente IA** — gateway por empresa em `empresa_gateways` com credenciais cifradas + cobrança automática no pedido do agente + webhook re-consultado via mTLS + cron de sincronização; piloto DONA DOURO; seção 9f) · 2026-08-13 (**Agente IA** — banco vetorial pgvector `erp-com-vector` + busca semântica multi-tenant + pedidos rascunho via API, módulo ativável por empresa no admin; consumido pelo app.ia365; seção 9f) · 2026-08-12 (**API de Integração v1 — Gersen**: primeira API externa do ERP, somente leitura, token por empresa gerado no admin; seção própria) · 2026-08-12 madrugada (**backup mensal de XMLs virou pacote LOCAL** — o `/v2/backups` da Focus não existe, armadilha 49; **DONA DOURO em `producao`** com série 2 e CSC na Focus) · 2026-08-12 noite (**editor visual de layout de etiqueta** — arrasta-e-solta com imagens e formas, branch `layout-etiquetas` DEPLOYADA em produção; armadilha 48 + lição de deploy na 26b) · 2026-08-12 (vários estoques por loja + contagem cega + bonificação que deve voltar + estilo de etiqueta "nome no topo" + conferência de bobina; armadilhas 43-47; **imagem rebuildada** e main promovida) · 2026-08-11 (formato de etiqueta cadastrável pelo lojista + fix do CRUD de categorias — `status` feminino, armadilha 42) · 2026-08-05 (filtro por loja em vendas + imports de vendas/contas a receber + import robusto + lojas mesmo CNPJ compartilham empresa Focus) · **Estado:** integração fiscal Fase 1-4 + multi-loja + regime de cobrança + auto-sync Focus + UX config fiscal + caixa por forma de pagamento (14/07) + Configurações da Loja/tabelas de preço/emissão parametrizada/adquirentes (24/07) + **Reforma Tributária NT 2025.002 (obrigatório 03/08/2026) + CNPJ alfanumérico NT 2025.001 (25/07)** + **e-mails/no-reply + cobrança direta mensal/anual com bloqueio + pode_ver_financeiro (04/08)** + **doc de alterações do Dennis (05/08)** + **etiqueta cadastrável pelo lojista em cm + fix do CRUD de categorias + auditoria de produção (11/08)** — concluídos
+**Última revisão:** 2026-08-13 (**Landing V2 "formato Apple"** — site público redesenhado no estilo Apple/Find My, convive com o clássico via `/?visual=v2`, v1 segue sendo o padrão; seção própria) · 2026-08-13 tarde (**Agente IA v2** — busca com ordenar/preco_min/max + fallback de catálogo + JSON forçado no api/integracao + merge do admin-acesso-como + armadilha 50; seção 9f) · 2026-08-13 (**"Acessar como"** — admin da plataforma entra no sistema logado como o dono de qualquer empresa-cliente, com banner, bypass de suspensão e rastro `acesso_como_admin_id` em toda activity da sessão) · 2026-08-13 noite (**PIX Sicredi no Agente IA** — gateway por empresa em `empresa_gateways` com credenciais cifradas + cobrança automática no pedido do agente + webhook re-consultado via mTLS + cron de sincronização; piloto DONA DOURO; seção 9f) · 2026-08-13 (**Agente IA** — banco vetorial pgvector `erp-com-vector` + busca semântica multi-tenant + pedidos rascunho via API, módulo ativável por empresa no admin; consumido pelo app.ia365; seção 9f) · 2026-08-12 (**API de Integração v1 — Gersen**: primeira API externa do ERP, somente leitura, token por empresa gerado no admin; seção própria) · 2026-08-12 madrugada (**backup mensal de XMLs virou pacote LOCAL** — o `/v2/backups` da Focus não existe, armadilha 49; **DONA DOURO em `producao`** com série 2 e CSC na Focus) · 2026-08-12 noite (**editor visual de layout de etiqueta** — arrasta-e-solta com imagens e formas, branch `layout-etiquetas` DEPLOYADA em produção; armadilha 48 + lição de deploy na 26b) · 2026-08-12 (vários estoques por loja + contagem cega + bonificação que deve voltar + estilo de etiqueta "nome no topo" + conferência de bobina; armadilhas 43-47; **imagem rebuildada** e main promovida) · 2026-08-11 (formato de etiqueta cadastrável pelo lojista + fix do CRUD de categorias — `status` feminino, armadilha 42) · 2026-08-05 (filtro por loja em vendas + imports de vendas/contas a receber + import robusto + lojas mesmo CNPJ compartilham empresa Focus) · **Estado:** integração fiscal Fase 1-4 + multi-loja + regime de cobrança + auto-sync Focus + UX config fiscal + caixa por forma de pagamento (14/07) + Configurações da Loja/tabelas de preço/emissão parametrizada/adquirentes (24/07) + **Reforma Tributária NT 2025.002 (obrigatório 03/08/2026) + CNPJ alfanumérico NT 2025.001 (25/07)** + **e-mails/no-reply + cobrança direta mensal/anual com bloqueio + pode_ver_financeiro (04/08)** + **doc de alterações do Dennis (05/08)** + **etiqueta cadastrável pelo lojista em cm + fix do CRUD de categorias + auditoria de produção (11/08)** — concluídos
 
 ---
 
@@ -1695,6 +1695,40 @@ controller, e "Webhook Focus NFe recebido" passa a aparecer no laravel.log.
 - ⚠️ O ambiente de teste não tem o Postgres `vector` do Agente IA: a migration
   `2026_08_13_200100` precisa ser marcada à mão em `migrations` (INSERT) para o
   entrypoint do erp-test-app não morrer em loop de boot.
+
+## Landing V2 "formato Apple" (13/08/2026)
+
+Redesign do **site público** (`/`, `site.landing`) no estilo Apple/Find My — mesmo
+padrão de convivência do Visual V2 do JL-ERP: **a v1 continua sendo o padrão e não
+saiu do ar**; a v2 só aparece para quem entra pela URL.
+
+- **Entrada:** `https://erp.ia365.com.br/?visual=v2` ativa e grava `site_visual`
+  na session; `/?visual=classico` volta. Sem parâmetro → clássico. Lógica no
+  `SiteController::index` (nenhuma rota nova).
+- **View:** `resources/views/site/landing-v2.blade.php` — autossuficiente
+  (CSS/JS inline, SF stack do sistema, **zero dependência externa**: sem Google
+  Fonts, sem lib de gráfico). A v1 (`landing.blade.php` + `public/site/*`) está
+  **intocada**.
+- **Design system:** receita do JL (`/home/ubuntu/jl-frota-mockups-20260813/COMO-CONSTRUIR-VISUAL-FINDMY.md`):
+  superfícies `#fff`/`#f5f5f7`, tinta `#1d1d1f`, hairlines, azul de ação `#0071e3`,
+  cores semânticas iOS **só em dado** (verde ok / laranja atenção / vermelho alerta,
+  versões `*D` escuras p/ texto AA), raio 18px, números tabulares, vidro
+  (`backdrop-filter`) apenas na nav e no toast que flutuam sobre conteúdo real.
+- **Herói = mock do painel "formato Apple"** (feedback do Dennis 14/08: título
+  compacto numa linha, painel GRANDE dominando a dobra — "o produto é o herói"):
+  janela iOS com sidebar de vidro,
+  **anel estilo Apple Watch** (arco 240°, `pathLength=100`, texto no centro real —
+  47/47 notas autorizadas), KPIs com count-up, gráfico SVG suave (bezier com
+  controle no meio-x, draw-in por dasharray) e toast de vidro "NFC-e autorizada".
+  **Movimento contínuo por lerp em rAF** (nunca transition em atributo por frame);
+  `prefers-reduced-motion` desliga tudo e mostra o estado final.
+- **Conteúdo/produto:** mesma copy, mesmas seções (hero → confiança → PDV/
+  Financeiro/Multi-loja → fiscal em banda preta/bento → módulos → multi-empresa →
+  planos → segurança → demo) e **mesmo formulário** (`site.demo.store`, honeypot,
+  fetch AJAX com contrato idêntico ao `public/site/landing.js`).
+- **SEO:** a v2 tem `<meta name="robots" content="noindex">` enquanto for prévia —
+  remover quando (se) for promovida a padrão.
+- Branch `feat/site-v2-apple` (base = produção `3ec4217`).
 
 ## Armadilhas conhecidas
 

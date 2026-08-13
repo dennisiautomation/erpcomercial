@@ -17,8 +17,12 @@ class SiteController extends Controller
 {
     /**
      * Landing pública. Usuário autenticado é levado direto ao sistema.
+     *
+     * Visual V2 (estilo Apple) convive com o clássico sem tirá-lo do ar:
+     * ?visual=v2 ativa e grava na session; ?visual=classico volta. Sem o
+     * parâmetro, quem nunca optou continua vendo o clássico (padrão JL).
      */
-    public function index()
+    public function index(Request $request)
     {
         if (Auth::check()) {
             $user = Auth::user();
@@ -30,10 +34,17 @@ class SiteController extends Controller
             return redirect()->route('app.dashboard');
         }
 
+        $visual = $request->query('visual');
+        if (in_array($visual, ['v2', 'classico'], true)) {
+            session(['site_visual' => $visual]);
+        }
+
+        $view = session('site_visual') === 'v2' ? 'site.landing-v2' : 'site.landing';
+
         // no-cache no HTML: garante que o navegador sempre pegue a versão atual
         // do formulário (evita ficar preso em markup antigo após deploys).
         return response()
-            ->view('site.landing')
+            ->view($view)
             ->header('Cache-Control', 'no-cache, no-store, must-revalidate');
     }
 
