@@ -584,7 +584,7 @@ Route::middleware(['auth', 'suspensao', 'unidade'])->prefix('app')->name('app.')
 // O middleware entra POR CLASSE, sem alias: alias novo mora no bootstrap/app.php
 // e bootstrap/ só chega em produção com rebuild da imagem (armadilha 46).
 Route::prefix('api/integracao/v1')->name('api.integracao.')
-    ->middleware([\App\Http\Middleware\IntegracaoApiToken::class, 'throttle:300,1'])
+    ->middleware([\App\Http\Middleware\ForceJsonForIntegracaoApi::class, \App\Http\Middleware\IntegracaoApiToken::class, 'throttle:300,1'])
     ->group(function () {
         Route::get('/ping', [\App\Http\Controllers\Api\IntegracaoGersenController::class, 'ping'])->name('ping');
         Route::get('/lojas', [\App\Http\Controllers\Api\IntegracaoGersenController::class, 'lojas'])->name('lojas');

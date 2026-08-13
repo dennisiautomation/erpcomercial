@@ -106,10 +106,21 @@ class IntegracaoAgenteController extends Controller
             'limite' => ['nullable', 'integer', 'min:1', 'max:10'],
             'unidade_id' => ['nullable', 'integer'],
             'incluir_sem_estoque' => ['nullable', 'boolean'],
+            'ordenar' => ['nullable', 'string', 'in:relevancia,preco_asc,preco_desc'],
+            'preco_min' => ['nullable', 'numeric', 'min:0'],
+            'preco_max' => ['nullable', 'numeric', 'min:0'],
         ]);
 
         $limite = (int) ($validated['limite'] ?? 5);
         $incluirSemEstoque = (bool) ($validated['incluir_sem_estoque'] ?? false);
+        $ordenar = $validated['ordenar'] ?? 'relevancia';
+        $precoMin = isset($validated['preco_min']) ? (float) $validated['preco_min'] : null;
+        $precoMax = isset($validated['preco_max']) ? (float) $validated['preco_max'] : null;
+
+        // "Mais caro"/"até X reais" precisam de um pool de candidatos maior
+        // que o limite final: a relevância deixa de ser o critério de corte.
+        $modoPreco = $ordenar !== 'relevancia' || $precoMin !== null || $precoMax !== null;
+        $pool = $modoPreco ? max($limite * 6, 30) : $limite;
 
         $unidadeId = null;
         if (! empty($validated['unidade_id'])) {
@@ -145,7 +156,14 @@ class IntegracaoAgenteController extends Controller
                 });
             }
 
-            $idsTextuais = $query->orderBy('descricao')->limit($limite)->pluck('id')->all();
+            if ($precoMin !== null) {
+                $query->where('preco_venda', '>=', $precoMin);
+            }
+            if ($precoMax !== null) {
+                $query->where('preco_venda', '<=', $precoMax);
+            }
+
+            $idsTextuais = $query->orderBy('descricao')->limit($pool)->pluck('id')->all();
         }
 
         // 2) Busca semântica no pgvector
@@ -154,7 +172,7 @@ class IntegracaoAgenteController extends Controller
             $embedding = $this->embeddings->gerar($validated['consulta']);
             $linhas = DB::connection('vector')->select(
                 'SELECT produto_id, similaridade FROM buscar_produtos(?, ?::vector, ?, ?)',
-                [$token->empresa_id, '[' . implode(',', $embedding) . ']', $limite * 2, 0.3]
+                [$token->empresa_id, '[' . implode(',', $embedding) . ']', max($pool, $limite * 2), 0.3]
             );
             foreach ($linhas as $linha) {
                 $similaridades[(int) $linha->produto_id] = round((float) $linha->similaridade, 4);
@@ -203,10 +221,18 @@ class IntegracaoAgenteController extends Controller
             })
             ->filter()
             ->when(! $incluirSemEstoque, fn ($c) => $c->filter(fn ($p) => $p['estoque'] > 0))
+            ->when($precoMin !== null, fn ($c) => $c->filter(fn ($p) => $p['preco'] >= $precoMin))
+            ->when($precoMax !== null, fn ($c) => $c->filter(fn ($p) => $p['preco'] <= $precoMax))
+            ->when($ordenar === 'preco_desc', fn ($c) => $c->sortByDesc('preco'))
+            ->when($ordenar === 'preco_asc', fn ($c) => $c->sortBy('preco'))
             ->take($limite)
             ->values();
 
-        return response()->json(['dados' => $dados, 'consulta' => $validated['consulta']]);
+        return response()->json([
+            'dados' => $dados,
+            'consulta' => $validated['consulta'],
+            'ordenar' => $ordenar,
+        ]);
     }
 
     public function produto(Request $request, int $id): JsonResponse
