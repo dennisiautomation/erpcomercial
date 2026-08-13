@@ -1960,3 +1960,12 @@ controller, e "Webhook Focus NFe recebido" passa a aparecer no laravel.log.
 - Tabelas SEFAZ (CFOP/CST/CSOSN): CONFAZ + Receita Federal
 - TIPI (NCM/IPI): Receita Federal
 - IBPT (valor aproximado de tributos): LC 165/2018
+
+**⚠️ Armadilha 50 (13/08/2026) — deploy por tar precisa conter TUDO que a produção já tem:** a produção
+pode estar à frente da SUA worktree (outra sessão deployou `admin-acesso-como` @2b557d1 por cima da mesma
+base). Um `tar app routes` parcial a partir de worktree desatualizada REMOVEU as rotas do "Acessar como"
+do container enquanto as views (não incluídas no tar) seguiam referenciando `route('admin.empresas.
+acessar-como')` → **500 "Route not defined" em /admin/empresas**. Antes de deployar por tar: `git log`
+de TODAS as branches recentes (o que está no container pode não estar na sua base), mergear o que a
+produção já roda, e mandar o conjunto completo `app database resources routes config`. Corrigido com
+merge de `admin-acesso-como` em `feat/agente-busca-preco-json` @3a517af + redeploy completo.
