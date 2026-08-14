@@ -38,6 +38,7 @@ body{
   font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','SF Pro Text','Segoe UI',Roboto,Helvetica,Arial,sans-serif;
   background:var(--bg);color:var(--ink);
   font-size:17px;line-height:1.55;
+  overflow-x:hidden;
   -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;
 }
 ::selection{background:rgba(0,113,227,.18)}
@@ -267,6 +268,7 @@ h1,h2,h3{letter-spacing:-.015em;text-wrap:balance}
   border:1px solid rgba(255,255,255,.08);
 }
 .bcard--wide{grid-column:span 3}
+.bcard--full{grid-column:1/-1}
 .bcard h3{font-size:1.15rem;font-weight:700;letter-spacing:-.01em}
 .bcard p{font-size:.92rem;color:#a1a1a6;flex:1;text-wrap:pretty}
 .bcard .bic{width:34px;height:34px;border-radius:9px;background:rgba(52,199,89,.16);color:var(--ok);display:flex;align-items:center;justify-content:center;margin-bottom:.3rem}
@@ -644,7 +646,7 @@ h1,h2,h3{letter-spacing:-.015em;text-wrap:balance}
         <p>Suba o certificado A1 e o sistema avisa quando estiver vencendo. O arquivo não fica no servidor: vai direto para a emissora.</p>
         <div class="btags"><span class="btag">Certificado A1</span><span class="btag">Aviso de validade</span></div>
       </article>
-      <article class="bcard bcard--wide rv" style="grid-column:span 6">
+      <article class="bcard bcard--full rv">
         <span class="bic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.5 0 4.8 1 6.4 2.6L21 8"/><path d="M21 3v5h-5"/></svg></span>
         <h3>Guarda os XML por 5 anos</h3>
         <p>Backup mensal dos arquivos fiscais feito todo dia, sem você lembrar. Status da SEFAZ por estado e painel com erros e emissões dos últimos dias.</p>
