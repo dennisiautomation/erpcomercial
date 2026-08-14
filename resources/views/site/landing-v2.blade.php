@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="csrf-token" content="{{ csrf_token() }}">
-<meta name="robots" content="noindex">{{-- prévia do visual v2: sem indexar enquanto o clássico é o oficial --}}
 <title>ERP Comercial IA365 · Sua loja vende, o sistema emite a nota</title>
 <meta name="description" content="ERP para micro, pequenas e médias empresas: emite NF-e, NFC-e e NFS-e automaticamente, controla PDV, estoque, financeiro e várias lojas em um só lugar. Integração oficial Focus NFe.">
 <meta property="og:title" content="ERP Comercial IA365">

@@ -18,9 +18,9 @@ class SiteController extends Controller
     /**
      * Landing pública. Usuário autenticado é levado direto ao sistema.
      *
-     * Visual V2 (estilo Apple) convive com o clássico sem tirá-lo do ar:
-     * ?visual=v2 ativa e grava na session; ?visual=classico volta. Sem o
-     * parâmetro, quem nunca optou continua vendo o clássico (padrão JL).
+     * Visual V2 (estilo Apple) é o PADRÃO desde 14/08/2026 (ordem do Dennis).
+     * A v1 clássica continua no ar via ?visual=classico (grava na session);
+     * ?visual=v2 desfaz a escolha. Sem parâmetro, novo visitante vê a v2.
      */
     public function index(Request $request)
     {
@@ -39,7 +39,7 @@ class SiteController extends Controller
             session(['site_visual' => $visual]);
         }
 
-        $view = session('site_visual') === 'v2' ? 'site.landing-v2' : 'site.landing';
+        $view = session('site_visual') === 'classico' ? 'site.landing' : 'site.landing-v2';
 
         // no-cache no HTML: garante que o navegador sempre pegue a versão atual
         // do formulário (evita ficar preso em markup antigo após deploys).

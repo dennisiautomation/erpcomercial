@@ -1698,12 +1698,13 @@ controller, e "Webhook Focus NFe recebido" passa a aparecer no laravel.log.
 
 ## Landing V2 "formato Apple" (13/08/2026)
 
-Redesign do **site público** (`/`, `site.landing`) no estilo Apple/Find My — mesmo
-padrão de convivência do Visual V2 do JL-ERP: **a v1 continua sendo o padrão e não
-saiu do ar**; a v2 só aparece para quem entra pela URL.
+Redesign do **site público** (`/`, `site.landing`) no estilo Apple/Find My.
+**PROMOVIDA A PADRÃO em 14/08/2026 por ordem do Dennis** ("ficou perfeito, pode
+subir" + ordem explícita de merge): novo visitante vê a **v2**; a v1 clássica
+continua no ar via `/?visual=classico`.
 
-- **Entrada:** `https://erp.ia365.com.br/?visual=v2` ativa e grava `site_visual`
-  na session; `/?visual=classico` volta. Sem parâmetro → clássico. Lógica no
+- **Entrada:** sem parâmetro → **v2 (padrão)**. `/?visual=classico` volta à v1 e
+  grava `site_visual` na session; `/?visual=v2` desfaz. Lógica no
   `SiteController::index` (nenhuma rota nova).
 - **View:** `resources/views/site/landing-v2.blade.php` — autossuficiente
   (CSS/JS inline, SF stack do sistema, **zero dependência externa**: sem Google
@@ -1726,9 +1727,13 @@ saiu do ar**; a v2 só aparece para quem entra pela URL.
   Financeiro/Multi-loja → fiscal em banda preta/bento → módulos → multi-empresa →
   planos → segurança → demo) e **mesmo formulário** (`site.demo.store`, honeypot,
   fetch AJAX com contrato idêntico ao `public/site/landing.js`).
-- **SEO:** a v2 tem `<meta name="robots" content="noindex">` enquanto for prévia —
-  remover quando (se) for promovida a padrão.
-- Branch `feat/site-v2-apple` (base = produção `3ec4217`).
+- **SEO:** o `noindex` da fase de prévia foi REMOVIDO na promoção (14/08) — a v2
+  é a página indexável. A v1 não tem noindex próprio (só é alcançável por
+  session/parâmetro; se um dia incomodar no SEO, aí sim marcar a v1).
+- Branch `feat/site-v2-apple` (base = produção `3ec4217`), mergeada na `main`
+  em 14/08 por ordem explícita — a main passa a conter também a pilha que já
+  estava em produção (webhook-csrf, agente-ia, pix-sicredi, acesso-como,
+  agente-busca-preco).
 
 ## Armadilhas conhecidas
 
