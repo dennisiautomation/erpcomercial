@@ -1727,6 +1727,9 @@ continua no ar via `/?visual=classico`.
   Financeiro/Multi-loja → fiscal em banda preta/bento → módulos → multi-empresa →
   planos → segurança → demo) e **mesmo formulário** (`site.demo.store`, honeypot,
   fetch AJAX com contrato idêntico ao `public/site/landing.js`).
+- **Mobile (fix 14/08):** na nav responsiva só o menu de seções some — o botão
+  **Entrar** permanece; ≤760px a marca perde o "· IA365" e a pílula encolhe;
+  ≤420px fica só o selo "IA" (aria-label preservado).
 - **SEO:** o `noindex` da fase de prévia foi REMOVIDO na promoção (14/08) — a v2
   é a página indexável. A v1 não tem noindex próprio (só é alcançável por
   session/parâmetro; se um dia incomodar no SEO, aí sim marcar a v1).

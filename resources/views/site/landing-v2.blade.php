@@ -97,7 +97,17 @@ h1,h2,h3{letter-spacing:-.015em;text-wrap:balance}
 .nav__cta{display:flex;align-items:center;gap:1rem}
 .nav__cta .entrar{font-size:.88rem;color:var(--ink);opacity:.85}
 .nav__cta .pill{font-size:.82rem;padding:.36rem .95rem;min-height:32px}
-@media(max-width:760px){.nav__links,.nav__cta .entrar{display:none}}
+@media(max-width:760px){
+  .nav__links{display:none}
+  .brand small{display:none}
+  .nav__in{gap:.8rem}
+  .nav__cta{margin-left:auto;gap:.75rem}
+  .nav__cta .pill{font-size:.78rem;padding:.34rem .85rem;min-height:30px}
+}
+@media(max-width:420px){
+  .brand{font-size:0;gap:0}
+  .brand__mark{font-size:.7rem}
+}
 
 /* ---------- hero compacto: o painel é o herói ---------- */
 .hero{padding:clamp(1.7rem,3.5vw,2.7rem) 0 0;text-align:center}
