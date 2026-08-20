@@ -478,6 +478,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 
+<script>
 /* --- Conferência da bobina: colunas x largura + espaços TEM que caber ------
    Formato mais largo que o papel faz a impressora encolher, cortar ou girar.
    Mostrar a conta enquanto digita evita descobrir isso na etiqueta impressa. */
@@ -549,5 +550,6 @@ document.addEventListener('DOMContentLoaded', function() {
     [elLargura, elColunas, elEspaco, elBobina].forEach(el => el && el.addEventListener('input', conferir));
     conferir();
 })();
+</script>
 
 @endpush
