@@ -2,7 +2,7 @@
 
 > SaaS ERP multi-tenant para PMEs. Admin (IA365) gerencia a plataforma; cada empresa-cliente tem múltiplas unidades com fiscal, estoque e caixa independentes. Integração 100% Focus NFe (NF-e, NFC-e, NFS-e, CC-e, manifestação do destinatário, backup XMLs).
 
-**Última revisão:** 2026-08-20 (**fix da conferência de bobina nas etiquetas** — o bloco de JS entrou fora da tag `<script>` do push e era IMPRESSO como texto no rodapé de `/app/etiquetas`; a conta da bobina ficou 8 dias morta; armadilha 51) · 2026-08-14 (**Landing V2 "formato Apple" PROMOVIDA A PADRÃO** — site público redesenhado no estilo Apple/Find My é a página oficial em `/`; v1 clássica segue no ar via `/?visual=classico`; 2 fixes de mobile no mesmo dia: botão Entrar visível e overflow horizontal do `span 6` inline; seção própria) · 2026-08-13 tarde (**Agente IA v2** — busca com ordenar/preco_min/max + fallback de catálogo + JSON forçado no api/integracao + merge do admin-acesso-como + armadilha 50; seção 9f) · 2026-08-13 (**"Acessar como"** — admin da plataforma entra no sistema logado como o dono de qualquer empresa-cliente, com banner, bypass de suspensão e rastro `acesso_como_admin_id` em toda activity da sessão) · 2026-08-13 noite (**PIX Sicredi no Agente IA** — gateway por empresa em `empresa_gateways` com credenciais cifradas + cobrança automática no pedido do agente + webhook re-consultado via mTLS + cron de sincronização; piloto DONA DOURO; seção 9f) · 2026-08-13 (**Agente IA** — banco vetorial pgvector `erp-com-vector` + busca semântica multi-tenant + pedidos rascunho via API, módulo ativável por empresa no admin; consumido pelo app.ia365; seção 9f) · 2026-08-12 (**API de Integração v1 — Gersen**: primeira API externa do ERP, somente leitura, token por empresa gerado no admin; seção própria) · 2026-08-12 madrugada (**backup mensal de XMLs virou pacote LOCAL** — o `/v2/backups` da Focus não existe, armadilha 49; **DONA DOURO em `producao`** com série 2 e CSC na Focus) · 2026-08-12 noite (**editor visual de layout de etiqueta** — arrasta-e-solta com imagens e formas, branch `layout-etiquetas` DEPLOYADA em produção; armadilha 48 + lição de deploy na 26b) · 2026-08-12 (vários estoques por loja + contagem cega + bonificação que deve voltar + estilo de etiqueta "nome no topo" + conferência de bobina; armadilhas 43-47; **imagem rebuildada** e main promovida) · 2026-08-11 (formato de etiqueta cadastrável pelo lojista + fix do CRUD de categorias — `status` feminino, armadilha 42) · 2026-08-05 (filtro por loja em vendas + imports de vendas/contas a receber + import robusto + lojas mesmo CNPJ compartilham empresa Focus) · **Estado:** integração fiscal Fase 1-4 + multi-loja + regime de cobrança + auto-sync Focus + UX config fiscal + caixa por forma de pagamento (14/07) + Configurações da Loja/tabelas de preço/emissão parametrizada/adquirentes (24/07) + **Reforma Tributária NT 2025.002 (obrigatório 03/08/2026) + CNPJ alfanumérico NT 2025.001 (25/07)** + **e-mails/no-reply + cobrança direta mensal/anual com bloqueio + pode_ver_financeiro (04/08)** + **doc de alterações do Dennis (05/08)** + **etiqueta cadastrável pelo lojista em cm + fix do CRUD de categorias + auditoria de produção (11/08)** — concluídos
+**Última revisão:** 2026-08-20 (**fix da conferência de bobina nas etiquetas** — o bloco de JS entrou fora da tag `<script>` do push e era IMPRESSO como texto no rodapé de `/app/etiquetas`; a conta da bobina ficou 8 dias morta; armadilha 51 — e **auditoria de produção completa**: a worktree que builda a imagem está ATRÁS do container e um rebuild reverteria 3 entregas (armadilha 52), o webhook da Focus AINDA responde 419, rate limit fantasma em toda chamada à Focus e R$ 13.264/ano contratados sem fatura; seção própria) · 2026-08-14 (**Landing V2 "formato Apple" PROMOVIDA A PADRÃO** — site público redesenhado no estilo Apple/Find My é a página oficial em `/`; v1 clássica segue no ar via `/?visual=classico`; 2 fixes de mobile no mesmo dia: botão Entrar visível e overflow horizontal do `span 6` inline; seção própria) · 2026-08-13 tarde (**Agente IA v2** — busca com ordenar/preco_min/max + fallback de catálogo + JSON forçado no api/integracao + merge do admin-acesso-como + armadilha 50; seção 9f) · 2026-08-13 (**"Acessar como"** — admin da plataforma entra no sistema logado como o dono de qualquer empresa-cliente, com banner, bypass de suspensão e rastro `acesso_como_admin_id` em toda activity da sessão) · 2026-08-13 noite (**PIX Sicredi no Agente IA** — gateway por empresa em `empresa_gateways` com credenciais cifradas + cobrança automática no pedido do agente + webhook re-consultado via mTLS + cron de sincronização; piloto DONA DOURO; seção 9f) · 2026-08-13 (**Agente IA** — banco vetorial pgvector `erp-com-vector` + busca semântica multi-tenant + pedidos rascunho via API, módulo ativável por empresa no admin; consumido pelo app.ia365; seção 9f) · 2026-08-12 (**API de Integração v1 — Gersen**: primeira API externa do ERP, somente leitura, token por empresa gerado no admin; seção própria) · 2026-08-12 madrugada (**backup mensal de XMLs virou pacote LOCAL** — o `/v2/backups` da Focus não existe, armadilha 49; **DONA DOURO em `producao`** com série 2 e CSC na Focus) · 2026-08-12 noite (**editor visual de layout de etiqueta** — arrasta-e-solta com imagens e formas, branch `layout-etiquetas` DEPLOYADA em produção; armadilha 48 + lição de deploy na 26b) · 2026-08-12 (vários estoques por loja + contagem cega + bonificação que deve voltar + estilo de etiqueta "nome no topo" + conferência de bobina; armadilhas 43-47; **imagem rebuildada** e main promovida) · 2026-08-11 (formato de etiqueta cadastrável pelo lojista + fix do CRUD de categorias — `status` feminino, armadilha 42) · 2026-08-05 (filtro por loja em vendas + imports de vendas/contas a receber + import robusto + lojas mesmo CNPJ compartilham empresa Focus) · **Estado:** integração fiscal Fase 1-4 + multi-loja + regime de cobrança + auto-sync Focus + UX config fiscal + caixa por forma de pagamento (14/07) + Configurações da Loja/tabelas de preço/emissão parametrizada/adquirentes (24/07) + **Reforma Tributária NT 2025.002 (obrigatório 03/08/2026) + CNPJ alfanumérico NT 2025.001 (25/07)** + **e-mails/no-reply + cobrança direta mensal/anual com bloqueio + pode_ver_financeiro (04/08)** + **doc de alterações do Dennis (05/08)** + **etiqueta cadastrável pelo lojista em cm + fix do CRUD de categorias + auditoria de produção (11/08)** — concluídos
 
 ---
 
@@ -22,6 +22,7 @@
 9d. [Bonificação que deve voltar](#bonificação-que-deve-voltar--peças-em-poder-de-terceiros-12082026)
 9e. [API de Integração — Gersen](#api-de-integração-gersen-12082026)
 9f. [Agente IA — busca semântica + pedidos](#agente-ia--busca-semântica--pedidos-via-whatsapp-13082026)
+9g. [Auditoria de produção (20/08/2026)](#auditoria-de-produção-20082026)
 10. [Armadilhas conhecidas](#armadilhas-conhecidas)
 11. [Próximos passos](#próximos-passos)
 
@@ -1752,6 +1753,90 @@ continua no ar via `/?visual=classico`.
   estava em produção (webhook-csrf, agente-ia, pix-sicredi, acesso-como,
   agente-busca-preco).
 
+## Auditoria de produção (20/08/2026)
+
+> Varredura do docs.md inteiro contra o que está rodando. Onde a realidade divergia do texto,
+> vale a auditoria — não a intenção de quem escreveu.
+
+### Estado conferido
+
+| Item | Situação |
+|---|---|
+| Git | `main` == `origin/main`, árvore limpa |
+| Produção × `main` | `app/`, `routes/`, `config/` **byte-idênticos** (diff arquivo a arquivo) |
+| Scheduler / filas | rodando — 8 tarefas agendadas, 2 queue workers |
+| Certificado TLS | `erp.ia365.com.br` válido até 06/10/2026 |
+| Backup MySQL | dump diário 02h30 em `/home/ubuntu/erp-backups/diario/`, retenção 30d, em dia |
+| Volume de uso | 44 vendas, 7 notas fiscais, 2.451 produtos, 151 clientes |
+
+### ⚠️⚠️ A worktree que builda a imagem está ATRÁS do container (armadilha 52)
+
+O `com.docker.compose.project.working_dir` do `erp-com-app` é **`/home/ubuntu/apps/erp-agente-ia`**,
+não `/root/erp` — e ela está parada em `feat/agente-busca-preco-json` @`3ec4217` (13/08). Tudo o que
+entrou depois (**Landing V2 promovida a padrão**, os **2 fixes de mobile** de 14/08 e o **fix das
+etiquetas** de 20/08) foi por tar/`docker cp` e vive **só na camada de escrita do container**. Um
+`build` + `up -d` recria o container a partir da imagem e **reverte as três entregas de uma vez** —
+a worktree nem tem o arquivo `landing-v2.blade.php`, e o `SiteController` dela é o pré-V2.
+**Sincronizar a worktree com a `main` antes de qualquer rebuild.**
+
+### O webhook da Focus AINDA está bloqueado por CSRF
+
+A seção de 13/08 descreve o fix e ele está na `main` — mas **não chegou à produção**. O
+`bootstrap/app.php` dentro do container lista só `api/integracao/*`; a imagem é de **13/08 01:56**,
+anterior ao commit, e o deploy por tar não leva `bootstrap/`. Provas de 20/08: `curl -X POST
+/webhooks/focusnfe` devolve **419** e o `laravel.log` segue com **zero** "Webhook Focus NFe recebido".
+`docker restart` NÃO resolve (bootstrap é baked na imagem). É a **única** diferença entre a `main` e
+a produção — e depende do rebuild, que por sua vez depende de sincronizar a worktree acima.
+
+### Bug: rate limit fantasma em toda chamada à Focus
+
+`FocusNFeClient::request` faz `(int) $response->header('Rate-Limit-Remaining', -1)`, mas o
+`Illuminate\Http\Client\Response::header()` aceita **um único argumento** — o default é
+silenciosamente ignorado. Header ausente devolve `''` → `(int) '' === 0` → a condição
+`$remaining >= 0 && $remaining < 5` é verdadeira **em toda resposta**: WARNING desde 24/04/2026
+(o `laravel.log` chegou a 7,6 MB quase só disso). O mesmo vale para `$reset`, que fica 0 — no 429
+real a `FocusRateLimitException` diz *"Aguarde 0s"* e não há backoff nenhum.
+
+Consequência observada: em **17/08** (segunda, 4h) o `fiscal:saude-webhooks` morreu com 429 nas
+unidades 15, 16, 17 e 18 — ou seja, **a rotina que consertaria o `focus_webhook_ids` NULL da
+unidade 18 é justamente a que falha**. Fix: ler o header uma vez e tratar a ausência de forma
+explícita (`$h = $response->header('Rate-Limit-Remaining'); $remaining = $h === '' ? null : (int) $h;`),
+com `$reset` caindo em 60 quando vazio.
+
+### Financeiro da plataforma: R$ 13.264/ano contratados, 1 fatura no banco
+
+`plataforma_faturas` tem **um único registro** — MISS MERLINDA, competência 2026-08, R$ 710,
+vencimento **20/08**, `pendente`. STILO VINTE (R$ 7.000 anual, renovação 21/07/2027) e DONA DOURO
+(R$ 6.264 anual, renovação 05/08/2027) estão em `cobranca_geracao = manual`: o
+`plataforma:processar-cobrancas` só gera anuidade 30 dias antes da renovação **e só no modo
+automática** — o ciclo atual das duas simplesmente não existe. ⚠️ A STILO VINTE é a única com
+`cobranca_bloqueio_automatico = 1`: gerar a fatura e deixar passar vencimento + 5 dias **suspende
+as 8 lojas de uma vez**.
+
+### Quem mais usa o sistema é quem não emite nota
+
+- **MISS MERLINDA (empresa 4)** é a única com atividade de usuário recente (produtos, etiquetas e a
+  venda 49 de 20/08). As unidades **11** e **20** (criada em 20/08) estão em `homologacao`, **sem
+  CSC / ID CSC e sem certificado A1** — a venda 49 (R$ 155) tentou NFC-e e caiu em recibo, com o
+  aviso de transparência do PDV funcionando como projetado. CSC e certificado são os dois itens que
+  só o cliente consegue obter (portal SEFAZ do estado dele e AC).
+- **DONA DOURO (empresa 5)** virou `producao` em 12/08 e **ainda não emitiu a 1ª NFC-e real**.
+  Última venda: 11/08.
+- Das **7 notas fiscais** do banco inteiro, **1 única está autorizada** (25/07) — o resto é
+  cancelada ou rejeitada.
+- Unidade **18** (STILO VINTE OUTLET, config 21): sem `focus_webhook_ids` **e sem `webhook_secret`**.
+  Quando o webhook destravar, esse endpoint aceita POST sem validação (o controller só loga `notice`).
+
+### Resíduos
+
+18 `failed_jobs` de 25/07–04/08 (`ProvisionarEmpresaFocusJob`, resíduo do 422 de CNPJ duplicado já
+resolvido); 2 tokens de integração ativos das empresas 1 e 5, órfãos do lado Gersen (a integração
+sumiu de lá); `erp-test-app` + `erp-test-mysql` no ar desde 13/08; **EB GESTÃO (empresa 2)** travada
+em plano expirado desde 13/07 com zero dados; branch `fix/auditoria-bugs-mai2026` é de maio e está
+358 arquivos atrás da `main` — superada, podar em vez de mergear.
+
+---
+
 ## Armadilhas conhecidas
 
 1. **EmpresaScope recursão**: `auth()->user()` dentro do scope chama User model que tem o scope → loop infinito. Scopes têm flag `static $applying`. Não remover.
@@ -1942,13 +2027,38 @@ continua no ar via `/?visual=classico`.
     que as tags estão balanceadas dentro do push:
     `grep -nE "<script|</script>|@push|@endpush" arquivo.blade.php`.
 
+52. **A worktree que builda a imagem pode estar ATRÁS do container.** A produção sai de
+    `/home/ubuntu/apps/erp-agente-ia` (label `com.docker.compose.project.working_dir`), NÃO de
+    `/root/erp`. Em 20/08/2026 ela estava em `3ec4217` (13/08) enquanto o container já rodava a
+    `main` de 14/08 — porque tudo depois entrou por tar/`docker cp`, que grava só na **camada de
+    escrita**. `build` + `up -d` recria o container e **descarta essa camada**: seria a reversão
+    silenciosa da Landing V2, dos fixes de mobile e do fix das etiquetas de uma só vez. É a
+    armadilha 50 um nível acima — lá o tar estava atrás da produção, aqui é a própria fonte do
+    build. **Antes de rebuildar: conferir `git log` da worktree contra a `main` e sincronizar.**
+
 ---
 
 ## Próximos passos
 
-> Estado do banco conferido em **11/08/2026** (auditoria de produção). Onde a realidade
-> divergia do que estava escrito aqui, o texto foi corrigido — vale a auditoria, não a
+> Estado do banco conferido em **20/08/2026** (ver a seção Auditoria de produção). Onde a
+> realidade divergia do que estava escrito aqui, o texto foi corrigido — vale a auditoria, não a
 > memória do que se pretendia fazer.
+
+**Fila de 20/08, na ordem em que precisa acontecer:**
+
+1. **Sincronizar a worktree `/home/ubuntu/apps/erp-agente-ia` com a `main`** — sem isso qualquer
+   rebuild reverte Landing V2 + fixes de mobile + fix das etiquetas (armadilha 52).
+2. **Rebuild + recreate** para o `bootstrap/app.php` novo entrar: destrava o webhook da Focus (hoje
+   em 419) e é a única coisa que falta para produção == `main`. Validar com
+   `curl -X POST .../webhooks/focusnfe` (tem que sair de 419) e conferir "Webhook Focus NFe recebido"
+   no log na emissão seguinte.
+3. **Preencher o `webhook_secret` da config 21** (unidade 18) ANTES de o webhook destravar.
+4. **Corrigir o rate limit fantasma** do `FocusNFeClient` e então rodar `fiscal:saude-webhooks` à mão
+   para recadastrar os hooks da unidade 18.
+5. **Gerar as faturas manuais** de STILO VINTE e DONA DOURO em `/admin/financeiro` — decidir antes se
+   a STILO VINTE mantém `cobranca_bloqueio_automatico = 1` (suspende as 8 lojas no vencimento + 5).
+6. **MISS MERLINDA**: cobrar CSC/ID CSC (portal SEFAZ do estado) e certificado A1 das unidades 11 e
+   20, senão o PDV segue caindo em recibo; e resolver a fatura de R$ 710 vencida em 20/08.
 
 - ✅ **`fiscal:backup-xmls` RESOLVIDO (12/08 madrugada)**: o 404 era o endpoint `/v2/backups`
   que **não existe** na Focus (armadilha 49). O command foi reescrito para montar o pacote
