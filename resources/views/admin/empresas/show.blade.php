@@ -664,19 +664,22 @@
                         <form method="POST" action="{{ route('admin.empresas.gateway-uber.store', $empresa) }}" class="row g-2 align-items-end">
                             @csrf
                             <div class="col-md-6">
-                                <label class="form-label small mb-1">Client ID</label>
+                                <label class="form-label small mb-1">ID de cliente do desenvolvedor (Client ID)</label>
                                 <input type="text" name="client_id" class="form-control form-control-sm"
-                                       placeholder="{{ $gatewayUber?->client_id ? '•••• salvo — preencha p/ trocar' : 'client_id do app Uber' }}">
+                                       placeholder="{{ $gatewayUber?->client_id ? '•••• salvo — preencha p/ trocar' : '32 letras/números, SEM traços — ex.: haH0Sezg…' }}">
+                                <div class="form-text">No painel do Uber: <strong>"ID de cliente do desenvolvedor"</strong>.</div>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label small mb-1">Client Secret</label>
                                 <input type="password" name="client_secret" class="form-control form-control-sm"
-                                       placeholder="{{ $gatewayUber?->client_secret ? '•••• salvo — preencha p/ trocar' : 'client_secret do app Uber' }}">
+                                       placeholder="{{ $gatewayUber?->client_secret ? '•••• salvo — preencha p/ trocar' : 'Client Secret do painel (40 caracteres)' }}">
+                                <div class="form-text">No painel do Uber: <strong>"Client Secret"</strong>.</div>
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label small mb-1">Customer ID</label>
+                                <label class="form-label small mb-1">ID do usuário (Customer ID)</label>
                                 <input type="text" name="customer_id" class="form-control form-control-sm"
-                                       value="{{ $gatewayUber?->config['customer_id'] ?? '' }}" placeholder="customer_id da conta Direct">
+                                       value="{{ $gatewayUber?->config['customer_id'] ?? '' }}" placeholder="UUID com traços — ex.: 56d97aa0-8311-…">
+                                <div class="form-text">No painel do Uber: <strong>"ID do usuário"</strong> — o código que aparece na URL <code>/v1/customers/…/deliveries</code>.</div>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label small mb-1">Faixas de CEP atendidas</label>

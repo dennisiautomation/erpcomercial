@@ -33,6 +33,28 @@ class EmpresaEntregaController extends Controller
             'ativo' => ['nullable', 'boolean'],
         ]);
 
+        // Guarda contra campos invertidos (aconteceu na DONA DOURO em 25/08/2026): o painel
+        // do Uber em PT chama o Client ID de "ID de cliente do desenvolvedor" (32 letras/
+        // números, sem traços) e o Customer ID de "ID do usuário" (UUID com traços) — os
+        // formatos são inconfundíveis, então dá para barrar a troca antes de salvar.
+        $uuidRe = '/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i';
+        $clientIdEhUuid = filled($validated['client_id'] ?? null) && preg_match($uuidRe, trim($validated['client_id']));
+        $customerIdPareceClientId = filled($validated['customer_id'] ?? null)
+            && preg_match('/^[A-Za-z0-9_-]{32}$/', trim($validated['customer_id']));
+
+        if ($clientIdEhUuid || $customerIdPareceClientId) {
+            $msg = $clientIdEhUuid && $customerIdPareceClientId
+                ? 'Os dois IDs parecem estar INVERTIDOS: o Client ID é o "ID de cliente do desenvolvedor" (32 letras/números, sem traços) e o Customer ID é o "ID do usuário" (código com traços, ex.: 56d97aa0-…). Troque um pelo outro e salve de novo.'
+                : ($clientIdEhUuid
+                    ? 'O valor colado no Client ID parece ser o "ID do usuário" (Customer ID — código com traços). O Client ID é o "ID de cliente do desenvolvedor" do painel do Uber: 32 letras/números, sem traços.'
+                    : 'O valor colado no Customer ID parece ser o "ID de cliente do desenvolvedor" (Client ID). O Customer ID é o "ID do usuário" do painel do Uber: código com traços, o mesmo que aparece na URL /v1/customers/….');
+
+            return redirect()
+                ->route('admin.empresas.show', $empresa)
+                ->with('error', $msg)
+                ->withFragment('integracao');
+        }
+
         $gateway = EmpresaGateway::firstOrCreate(
             ['empresa_id' => $empresa->id, 'provedor' => EmpresaGateway::PROVEDOR_UBER_DIRECT],
             ['base_url' => 'https://api.uber.com/v1']
