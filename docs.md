@@ -2254,6 +2254,13 @@ desconto` e APAGARIA o frete** — agora soma `frete_valor`; a view do pedido mo
 "Entrega (Uber)". ⚠️ O despacho re-cota na hora do pagamento — variação pequena entre o cotado e o
 pago fica com a loja (igual China Mix, quote expira em ~15 min).
 
+✅ **§282.1 DEPLOYADO 25/08 ~18:5x UTC pelo Dennis** (imagem `e1603bef880f`; migration `frete_valor`
+no boot; rollback = tag `erp-com-app:entrega-282-rollback`). **Validado com pedidos reais de QA na
+empresa ia365** (removidos depois): RETIRADA → `metodo_entrega=retirada` sem frete; ENTREGA sem
+gateway Uber → fail-open ("atendente combina"), endereço gravado no CLIENTE com fallback cidade/UF
+da unidade. Caminho feliz do frete (valor no total + PIX) só testável quando o Uber liberar o escopo
+`eats.deliveries` — destrava sozinho.
+
 ✅ **DEPLOYADO 25/08/2026 ~18:05 UTC pelo Dennis** (imagem `8df1cfef49a4`, recreate + migrate no boot:
 `metodo_entrega` OK; rollback = tag `erp-com-app:agente-ia`). O rebuild também entregou o que vivia
 só na write-layer/main: **webhook Focus saiu de 419 → 200** (fix CSRF de 13/08 enfim no ar), Landing
