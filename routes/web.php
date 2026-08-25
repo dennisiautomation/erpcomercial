@@ -216,7 +216,13 @@ Route::middleware(['auth', 'suspensao', 'unidade'])->prefix('app')->name('app.')
     Route::post('produtos/{produto}/foto', [App\ProdutoController::class, 'atualizarFoto'])
         ->name('produtos.foto')
         ->middleware('permission:produtos,foto');
-    Route::resource('produtos', App\ProdutoController::class)->middleware('permission:produtos');
+    // O update sai do gate por verbo (PUT→editar) e entra com o gate 'foto':
+    // quem só tem 'foto' (vendedor) passa pelo middleware e o controller salva
+    // SOMENTE a imagem; quem tem 'editar' segue com o update completo.
+    Route::match(['put', 'patch'], 'produtos/{produto}', [App\ProdutoController::class, 'update'])
+        ->name('produtos.update')
+        ->middleware('permission:produtos,foto');
+    Route::resource('produtos', App\ProdutoController::class)->except(['update'])->middleware('permission:produtos');
     Route::resource('fornecedores', App\FornecedorController::class)->middleware('permission:produtos');
     Route::resource('categorias', App\CategoriaController::class)->middleware('permission:produtos');
     Route::resource('servicos', App\ServicoController::class)->middleware('permission:produtos');

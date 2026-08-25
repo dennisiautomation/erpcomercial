@@ -218,6 +218,27 @@ class ProdutoController extends Controller
 
     public function update(Request $request, Produto $produto)
     {
+        // Perfil que só tem a ação 'foto' (vendedor): a rota deixa passar, mas
+        // o salvar da tela de edição grava SOMENTE a imagem — preço/fiscal e
+        // demais campos ficam intocados (25/08/2026).
+        $user = $request->user();
+        $perfilStr = $user->is_admin ? 'admin' : ($user->perfil instanceof \App\Enums\Perfil ? $user->perfil->value : (string) $user->perfil);
+        if (! \App\Http\Middleware\CheckPermission::can($perfilStr, 'produtos', 'editar')) {
+            $request->validate(
+                ['foto' => 'required|image|max:2048'],
+                ['foto.required' => 'Selecione a nova foto — seu perfil altera apenas a imagem do produto.']
+            );
+
+            if ($produto->foto) {
+                Storage::disk('public')->delete($produto->foto);
+            }
+            $produto->foto = $request->file('foto')->store('produtos', 'public');
+            $produto->save();
+
+            return redirect()->route('app.produtos.show', $produto)
+                ->with('success', 'Foto do produto atualizada!');
+        }
+
         $validated = $request->validate([
             'codigo_barras'      => 'nullable|string|max:50',
             'sku'                => 'nullable|string|max:50',

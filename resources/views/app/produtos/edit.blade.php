@@ -3,6 +3,14 @@
 @section('title', 'Editar Produto')
 
 @section('content')
+@php
+    $userEdit = auth()->user();
+    $apenasFotoProduto = ! \App\Http\Middleware\CheckPermission::can(
+        $userEdit->is_admin ? 'admin' : ($userEdit->perfil instanceof \App\Enums\Perfil ? $userEdit->perfil->value : (string) $userEdit->perfil),
+        'produtos',
+        'editar'
+    );
+@endphp
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
         <h4 class="mb-0"><i class="bi bi-pencil-square me-2"></i>Editar Produto</h4>
@@ -17,6 +25,13 @@
         </a>
     </div>
 </div>
+
+@if($apenasFotoProduto)
+<div class="alert alert-info d-flex align-items-center gap-2">
+    <i class="bi bi-camera fs-5"></i>
+    <div>Seu perfil altera <strong>apenas a foto</strong> do produto — os demais campos ficam bloqueados e não são salvos. Escolha a nova imagem e clique em <strong>Salvar foto</strong>.</div>
+</div>
+@endif
 
 {{-- Wizard Progress --}}
 <div class="wizard-progress mb-4">
@@ -892,4 +907,37 @@ document.addEventListener('DOMContentLoaded', function () {
     @endif
 });
 </script>
+@if($apenasFotoProduto)
+{{-- Modo "só foto" (ação produtos.foto sem 'editar', 25/08/2026): bloqueia tudo
+     menos a imagem, pula direto para o passo dela e ganha um Salvar próprio.
+     Bloco com a PRÓPRIA tag <script> — armadilha 51. --}}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('#formProduto input:not([type=hidden]), #formProduto select, #formProduto textarea').forEach(function (el) {
+        if (el.id !== 'foto') el.disabled = true;
+    });
+
+    document.querySelectorAll('.wizard-step').forEach(function (el) { el.classList.remove('active'); });
+    var passoFoto = document.getElementById('wizardStep2');
+    if (passoFoto) passoFoto.classList.add('active');
+    document.querySelectorAll('.wizard-progress-step').forEach(function (el) {
+        var s = parseInt(el.dataset.step);
+        el.classList.remove('active', 'completed');
+        if (s === 2) el.classList.add('active');
+        else if (s < 2) el.classList.add('completed');
+    });
+    var fill = document.getElementById('progressFill');
+    if (fill) fill.style.width = '35%';
+
+    var foto = document.getElementById('foto');
+    if (foto) {
+        var btn = document.createElement('button');
+        btn.type = 'submit';
+        btn.className = 'btn btn-success mt-2';
+        btn.innerHTML = '<i class="bi bi-camera me-1"></i> Salvar foto';
+        foto.parentElement.appendChild(btn);
+    }
+});
+</script>
+@endif
 @endpush
