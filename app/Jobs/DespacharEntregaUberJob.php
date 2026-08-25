@@ -50,6 +50,13 @@ class DespacharEntregaUberJob implements ShouldQueue
             return;
         }
 
+        // Cliente escolheu RETIRADA na conversa (25/08): nunca despachar,
+        // mesmo com endereço cadastrado. NULL (pedido antigo/canal que não
+        // pergunta) mantém o comportamento de sempre.
+        if ($pedido->metodo_entrega === 'retirada') {
+            return;
+        }
+
         // Idempotência: já existe entrega criada (ou em criação) p/ o pedido
         if (PedidoEntrega::where('pedido_id', $pedido->id)->whereNotNull('delivery_id')->exists()) {
             return;

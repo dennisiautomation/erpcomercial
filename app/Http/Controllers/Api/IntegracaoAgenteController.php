@@ -6,12 +6,15 @@ use App\Enums\StatusPedido;
 use App\Http\Controllers\Controller;
 use App\Models\AgenteIaConfig;
 use App\Models\Cliente;
+use App\Models\EmpresaGateway;
 use App\Models\IntegracaoToken;
 use App\Models\Pedido;
 use App\Models\PedidoCobranca;
+use App\Models\PedidoEntrega;
 use App\Models\PedidoItem;
 use App\Models\Produto;
 use App\Models\Unidade;
+use App\Services\Entrega\UberDirectService;
 use App\Services\Pix\PixPedidoService;
 use App\Services\Pix\SicrediPixService;
 use App\Scopes\EmpresaScope;
@@ -568,6 +571,16 @@ class IntegracaoAgenteController extends Controller
             'itens.*.quantidade' => ['required', 'numeric', 'min:0.001', 'max:9999'],
             'observacoes' => ['nullable', 'string', 'max:1000'],
             'origem' => ['nullable', 'string', 'max:50'],
+            // Método de entrega coletado na conversa (25/08). Tudo opcional:
+            // agente antigo (sem os campos) segue criando pedido normalmente.
+            'entrega.metodo' => ['nullable', 'string', 'in:retirada,entrega'],
+            'entrega.cep' => ['nullable', 'string', 'max:9'],
+            'entrega.logradouro' => ['nullable', 'string', 'max:255'],
+            'entrega.numero' => ['nullable', 'string', 'max:20'],
+            'entrega.complemento' => ['nullable', 'string', 'max:100'],
+            'entrega.bairro' => ['nullable', 'string', 'max:100'],
+            'entrega.cidade' => ['nullable', 'string', 'max:100'],
+            'entrega.uf' => ['nullable', 'string', 'size:2'],
         ]);
 
         $unidade = Unidade::withoutGlobalScope(EmpresaScope::class)
@@ -594,8 +607,34 @@ class IntegracaoAgenteController extends Controller
 
         $config = AgenteIaConfig::where('empresa_id', $token->empresa_id)->first();
 
-        $pedido = DB::transaction(function () use ($validated, $token, $produtos, $config) {
+        $metodoEntrega = $validated['entrega']['metodo'] ?? null;
+
+        $pedido = DB::transaction(function () use ($validated, $token, $produtos, $config, $unidade, $metodoEntrega) {
             $cliente = $this->encontrarOuCriarCliente($token->empresa_id, $validated['cliente']);
+
+            // Entrega: o endereço coletado na conversa vira o endereço do
+            // CLIENTE — é dele que o DespacharEntregaUberJob monta o dropoff
+            // no pagamento. Sem isso todo pedido do agente nasce inentregável
+            // (cliente_sem_endereco). Cidade/UF caem na unidade quando o
+            // cliente não informou (entrega local é o caso típico).
+            if ($metodoEntrega === 'entrega') {
+                $end = $validated['entrega'];
+                $novo = array_filter([
+                    'cep' => isset($end['cep']) ? preg_replace('/\D/', '', $end['cep']) : null,
+                    'logradouro' => $end['logradouro'] ?? null,
+                    'numero' => $end['numero'] ?? null,
+                    'complemento' => $end['complemento'] ?? null,
+                    'bairro' => $end['bairro'] ?? null,
+                    'cidade' => $end['cidade'] ?? null,
+                    'uf' => isset($end['uf']) ? mb_strtoupper($end['uf']) : null,
+                ], fn ($v) => $v !== null && $v !== '');
+
+                if ($novo !== []) {
+                    $novo['cidade'] ??= $cliente->cidade ?: $unidade->cidade;
+                    $novo['uf'] ??= $cliente->uf ?: $unidade->uf;
+                    $cliente->fill($novo)->save();
+                }
+            }
 
             $ultimoNumero = Pedido::withoutGlobalScope(EmpresaScope::class)
                 ->withoutGlobalScope(UnidadeScope::class)
@@ -636,6 +675,7 @@ class IntegracaoAgenteController extends Controller
                 'desconto_valor' => 0,
                 'total' => round($subtotal, 2),
                 'status' => StatusPedido::Rascunho,
+                'metodo_entrega' => $metodoEntrega,
                 'observacoes_internas' => "Criado via {$origem} — telefone {$validated['cliente']['telefone']}."
                     . (isset($validated['observacoes']) ? "\n" . $validated['observacoes'] : ''),
             ]);
@@ -686,6 +726,25 @@ class IntegracaoAgenteController extends Controller
             }
         }
 
+        // Bloco de entrega da resposta (25/08): diz ao agente o que prometer.
+        // 'automatica' = Uber ativo + endereço utilizável + CEP na área ⇒ o
+        // despacho sai sozinho no pagamento; senão a promessa é o humano.
+        $entrega = null;
+        if ($metodoEntrega === 'retirada') {
+            $entrega = ['metodo' => 'retirada', 'automatica' => false,
+                'mensagem' => 'Retirada combinada na loja.'];
+        } elseif ($metodoEntrega === 'entrega') {
+            $clienteEntrega = $pedido->fresh(['cliente'])->cliente;
+            $uber = UberDirectService::ativoPara($token->empresa_id);
+            $automatica = $uber && $clienteEntrega
+                && UberDirectService::enderecoCliente($clienteEntrega)
+                && $uber->cepAtendido($clienteEntrega->cep);
+            $entrega = ['metodo' => 'entrega', 'automatica' => (bool) $automatica,
+                'mensagem' => $automatica
+                    ? 'A entrega é acionada automaticamente assim que o pagamento confirmar.'
+                    : 'Um atendente vai combinar a entrega com você.'];
+        }
+
         $mensagem = "Pedido #{$pedido->numero} registrado! Total R$ " . number_format((float) $pedido->total, 2, ',', '.') . '.';
         if ($pix && $cartaoLink) {
             $mensagem .= ' Para pagar agora, use o PIX copia-e-cola enviado OU o link de cartão. Assim que o pagamento cair, o pedido é confirmado automaticamente.';
@@ -693,8 +752,13 @@ class IntegracaoAgenteController extends Controller
             $mensagem .= ' Para pagar agora, use o PIX copia-e-cola enviado. Assim que o pagamento cair, o pedido é confirmado automaticamente.';
         } elseif ($cartaoLink) {
             $mensagem .= ' Para pagar no cartão, use o link enviado. Assim que o pagamento cair, o pedido é confirmado automaticamente.';
+        } elseif ($entrega) {
+            $mensagem .= ' Um atendente vai confirmar com você a forma de pagamento.';
         } else {
             $mensagem .= ' Um atendente vai confirmar com você a forma de pagamento e a entrega/retirada.';
+        }
+        if ($entrega) {
+            $mensagem .= ' ' . $entrega['mensagem'];
         }
 
         return response()->json([
@@ -705,9 +769,103 @@ class IntegracaoAgenteController extends Controller
                 'status' => $pedido->status->value,
                 'pix' => $pix,
                 'cartao_link' => $cartaoLink,
+                'entrega' => $entrega,
                 'mensagem' => $mensagem,
             ],
         ], 201);
+    }
+
+    /**
+     * Cota a entrega Uber Direct para um endereço, ANTES de fechar o pedido.
+     *
+     * Ferramenta do agente (intenção COTAR ENTREGA): valida que o endereço é
+     * entregável e que a credencial do gateway funciona. Sempre responde 200
+     * com `disponivel` true/false — o agente lê o resultado e se adapta
+     * (mesmo desenho response-driven do pix/cartao_link no POST /pedidos).
+     * ⚠️ O valor cotado é o CUSTO da loja com o Uber; cobrar ou não frete do
+     * cliente é decisão comercial fora deste endpoint — o agente não promete
+     * valor de frete ao cliente.
+     */
+    public function cotarEntrega(Request $request): JsonResponse
+    {
+        $token = $this->token($request);
+
+        if ($erro = $this->exigirAgenteAtivo($token)) {
+            return $erro;
+        }
+
+        $validated = $request->validate([
+            'unidade_id' => ['required', 'integer'],
+            'cep' => ['nullable', 'string', 'max:9'],
+            'logradouro' => ['nullable', 'string', 'max:255'],
+            'numero' => ['nullable', 'string', 'max:20'],
+            'bairro' => ['nullable', 'string', 'max:100'],
+            'cidade' => ['nullable', 'string', 'max:100'],
+            'uf' => ['nullable', 'string', 'size:2'],
+        ]);
+
+        $unidade = Unidade::withoutGlobalScope(EmpresaScope::class)
+            ->where('empresa_id', $token->empresa_id)
+            ->whereKey($validated['unidade_id'])
+            ->first();
+
+        if (! $unidade) {
+            return response()->json(['erro' => 'Loja não encontrada.'], 404);
+        }
+
+        $indisponivel = fn (string $motivo, string $mensagem) => response()->json([
+            'dados' => ['disponivel' => false, 'motivo' => $motivo, 'mensagem' => $mensagem],
+        ]);
+
+        $uber = UberDirectService::ativoPara($token->empresa_id);
+        if (! $uber) {
+            return $indisponivel('entrega_desativada',
+                'Entrega automática não está habilitada nesta loja — um atendente pode combinar a entrega.');
+        }
+
+        $cep = preg_replace('/\D/', '', (string) ($validated['cep'] ?? ''));
+        if (! $uber->cepAtendido($cep)) {
+            return $indisponivel('cep_fora_da_area',
+                'Este CEP está fora da área de entrega — um atendente pode combinar outra forma, ou o pedido pode ser para retirada.');
+        }
+
+        // Cidade/UF caem na unidade quando não informadas (entrega local).
+        $rua = trim(($validated['logradouro'] ?? '') . ' ' . ($validated['numero'] ?? ''));
+        $dropoff = trim(sprintf(
+            '%s, %s, %s, %s, BR',
+            $rua !== '' ? $rua : ($validated['bairro'] ?? ''),
+            $validated['cidade'] ?? $unidade->cidade,
+            mb_strtoupper($validated['uf'] ?? $unidade->uf),
+            $cep
+        ), ', ');
+
+        try {
+            $quote = $uber->cotar($unidade, $dropoff);
+        } catch (\Throwable $e) {
+            Log::channel('integracao')->error('Agente IA: falha ao cotar entrega Uber', [
+                'empresa_id' => $token->empresa_id,
+                'erro' => $e->getMessage(),
+            ]);
+            // Registra no gateway p/ o card da aba Integração denunciar a
+            // credencial quebrada (mesma coluna do "Testar conexão").
+            EmpresaGateway::ativoPara($token->empresa_id, EmpresaGateway::PROVEDOR_UBER_DIRECT)
+                ?->update(['ultima_falha' => mb_substr($e->getMessage(), 0, 1000)]);
+
+            return $indisponivel('erro_cotacao',
+                'Não consegui cotar a entrega agora — um atendente pode combinar a entrega.');
+        }
+
+        EmpresaGateway::ativoPara($token->empresa_id, EmpresaGateway::PROVEDOR_UBER_DIRECT)
+            ?->update(['ultima_falha' => null]);
+
+        return response()->json([
+            'dados' => [
+                'disponivel' => true,
+                'valor_custo' => round($quote['fee'] / 100, 2),
+                'prazo_minutos' => $quote['duration'],
+                'mensagem' => 'Entrega disponível para este endereço. Ela é acionada automaticamente assim que o pagamento do pedido confirmar.',
+            ],
+        ]);
     }
 
     /**
@@ -861,6 +1019,26 @@ class IntegracaoAgenteController extends Controller
             ])->values(),
             'observacoes' => $pedido->observacoes_internas,
             'pagamento' => $cobranca ? $this->cobrancaParaResposta($cobranca) : null,
+            'entrega' => $this->entregaParaResposta($pedido),
+        ];
+    }
+
+    /** Situação de entrega do pedido (metodo escolhido + rastreio Uber, se houver). */
+    private function entregaParaResposta(Pedido $pedido): ?array
+    {
+        $envio = PedidoEntrega::where('pedido_id', $pedido->id)
+            ->orderByDesc('id')
+            ->first();
+
+        if (! $pedido->metodo_entrega && ! $envio) {
+            return null;
+        }
+
+        return [
+            'metodo' => $pedido->metodo_entrega,
+            'status' => $envio?->status,
+            'rastreio_url' => $envio?->tracking_url ?: null,
+            'erro' => $envio?->erro ? true : false,
         ];
     }
 

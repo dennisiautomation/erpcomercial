@@ -634,6 +634,7 @@ Route::prefix('api/integracao/v1')->name('api.integracao.')
         Route::get('/pedidos/{id}', [\App\Http\Controllers\Api\IntegracaoAgenteController::class, 'pedido'])->whereNumber('id')->name('pedidos.show');
         Route::post('/pedidos', [\App\Http\Controllers\Api\IntegracaoAgenteController::class, 'criarPedido'])->name('pedidos.store');
         Route::post('/pedidos/{id}/pix', [\App\Http\Controllers\Api\IntegracaoAgenteController::class, 'pixPedido'])->whereNumber('id')->name('pedidos.pix');
+        Route::post('/entrega/cotar', [\App\Http\Controllers\Api\IntegracaoAgenteController::class, 'cotarEntrega'])->name('entrega.cotar');
     });
 
 // Webhook PIX Sicredi — SEM Bearer (o PSP chama), mas sob api/integracao/*

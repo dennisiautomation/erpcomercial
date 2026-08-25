@@ -29,6 +29,7 @@ class Pedido extends Model
         'desconto_valor',
         'total',
         'status',
+        'metodo_entrega',
         'observacoes_internas',
         'observacoes_externas',
     ];
