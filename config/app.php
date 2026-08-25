@@ -65,7 +65,10 @@ return [
     |
     */
 
-    'timezone' => 'UTC',
+    // 25/08/2026: o app nasceu em UTC e TODO o histórico foi gravado 3h à
+    // frente da hora local (flagrado no Histórico de Caixas da DONA DOURO).
+    // Virado para America/Sao_Paulo junto com o data-fix -3h do histórico.
+    'timezone' => env('APP_TIMEZONE', 'America/Sao_Paulo'),
 
     /*
     |--------------------------------------------------------------------------
