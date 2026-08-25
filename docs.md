@@ -2240,3 +2240,13 @@ exige mexer no agente; a resposta da API governa o comportamento:
 **Lado app.ia365** (docs.md de lá, §282): template do wizard ganhou a 6ª intenção COTAR ENTREGA +
 slots de endereço no CRIAR PEDIDO + regras de retirada×entrega no prompt; os 2 agentes vivos
 atualizados por `scripts/sync-agentes-v3.sql` (idempotente). Agente novo já nasce completo.
+
+✅ **DEPLOYADO 25/08/2026 ~18:05 UTC pelo Dennis** (imagem `8df1cfef49a4`, recreate + migrate no boot:
+`metodo_entrega` OK; rollback = tag `erp-com-app:agente-ia`). O rebuild também entregou o que vivia
+só na write-layer/main: **webhook Focus saiu de 419 → 200** (fix CSRF de 13/08 enfim no ar), Landing
+V2 e etiquetas preservados. ✅ **VALIDADO AO VIVO:** `POST /entrega/cotar` com token da DONA DOURO →
+`disponivel:false motivo=erro_cotacao` e **`ultima_falha` carimbada com o `invalid_scope` real**
+(o card da aba Integração agora denuncia a credencial sozinho); conversa E2E no agente (painel) →
+`[TOOL-LOOP]` chamou a rota com CEP/rua/número extraídos e `unidade_id` 12 preservado, resposta
+ofereceu retirada/atendente **sem inventar frete**. Quando o Uber liberar o escopo `eats.deliveries`,
+a entrega liga sozinha — nada a mexer.
