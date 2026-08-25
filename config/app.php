@@ -65,9 +65,9 @@ return [
     |
     */
 
-    // 25/08/2026: o app nasceu em UTC e TODO o histórico foi gravado 3h à
-    // frente da hora local (flagrado no Histórico de Caixas da DONA DOURO).
-    // Virado para America/Sao_Paulo junto com o data-fix -3h do histórico.
+    // 25/08/2026: o app nasceu em UTC e exibia tudo 3h à frente da hora local
+    // (flagrado no Histórico de Caixas). Como TODAS as colunas são TIMESTAMP,
+    // virar app+MySQL para -03 corrigiu o histórico sem tocar em dado.
     'timezone' => env('APP_TIMEZONE', 'America/Sao_Paulo'),
 
     /*
