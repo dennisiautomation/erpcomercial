@@ -609,7 +609,39 @@ class IntegracaoAgenteController extends Controller
 
         $metodoEntrega = $validated['entrega']['metodo'] ?? null;
 
-        $pedido = DB::transaction(function () use ($validated, $token, $produtos, $config, $unidade, $metodoEntrega) {
+        // Frete REPASSADO ao cliente (modelo China Mix: preco = fee/100, o
+        // pagamento cobra subtotal + frete). Cotação ANTES da transação (rede
+        // fora de lock); falha/indisponível ⇒ pedido segue SEM frete e o
+        // atendente combina — a trava de frete nunca derruba a venda.
+        $freteValor = null;
+        $fretePrazoMin = null;
+        if ($metodoEntrega === 'entrega') {
+            try {
+                $uber = UberDirectService::ativoPara($token->empresa_id);
+                $end = $validated['entrega'];
+                $cepEntrega = preg_replace('/\D/', '', (string) ($end['cep'] ?? ''));
+                if ($uber && $uber->cepAtendido($cepEntrega)) {
+                    $rua = trim(($end['logradouro'] ?? '') . ' ' . ($end['numero'] ?? ''));
+                    $dropoff = trim(sprintf(
+                        '%s, %s, %s, %s, BR',
+                        $rua !== '' ? $rua : ($end['bairro'] ?? ''),
+                        $end['cidade'] ?? $unidade->cidade,
+                        mb_strtoupper($end['uf'] ?? $unidade->uf),
+                        $cepEntrega
+                    ), ', ');
+                    $quote = $uber->cotar($unidade, $dropoff);
+                    $freteValor = round($quote['fee'] / 100, 2);
+                    $fretePrazoMin = $quote['duration'];
+                }
+            } catch (\Throwable $e) {
+                Log::channel('integracao')->warning('Agente IA: pedido segue sem frete (cotação falhou)', [
+                    'empresa_id' => $token->empresa_id,
+                    'erro' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        $pedido = DB::transaction(function () use ($validated, $token, $produtos, $config, $unidade, $metodoEntrega, $freteValor) {
             $cliente = $this->encontrarOuCriarCliente($token->empresa_id, $validated['cliente']);
 
             // Entrega: o endereço coletado na conversa vira o endereço do
@@ -673,9 +705,12 @@ class IntegracaoAgenteController extends Controller
                 'subtotal' => round($subtotal, 2),
                 'desconto_percentual' => 0,
                 'desconto_valor' => 0,
-                'total' => round($subtotal, 2),
+                // Frete entra no total ⇒ PIX/cartão (que cobram $pedido->total)
+                // já saem com a entrega embutida, igual ao China Mix.
+                'total' => round($subtotal + ($freteValor ?? 0), 2),
                 'status' => StatusPedido::Rascunho,
                 'metodo_entrega' => $metodoEntrega,
+                'frete_valor' => $freteValor,
                 'observacoes_internas' => "Criado via {$origem} — telefone {$validated['cliente']['telefone']}."
                     . (isset($validated['observacoes']) ? "\n" . $validated['observacoes'] : ''),
             ]);
@@ -727,25 +762,27 @@ class IntegracaoAgenteController extends Controller
         }
 
         // Bloco de entrega da resposta (25/08): diz ao agente o que prometer.
-        // 'automatica' = Uber ativo + endereço utilizável + CEP na área ⇒ o
-        // despacho sai sozinho no pagamento; senão a promessa é o humano.
+        // 'automatica' = frete cotado e embutido no total ⇒ o despacho sai
+        // sozinho no pagamento; senão a promessa é o humano.
         $entrega = null;
         if ($metodoEntrega === 'retirada') {
-            $entrega = ['metodo' => 'retirada', 'automatica' => false,
+            $entrega = ['metodo' => 'retirada', 'automatica' => false, 'frete_valor' => null,
                 'mensagem' => 'Retirada combinada na loja.'];
         } elseif ($metodoEntrega === 'entrega') {
-            $clienteEntrega = $pedido->fresh(['cliente'])->cliente;
-            $uber = UberDirectService::ativoPara($token->empresa_id);
-            $automatica = $uber && $clienteEntrega
-                && UberDirectService::enderecoCliente($clienteEntrega)
-                && $uber->cepAtendido($clienteEntrega->cep);
-            $entrega = ['metodo' => 'entrega', 'automatica' => (bool) $automatica,
-                'mensagem' => $automatica
-                    ? 'A entrega é acionada automaticamente assim que o pagamento confirmar.'
-                    : 'Um atendente vai combinar a entrega com você.'];
+            $entrega = $freteValor !== null
+                ? ['metodo' => 'entrega', 'automatica' => true, 'frete_valor' => $freteValor,
+                    'prazo_minutos' => $fretePrazoMin,
+                    'mensagem' => 'Entrega de R$ ' . number_format($freteValor, 2, ',', '.')
+                        . ' já incluída no total; ela é acionada automaticamente assim que o pagamento confirmar.']
+                : ['metodo' => 'entrega', 'automatica' => false, 'frete_valor' => null,
+                    'mensagem' => 'Um atendente vai combinar a entrega com você (o frete não está incluído no total).'];
         }
 
-        $mensagem = "Pedido #{$pedido->numero} registrado! Total R$ " . number_format((float) $pedido->total, 2, ',', '.') . '.';
+        $mensagem = "Pedido #{$pedido->numero} registrado! Total R$ " . number_format((float) $pedido->total, 2, ',', '.')
+            . ($freteValor !== null
+                ? ' (produtos R$ ' . number_format((float) $pedido->subtotal, 2, ',', '.')
+                    . ' + entrega R$ ' . number_format($freteValor, 2, ',', '.') . ')'
+                : '') . '.';
         if ($pix && $cartaoLink) {
             $mensagem .= ' Para pagar agora, use o PIX copia-e-cola enviado OU o link de cartão. Assim que o pagamento cair, o pedido é confirmado automaticamente.';
         } elseif ($pix) {
@@ -782,9 +819,9 @@ class IntegracaoAgenteController extends Controller
      * entregável e que a credencial do gateway funciona. Sempre responde 200
      * com `disponivel` true/false — o agente lê o resultado e se adapta
      * (mesmo desenho response-driven do pix/cartao_link no POST /pedidos).
-     * ⚠️ O valor cotado é o CUSTO da loja com o Uber; cobrar ou não frete do
-     * cliente é decisão comercial fora deste endpoint — o agente não promete
-     * valor de frete ao cliente.
+     * `valor` é o PREÇO ao cliente = fee da cotação Uber / 100 (repasse 1:1,
+     * modelo China Mix — decisão do Dennis 25/08); no CRIAR PEDIDO ele entra
+     * no total e o PIX/cartão já cobram com a entrega embutida.
      */
     public function cotarEntrega(Request $request): JsonResponse
     {
@@ -858,12 +895,15 @@ class IntegracaoAgenteController extends Controller
         EmpresaGateway::ativoPara($token->empresa_id, EmpresaGateway::PROVEDOR_UBER_DIRECT)
             ?->update(['ultima_falha' => null]);
 
+        $valor = round($quote['fee'] / 100, 2);
+
         return response()->json([
             'dados' => [
                 'disponivel' => true,
-                'valor_custo' => round($quote['fee'] / 100, 2),
+                'valor' => $valor,
                 'prazo_minutos' => $quote['duration'],
-                'mensagem' => 'Entrega disponível para este endereço. Ela é acionada automaticamente assim que o pagamento do pedido confirmar.',
+                'mensagem' => 'Entrega disponível: R$ ' . number_format($valor, 2, ',', '.')
+                    . ', chega em ~' . (int) $quote['duration'] . ' min após a confirmação do pagamento. O frete é somado ao total do pedido.',
             ],
         ]);
     }
@@ -1036,6 +1076,7 @@ class IntegracaoAgenteController extends Controller
 
         return [
             'metodo' => $pedido->metodo_entrega,
+            'frete_valor' => $pedido->frete_valor !== null ? (float) $pedido->frete_valor : null,
             'status' => $envio?->status,
             'rastreio_url' => $envio?->tracking_url ?: null,
             'erro' => $envio?->erro ? true : false,

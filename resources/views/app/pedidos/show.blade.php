@@ -348,6 +348,12 @@
                                 <strong>- R$ {{ number_format($pedido->desconto_valor, 2, ',', '.') }}</strong>
                             </div>
                         @endif
+                        @if(($pedido->frete_valor ?? 0) > 0)
+                            <div class="d-flex justify-content-between py-1">
+                                <span class="text-muted">Entrega (Uber):</span>
+                                <strong>+ R$ {{ number_format($pedido->frete_valor, 2, ',', '.') }}</strong>
+                            </div>
+                        @endif
                         <hr class="my-2">
                         <div class="d-flex justify-content-between py-1">
                             <span class="fs-5 fw-bold">TOTAL:</span>

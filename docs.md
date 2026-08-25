@@ -1609,7 +1609,7 @@ foi o modo de falha do CRIAR PEDIDO no teste de 13/08 (telefone vazio). Não rem
 | `GET /api/integracao/v1/pedidos/{id}` | Detalhe com itens (+ bloco `pagamento` com status da cobrança PIX, quando houver) |
 | `POST /api/integracao/v1/pedidos` | Escrita principal: `{unidade_id, cliente{nome,telefone,cpf_cnpj?,email?}, itens[{produto_id,quantidade}], observacoes?, origem?}` → acha/cria o cliente pelo telefone (sufixo 8 dígitos, tolera 9º dígito; CNPJ alfanumérico preservado — armadilha 33), cria pedido **RASCUNHO** com `numero = max+1` sob lock, preço = `preco_venda` atual (agente NÃO define preço). Não movimenta estoque, não fatura, não emite fiscal. **Se a empresa tem gateway PIX ativo, a resposta já vem com `pix{txid, copia_cola, expira_em}`** (best-effort: falha no PSP não derruba o pedido). **(25/08)** Aceita `entrega{metodo: retirada\|entrega, cep?, logradouro?, numero?, complemento?, bairro?, cidade?, uf?}`: com `metodo=entrega` o endereço vira o endereço do CLIENTE (é dele que o despacho monta o dropoff; cidade/UF caem na unidade quando ausentes) e o pedido grava `metodo_entrega`; a resposta traz `entrega{metodo, automatica, mensagem}` — `automatica=true` só com gateway Uber ativo + endereço utilizável + CEP na área. |
 | `POST /api/integracao/v1/pedidos/{id}/pix` | Gera/reaproveita a cobrança PIX do pedido (2ª via). Reuso só de cobrança ATIVA com copia-e-cola e não vencida (lição JL). Pedido já pago → devolve `pago: true` com data, sem nova cobrança. |
-| `POST /api/integracao/v1/entrega/cotar` | **(25/08)** Cota a entrega Uber Direct ANTES de fechar o pedido: `{unidade_id, cep, logradouro?, numero?, bairro?, cidade?, uf?}` (cidade/UF caem na unidade quando ausentes — entrega local). **Sempre 200 com `disponivel` true/false** — o agente lê e se adapta (response-driven, mesmo desenho do pix/cartao_link): `entrega_desativada` (sem gateway ativo), `cep_fora_da_area`, `erro_cotacao` (falha registrada em `empresa_gateways.ultima_falha` p/ o card denunciar; sucesso limpa). Sucesso traz `valor_custo` (custo da LOJA com o Uber — cobrar frete do cliente é decisão comercial pendente, o agente NÃO promete valor) e `prazo_minutos`. |
+| `POST /api/integracao/v1/entrega/cotar` | **(25/08)** Cota a entrega Uber Direct ANTES de fechar o pedido: `{unidade_id, cep, logradouro?, numero?, bairro?, cidade?, uf?}` (cidade/UF caem na unidade quando ausentes — entrega local). **Sempre 200 com `disponivel` true/false** — o agente lê e se adapta (response-driven, mesmo desenho do pix/cartao_link): `entrega_desativada` (sem gateway ativo), `cep_fora_da_area`, `erro_cotacao` (falha registrada em `empresa_gateways.ultima_falha` p/ o card denunciar; sucesso limpa). **§282.1:** sucesso traz **`valor` = PREÇO ao cliente (fee Uber/100, repasse 1:1 modelo China Mix — decisão do Dennis 25/08)** + `prazo_minutos` + mensagem pronta ("R$ X, ~N min, somado ao total"). |
 | `POST /api/integracao/v1/webhooks/sicredi[/pix]` | **SEM Bearer** (PSP chama; sob `api/integracao/*` só p/ herdar a isenção de CSRF sem rebuild). Payload BACEN tratado como DICA: cada txid conhecido é **re-consultado na API mTLS** antes de confirmar (pago = `CONCLUIDA` + array `pix` não-vazio). Sempre responde 200. |
 
 ### PIX Sicredi por empresa — pagamento do pedido do agente (13/08/2026)
@@ -2240,6 +2240,19 @@ exige mexer no agente; a resposta da API governa o comportamento:
 **Lado app.ia365** (docs.md de lá, §282): template do wizard ganhou a 6ª intenção COTAR ENTREGA +
 slots de endereço no CRIAR PEDIDO + regras de retirada×entrega no prompt; os 2 agentes vivos
 atualizados por `scripts/sync-agentes-v3.sql` (idempotente). Agente novo já nasce completo.
+
+**§282.1 — frete REPASSADO ao cliente (25/08, decisão do Dennis "o cliente paga, veja o China Mix"):**
+mesmo modelo do `freteService.ts` de lá (`preco = fee/100`, pagamento cobra `subtotal + frete`).
+`pedidos.frete_valor` (migration `2026_08_25_190000`); o `POST /pedidos` com `metodo=entrega` **cota
+server-side ANTES da transação** e grava `total = subtotal + frete` ⇒ **PIX (Sicredi) e cartão (Asaas),
+que cobram `$pedido->total`, já saem com a entrega embutida** — zero mudança nos serviços de pagamento.
+Cotação falhou/indisponível ⇒ pedido segue SEM frete (fail-open, `entrega.automatica=false`, atendente
+combina — a trava de frete nunca derruba a venda). Resposta do pedido: `entrega.frete_valor` + mensagem
+discriminada ("Total R$ Z (produtos R$ A + entrega R$ B)"); `GET /pedidos` idem.
+⚠️ **Armadilha fechada: `PedidoController::update` (edição humana) recalculava `total = subtotal −
+desconto` e APAGARIA o frete** — agora soma `frete_valor`; a view do pedido mostra a linha
+"Entrega (Uber)". ⚠️ O despacho re-cota na hora do pagamento — variação pequena entre o cotado e o
+pago fica com a loja (igual China Mix, quote expira em ~15 min).
 
 ✅ **DEPLOYADO 25/08/2026 ~18:05 UTC pelo Dennis** (imagem `8df1cfef49a4`, recreate + migrate no boot:
 `metodo_entrega` OK; rollback = tag `erp-com-app:agente-ia`). O rebuild também entregou o que vivia

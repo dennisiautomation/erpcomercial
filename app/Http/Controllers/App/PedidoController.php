@@ -288,7 +288,9 @@ class PedidoController extends Controller
 
             $descontoGeralPerc  = $request->desconto_percentual ?? 0;
             $descontoGeralValor = $request->desconto_valor ?? round($subtotal * ($descontoGeralPerc / 100), 2);
-            $total = round($subtotal - $descontoGeralValor, 2);
+            // Frete do Agente IA (repasse Uber) sobrevive à edição humana —
+            // sem esta soma, editar o pedido apagaria o frete do total.
+            $total = round($subtotal - $descontoGeralValor + (float) ($pedido->frete_valor ?? 0), 2);
 
             $pedido->update([
                 'cliente_id'          => $request->cliente_id,

@@ -30,6 +30,7 @@ class Pedido extends Model
         'total',
         'status',
         'metodo_entrega',
+        'frete_valor',
         'observacoes_internas',
         'observacoes_externas',
     ];
