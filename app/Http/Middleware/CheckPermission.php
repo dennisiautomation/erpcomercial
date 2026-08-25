@@ -30,10 +30,10 @@ class CheckPermission
             'consulta' => ['ver'],
         ],
         'produtos' => [
-            'admin' => ['ver', 'criar', 'editar', 'excluir'],
-            'dono' => ['ver', 'criar', 'editar', 'excluir'],
-            'gerente' => ['ver', 'criar', 'editar', 'excluir'],
-            'vendedor' => ['ver'],
+            'admin' => ['ver', 'criar', 'editar', 'excluir', 'foto'],
+            'dono' => ['ver', 'criar', 'editar', 'excluir', 'foto'],
+            'gerente' => ['ver', 'criar', 'editar', 'excluir', 'foto'],
+            'vendedor' => ['ver', 'foto'], // troca só a foto do produto, sem abrir preço/fiscal (25/08/2026)
             'caixa' => ['ver'],
             'consulta' => ['ver'],
         ],

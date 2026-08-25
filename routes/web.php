@@ -211,6 +211,11 @@ Route::middleware(['auth', 'suspensao', 'unidade'])->prefix('app')->name('app.')
         ->name('clientes.quick')
         ->middleware('permission:clientes');
     Route::resource('clientes', App\ClienteController::class)->middleware('permission:clientes');
+    // Troca de foto apartada do update: ação 'foto' permite ao vendedor mexer
+    // só na imagem, sem herdar 'editar' (preço/fiscal) — 25/08/2026
+    Route::post('produtos/{produto}/foto', [App\ProdutoController::class, 'atualizarFoto'])
+        ->name('produtos.foto')
+        ->middleware('permission:produtos,foto');
     Route::resource('produtos', App\ProdutoController::class)->middleware('permission:produtos');
     Route::resource('fornecedores', App\FornecedorController::class)->middleware('permission:produtos');
     Route::resource('categorias', App\CategoriaController::class)->middleware('permission:produtos');

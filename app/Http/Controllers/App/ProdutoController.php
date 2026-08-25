@@ -288,6 +288,27 @@ class ProdutoController extends Controller
     }
 
     /**
+     * Troca só a foto do produto (rota própria, permission:produtos,foto).
+     * Existe para o vendedor atualizar a imagem sem ter 'editar' no módulo.
+     */
+    public function atualizarFoto(Request $request, Produto $produto)
+    {
+        $request->validate([
+            'foto' => 'required|image|max:2048',
+        ]);
+
+        if ($produto->foto) {
+            Storage::disk('public')->delete($produto->foto);
+        }
+
+        $produto->foto = $request->file('foto')->store('produtos', 'public');
+        $produto->save();
+
+        return redirect()->route('app.produtos.show', $produto)
+            ->with('success', 'Foto do produto atualizada!');
+    }
+
+    /**
      * Persiste/remove os overrides de preço por forma de pagamento.
      * Campo vazio = sem override (vale a regra geral das Configurações da Loja).
      */

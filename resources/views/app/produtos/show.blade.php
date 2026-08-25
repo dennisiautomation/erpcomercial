@@ -176,11 +176,31 @@
                 </div>
             @endif
 
-            @if($produto->foto)
+            @php
+                $userFoto = auth()->user();
+                $podeFotoProduto = \App\Http\Middleware\CheckPermission::can(
+                    $userFoto->is_admin ? 'admin' : ($userFoto->perfil instanceof \App\Enums\Perfil ? $userFoto->perfil->value : (string) $userFoto->perfil),
+                    'produtos',
+                    'foto'
+                );
+            @endphp
+            @if($produto->foto || $podeFotoProduto)
                 <hr>
                 <div>
                     <small class="text-muted d-block mb-2">Foto do Produto</small>
-                    <img src="{{ Storage::url($produto->foto) }}" alt="{{ $produto->descricao }}" class="img-fluid rounded" style="max-height: 150px;">
+                    @if($produto->foto)
+                        <img src="{{ Storage::url($produto->foto) }}" alt="{{ $produto->descricao }}" class="img-fluid rounded" style="max-height: 150px;">
+                    @endif
+                    @if($podeFotoProduto)
+                        <form method="POST" action="{{ route('app.produtos.foto', $produto) }}" enctype="multipart/form-data" class="d-flex align-items-center gap-2 mt-2">
+                            @csrf
+                            <input type="file" name="foto" accept="image/png,image/jpeg,image/webp" class="form-control form-control-sm" style="max-width: 240px;" required>
+                            <button type="submit" class="btn btn-sm btn-outline-primary text-nowrap">
+                                <i class="bi bi-camera me-1"></i>{{ $produto->foto ? 'Trocar foto' : 'Adicionar foto' }}
+                            </button>
+                        </form>
+                        <small class="text-muted">JPG, PNG ou WebP até 2 MB.</small>
+                    @endif
                 </div>
             @endif
         </x-erp.card>
