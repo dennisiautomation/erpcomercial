@@ -318,7 +318,11 @@ class OrdemServicoController extends Controller
                 'tipo' => 'balcao',
                 'status' => 'concluida',
                 'subtotal' => $ordemServico->valor_produtos + $ordemServico->valor_servicos,
-                'desconto' => $ordemServico->desconto,
+                // A coluna de desconto da venda e `desconto_valor` — mandar
+                // 'desconto' e chave fora do $fillable: o Eloquent DESCARTA em
+                // silencio e a venda nasce com subtotal - 0 != total, o que
+                // rejeita a nota na SEFAZ (vNF = vProd - vDesc, armadilha 24b).
+                'desconto_valor' => $ordemServico->desconto,
                 'total' => $ordemServico->total,
                 'forma_pagamento' => 'dinheiro',
                 'observacoes' => 'Gerada a partir da OS #' . $ordemServico->numero,
@@ -331,7 +335,9 @@ class OrdemServicoController extends Controller
                     'descricao' => $item->descricao,
                     'quantidade' => $item->quantidade,
                     'preco_unitario' => $item->preco_unitario,
-                    'desconto' => 0,
+                    // Item de OS nao tem desconto proprio (a tabela nem tem coluna);
+                    // o desconto da OS e do documento, nao do item.
+                    'desconto_valor' => 0,
                     'total' => $item->total,
                 ]);
             }
