@@ -24,6 +24,23 @@ class ConfiguracaoLoja extends Model
         'cupom_automatico_cartao',
         'cpf_emite_fiscal',
         'padrao_impressao',
+        'os_cabecalho',
+        'os_termos_garantia',
+        'os_texto_legal',
+        'os_rodape',
+        'os_mostrar_assinatura',
+        'os_mostrar_laudo',
+        'os_mostrar_valores',
+    ];
+
+    /**
+     * Blocos da OS impressa aparecem por padrão — loja que nunca abriu a tela de
+     * configuração continua imprimindo a OS completa, como antes.
+     */
+    protected $attributes = [
+        'os_mostrar_assinatura' => true,
+        'os_mostrar_laudo'      => true,
+        'os_mostrar_valores'    => true,
     ];
 
     protected function casts(): array
@@ -35,6 +52,9 @@ class ConfiguracaoLoja extends Model
             'percentual_debito'          => 'decimal:2',
             'percentual_credito'         => 'decimal:2',
             'max_parcelas'               => 'integer',
+            'os_mostrar_assinatura'      => 'boolean',
+            'os_mostrar_laudo'           => 'boolean',
+            'os_mostrar_valores'         => 'boolean',
         ];
     }
 

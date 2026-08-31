@@ -218,6 +218,87 @@
         </div>
     </x-erp.form-section>
 
+    {{-- ============ IMPRESSÃO DA ORDEM DE SERVIÇO ============ --}}
+    <x-erp.form-section title="Impressão da Ordem de Serviço" icon="wrench-adjustable"
+        description="O que sai no papel quando você imprime uma OS — textos seus, desta loja">
+
+        <div class="text-muted small mb-3">
+            <i class="bi bi-info-circle me-1"></i>
+            Tudo aqui é <strong>opcional</strong>. Campo em branco simplesmente não aparece na OS impressa,
+            que continua saindo como sempre saiu. O que você escrever vale para
+            <u>todas as OS desta loja</u>, sem precisar redigitar em cada uma.
+        </div>
+
+        <div class="mb-3">
+            <label for="os_cabecalho" class="form-label fw-semibold">Texto do cabeçalho</label>
+            <textarea name="os_cabecalho" id="os_cabecalho" rows="2"
+                      class="form-control @error('os_cabecalho') is-invalid @enderror"
+                      placeholder="Ex.: Assistência Técnica Autorizada — Atendimento de segunda a sexta, 8h às 18h">{{ old('os_cabecalho', $config->os_cabecalho) }}</textarea>
+            <div class="form-text">Sai logo abaixo do nome e endereço da loja, no topo da folha.</div>
+            @error('os_cabecalho') <div class="invalid-feedback">{{ $message }}</div> @enderror
+        </div>
+
+        <div class="mb-3">
+            <label for="os_termos_garantia" class="form-label fw-semibold">Termos de garantia</label>
+            <textarea name="os_termos_garantia" id="os_termos_garantia" rows="4"
+                      class="form-control @error('os_termos_garantia') is-invalid @enderror"
+                      placeholder="Ex.: Garantia de 90 dias sobre o serviço executado e as peças aplicadas, contados da data de entrega. A garantia não cobre mau uso, quedas, oxidação ou violação por terceiros.">{{ old('os_termos_garantia', $config->os_termos_garantia) }}</textarea>
+            <div class="form-text">Sai em bloco destacado antes das assinaturas — é o que o cliente assina junto.</div>
+            @error('os_termos_garantia') <div class="invalid-feedback">{{ $message }}</div> @enderror
+        </div>
+
+        <div class="mb-3">
+            <label for="os_texto_legal" class="form-label fw-semibold">Texto legal / observações fixas</label>
+            <textarea name="os_texto_legal" id="os_texto_legal" rows="3"
+                      class="form-control @error('os_texto_legal') is-invalid @enderror"
+                      placeholder="Ex.: Equipamentos não retirados em até 90 dias após o aviso de conclusão poderão ser vendidos para custeio do serviço (art. 1.275 CC).">{{ old('os_texto_legal', $config->os_texto_legal) }}</textarea>
+            <div class="form-text">Para prazo de retirada, LGPD, ou qualquer aviso que precise constar sempre.</div>
+            @error('os_texto_legal') <div class="invalid-feedback">{{ $message }}</div> @enderror
+        </div>
+
+        <div class="mb-4">
+            <label for="os_rodape" class="form-label fw-semibold">Rodapé</label>
+            <textarea name="os_rodape" id="os_rodape" rows="2"
+                      class="form-control @error('os_rodape') is-invalid @enderror"
+                      placeholder="Ex.: Dúvidas? (11) 4002-8922 — contato@minhaloja.com.br">{{ old('os_rodape', $config->os_rodape) }}</textarea>
+            <div class="form-text">Última linha da folha. Em branco, sai a data de emissão de sempre.</div>
+            @error('os_rodape') <div class="invalid-feedback">{{ $message }}</div> @enderror
+        </div>
+
+        <div class="fw-semibold mb-2"><i class="bi bi-eye me-1"></i> Blocos que aparecem na OS impressa</div>
+        <div class="text-muted small mb-2">Todos ligados por padrão. Desligue o que a sua loja não usa.</div>
+
+        <div class="form-check form-switch mb-1">
+            <input class="form-check-input" type="checkbox" role="switch" value="1"
+                   id="os_mostrar_assinatura" name="os_mostrar_assinatura"
+                   @checked(old('os_mostrar_assinatura', $config->os_mostrar_assinatura))>
+            <label class="form-check-label" for="os_mostrar_assinatura">
+                Linhas de <strong>assinatura</strong> (cliente e responsável técnico)
+            </label>
+        </div>
+        <div class="form-check form-switch mb-1">
+            <input class="form-check-input" type="checkbox" role="switch" value="1"
+                   id="os_mostrar_laudo" name="os_mostrar_laudo"
+                   @checked(old('os_mostrar_laudo', $config->os_mostrar_laudo))>
+            <label class="form-check-label" for="os_mostrar_laudo">
+                <strong>Laudo técnico</strong>
+            </label>
+        </div>
+        <div class="form-check form-switch mb-1">
+            <input class="form-check-input" type="checkbox" role="switch" value="1"
+                   id="os_mostrar_valores" name="os_mostrar_valores"
+                   @checked(old('os_mostrar_valores', $config->os_mostrar_valores))>
+            <label class="form-check-label" for="os_mostrar_valores">
+                <strong>Valores</strong> (itens, desconto e total)
+            </label>
+        </div>
+        <div class="text-muted small ps-4 mt-1">
+            <i class="bi bi-lightbulb me-1"></i>
+            <em>Desligar "Valores" é útil na via que fica com o técnico, ou quando a OS de entrada
+            é impressa antes de o orçamento estar fechado.</em>
+        </div>
+    </x-erp.form-section>
+
     {{-- ============ ONDE MAIS ISSO APARECE ============ --}}
     <x-erp.card title="Onde essas configurações aparecem no dia a dia" icon="map" class="mb-4">
         <div class="row g-3 small text-muted">

@@ -30,6 +30,9 @@
                                     <span class="input-group-text bg-transparent"><i class="bi bi-search"></i></span>
                                     <input type="text" id="clienteBusca" class="form-control @error('cliente_id') is-invalid @enderror"
                                            placeholder="Buscar cliente por nome ou CPF/CNPJ..." autocomplete="off">
+                                    <button type="button" class="btn btn-outline-primary" onclick="abrirNovoCliente(document.getElementById('clienteBusca').value.trim())">
+                                        <i class="bi bi-person-plus me-1"></i> Novo
+                                    </button>
                                 </div>
                                 <div id="clienteResultados" class="list-group mt-1 position-absolute w-100 shadow-lg"
                                      style="z-index:1050; display:none; max-height:300px; overflow-y:auto;"></div>
@@ -181,6 +184,53 @@
         </div>
     </div>
 </form>
+
+<div class="modal fade" id="novoClienteModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-person-plus me-2"></i>Cadastrar Cliente</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold">Tipo</label>
+                    <div class="btn-group w-100" role="group">
+                        <input type="radio" class="btn-check" name="nc_tipo_pessoa" id="nc_tipo_pf" value="pf" checked>
+                        <label class="btn btn-outline-primary" for="nc_tipo_pf">Pessoa Física</label>
+                        <input type="radio" class="btn-check" name="nc_tipo_pessoa" id="nc_tipo_pj" value="pj">
+                        <label class="btn btn-outline-primary" for="nc_tipo_pj">Pessoa Jurídica</label>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold" id="nc_label_doc">CPF <span class="text-danger">*</span></label>
+                    <input type="text" id="nc_cpf_cnpj" class="form-control" maxlength="18" placeholder="000.000.000-00">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold" id="nc_label_nome">Nome <span class="text-danger">*</span></label>
+                    <input type="text" id="nc_nome" class="form-control">
+                </div>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label small fw-semibold">Telefone</label>
+                        <input type="text" id="nc_telefone" class="form-control" placeholder="(00) 00000-0000">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small fw-semibold">Email</label>
+                        <input type="email" id="nc_email" class="form-control">
+                    </div>
+                </div>
+                <div id="nc_erro" class="alert alert-danger mt-3 d-none small"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="nc_salvar">
+                    <i class="bi bi-check-lg me-1"></i>Salvar e usar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 @endsection
 
 @push('scripts')
@@ -204,7 +254,17 @@
             .then(clientes => {
                 clienteResultados.innerHTML = '';
                 if (clientes.length === 0) {
-                    clienteResultados.innerHTML = '<div class="list-group-item text-muted small py-2">Nenhum cliente encontrado</div>';
+                    // Cliente novo sem sair da abertura da OS
+                    const vazio = document.createElement('div');
+                    vazio.className = 'list-group-item small py-2';
+                    vazio.innerHTML = '<span class="text-muted">Nenhum cliente encontrado.</span>';
+                    const btnNovo = document.createElement('button');
+                    btnNovo.type = 'button';
+                    btnNovo.className = 'btn btn-sm btn-primary ms-2';
+                    btnNovo.innerHTML = '<i class="bi bi-person-plus me-1"></i> Cadastrar';
+                    btnNovo.addEventListener('click', () => abrirNovoCliente(termo));
+                    vazio.appendChild(btnNovo);
+                    clienteResultados.appendChild(vazio);
                     clienteResultados.style.display = 'block';
                     return;
                 }
@@ -366,5 +426,138 @@
         document.getElementById('totalServicos').textContent = 'R$ ' + totalServicos.toFixed(2).replace('.', ',');
         document.getElementById('totalGeral').textContent = 'R$ ' + totalGeral.toFixed(2).replace('.', ',');
     }
+
+    // ─── Novo cliente (modal) ───────────────────────────────
+    const modalEl = document.getElementById('novoClienteModal');
+    const ncModal = new bootstrap.Modal(modalEl);
+    const ncCpfCnpj = document.getElementById('nc_cpf_cnpj');
+    const ncNome = document.getElementById('nc_nome');
+    const ncLabelDoc = document.getElementById('nc_label_doc');
+    const ncLabelNome = document.getElementById('nc_label_nome');
+    const ncErro = document.getElementById('nc_erro');
+
+    function onlyDigits(v) { return v.replace(/\D/g, ''); }
+    function maskCpf(v) { return onlyDigits(v).slice(0,11).replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})\.(\d{3})(\d)/,'$1.$2.$3').replace(/(\d{3})\.(\d{3})\.(\d{3})(\d)/,'$1.$2.$3-$4'); }
+    function maskCnpj(v) {
+        // CNPJ alfanumérico (NT 2025.001): letras nas 12 primeiras posições, DV numérico
+        const a = v.replace(/[^0-9A-Za-z]/g, '').toUpperCase().slice(0, 14);
+        const base = a.slice(0, 12), dv = a.slice(12).replace(/[^0-9]/g, '');
+        let out = base.slice(0, 2);
+        if (base.length > 2) out += '.' + base.slice(2, 5);
+        if (base.length > 5) out += '.' + base.slice(5, 8);
+        if (base.length > 8) out += '/' + base.slice(8, 12);
+        if (dv.length) out += '-' + dv;
+        return out;
+    }
+    function maskTel(v) { v = onlyDigits(v).slice(0,11); if (v.length > 10) return v.replace(/^(\d{2})(\d{5})(\d{4}).*/,'($1) $2-$3'); if (v.length > 6) return v.replace(/^(\d{2})(\d{4})(\d{0,4}).*/,'($1) $2-$3'); if (v.length > 2) return v.replace(/^(\d{2})(\d{0,5})/,'($1) $2'); return v; }
+
+    function aplicarTipo() {
+        const isPJ = document.getElementById('nc_tipo_pj').checked;
+        ncLabelDoc.innerHTML = (isPJ ? 'CNPJ' : 'CPF') + ' <span class="text-danger">*</span>';
+        ncLabelNome.innerHTML = (isPJ ? 'Razão Social' : 'Nome') + ' <span class="text-danger">*</span>';
+        ncCpfCnpj.placeholder = isPJ ? '00.000.000/0000-00' : '000.000.000-00';
+        ncCpfCnpj.value = isPJ ? maskCnpj(ncCpfCnpj.value) : maskCpf(ncCpfCnpj.value);
+    }
+    document.querySelectorAll('input[name="nc_tipo_pessoa"]').forEach(r => r.addEventListener('change', aplicarTipo));
+    ncCpfCnpj.addEventListener('input', function() {
+        const isPJ = document.getElementById('nc_tipo_pj').checked;
+        this.value = isPJ ? maskCnpj(this.value) : maskCpf(this.value);
+    });
+    ncCpfCnpj.addEventListener('blur', function() {
+        const isPJ = document.getElementById('nc_tipo_pj').checked;
+        if (!isPJ) return;
+        const cnpj = this.value.replace(/[^0-9A-Za-z]/g, '').toUpperCase();
+        if (cnpj.length !== 14) return;
+        if (/[A-Z]/.test(cnpj)) return; // consulta automática só existe p/ CNPJ numérico
+        const original = this.value;
+        this.disabled = true;
+        fetch('https://brasilapi.com.br/api/cnpj/v1/' + cnpj)
+            .then(r => r.ok ? r.json() : Promise.reject(r))
+            .then(data => {
+                if (data.razao_social && !ncNome.value) ncNome.value = data.razao_social;
+                const tel = document.getElementById('nc_telefone');
+                if (data.ddd_telefone_1 && !tel.value) tel.value = maskTel(data.ddd_telefone_1);
+                const email = document.getElementById('nc_email');
+                if (data.email && !email.value) email.value = data.email;
+            })
+            .catch(() => {})
+            .finally(() => { this.disabled = false; });
+    });
+    document.getElementById('nc_telefone').addEventListener('input', function() { this.value = maskTel(this.value); });
+
+    function abrirNovoCliente(termo) {
+        ncErro.classList.add('d-none');
+        ncErro.textContent = '';
+        ncCpfCnpj.value = '';
+        ncNome.value = '';
+        document.getElementById('nc_telefone').value = '';
+        document.getElementById('nc_email').value = '';
+        const digits = (termo || '').replace(/[^0-9A-Za-z]/g, ''); // preserva CNPJ alfanumérico
+        if (digits.length === 11 || digits.length === 14) {
+            document.getElementById(digits.length === 14 ? 'nc_tipo_pj' : 'nc_tipo_pf').checked = true;
+            aplicarTipo();
+            ncCpfCnpj.value = digits.length === 14 ? maskCnpj(digits) : maskCpf(digits);
+        } else if (termo) {
+            ncNome.value = termo;
+        }
+        clienteResultados.style.display = 'none';
+        ncModal.show();
+        setTimeout(() => (ncNome.value ? ncCpfCnpj : ncNome).focus(), 300);
+    }
+    window.abrirNovoCliente = abrirNovoCliente;
+
+    document.getElementById('nc_salvar').addEventListener('click', function() {
+        ncErro.classList.add('d-none');
+        const payload = {
+            tipo_pessoa: document.querySelector('input[name="nc_tipo_pessoa"]:checked').value,
+            cpf_cnpj: ncCpfCnpj.value,
+            nome_razao_social: ncNome.value.trim(),
+            telefone: document.getElementById('nc_telefone').value || null,
+            email: document.getElementById('nc_email').value || null,
+        };
+        if (!payload.cpf_cnpj || !payload.nome_razao_social) {
+            ncErro.textContent = 'Informe documento e nome.';
+            ncErro.classList.remove('d-none');
+            return;
+        }
+        const btn = this;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Salvando...';
+        fetch('{{ route("app.clientes.quick") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': csrfToken,
+            },
+            body: JSON.stringify(payload),
+        })
+        .then(async r => {
+            if (!r.ok) {
+                const data = await r.json().catch(() => ({}));
+                const msgs = data.errors ? Object.values(data.errors).flat().join(' ') : (data.message || 'Erro ao salvar.');
+                throw new Error(msgs);
+            }
+            return r.json();
+        })
+        .then(c => {
+            document.getElementById('clienteId').value = c.id;
+            document.getElementById('clienteNome').textContent = c.nome_razao_social;
+            document.getElementById('clienteDoc').textContent = c.cpf_cnpj || '';
+            document.getElementById('clienteSelecionado').style.display = 'block';
+            document.getElementById('clienteBuscaGroup').style.display = 'none';
+            clienteBusca.value = '';
+            clienteResultados.style.display = 'none';
+            ncModal.hide();
+        })
+        .catch(err => {
+            ncErro.textContent = err.message;
+            ncErro.classList.remove('d-none');
+        })
+        .finally(() => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Salvar e usar';
+        });
+    });
 </script>
 @endpush

@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers\App;
 
+use App\Enums\TipoMovimentacaoEstoque;
 use App\Http\Controllers\Controller;
 use App\Models\Cliente;
+use App\Models\ConfiguracaoLoja;
 use App\Models\OrdemServico;
 use App\Models\OrdemServicoItem;
 use App\Models\Produto;
@@ -11,6 +13,7 @@ use App\Models\Servico;
 use App\Models\User;
 use App\Models\Venda;
 use App\Models\VendaItem;
+use App\Services\SaldoEstoque;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -157,7 +160,14 @@ class OrdemServicoController extends Controller
         $ordemServico->load(['cliente', 'vendedor', 'tecnico', 'itens.produto', 'itens.servico', 'unidade']);
 
         if ($request->has('print')) {
-            return view('app.ordens-servico.print', compact('ordemServico'));
+            // Textos e blocos da OS impressa vêm da loja DONA da OS, não da
+            // unidade da sessão (admin imprimindo de fora veria os textos errados).
+            $configLoja = ConfiguracaoLoja::daUnidade(
+                $ordemServico->empresa_id,
+                $ordemServico->unidade_id
+            );
+
+            return view('app.ordens-servico.print', compact('ordemServico', 'configLoja'));
         }
 
         return view('app.ordens-servico.show', compact('ordemServico'));
@@ -265,7 +275,9 @@ class OrdemServicoController extends Controller
 
         $novoStatus = $request->status;
 
-        if ($novoStatus !== 'cancelada' && !in_array($novoStatus, $statusPermitidos[$ordemServico->status] ?? [])) {
+        // 'entregue' e 'cancelada' sao terminais: nem o cancelamento passa por cima
+        // deles (cancelar uma OS ja entregue reabriria o estoque baixado na venda).
+        if (!in_array($novoStatus, $statusPermitidos[$ordemServico->status] ?? [])) {
             return back()->with('error', 'Transicao de status invalida.');
         }
 
@@ -284,6 +296,13 @@ class OrdemServicoController extends Controller
     {
         if (!in_array($ordemServico->status, ['concluida', 'entregue'])) {
             return back()->with('error', 'Apenas OS concluidas ou entregues podem ser convertidas em venda.');
+        }
+
+        // A conversao baixa estoque: sem estoque de venda na loja nao ha onde
+        // debitar as pecas — melhor barrar aqui do que gerar venda pela metade.
+        $temProduto = $ordemServico->itens()->where('tipo', 'produto')->whereNotNull('produto_id')->exists();
+        if ($temProduto && ! SaldoEstoque::estoqueDeVendaId($ordemServico->unidade_id)) {
+            return back()->with('error', 'Esta loja nao tem estoque habilitado para venda. Configure em Estoque antes de converter a OS.');
         }
 
         $venda = DB::transaction(function () use ($ordemServico) {
@@ -317,6 +336,10 @@ class OrdemServicoController extends Controller
                 ]);
             }
 
+            // A peca aplicada na OS sai do estoque na conversao — mesma mecanica
+            // do faturamento de pedido (SaldoEstoque e o ponto unico de gravacao).
+            $this->baixarEstoqueOS($ordemServico);
+
             $ordemServico->update(['status' => 'entregue']);
 
             return $venda;
@@ -324,6 +347,36 @@ class OrdemServicoController extends Controller
 
         return redirect()->route('app.vendas.show', $venda)
             ->with('success', 'Venda #' . $venda->numero . ' gerada a partir da OS #' . $ordemServico->numero . '.');
+    }
+
+    /**
+     * Baixa do estoque das pecas aplicadas na OS.
+     *
+     * Espelha `PedidoController::baixarEstoquePedido()`: so itens do tipo
+     * produto movimentam estoque; servico nao tem saldo.
+     */
+    private function baixarEstoqueOS(OrdemServico $ordemServico): void
+    {
+        foreach ($ordemServico->itens as $item) {
+            if ($item->tipo !== 'produto' || ! $item->produto_id) {
+                continue;
+            }
+
+            SaldoEstoque::registrar(
+                $ordemServico->empresa_id,
+                $ordemServico->unidade_id,
+                SaldoEstoque::estoqueDeVendaId($ordemServico->unidade_id),
+                (int) $item->produto_id,
+                TipoMovimentacaoEstoque::Saida->value,
+                -(float) $item->quantidade,
+                [
+                    'custo_unitario' => $item->preco_unitario,
+                    'origem_tipo'    => OrdemServico::class,
+                    'origem_id'      => $ordemServico->id,
+                    'observacoes'    => "Conversao da OS #{$ordemServico->numero} em venda",
+                ]
+            );
+        }
     }
 
     public function destroy(OrdemServico $ordemServico)

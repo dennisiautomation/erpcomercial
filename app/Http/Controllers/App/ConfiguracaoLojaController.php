@@ -26,10 +26,25 @@ class ConfiguracaoLojaController extends Controller
             'cupom_automatico_cartao'    => 'nullable|boolean',
             'cpf_emite_fiscal'           => 'nullable|boolean',
             'padrao_impressao'           => 'required|in:recibo,cupom_fiscal',
+            // Impressão da Ordem de Serviço
+            'os_cabecalho'               => 'nullable|string|max:2000',
+            'os_termos_garantia'         => 'nullable|string|max:5000',
+            'os_texto_legal'             => 'nullable|string|max:5000',
+            'os_rodape'                  => 'nullable|string|max:2000',
+            'os_mostrar_assinatura'      => 'nullable|boolean',
+            'os_mostrar_laudo'           => 'nullable|boolean',
+            'os_mostrar_valores'         => 'nullable|boolean',
         ]);
 
         // Checkboxes desmarcados não vêm no request
-        foreach (['vendedor_responsavel_caixa', 'cupom_automatico_cartao', 'cpf_emite_fiscal'] as $flag) {
+        foreach ([
+            'vendedor_responsavel_caixa',
+            'cupom_automatico_cartao',
+            'cpf_emite_fiscal',
+            'os_mostrar_assinatura',
+            'os_mostrar_laudo',
+            'os_mostrar_valores',
+        ] as $flag) {
             $dados[$flag] = (bool) ($dados[$flag] ?? false);
         }
 

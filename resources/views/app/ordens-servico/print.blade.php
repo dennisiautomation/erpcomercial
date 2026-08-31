@@ -32,6 +32,11 @@
         .signature-line { text-align: center; width: 45%; }
         .signature-line .line { border-top: 1px solid #333; padding-top: 5px; margin-top: 40px; font-size: 11px; }
         .footer { margin-top: 30px; text-align: center; font-size: 10px; color: #999; border-top: 1px solid #eee; padding-top: 10px; }
+        .header .cabecalho-loja { font-size: 11px; color: #444; margin-top: 6px; white-space: pre-line; }
+        .bloco-texto { margin-top: 15px; border: 1px solid #ccc; border-radius: 4px; padding: 8px 10px; }
+        .bloco-texto .section-title { border-bottom: none; margin-bottom: 4px; padding-bottom: 0; }
+        .bloco-texto p { font-size: 11px; line-height: 1.45; white-space: pre-line; }
+        .texto-legal { margin-top: 12px; font-size: 10px; color: #555; line-height: 1.4; white-space: pre-line; }
         @media print {
             body { padding: 0; }
             @page { margin: 15mm; }
@@ -45,6 +50,9 @@
         @if($ordemServico->unidade)
             <p>{{ $ordemServico->unidade->logradouro }}, {{ $ordemServico->unidade->numero }} - {{ $ordemServico->unidade->bairro }} - {{ $ordemServico->unidade->cidade }}/{{ $ordemServico->unidade->uf }}</p>
             <p>Tel: {{ $ordemServico->unidade->telefone }} | CNPJ: {{ $ordemServico->unidade->cnpj }}</p>
+        @endif
+        @if(filled($configLoja->os_cabecalho))
+            <div class="cabecalho-loja">{{ $configLoja->os_cabecalho }}</div>
         @endif
     </div>
 
@@ -107,7 +115,7 @@
     </div>
 
     {{-- Items Table --}}
-    @if($ordemServico->itens->count() > 0)
+    @if($configLoja->os_mostrar_valores && $ordemServico->itens->count() > 0)
     <div class="section">
         <div class="section-title">Itens</div>
         <table>
@@ -136,6 +144,7 @@
     @endif
 
     {{-- Totals --}}
+    @if($configLoja->os_mostrar_valores)
     <div class="totals">
         <div class="line"><span>Produtos:</span> <span>R$ {{ number_format($ordemServico->valor_produtos, 2, ',', '.') }}</span></div>
         <div class="line"><span>Servicos:</span> <span>R$ {{ number_format($ordemServico->valor_servicos, 2, ',', '.') }}</span></div>
@@ -144,16 +153,31 @@
         @endif
         <div class="line total-final"><span>TOTAL:</span> <span>R$ {{ number_format($ordemServico->total, 2, ',', '.') }}</span></div>
     </div>
+    @endif
 
     {{-- Laudo --}}
-    @if($ordemServico->laudo_tecnico)
+    @if($configLoja->os_mostrar_laudo && $ordemServico->laudo_tecnico)
     <div class="section" style="margin-top: 15px;">
         <div class="section-title">Laudo Tecnico</div>
         <p>{{ $ordemServico->laudo_tecnico }}</p>
     </div>
     @endif
 
+    {{-- Termos de garantia (texto da loja) --}}
+    @if(filled($configLoja->os_termos_garantia))
+    <div class="bloco-texto">
+        <div class="section-title">Termos de Garantia</div>
+        <p>{{ $configLoja->os_termos_garantia }}</p>
+    </div>
+    @endif
+
+    {{-- Texto legal / observacoes fixas (texto da loja) --}}
+    @if(filled($configLoja->os_texto_legal))
+    <div class="texto-legal">{{ $configLoja->os_texto_legal }}</div>
+    @endif
+
     {{-- Signatures --}}
+    @if($configLoja->os_mostrar_assinatura)
     <div class="signatures">
         <div class="signature-line">
             <div class="line">Cliente</div>
@@ -162,10 +186,15 @@
             <div class="line">Tecnico Responsavel</div>
         </div>
     </div>
+    @endif
 
     {{-- Footer --}}
     <div class="footer">
-        Documento gerado em {{ now()->format('d/m/Y H:i') }} | OS #{{ $ordemServico->numero }}
+        @if(filled($configLoja->os_rodape))
+            {{ $configLoja->os_rodape }}
+        @else
+            Documento gerado em {{ now()->format('d/m/Y H:i') }} | OS #{{ $ordemServico->numero }}
+        @endif
     </div>
 </body>
 </html>
