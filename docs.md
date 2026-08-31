@@ -2,7 +2,7 @@
 
 > SaaS ERP multi-tenant para PMEs. Admin (IA365) gerencia a plataforma; cada empresa-cliente tem múltiplas unidades com fiscal, estoque e caixa independentes. Integração 100% Focus NFe (NF-e, NFC-e, NFS-e, CC-e, manifestação do destinatário, backup XMLs).
 
-**Última revisão:** 2026-08-25 noite (**fuso horário: app sai de UTC para America/Sao_Paulo SEM data-fix** — o Histórico de Caixas da DONA DOURO exibia abertura "12:13" para um caixa aberto às 9:13: `config/app.php` tinha `timezone => 'UTC'` hardcoded desde o nascimento; como TODAS as 178 colunas de data são **TIMESTAMP** (epoch UTC convertido pelo fuso da SESSÃO MySQL), bastou virar o app (`APP_TIMEZONE` no .env + config env-driven) e o MySQL (`SET GLOBAL time_zone='-03:00'` + `--default-time-zone=-03:00` no compose) — o histórico INTEIRO passou a exibir hora local sozinho, zero UPDATE; o script de shift -3h chegou a ser preparado e foi DESCARTADO (teria causado correção dupla); backup prévio `pre-fuso-fix-20260825.sql.gz` mantido; crons `dailyAt` passam a valer em hora LOCAL; armadilha 51b) · 2026-08-25 noite (**entrega na CONVERSA do agente — fecha a "próxima fase" da Fase 3**: rota nova `POST /api/integracao/v1/entrega/cotar` sempre-200 response-driven; `POST /pedidos` aceita `entrega{metodo,endereço}` gravando endereço no CLIENTE + `pedidos.metodo_entrega` (migration `2026_08_25_170000`); `DespacharEntregaUberJob` respeita `retirada`; `GET /pedidos` com bloco `entrega` + rastreio Uber; template/agentes do app.ia365 sincronizados lá (§282); ver subseção na Fase 3) · 2026-08-25 tarde (**vendedor troca a foto do produto** — ação nova `foto` no módulo produtos (matriz do CheckPermission) + rota própria `POST produtos/{produto}/foto` + formulário discreto na tela do produto, visível só para quem tem a ação; vendedor NÃO ganhou `editar` — preço/fiscal seguem fora do alcance; **rodada 2**: no teste real a vendedora usou o botão Editar e tomou 403 no PUT — a tela de edição agora funciona em modo "só foto" para o perfil (campos bloqueados + salvar só da imagem no próprio update); ver seção RBAC) · 2026-08-25 (**card Uber Direct: rótulos iguais aos do painel do Uber + guarda anti-inversão** — a DONA DOURO cadastrou o "ID do usuário" no campo Client ID e vice-versa (o painel do Uber em PT chama Client ID de "ID de cliente do desenvolvedor" e Customer ID de "ID do usuário"); data-fix aplicado em produção e o card agora usa os nomes do painel, com validação que recusa UUID no Client ID e vice-versa; ⚠️ a conta Uber da DONA DOURO ainda NÃO tem o escopo `eats.deliveries` liberado — só `direct.organizations`; ver seção Fase 3) · 2026-08-20 (**fix da conferência de bobina nas etiquetas** — o bloco de JS entrou fora da tag `<script>` do push e era IMPRESSO como texto no rodapé de `/app/etiquetas`; a conta da bobina ficou 8 dias morta; armadilha 51 — e **auditoria de produção completa**: a worktree que builda a imagem está ATRÁS do container e um rebuild reverteria 3 entregas (armadilha 52), o webhook da Focus AINDA responde 419, rate limit fantasma em toda chamada à Focus e R$ 13.264/ano contratados sem fatura; seção própria) · 2026-08-14 (**Landing V2 "formato Apple" PROMOVIDA A PADRÃO** — site público redesenhado no estilo Apple/Find My é a página oficial em `/`; v1 clássica segue no ar via `/?visual=classico`; 2 fixes de mobile no mesmo dia: botão Entrar visível e overflow horizontal do `span 6` inline; seção própria) · 2026-08-13 tarde (**Agente IA v2** — busca com ordenar/preco_min/max + fallback de catálogo + JSON forçado no api/integracao + merge do admin-acesso-como + armadilha 50; seção 9f) · 2026-08-13 (**"Acessar como"** — admin da plataforma entra no sistema logado como o dono de qualquer empresa-cliente, com banner, bypass de suspensão e rastro `acesso_como_admin_id` em toda activity da sessão) · 2026-08-13 noite (**PIX Sicredi no Agente IA** — gateway por empresa em `empresa_gateways` com credenciais cifradas + cobrança automática no pedido do agente + webhook re-consultado via mTLS + cron de sincronização; piloto DONA DOURO; seção 9f) · 2026-08-13 (**Agente IA** — banco vetorial pgvector `erp-com-vector` + busca semântica multi-tenant + pedidos rascunho via API, módulo ativável por empresa no admin; consumido pelo app.ia365; seção 9f) · 2026-08-12 (**API de Integração v1 — Gersen**: primeira API externa do ERP, somente leitura, token por empresa gerado no admin; seção própria) · 2026-08-12 madrugada (**backup mensal de XMLs virou pacote LOCAL** — o `/v2/backups` da Focus não existe, armadilha 49; **DONA DOURO em `producao`** com série 2 e CSC na Focus) · 2026-08-12 noite (**editor visual de layout de etiqueta** — arrasta-e-solta com imagens e formas, branch `layout-etiquetas` DEPLOYADA em produção; armadilha 48 + lição de deploy na 26b) · 2026-08-12 (vários estoques por loja + contagem cega + bonificação que deve voltar + estilo de etiqueta "nome no topo" + conferência de bobina; armadilhas 43-47; **imagem rebuildada** e main promovida) · 2026-08-11 (formato de etiqueta cadastrável pelo lojista + fix do CRUD de categorias — `status` feminino, armadilha 42) · 2026-08-05 (filtro por loja em vendas + imports de vendas/contas a receber + import robusto + lojas mesmo CNPJ compartilham empresa Focus) · **Estado:** integração fiscal Fase 1-4 + multi-loja + regime de cobrança + auto-sync Focus + UX config fiscal + caixa por forma de pagamento (14/07) + Configurações da Loja/tabelas de preço/emissão parametrizada/adquirentes (24/07) + **Reforma Tributária NT 2025.002 (obrigatório 03/08/2026) + CNPJ alfanumérico NT 2025.001 (25/07)** + **e-mails/no-reply + cobrança direta mensal/anual com bloqueio + pode_ver_financeiro (04/08)** + **doc de alterações do Dennis (05/08)** + **etiqueta cadastrável pelo lojista em cm + fix do CRUD de categorias + auditoria de produção (11/08)** — concluídos
+**Última revisão:** 2026-08-31 (**preço de atacado por cliente + módulo de Ordem de Serviço** — `produto_precos` ganha a 4ª modalidade `atacado` e `clientes.tipo_preco` decide a tabela: cliente de atacado leva o preço de atacado em QUALQUER forma de pagamento, com o servidor refazendo a conta em `registrarVenda` (senão a venda voltaria para varejo na gravação); OS ganha cadastro de cliente na própria abertura, impressão com textos e blocos por loja (7 colunas em `configuracoes_loja`, lidas da loja DONA da OS) e — o que faltava — **baixa de estoque na conversão em venda**, que até aqui deixava a peça sair da loja sem registro nenhum; `entregue`/`cancelada` viram estados finais; **fix junto**: a conversão gravava a chave `desconto`, que não existe em `vendas` nem no `$fillable`, e a venda nascia com subtotal − desconto ≠ total (armadilha 53); o merge da produção `2037c47` foi feito na branch ANTES do build para não reverter o fuso (armadilha 52); seção própria) · 2026-08-25 noite (**fuso horário: app sai de UTC para America/Sao_Paulo SEM data-fix** — o Histórico de Caixas da DONA DOURO exibia abertura "12:13" para um caixa aberto às 9:13: `config/app.php` tinha `timezone => 'UTC'` hardcoded desde o nascimento; como TODAS as 178 colunas de data são **TIMESTAMP** (epoch UTC convertido pelo fuso da SESSÃO MySQL), bastou virar o app (`APP_TIMEZONE` no .env + config env-driven) e o MySQL (`SET GLOBAL time_zone='-03:00'` + `--default-time-zone=-03:00` no compose) — o histórico INTEIRO passou a exibir hora local sozinho, zero UPDATE; o script de shift -3h chegou a ser preparado e foi DESCARTADO (teria causado correção dupla); backup prévio `pre-fuso-fix-20260825.sql.gz` mantido; crons `dailyAt` passam a valer em hora LOCAL; armadilha 51b) · 2026-08-25 noite (**entrega na CONVERSA do agente — fecha a "próxima fase" da Fase 3**: rota nova `POST /api/integracao/v1/entrega/cotar` sempre-200 response-driven; `POST /pedidos` aceita `entrega{metodo,endereço}` gravando endereço no CLIENTE + `pedidos.metodo_entrega` (migration `2026_08_25_170000`); `DespacharEntregaUberJob` respeita `retirada`; `GET /pedidos` com bloco `entrega` + rastreio Uber; template/agentes do app.ia365 sincronizados lá (§282); ver subseção na Fase 3) · 2026-08-25 tarde (**vendedor troca a foto do produto** — ação nova `foto` no módulo produtos (matriz do CheckPermission) + rota própria `POST produtos/{produto}/foto` + formulário discreto na tela do produto, visível só para quem tem a ação; vendedor NÃO ganhou `editar` — preço/fiscal seguem fora do alcance; **rodada 2**: no teste real a vendedora usou o botão Editar e tomou 403 no PUT — a tela de edição agora funciona em modo "só foto" para o perfil (campos bloqueados + salvar só da imagem no próprio update); ver seção RBAC) · 2026-08-25 (**card Uber Direct: rótulos iguais aos do painel do Uber + guarda anti-inversão** — a DONA DOURO cadastrou o "ID do usuário" no campo Client ID e vice-versa (o painel do Uber em PT chama Client ID de "ID de cliente do desenvolvedor" e Customer ID de "ID do usuário"); data-fix aplicado em produção e o card agora usa os nomes do painel, com validação que recusa UUID no Client ID e vice-versa; ⚠️ a conta Uber da DONA DOURO ainda NÃO tem o escopo `eats.deliveries` liberado — só `direct.organizations`; ver seção Fase 3) · 2026-08-20 (**fix da conferência de bobina nas etiquetas** — o bloco de JS entrou fora da tag `<script>` do push e era IMPRESSO como texto no rodapé de `/app/etiquetas`; a conta da bobina ficou 8 dias morta; armadilha 51 — e **auditoria de produção completa**: a worktree que builda a imagem está ATRÁS do container e um rebuild reverteria 3 entregas (armadilha 52), o webhook da Focus AINDA responde 419, rate limit fantasma em toda chamada à Focus e R$ 13.264/ano contratados sem fatura; seção própria) · 2026-08-14 (**Landing V2 "formato Apple" PROMOVIDA A PADRÃO** — site público redesenhado no estilo Apple/Find My é a página oficial em `/`; v1 clássica segue no ar via `/?visual=classico`; 2 fixes de mobile no mesmo dia: botão Entrar visível e overflow horizontal do `span 6` inline; seção própria) · 2026-08-13 tarde (**Agente IA v2** — busca com ordenar/preco_min/max + fallback de catálogo + JSON forçado no api/integracao + merge do admin-acesso-como + armadilha 50; seção 9f) · 2026-08-13 (**"Acessar como"** — admin da plataforma entra no sistema logado como o dono de qualquer empresa-cliente, com banner, bypass de suspensão e rastro `acesso_como_admin_id` em toda activity da sessão) · 2026-08-13 noite (**PIX Sicredi no Agente IA** — gateway por empresa em `empresa_gateways` com credenciais cifradas + cobrança automática no pedido do agente + webhook re-consultado via mTLS + cron de sincronização; piloto DONA DOURO; seção 9f) · 2026-08-13 (**Agente IA** — banco vetorial pgvector `erp-com-vector` + busca semântica multi-tenant + pedidos rascunho via API, módulo ativável por empresa no admin; consumido pelo app.ia365; seção 9f) · 2026-08-12 (**API de Integração v1 — Gersen**: primeira API externa do ERP, somente leitura, token por empresa gerado no admin; seção própria) · 2026-08-12 madrugada (**backup mensal de XMLs virou pacote LOCAL** — o `/v2/backups` da Focus não existe, armadilha 49; **DONA DOURO em `producao`** com série 2 e CSC na Focus) · 2026-08-12 noite (**editor visual de layout de etiqueta** — arrasta-e-solta com imagens e formas, branch `layout-etiquetas` DEPLOYADA em produção; armadilha 48 + lição de deploy na 26b) · 2026-08-12 (vários estoques por loja + contagem cega + bonificação que deve voltar + estilo de etiqueta "nome no topo" + conferência de bobina; armadilhas 43-47; **imagem rebuildada** e main promovida) · 2026-08-11 (formato de etiqueta cadastrável pelo lojista + fix do CRUD de categorias — `status` feminino, armadilha 42) · 2026-08-05 (filtro por loja em vendas + imports de vendas/contas a receber + import robusto + lojas mesmo CNPJ compartilham empresa Focus) · **Estado:** integração fiscal Fase 1-4 + multi-loja + regime de cobrança + auto-sync Focus + UX config fiscal + caixa por forma de pagamento (14/07) + Configurações da Loja/tabelas de preço/emissão parametrizada/adquirentes (24/07) + **Reforma Tributária NT 2025.002 (obrigatório 03/08/2026) + CNPJ alfanumérico NT 2025.001 (25/07)** + **e-mails/no-reply + cobrança direta mensal/anual com bloqueio + pode_ver_financeiro (04/08)** + **doc de alterações do Dennis (05/08)** + **etiqueta cadastrável pelo lojista em cm + fix do CRUD de categorias + auditoria de produção (11/08)** — concluídos
 
 ---
 
@@ -23,6 +23,7 @@
 9e. [API de Integração — Gersen](#api-de-integração-gersen-12082026)
 9f. [Agente IA — busca semântica + pedidos](#agente-ia--busca-semântica--pedidos-via-whatsapp-13082026)
 9g. [Auditoria de produção (20/08/2026)](#auditoria-de-produção-20082026)
+9h. [Preço de atacado + módulo de Ordem de Serviço (31/08/2026)](#preço-de-atacado-por-cliente--módulo-de-ordem-de-serviço-31082026)
 10. [Armadilhas conhecidas](#armadilhas-conhecidas)
 11. [Próximos passos](#próximos-passos)
 
@@ -1857,6 +1858,75 @@ em plano expirado desde 13/07 com zero dados; branch `fix/auditoria-bugs-mai2026
 
 ---
 
+## Preço de atacado por cliente + módulo de Ordem de Serviço (31/08/2026)
+
+Branch `alteracoes-atacado-os`. Duas frentes independentes no mesmo deploy; as duas nascem
+**neutras** — quem não configurar nada continua vendo o sistema exatamente como antes.
+
+### Preço de atacado — um segundo eixo de precificação
+
+Até aqui o preço variava só pela **forma de pagamento** (`dinheiro_pix < debito < credito`,
+seção 5b). O atacado é um eixo do **cliente**: quem está marcado como atacado leva o preço de
+atacado em qualquer forma de pagamento.
+
+- `produto_precos.modalidade` ganha o 4º valor `atacado` (migration `2026_08_28_150000`;
+  `ALTER ... MODIFY COLUMN` porque é ENUM — armadilha 36).
+- `clientes.tipo_preco` `enum('varejo','atacado')` default `varejo`.
+- `TabelaPrecoService::modalidadeDaVenda($formas, $config, $cliente)` põe o tipo do cliente
+  **na frente** da forma de pagamento; `modalidadeDosPagamentos()` continua existindo e é o
+  caminho de venda sem cliente.
+- **Produto sem preço de atacado cai no `preco_venda` base** — nunca num preço inventado por
+  regra geral. Débito e crédito têm percentual padrão na Configuração da Loja; atacado não tem,
+  e não deve ganhar: desconto de atacado é decisão comercial por produto.
+- Campo "Preço Atacado" no cadastro de produto; seletor Varejo/Atacado no cadastro de cliente.
+- PDV: reprecifica os itens ao escolher **e ao remover** o cliente, badge "Tabela: Atacado" e
+  aviso listando os itens sem preço de atacado cadastrado.
+- ⚠️ `registrarVenda` refaz o mesmo caminho no servidor — **o servidor é a autoridade do
+  preço** (gate `tabela_precos` do front novo). Sem isso ele reprecificaria a venda de volta
+  para varejo: o cliente veria atacado na tela e pagaria varejo na nota.
+
+### Ordem de Serviço
+
+- **Cliente novo na abertura da OS**: busca sem resultado oferece cadastrar com o texto
+  digitado, reaproveitando o modal e a rota `clientes.quick` que a tela de Pedidos já usava.
+- **Impressão configurável por loja** (migration `2026_08_28_170000`, 7 colunas em
+  `configuracoes_loja`): `os_cabecalho`, `os_termos_garantia`, `os_texto_legal`, `os_rodape`
+  mais os interruptores `os_mostrar_assinatura`, `os_mostrar_laudo`, `os_mostrar_valores`
+  (default ligado, também no `$attributes` do model — loja que nunca abriu a tela imprime a OS
+  completa). ⚠️ Os textos vêm da **loja DONA da OS**
+  (`ConfiguracaoLoja::daUnidade($os->empresa_id, $os->unidade_id)`), não da unidade da sessão:
+  admin imprimindo de fora veria os textos de outra loja.
+- 🔴 **Converter OS em venda passa a baixar estoque.** Antes a peça aplicada saía da loja **sem
+  registro nenhum** e o saldo do sistema ficava maior que o da prateleira. Usa
+  `SaldoEstoque::registrar()` + `estoqueDeVendaId()`, espelho de
+  `PedidoController::baixarEstoquePedido()` (armadilhas 44/47 — ponto único de gravação). A
+  conversão é **barrada** se a loja não tiver estoque de venda habilitado: melhor recusar do
+  que gerar venda pela metade.
+- `entregue` e `cancelada` voltam a ser **estados finais**. A checagem de transição deixava o
+  cancelamento passar por cima de qualquer status, e cancelar uma OS já entregue reabriria o
+  estoque baixado na venda. Cancelar segue permitido nos 4 estados não-finais.
+- **Fix junto (armadilha 53)**: a conversão gravava a chave `desconto` na venda — coluna que
+  não existe (`vendas` tem `desconto_percentual`/`desconto_valor`) e que não está no
+  `$fillable`. O Eloquent descartava em silêncio e a venda nascia com `subtotal` 100,
+  `desconto_valor` 0 e `total` 90: números que não fecham no relatório e que a SEFAZ rejeita na
+  emissão (vNF = vProd − vDesc, armadilha 24b). Estava assim desde que o módulo nasceu.
+
+### Deploy
+
+Exige **rebuild + recreate** — o entrypoint roda `migrate --force` no boot, então as duas
+migrations entram sozinhas. **Backup do banco antes**: o `ALTER` do ENUM de `produto_precos` é
+DDL em tabela com dados. ⚠️ A branch nasceu de `e8aa638`, **anterior aos 3 commits do fuso**; o
+merge da produção `2037c47` foi feito na branch ANTES de qualquer build — sem ele o
+`config/app.php` voltaria para UTC e o compose perderia o `--default-time-zone` (armadilha 52).
+
+**Roteiro de teste ao vivo:** cliente marcado como atacado no PDV (preço muda ao selecionar e
+volta ao remover) · produto sem preço de atacado cadastrado (tem que cair no preço base, com
+aviso) · venda fechada com cliente de atacado (conferir o preço gravado, não só o da tela) ·
+OS com peça convertida em venda (conferir a movimentação de estoque e o desconto na venda) ·
+impressão da OS sem nada configurado e depois com os textos preenchidos.
+
+---
+
 ## Armadilhas conhecidas
 
 1. **EmpresaScope recursão**: `auth()->user()` dentro do scope chama User model que tem o scope → loop infinito. Scopes têm flag `static $applying`. Não remover.
@@ -2069,6 +2139,16 @@ em plano expirado desde 13/07 com zero dados; branch `fix/auditoria-bugs-mai2026
     silenciosa da Landing V2, dos fixes de mobile e do fix das etiquetas de uma só vez. É a
     armadilha 50 um nível acima — lá o tar estava atrás da produção, aqui é a própria fonte do
     build. **Antes de rebuildar: conferir `git log` da worktree contra a `main` e sincronizar.**
+
+53. **Chave fora do `$fillable` é DESCARTADA em silêncio** — o projeto não liga
+    `Model::preventSilentlyDiscardingAttributes()`, então `create()`/`update()` com o nome de
+    coluna errado não dá erro nenhum: o campo simplesmente não é gravado, e o resto da linha
+    entra. A conversão OS→venda mandava `'desconto'` (a coluna é `desconto_valor`) desde que o
+    módulo nasceu — toda venda gerada de uma OS com desconto ficou com
+    `subtotal − desconto ≠ total`, e a nota dessa venda seria rejeitada pela SEFAZ (armadilha
+    24b). Nada aparece no `laravel.log`, nada aparece na tela: a venda é criada. Ao gravar em
+    model, conferir o nome contra o `$fillable`, não contra a memória do schema — e em dado que
+    vira XML fiscal, conferir sempre.
 
 ---
 
