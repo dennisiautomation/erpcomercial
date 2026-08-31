@@ -30,6 +30,9 @@ services:
     image: mysql:8.0
     container_name: erp-com-mysql
     restart: unless-stopped
+    # Fuso local (25/08/2026): CURDATE()/NOW() do MySQL em hora do Brasil —
+    # aplicado ao vivo com SET GLOBAL; esta linha garante em recreates.
+    command: --default-time-zone=-03:00
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
       MYSQL_DATABASE: ${DB_DATABASE}

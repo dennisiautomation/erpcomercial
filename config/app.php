@@ -65,7 +65,10 @@ return [
     |
     */
 
-    'timezone' => 'UTC',
+    // 25/08/2026: o app nasceu em UTC e exibia tudo 3h à frente da hora local
+    // (flagrado no Histórico de Caixas). Como TODAS as colunas são TIMESTAMP,
+    // virar app+MySQL para -03 corrigiu o histórico sem tocar em dado.
+    'timezone' => env('APP_TIMEZONE', 'America/Sao_Paulo'),
 
     /*
     |--------------------------------------------------------------------------
