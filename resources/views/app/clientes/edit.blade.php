@@ -517,7 +517,17 @@
                 </div>
 
                 <div class="col-md-6">
-                    {{-- spacer for alignment --}}
+                    <label for="tipo_preco" class="form-label">Tipo de preço</label>
+                    @php $tipoPrecoAtual = old('tipo_preco', $cliente->tipo_preco ?? 'varejo'); @endphp
+                    <select name="tipo_preco" id="tipo_preco"
+                            class="form-select @error('tipo_preco') is-invalid @enderror">
+                        <option value="varejo" {{ $tipoPrecoAtual === 'varejo' ? 'selected' : '' }}>Varejo</option>
+                        <option value="atacado" {{ $tipoPrecoAtual === 'atacado' ? 'selected' : '' }}>Atacado</option>
+                    </select>
+                    <div class="form-text">No PDV, cliente de atacado assume o Preço Atacado do produto.</div>
+                    @error('tipo_preco')
+                        <div class="text-danger small mt-1">{{ $message }}</div>
+                    @enderror
                 </div>
 
                 <div class="col-12">

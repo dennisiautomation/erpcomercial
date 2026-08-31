@@ -117,6 +117,8 @@ class ProdutoController extends Controller
             'preco_cartao'           => 'nullable|numeric|min:0',
             'preco_debito'           => 'nullable|numeric|min:0',
             'preco_credito'          => 'nullable|numeric|min:0',
+            // Preço de atacado — vale para cliente marcado como atacado
+            'preco_atacado'          => 'nullable|numeric|min:0',
         ]);
 
         // Preço no Cartão (form) vale para as duas modalidades; os campos
@@ -124,7 +126,13 @@ class ProdutoController extends Controller
         $precoCartao  = $validated['preco_cartao'] ?? null;
         $precoDebito  = $precoCartao ?? $validated['preco_debito'] ?? null;
         $precoCredito = $precoCartao ?? $validated['preco_credito'] ?? null;
-        unset($validated['preco_cartao'], $validated['preco_debito'], $validated['preco_credito']);
+        $precoAtacado = $validated['preco_atacado'] ?? null;
+        unset(
+            $validated['preco_cartao'],
+            $validated['preco_debito'],
+            $validated['preco_credito'],
+            $validated['preco_atacado'],
+        );
 
         // Fill empty fiscal fields with defaults based on regime tributario
         if (empty($validated['cst_csosn'] ?? null)) {
@@ -172,7 +180,7 @@ class ProdutoController extends Controller
         }
 
         $produto = Produto::create($validated);
-        $this->salvarPrecosPorForma($produto, $precoDebito, $precoCredito);
+        $this->salvarPrecosPorForma($produto, $precoDebito, $precoCredito, $precoAtacado);
 
         return redirect()->route('app.produtos.index')
             ->with('success', 'Produto cadastrado com sucesso!');
@@ -283,6 +291,8 @@ class ProdutoController extends Controller
             'preco_cartao'           => 'nullable|numeric|min:0',
             'preco_debito'           => 'nullable|numeric|min:0',
             'preco_credito'          => 'nullable|numeric|min:0',
+            // Preço de atacado — vale para cliente marcado como atacado
+            'preco_atacado'          => 'nullable|numeric|min:0',
         ]);
 
         // Preço no Cartão (form) vale para as duas modalidades; os campos
@@ -290,7 +300,13 @@ class ProdutoController extends Controller
         $precoCartao  = $validated['preco_cartao'] ?? null;
         $precoDebito  = $precoCartao ?? $validated['preco_debito'] ?? null;
         $precoCredito = $precoCartao ?? $validated['preco_credito'] ?? null;
-        unset($validated['preco_cartao'], $validated['preco_debito'], $validated['preco_credito']);
+        $precoAtacado = $validated['preco_atacado'] ?? null;
+        unset(
+            $validated['preco_cartao'],
+            $validated['preco_debito'],
+            $validated['preco_credito'],
+            $validated['preco_atacado'],
+        );
 
         // Handle foto upload
         if ($request->hasFile('foto')) {
@@ -302,7 +318,7 @@ class ProdutoController extends Controller
         }
 
         $produto->update($validated);
-        $this->salvarPrecosPorForma($produto, $precoDebito, $precoCredito);
+        $this->salvarPrecosPorForma($produto, $precoDebito, $precoCredito, $precoAtacado);
 
         return redirect()->route('app.produtos.index')
             ->with('success', 'Produto atualizado com sucesso!');
@@ -333,9 +349,15 @@ class ProdutoController extends Controller
      * Persiste/remove os overrides de preço por forma de pagamento.
      * Campo vazio = sem override (vale a regra geral das Configurações da Loja).
      */
-    private function salvarPrecosPorForma(Produto $produto, $precoDebito, $precoCredito): void
+    private function salvarPrecosPorForma(Produto $produto, $precoDebito, $precoCredito, $precoAtacado = null): void
     {
-        foreach (['debito' => $precoDebito, 'credito' => $precoCredito] as $modalidade => $valor) {
+        $porModalidade = [
+            'debito'  => $precoDebito,
+            'credito' => $precoCredito,
+            'atacado' => $precoAtacado,
+        ];
+
+        foreach ($porModalidade as $modalidade => $valor) {
             $registro = $produto->precos()->where('modalidade', $modalidade)->first();
 
             if ($valor === null || $valor === '') {

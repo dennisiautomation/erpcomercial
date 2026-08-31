@@ -179,6 +179,24 @@
                             </div>
                         </div>
                     </div>
+
+                    {{-- Preço de atacado (opcional — vale para cliente marcado como atacado) --}}
+                    <div class="col-12">
+                        <div class="border rounded p-3 bg-light-subtle">
+                            <div class="fw-semibold mb-1"><i class="bi bi-boxes me-1"></i> Preço Atacado <span class="text-muted fw-normal">(opcional)</span></div>
+                            <div class="text-muted small mb-3">Usado automaticamente no PDV quando o cliente da venda está marcado como <strong>Atacado</strong>, em qualquer forma de pagamento. Em branco = cliente de atacado paga o preço à vista acima.</div>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label for="preco_atacado" class="form-label">Preço Atacado</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">R$</span>
+                                        <input type="text" inputmode="numeric" data-mask="money" name="preco_atacado" id="preco_atacado" class="form-control @error('preco_atacado') is-invalid @enderror" value="{{ old('preco_atacado', $precosForma['atacado'] ?? '') }}" placeholder="sem preço de atacado">
+                                        @error('preco_atacado') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Cliente;
 use App\Models\ConfiguracaoLoja;
 use App\Models\Produto;
 
@@ -11,6 +12,10 @@ use App\Models\Produto;
  * Preço base do produto (preco_venda) = tabela Dinheiro/PIX. Débito e crédito
  * saem da regra geral (percentual em configuracoes_loja) com override por
  * produto em produto_precos. Modalidades ordenadas: dinheiro_pix < debito < credito.
+ *
+ * O ATACADO é um segundo eixo, do cliente e não do pagamento: cliente marcado
+ * como atacado leva o preço de atacado do produto independente da forma de
+ * pagamento. Produto sem preço de atacado cadastrado cai no preço base.
  */
 class TabelaPrecoService
 {
@@ -40,7 +45,25 @@ class TabelaPrecoService
                 ?? round($base * (1 + ((float) $config->percentual_debito) / 100), 2)),
             'credito'      => (float) ($overrides['credito']
                 ?? round($base * (1 + ((float) $config->percentual_credito) / 100), 2)),
+            // Sem preço de atacado cadastrado o cliente de atacado paga o base —
+            // nunca um preço inventado por regra geral.
+            'atacado'      => (float) ($overrides['atacado'] ?? $base),
         ];
+    }
+
+    /**
+     * Modalidade de preço da venda: o tipo do cliente vem antes da forma de pagamento.
+     *
+     * Cliente de atacado leva o preço de atacado em qualquer forma; cliente de
+     * varejo (ou venda sem cliente) segue as tabelas por pagamento de sempre.
+     */
+    public function modalidadeDaVenda(array $formas, ConfiguracaoLoja $config, ?Cliente $cliente = null): string
+    {
+        if ($cliente && $cliente->tipo_preco === 'atacado') {
+            return 'atacado';
+        }
+
+        return $this->modalidadeDosPagamentos($formas, $config);
     }
 
     /**

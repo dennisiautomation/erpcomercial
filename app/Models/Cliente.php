@@ -31,6 +31,7 @@ class Cliente extends Model
         'whatsapp',
         'email',
         'limite_credito',
+        'tipo_preco',
         'status',
         'observacoes',
     ];

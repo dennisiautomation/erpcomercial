@@ -1215,6 +1215,7 @@ const PDV = {
     itens: [],
     clienteId: null,
     clienteNome: null,
+    clienteTipoPreco: 'varejo',
     descontoValor: 0,
     descontoPercentual: 0,
     pagamentos: [],
@@ -1592,6 +1593,9 @@ const PDV = {
 
     // Modalidade aplicável às formas escolhidas (+ uma forma em análise no modal)
     modalidadeAtual(formaExtra = null) {
+        // Cliente de atacado leva o preco de atacado em qualquer forma de pagamento
+        if (this.clienteTipoPreco === 'atacado') return 'atacado';
+
         const formas = this.pagamentos.map(p => p.forma);
         if (formaExtra) formas.push(formaExtra);
         if (formas.length === 0) return 'dinheiro_pix';
@@ -1625,7 +1629,7 @@ const PDV = {
     updateTabelaBadge() {
         const badge = document.getElementById('tabelaPrecoBadge');
         if (!badge) return;
-        const labels = { dinheiro_pix: null, debito: 'Tabela: Débito', credito: 'Tabela: Crédito' };
+        const labels = { dinheiro_pix: null, debito: 'Tabela: Débito', credito: 'Tabela: Crédito', atacado: 'Tabela: Atacado' };
         const texto = labels[this.tabelaAtiva];
         badge.style.display = texto ? 'block' : 'none';
         badge.textContent = texto || '';
@@ -2220,6 +2224,7 @@ const PDV = {
         this.itens = [];
         this.clienteId = null;
         this.clienteNome = null;
+        this.clienteTipoPreco = 'varejo';
         this.descontoValor = 0;
         this.descontoPercentual = 0;
         this.pagamentos = [];
@@ -2290,7 +2295,7 @@ const PDV = {
             }
 
             results.innerHTML = clientes.map(c => `
-                <div class="client-search-item" onclick="PDV.selecionarCliente(${c.id}, '${(c.nome_razao_social||'').replace(/'/g, "\\'")}', '${c.cpf_cnpj||''}')">
+                <div class="client-search-item" onclick="PDV.selecionarCliente(${c.id}, '${(c.nome_razao_social||'').replace(/'/g, "\\'")}', '${c.cpf_cnpj||''}', '${c.tipo_preco||'varejo'}')">
                     <div style="font-weight:500;">${c.nome_razao_social}</div>
                     <div style="font-size:0.82rem; color:var(--text-muted);">${c.cpf_cnpj || 'Sem documento'}</div>
                 </div>
@@ -2300,9 +2305,10 @@ const PDV = {
         }
     },
 
-    selecionarCliente(id, nome, doc) {
+    selecionarCliente(id, nome, doc, tipoPreco = 'varejo') {
         this.clienteId = id;
         this.clienteNome = nome;
+        this.clienteTipoPreco = tipoPreco;
 
         document.getElementById('noCliente').style.display = 'none';
         document.getElementById('clienteName').textContent = nome;
@@ -2314,7 +2320,19 @@ const PDV = {
         document.getElementById('clienteClear').style.display = 'inline-block';
 
         bootstrap.Modal.getInstance(document.getElementById('modalCliente'))?.hide();
-        this.showAlert('Cliente: ' + nome, 'success');
+
+        // Trocar de cliente muda a tabela de preco dos itens ja lancados
+        this.repriceItens();
+
+        if (tipoPreco === 'atacado') {
+            const semAtacado = this.itens.filter(i => !i.precos || i.precos.atacado === undefined);
+            this.showAlert('Cliente: ' + nome + ' — preco de ATACADO aplicado', 'success');
+            if (semAtacado.length) {
+                this.showAlert(semAtacado.length + ' item(ns) sem preco de atacado cadastrado — seguem no preco normal', 'warning');
+            }
+        } else {
+            this.showAlert('Cliente: ' + nome, 'success');
+        }
     },
 
     // ===== DESCONTO =====
@@ -2462,6 +2480,8 @@ function round(val, decimals = 2) {
 document.getElementById('clienteClear')?.addEventListener('click', () => {
     PDV.clienteId = null;
     PDV.clienteNome = null;
+    PDV.clienteTipoPreco = 'varejo';
+    PDV.repriceItens();
     document.getElementById('noCliente').style.display = 'inline';
     document.getElementById('clienteName').style.display = 'none';
     document.getElementById('clienteDoc').style.display = 'none';

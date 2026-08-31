@@ -83,10 +83,12 @@ class ClienteController extends Controller
             'whatsapp'          => 'nullable|string|max:20',
             'email'             => 'nullable|email|max:255',
             'limite_credito'    => 'nullable|numeric|min:0',
+            'tipo_preco'        => 'nullable|in:varejo,atacado',
             'observacoes'       => 'nullable|string',
         ]);
 
         $validated['status'] = 'ativo';
+        $validated['tipo_preco'] = $validated['tipo_preco'] ?? 'varejo';
 
         Cliente::create($validated);
 
@@ -174,9 +176,12 @@ class ClienteController extends Controller
             'whatsapp'          => 'nullable|string|max:20',
             'email'             => 'nullable|email|max:255',
             'limite_credito'    => 'nullable|numeric|min:0',
+            'tipo_preco'        => 'nullable|in:varejo,atacado',
             'status'            => 'required|in:ativo,inativo,bloqueado',
             'observacoes'       => 'nullable|string',
         ]);
+
+        $validated['tipo_preco'] = $validated['tipo_preco'] ?? 'varejo';
 
         $cliente->update($validated);
 

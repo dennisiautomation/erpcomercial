@@ -496,6 +496,19 @@
                     @enderror
                 </div>
 
+                <div class="col-md-6">
+                    <label for="tipo_preco" class="form-label">Tipo de preço</label>
+                    <select name="tipo_preco" id="tipo_preco"
+                            class="form-select @error('tipo_preco') is-invalid @enderror">
+                        <option value="varejo" @selected(old('tipo_preco', 'varejo') === 'varejo')>Varejo</option>
+                        <option value="atacado" @selected(old('tipo_preco') === 'atacado')>Atacado</option>
+                    </select>
+                    <div class="form-text">No PDV, cliente de atacado assume o Preço Atacado do produto.</div>
+                    @error('tipo_preco')
+                        <div class="text-danger small mt-1">{{ $message }}</div>
+                    @enderror
+                </div>
+
                 <div class="col-12">
                     <label for="observacoes" class="form-label">
                         Observacoes <span class="text-muted fw-normal">(opcional)</span>

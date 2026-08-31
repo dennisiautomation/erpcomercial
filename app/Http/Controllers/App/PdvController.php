@@ -128,7 +128,7 @@ class PdvController extends Controller
                 $q->where('nome_razao_social', 'like', "%{$termo}%")
                   ->orWhere('cpf_cnpj', 'like', "%{$termo}%");
             })
-            ->select('id', 'nome_razao_social', 'cpf_cnpj')
+            ->select('id', 'nome_razao_social', 'cpf_cnpj', 'tipo_preco')
             ->limit(10)
             ->get();
 
@@ -188,7 +188,11 @@ class PdvController extends Controller
                     $tabelaPrecos = app(TabelaPrecoService::class);
                     $configLoja = ConfiguracaoLoja::daUnidade($empresaId, $unidadeId);
                     $formas = array_column($request->pagamentos, 'forma');
-                    $modalidade = $tabelaPrecos->modalidadeDosPagamentos($formas, $configLoja);
+                    // Cliente de atacado leva o preço de atacado em qualquer forma
+                    $clienteVenda = $request->cliente_id
+                        ? Cliente::find($request->cliente_id)
+                        : null;
+                    $modalidade = $tabelaPrecos->modalidadeDaVenda($formas, $configLoja, $clienteVenda);
                 }
 
                 $subtotal = 0;
