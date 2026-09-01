@@ -21,6 +21,7 @@ use App\Models\VendaItem;
 use App\Models\ConfiguracaoFiscal;
 use App\Models\ConfiguracaoLoja;
 use App\Services\EstoqueMultiUnidadeService;
+use App\Services\JurosParcelamentoService;
 use App\Services\SaldoEstoque;
 use App\Services\FocusNFe\FocusNFeClient;
 use App\Services\FocusNFe\NFCeService;
@@ -148,6 +149,7 @@ class PdvController extends Controller
             'pagamentos.*.forma'       => 'required|string',
             'pagamentos.*.valor'       => 'required|numeric|min:0.01',
             'pagamentos.*.parcelas'    => 'nullable|integer|min:1|max:24',
+            'juros_parcelamento'       => 'nullable|boolean',
             'cliente_id'               => 'nullable|exists:clientes,id',
             'cpf_cnpj_nota'            => 'nullable|string|max:18',
             'desconto_valor'           => 'nullable|numeric|min:0',
@@ -242,6 +244,46 @@ class PdvController extends Controller
 
                 // Determine forma_pagamento and troco
                 $pagamentos = $request->pagamentos;
+
+                // Juros de parcelamento (Tabela Price) — o servidor é a autoridade:
+                // o front manda o valor SEM juros e o nº de parcelas, aqui o
+                // acréscimo é recalculado. Só incide sobre a parte paga em crédito
+                // parcelado; num split, dinheiro/PIX/débito não pegam nada.
+                // Gated pelo flag juros_parcelamento (front novo) para não onerar
+                // payloads de abas do PDV abertas antes do deploy.
+                $configLojaJuros = $configLoja ?? ConfiguracaoLoja::daUnidade($empresaId, $unidadeId);
+                $jurosService = app(JurosParcelamentoService::class);
+                $acrescimoJuros = 0;
+
+                if ($request->boolean('juros_parcelamento')) {
+                    foreach ($pagamentos as $idx => $pgto) {
+                        $parcelasPgto = max(1, (int) ($pgto['parcelas'] ?? 1));
+
+                        if (! $jurosService->aplicavel($pgto['forma'], $parcelasPgto)) {
+                            continue;
+                        }
+
+                        $simulacao = $jurosService->simular((float) $pgto['valor'], $parcelasPgto, $configLojaJuros);
+
+                        if (! $simulacao['tem_juros']) {
+                            continue;
+                        }
+
+                        // pagamento_detalhes.valor fica COM juros: é o que a
+                        // maquininha passa, o que entra no caixa e o que o
+                        // fiscal soma nas formas de pagamento da nota.
+                        $pagamentos[$idx]['valor_sem_juros']      = round((float) $pgto['valor'], 2);
+                        $pagamentos[$idx]['valor']                = $simulacao['total'];
+                        $pagamentos[$idx]['valor_parcela']        = $simulacao['valor_parcela'];
+                        $pagamentos[$idx]['juros_valor']          = $simulacao['juros_valor'];
+                        $pagamentos[$idx]['juros_percentual']     = $simulacao['percentual'];
+
+                        $acrescimoJuros = round($acrescimoJuros + $simulacao['juros_valor'], 2);
+                    }
+
+                    $total = round($total + $acrescimoJuros, 2);
+                }
+
                 $formaPrincipal = $pagamentos[0]['forma'];
                 $totalPago = collect($pagamentos)->sum('valor');
                 $troco = max(0, round($totalPago - $total, 2));
@@ -300,7 +342,7 @@ class PdvController extends Controller
                 }
 
                 // Vendedor responsável pela entrada no caixa (Configurações da Loja)
-                $configLojaOp = $configLoja ?? ConfiguracaoLoja::daUnidade($empresaId, $unidadeId);
+                $configLojaOp = $configLojaJuros;
                 $responsavelCaixa = ($configLojaOp->vendedor_responsavel_caixa && $request->vendedor_id)
                     ? (int) $request->vendedor_id
                     : auth()->id();

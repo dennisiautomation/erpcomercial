@@ -105,4 +105,28 @@ class Venda extends Model
     {
         return $this->hasMany(ContaReceber::class);
     }
+
+    /* ------------------------------------------------------------------ */
+    /*  Acessores                                                          */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * Juros de parcelamento cobrado do cliente, somado das formas de pagamento.
+     *
+     * Não é coluna: sai do JSON `pagamento_detalhes`, onde o PDV grava
+     * `juros_valor` por pagamento. É o vOutro (outras despesas acessórias) da
+     * nota — o `FiscalPayloadBuilder` lê este acessor para fechar a conta
+     * `total = produtos − desconto + outras despesas` que a SEFAZ valida.
+     */
+    public function getOutrasDespesasAttribute(): float
+    {
+        if (! is_array($this->pagamento_detalhes)) {
+            return 0.0;
+        }
+
+        return round(array_sum(array_map(
+            fn ($pg) => (float) ($pg['juros_valor'] ?? 0),
+            $this->pagamento_detalhes
+        )), 2);
+    }
 }

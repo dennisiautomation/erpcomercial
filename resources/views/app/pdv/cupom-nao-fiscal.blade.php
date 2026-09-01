@@ -290,6 +290,13 @@
             <span>- R$ {{ number_format($venda->desconto_valor, 2, ',', '.') }}</span>
         </div>
     @endif
+    @if($venda->outras_despesas > 0)
+        {{-- Sem esta linha o TOTAL não fecha com "subtotal − desconto" no cupom --}}
+        <div class="row">
+            <span>Juros parcelamento:</span>
+            <span>+ R$ {{ number_format($venda->outras_despesas, 2, ',', '.') }}</span>
+        </div>
+    @endif
     <div class="row total-row">
         <span>TOTAL:</span>
         <span>R$ {{ number_format($venda->total, 2, ',', '.') }}</span>

@@ -1015,6 +1015,9 @@
                     <label class="form-label">Parcelas</label>
                     <select class="form-select" id="parcelasSelect"
                             style="background:var(--bg-primary); color:var(--text-primary); border-color:var(--border-color, #3a3a48);"></select>
+                    <div id="jurosResumo" style="display:none; margin-top:.5rem; padding:.6rem .75rem;
+                         border-radius:.5rem; background:rgba(255,193,7,.12);
+                         border:1px solid rgba(255,193,7,.35); font-size:.9rem;"></div>
                 </div>
                 <div id="modalTrocoWrap" style="display:none;" class="text-center mt-3">
                     <div style="color:var(--text-muted); font-size:0.85rem;">TROCO</div>
@@ -1227,6 +1230,7 @@ const PDV = {
     configLoja: {!! json_encode([
         'regra_split'             => $configLoja->regra_preco_split ?? 'cartao_maior',
         'max_parcelas'            => (int) ($configLoja->max_parcelas ?? 6),
+        'juros_por_parcela'       => (object) ($configLoja->juros_por_parcela ?? []),
         'exists'                  => $configLoja->exists,
         'cupom_automatico_cartao' => (bool) ($configLoja->cupom_automatico_cartao ?? false),
         'cpf_emite_fiscal'        => (bool) ($configLoja->cpf_emite_fiscal ?? false),
@@ -1925,18 +1929,12 @@ const PDV = {
         // Parcelas: só para cartão de crédito
         const parcelasWrap = document.getElementById('parcelasWrap');
         if (forma === 'cartao_credito') {
-            const sel = document.getElementById('parcelasSelect');
-            const max = this.configLoja.max_parcelas || 6;
-            sel.innerHTML = '';
-            for (let i = 1; i <= max; i++) {
-                const opt = document.createElement('option');
-                opt.value = i;
-                opt.textContent = i === 1 ? 'À vista (1x)' : i + 'x';
-                sel.appendChild(opt);
-            }
             parcelasWrap.style.display = 'block';
+            document.getElementById('parcelasSelect').onchange = () => this.renderResumoJuros();
+            this.atualizarParcelas(1);
         } else {
             parcelasWrap.style.display = 'none';
+            document.getElementById('jurosResumo').style.display = 'none';
         }
 
         // Troco calculation for dinheiro
@@ -1952,12 +1950,94 @@ const PDV = {
                     document.getElementById('modalTrocoWrap').style.display = 'none';
                 }
             }
+            // Mudou o valor a parcelar? As parcelas e o juros acompanham.
+            if (forma === 'cartao_credito') {
+                this.atualizarParcelas();
+            }
         };
 
         const modal = new bootstrap.Modal(document.getElementById('modalPagamento'));
         modal.show();
 
         setTimeout(() => valorInput.focus(), 300);
+    },
+
+    // ===== JUROS DE PARCELAMENTO (cartão de crédito) =====
+    // Espelha JurosParcelamentoService: a tabela da loja diz quanto a venda
+    // encarece em cada quantidade de parcelas. Aqui é só a prévia que o caixa
+    // vê — quem grava o valor final é o servidor, que refaz esta conta.
+    percentualJuros(parcelas) {
+        const tabela = this.configLoja.juros_por_parcela || {};
+        return Math.max(0, parseFloat(tabela[parcelas] || 0));
+    },
+
+    simularParcelas(valor, parcelas) {
+        const percentual = this.percentualJuros(parcelas);
+        valor = round(valor, 2);
+
+        const total = percentual > 0 ? round(valor * (1 + percentual / 100), 2) : valor;
+
+        return {
+            parcelas,
+            valorParcela: round(total / parcelas, 2),
+            total,
+            juros: round(total - valor, 2),
+            percentual,
+            temJuros: percentual > 0,
+        };
+    },
+
+    // Valor que está sendo parcelado: o que o caixa digitou, ou o restante da venda.
+    baseParcelamento() {
+        const digitado = parseFloat(document.getElementById('valorRecebido')?.value) || 0;
+        if (digitado > 0) return digitado;
+
+        const total = this.getTotal();
+        const jaAdicionado = this.pagamentos.reduce((s, p) => s + p.valor, 0);
+        return this.pagamentos.length > 0 ? round(total - jaAdicionado, 2) : total;
+    },
+
+    atualizarParcelas(forcarSelecao = null) {
+        const sel = document.getElementById('parcelasSelect');
+        if (!sel) return;
+
+        const escolhido = forcarSelecao || parseInt(sel.value || '1', 10);
+        const max = this.configLoja.max_parcelas || 6;
+        const base = this.baseParcelamento();
+
+        sel.innerHTML = '';
+        for (let n = 1; n <= max; n++) {
+            const sim = this.simularParcelas(base, n);
+            const opt = document.createElement('option');
+            opt.value = n;
+            opt.textContent = n === 1
+                ? 'À vista (1x) — ' + this.formatMoney(sim.total)
+                : n + 'x de ' + this.formatMoney(sim.valorParcela)
+                  + (sim.temJuros ? ' · total ' + this.formatMoney(sim.total) : ' sem juros');
+            sel.appendChild(opt);
+        }
+
+        sel.value = Math.min(escolhido, max) || 1;
+        this.renderResumoJuros();
+    },
+
+    renderResumoJuros() {
+        const box = document.getElementById('jurosResumo');
+        if (!box) return;
+
+        const parcelas = parseInt(document.getElementById('parcelasSelect')?.value || '1', 10);
+        const sim = this.simularParcelas(this.baseParcelamento(), parcelas);
+
+        if (!sim.temJuros) {
+            box.style.display = 'none';
+            return;
+        }
+
+        box.style.display = 'block';
+        box.innerHTML = `
+            <div><strong>${parcelas}x de ${this.formatMoney(sim.valorParcela)}</strong></div>
+            <div>Juros (${sim.percentual.toFixed(2).replace('.', ',')}%): + ${this.formatMoney(sim.juros)}</div>
+            <div>Total com juros: <strong>${this.formatMoney(sim.total)}</strong></div>`;
     },
 
     confirmarPagamento() {
@@ -2138,6 +2218,7 @@ const PDV = {
         try {
             const payload = {
                 tabela_precos: 1,
+                juros_parcelamento: 1,
                 documento: documento === 'auto' ? null : documento,
                 itens: this.itens.map(i => ({
                     produto_id: i.produto_id,
