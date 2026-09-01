@@ -1,5 +1,11 @@
 @extends('layouts.app')
 
+@php
+    // A empresa decide se CPF/CNPJ é obrigatório (empresas.exige_documento_cadastro).
+    // Default true: empresa que nunca mexeu na configuração continua exigindo.
+    $exigeDoc = auth()->user()->empresa?->exigeDocumentoCadastro() ?? true;
+@endphp
+
 @section('title', 'Editar Cliente')
 
 @push('styles')
@@ -296,12 +302,12 @@
 
             <div class="row g-3">
                 <div class="col-md-5">
-                    <label for="cpf_cnpj" class="form-label required-dot" id="labelCpfCnpj">CPF</label>
+                    <label for="cpf_cnpj" class="form-label @if($exigeDoc) required-dot @endif" id="labelCpfCnpj">CPF{{ $exigeDoc ? '' : ' (opcional)' }}</label>
                     <div class="input-group">
                         <input type="text" name="cpf_cnpj" id="cpf_cnpj"
                                class="form-control @error('cpf_cnpj') is-invalid @enderror"
                                value="{{ old('cpf_cnpj', $cliente->cpf_cnpj) }}"
-                               maxlength="18" required>
+                               maxlength="18" @if($exigeDoc) required @endif>
                         <span class="input-group-text bg-white" id="cnpjLoading" style="display:none;">
                             <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
                         </span>
@@ -626,9 +632,8 @@ document.addEventListener('DOMContentLoaded', function () {
         document.querySelectorAll('.campos-pj').forEach(el => {
             el.style.display = isPJ ? '' : 'none';
         });
-        document.getElementById('labelCpfCnpj').innerHTML = isPJ
-            ? 'CNPJ <span class="text-danger fw-bold">*</span>'
-            : 'CPF <span class="text-danger fw-bold">*</span>';
+        const marcaDoc = @json($exigeDoc) ? ' <span class="text-danger fw-bold">*</span>' : ' (opcional)';
+        document.getElementById('labelCpfCnpj').innerHTML = (isPJ ? 'CNPJ' : 'CPF') + marcaDoc;
         document.getElementById('labelNome').innerHTML = isPJ
             ? 'Razao Social <span class="text-danger fw-bold">*</span>'
             : 'Nome Completo <span class="text-danger fw-bold">*</span>';
@@ -691,11 +696,20 @@ document.addEventListener('DOMContentLoaded', function () {
             const cpfCnpj = document.getElementById('cpf_cnpj').value.replace(/[^0-9A-Za-z]/g, '');
             const nome = document.getElementById('nome_razao_social').value.trim();
 
-            if (selectedType === 'pf' && cpfCnpj.length !== 11) {
+            // Documento vazio só barra quando a empresa exige; preenchido pela
+            // metade barra sempre (meio CPF é pior que nenhum).
+            const exigeDoc = @json($exigeDoc);
+            if (cpfCnpj.length === 0) {
+                if (exigeDoc) {
+                    showError('errorCpfCnpj', selectedType === 'pj'
+                        ? 'Informe um CNPJ valido com 14 digitos'
+                        : 'Informe um CPF valido com 11 digitos');
+                    valid = false;
+                }
+            } else if (selectedType === 'pf' && cpfCnpj.length !== 11) {
                 showError('errorCpfCnpj', 'Informe um CPF valido com 11 digitos');
                 valid = false;
-            }
-            if (selectedType === 'pj' && cpfCnpj.length !== 14) {
+            } else if (selectedType === 'pj' && cpfCnpj.length !== 14) {
                 showError('errorCpfCnpj', 'Informe um CNPJ valido com 14 digitos');
                 valid = false;
             }

@@ -3,12 +3,44 @@
 namespace App\Http\Controllers\App;
 
 use App\Http\Controllers\Controller;
+use App\Models\Empresa;
 use App\Models\Fornecedor;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
 class FornecedorController extends Controller
 {
+    /**
+     * Regras do CPF/CNPJ. A empresa decide se o documento é obrigatório
+     * (`empresas.exige_documento_cadastro`); o default é exigir, então empresa
+     * que nunca mexeu na configuração continua como sempre foi.
+     */
+    private function regrasDocumento(?int $empresaId, ?int $ignoreId = null): array
+    {
+        $exige = Empresa::find($empresaId)?->exigeDocumentoCadastro() ?? true;
+
+        $unique = Rule::unique('fornecedores')
+            ->where('empresa_id', $empresaId)
+            ->whereNull('deleted_at');
+
+        if ($ignoreId) {
+            $unique->ignore($ignoreId);
+        }
+
+        return [$exige ? 'required' : 'nullable', 'string', 'max:18', $unique];
+    }
+
+    /**
+     * Documento em branco vira NULL, nunca string vazia: o unique é
+     * (empresa_id, cpf_cnpj) e o MySQL aceita vários NULL, mas duas strings
+     * vazias colidem — o segundo fornecedor sem documento levaria "já existe".
+     */
+    private function normalizarDocumento(Request $request): void
+    {
+        $doc = trim((string) $request->input('cpf_cnpj'));
+        $request->merge(['cpf_cnpj' => $doc === '' ? null : $doc]);
+    }
+
     public function index(Request $request)
     {
         $query = Fornecedor::query();
@@ -40,14 +72,10 @@ class FornecedorController extends Controller
     public function store(Request $request)
     {
         $empresaId = auth()->user()->empresa_id;
+        $this->normalizarDocumento($request);
 
         $validated = $request->validate([
-            'cpf_cnpj'             => [
-                'required',
-                'string',
-                'max:18',
-                Rule::unique('fornecedores')->where('empresa_id', $empresaId)->whereNull('deleted_at'),
-            ],
+            'cpf_cnpj'             => $this->regrasDocumento($empresaId),
             'razao_social'         => 'required|string|max:255',
             'nome_fantasia'        => 'nullable|string|max:255',
             // Endereço e telefone são NOT NULL no schema de fornecedores
@@ -98,14 +126,10 @@ class FornecedorController extends Controller
     public function update(Request $request, Fornecedor $fornecedore)
     {
         $empresaId = auth()->user()->empresa_id;
+        $this->normalizarDocumento($request);
 
         $validated = $request->validate([
-            'cpf_cnpj'             => [
-                'required',
-                'string',
-                'max:18',
-                Rule::unique('fornecedores')->where('empresa_id', $empresaId)->whereNull('deleted_at')->ignore($fornecedore->id),
-            ],
+            'cpf_cnpj'             => $this->regrasDocumento($empresaId, $fornecedore->id),
             'razao_social'         => 'required|string|max:255',
             'nome_fantasia'        => 'nullable|string|max:255',
             // Endereço e telefone são NOT NULL no schema de fornecedores

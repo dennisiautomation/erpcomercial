@@ -23,6 +23,7 @@ class Empresa extends Model
         'im',
         'regime_tributario',
         'politica_estoque_inter_unidade',
+        'exige_documento_cadastro',
         'cep',
         'logradouro',
         'numero',
@@ -75,7 +76,20 @@ class Empresa extends Model
             'cobranca_proxima_renovacao'    => 'date',
             'cobranca_bloqueio_automatico'  => 'boolean',
             'cobranca_suspensa_em'          => 'datetime',
+            'exige_documento_cadastro'      => 'boolean',
         ];
+    }
+
+    /**
+     * Exige CPF/CNPJ no cadastro de cliente e fornecedor?
+     *
+     * Default true — empresa sem a coluna preenchida (ou fora do contexto de
+     * uma empresa, como o admin da plataforma) segue exigindo, que é o
+     * comportamento de sempre.
+     */
+    public function exigeDocumentoCadastro(): bool
+    {
+        return (bool) ($this->exige_documento_cadastro ?? true);
     }
 
     /** Visualiza estoque de outras unidades da mesma empresa? */

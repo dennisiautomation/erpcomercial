@@ -1,5 +1,10 @@
 @extends('layouts.app')
 
+@php
+    // A empresa decide se CPF/CNPJ é obrigatório (empresas.exige_documento_cadastro).
+    $exigeDoc = auth()->user()->empresa?->exigeDocumentoCadastro() ?? true;
+@endphp
+
 @section('title', 'Nova Ordem de Servico')
 
 @section('content')
@@ -203,7 +208,7 @@
                     </div>
                 </div>
                 <div class="mb-3">
-                    <label class="form-label small fw-semibold" id="nc_label_doc">CPF <span class="text-danger">*</span></label>
+                    <label class="form-label small fw-semibold" id="nc_label_doc">CPF @if($exigeDoc)<span class="text-danger">*</span>@else<span class="text-muted fw-normal">(opcional)</span>@endif</label>
                     <input type="text" id="nc_cpf_cnpj" class="form-control" maxlength="18" placeholder="000.000.000-00">
                 </div>
                 <div class="mb-3">
@@ -453,7 +458,9 @@
 
     function aplicarTipo() {
         const isPJ = document.getElementById('nc_tipo_pj').checked;
-        ncLabelDoc.innerHTML = (isPJ ? 'CNPJ' : 'CPF') + ' <span class="text-danger">*</span>';
+        ncLabelDoc.innerHTML = (isPJ ? 'CNPJ' : 'CPF') + (@json($exigeDoc)
+            ? ' <span class="text-danger">*</span>'
+            : ' <span class="text-muted fw-normal">(opcional)</span>');
         ncLabelNome.innerHTML = (isPJ ? 'Razão Social' : 'Nome') + ' <span class="text-danger">*</span>';
         ncCpfCnpj.placeholder = isPJ ? '00.000.000/0000-00' : '000.000.000-00';
         ncCpfCnpj.value = isPJ ? maskCnpj(ncCpfCnpj.value) : maskCpf(ncCpfCnpj.value);
@@ -515,10 +522,13 @@
             telefone: document.getElementById('nc_telefone').value || null,
             email: document.getElementById('nc_email').value || null,
         };
-        if (!payload.cpf_cnpj || !payload.nome_razao_social) {
-            ncErro.textContent = 'Informe documento e nome.';
+        if ((@json($exigeDoc) && !payload.cpf_cnpj) || !payload.nome_razao_social) {
+            ncErro.textContent = @json($exigeDoc) ? 'Informe documento e nome.' : 'Informe o nome.';
             ncErro.classList.remove('d-none');
             return;
+        }
+        if (!payload.cpf_cnpj) {
+            payload.cpf_cnpj = null;
         }
         const btn = this;
         btn.disabled = true;

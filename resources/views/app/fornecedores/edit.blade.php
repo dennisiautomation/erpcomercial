@@ -1,5 +1,11 @@
 @extends('layouts.app')
 
+@php
+    // A empresa decide se CPF/CNPJ é obrigatório (empresas.exige_documento_cadastro).
+    // Default true: empresa que nunca mexeu na configuração continua exigindo.
+    $exigeDoc = auth()->user()->empresa?->exigeDocumentoCadastro() ?? true;
+@endphp
+
 @section('title', 'Editar Fornecedor')
 
 @push('styles')
@@ -151,12 +157,12 @@
 
             <div class="row g-3">
                 <div class="col-md-5">
-                    <label for="cpf_cnpj" class="form-label required-dot">CNPJ</label>
+                    <label for="cpf_cnpj" class="form-label @if($exigeDoc) required-dot @endif">CNPJ{{ $exigeDoc ? '' : ' (opcional)' }}</label>
                     <div class="input-group">
                         <input type="text" name="cpf_cnpj" id="cpf_cnpj"
                                class="form-control @error('cpf_cnpj') is-invalid @enderror"
                                value="{{ old('cpf_cnpj', $fornecedore->cpf_cnpj) }}"
-                               maxlength="18" data-mask="cnpj" data-cnpj-lookup required>
+                               maxlength="18" data-mask="cnpj" data-cnpj-lookup @if($exigeDoc) required @endif>
                         <span class="input-group-text bg-white" id="cnpjLoading" style="display:none;">
                             <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
                         </span>
@@ -359,7 +365,13 @@ document.addEventListener('DOMContentLoaded', function () {
             let valid = true;
             const cpfCnpj = document.getElementById('cpf_cnpj').value.replace(/[^0-9A-Za-z]/g, '');
             const razao = document.getElementById('razao_social').value.trim();
-            if (cpfCnpj.length < 11) { showError('errorCpfCnpj', 'Informe um CPF ou CNPJ valido'); valid = false; }
+            const exigeDoc = @json($exigeDoc);
+            if ((exigeDoc && cpfCnpj.length === 0) || (cpfCnpj.length > 0 && cpfCnpj.length < 11)) {
+                showError('errorCpfCnpj', cpfCnpj.length > 0
+                    ? 'CPF/CNPJ incompleto — corrija ou deixe em branco'
+                    : 'Informe um CPF ou CNPJ valido');
+                valid = false;
+            }
             if (!razao) { showError('errorRazaoSocial', 'Informe a Razao Social'); valid = false; }
             return valid;
         }

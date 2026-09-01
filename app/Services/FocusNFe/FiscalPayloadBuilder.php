@@ -82,6 +82,13 @@ class FiscalPayloadBuilder
             $erros[] = "Endereço incompleto do cliente {$cliente->nome_razao_social}.";
         }
 
+        // O cadastro de cliente pode dispensar o documento (empresas.exige_documento_cadastro),
+        // mas a NF-e modelo 55 exige destinatário identificado. Sem esta checagem a nota
+        // passaria daqui e voltaria rejeitada pela SEFAZ com mensagem crua.
+        if ($cliente && ! Cnpj::limparCpfCnpj($cliente->cpf_cnpj ?? '')) {
+            $erros[] = "NF-e exige CPF/CNPJ do destinatário — cadastre o documento do cliente {$cliente->nome_razao_social}.";
+        }
+
         foreach ($venda->itens as $idx => $item) {
             $produto = $item->produto;
             $ncm = $item->snapshot_ncm ?: $produto?->ncm;

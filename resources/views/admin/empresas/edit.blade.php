@@ -492,6 +492,33 @@
             </div>
             @endif
 
+            {{-- Cadastros --}}
+            <div class="card section-card shadow-sm mb-4">
+                <div class="card-header">
+                    <i class="bi bi-person-vcard me-2"></i>
+                    <strong>Cadastros</strong> — obrigatoriedade do documento
+                </div>
+                <div class="card-body">
+                    @php $exigeDoc = (bool) old('exige_documento_cadastro', $empresa->exige_documento_cadastro ?? true); @endphp
+                    <div class="form-check form-switch">
+                        <input type="hidden" name="exige_documento_cadastro" value="0">
+                        <input class="form-check-input" type="checkbox" role="switch" value="1"
+                               id="exige_documento_cadastro" name="exige_documento_cadastro"
+                               @checked($exigeDoc)>
+                        <label class="form-check-label" for="exige_documento_cadastro">
+                            Exigir CPF/CNPJ no cadastro de clientes e fornecedores
+                        </label>
+                    </div>
+                    <small class="text-muted d-block mt-2">
+                        <i class="bi bi-info-circle me-1"></i>
+                        Desmarcado, o documento vira opcional nas duas telas (inclusive no cadastro rápido
+                        de cliente dos Pedidos e da Ordem de Serviço). A <strong>NF-e continua exigindo</strong>
+                        CPF/CNPJ do destinatário — venda para cliente sem documento não emite nota modelo 55.
+                        A NFC-e não é afetada.
+                    </small>
+                </div>
+            </div>
+
             {{-- Logo --}}
             <div class="card section-card shadow-sm mb-4">
                 <div class="card-header">
