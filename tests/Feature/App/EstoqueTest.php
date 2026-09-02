@@ -7,6 +7,7 @@ use App\Models\EstoqueMovimentacao;
 use App\Models\TransferenciaEstoque;
 use App\Models\TransferenciaEstoqueItem;
 use App\Models\Unidade;
+use App\Services\SaldoEstoque;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 use Tests\Traits\CreatesTestData;
@@ -27,13 +28,14 @@ class EstoqueTest extends TestCase
         $gerente = $this->createUser($this->empresa, $this->unidade, 'gerente');
         $produto = $this->createProduto($this->empresa);
 
+        // A tela manda uma LISTA de itens desde 12/08/2026 (movimentação em lote)
         $response = $this->actingAsUser($gerente, $this->unidade)
             ->post(route('app.movimentacoes.store'), [
-                'produto_id'     => $produto->id,
-                'tipo'           => 'entrada',
-                'quantidade'     => 25,
-                'custo_unitario' => 10.00,
-                'observacoes'    => 'Compra fornecedor',
+                'tipo'        => 'entrada',
+                'itens'       => [
+                    ['produto_id' => $produto->id, 'quantidade' => 25, 'custo_unitario' => 10.00],
+                ],
+                'observacoes' => 'Compra fornecedor',
             ]);
 
         $response->assertRedirect(route('app.movimentacoes.index'));
@@ -41,6 +43,7 @@ class EstoqueTest extends TestCase
         $this->assertDatabaseHas('estoque_movimentacoes', [
             'empresa_id' => $this->empresa->id,
             'produto_id' => $produto->id,
+            'estoque_id' => $this->estoquePrincipal($this->unidade),
             'tipo'       => 'entrada',
             'user_id'    => $gerente->id,
         ]);
@@ -54,10 +57,10 @@ class EstoqueTest extends TestCase
         // First entry: 50 units
         $this->actingAsUser($gerente, $this->unidade)
             ->post(route('app.movimentacoes.store'), [
-                'produto_id'     => $produto->id,
-                'tipo'           => 'entrada',
-                'quantidade'     => 50,
-                'custo_unitario' => 10.00,
+                'tipo'  => 'entrada',
+                'itens' => [
+                    ['produto_id' => $produto->id, 'quantidade' => 50, 'custo_unitario' => 10.00],
+                ],
             ]);
 
         $mov1 = EstoqueMovimentacao::withoutGlobalScopes()
@@ -71,10 +74,11 @@ class EstoqueTest extends TestCase
         // Second entry: loss of 5 units
         $this->actingAsUser($gerente, $this->unidade)
             ->post(route('app.movimentacoes.store'), [
-                'produto_id'     => $produto->id,
-                'tipo'           => 'perda',
-                'quantidade'     => 5,
-                'observacoes'    => 'Produto danificado',
+                'tipo'        => 'perda',
+                'itens'       => [
+                    ['produto_id' => $produto->id, 'quantidade' => 5],
+                ],
+                'observacoes' => 'Produto danificado',
             ]);
 
         $mov2 = EstoqueMovimentacao::withoutGlobalScopes()
@@ -155,16 +159,9 @@ class EstoqueTest extends TestCase
         ]);
 
         // Create initial stock in origin
-        EstoqueMovimentacao::withoutGlobalScopes()->create([
-            'empresa_id'           => $this->empresa->id,
-            'unidade_id'           => $this->unidade->id,
-            'produto_id'           => $produto->id,
-            'tipo'                 => TipoMovimentacaoEstoque::Entrada,
-            'quantidade'           => 100,
-            'quantidade_anterior'  => 0,
-            'quantidade_posterior' => 100,
-            'custo_unitario'       => 20.00,
-            'user_id'              => $gerente->id,
+        $this->darEntradaEstoque($this->unidade, $produto, 100, [
+            'custo_unitario' => 20.00,
+            'user_id'        => $gerente->id,
         ]);
 
         // Create transferencia
@@ -182,71 +179,18 @@ class EstoqueTest extends TestCase
             'quantidade'               => 30,
         ]);
 
-        // Approve the transferencia (simulating the approval logic from the controller)
-        $this->actingAs($gerente);
-        session(['unidade_id' => $this->unidade->id, 'empresa_id' => $this->empresa->id]);
+        // Aprovar pela ROTA de verdade. Este teste já simulou a lógica do
+        // controller aqui dentro e por isso não viu a mudança para
+        // estoque_id/SaldoEstoque de 12/08/2026 — a cópia passava enquanto o
+        // controller mudava. Cobrir o controller é o ponto do teste.
+        $response = $this->actingAsUser($gerente, $this->unidade)
+            ->patch(route('app.transferencias.aprovar', $transferencia));
 
-        \Illuminate\Support\Facades\DB::transaction(function () use ($transferencia, $gerente, $produto) {
-            $transferencia->load('itens.produto');
-
-            foreach ($transferencia->itens as $item) {
-                $prod = \App\Models\Produto::withoutGlobalScopes()->lockForUpdate()->findOrFail($item->produto_id);
-
-                // Saida na origem
-                $ultimaOrigem = EstoqueMovimentacao::withoutGlobalScopes()
-                    ->where('produto_id', $prod->id)
-                    ->where('unidade_id', $transferencia->unidade_origem_id)
-                    ->orderByDesc('id')
-                    ->first();
-
-                $estoqueAnteriorOrigem = $ultimaOrigem ? (float) $ultimaOrigem->quantidade_posterior : 0;
-
-                EstoqueMovimentacao::withoutGlobalScopes()->create([
-                    'empresa_id'           => $transferencia->empresa_id,
-                    'unidade_id'           => $transferencia->unidade_origem_id,
-                    'produto_id'           => $prod->id,
-                    'tipo'                 => TipoMovimentacaoEstoque::Transferencia,
-                    'quantidade'           => $item->quantidade,
-                    'quantidade_anterior'  => $estoqueAnteriorOrigem,
-                    'quantidade_posterior' => $estoqueAnteriorOrigem - (float) $item->quantidade,
-                    'custo_unitario'       => $prod->preco_custo ?? 0,
-                    'origem_tipo'          => TransferenciaEstoque::class,
-                    'origem_id'            => $transferencia->id,
-                    'user_id'              => $gerente->id,
-                ]);
-
-                // Entrada no destino
-                $ultimaDestino = EstoqueMovimentacao::withoutGlobalScopes()
-                    ->where('produto_id', $prod->id)
-                    ->where('unidade_id', $transferencia->unidade_destino_id)
-                    ->orderByDesc('id')
-                    ->first();
-
-                $estoqueAnteriorDestino = $ultimaDestino ? (float) $ultimaDestino->quantidade_posterior : 0;
-
-                EstoqueMovimentacao::withoutGlobalScopes()->create([
-                    'empresa_id'           => $transferencia->empresa_id,
-                    'unidade_id'           => $transferencia->unidade_destino_id,
-                    'produto_id'           => $prod->id,
-                    'tipo'                 => TipoMovimentacaoEstoque::Transferencia,
-                    'quantidade'           => $item->quantidade,
-                    'quantidade_anterior'  => $estoqueAnteriorDestino,
-                    'quantidade_posterior' => $estoqueAnteriorDestino + (float) $item->quantidade,
-                    'custo_unitario'       => $prod->preco_custo ?? 0,
-                    'origem_tipo'          => TransferenciaEstoque::class,
-                    'origem_id'            => $transferencia->id,
-                    'user_id'              => $gerente->id,
-                ]);
-            }
-
-            $transferencia->update([
-                'status'            => 'aprovada',
-                'user_aprovador_id' => $gerente->id,
-            ]);
-        });
+        $response->assertRedirect(route('app.transferencias.show', $transferencia));
 
         $transferencia->refresh();
         $this->assertEquals('aprovada', $transferencia->status);
+        $this->assertEquals($gerente->id, $transferencia->user_aprovador_id);
 
         // Check origin stock decreased
         $movOrigem = EstoqueMovimentacao::withoutGlobalScopes()
@@ -256,6 +200,7 @@ class EstoqueTest extends TestCase
             ->first();
 
         $this->assertNotNull($movOrigem);
+        $this->assertEquals($this->estoquePrincipal($this->unidade), $movOrigem->estoque_id);
         $this->assertEquals(100.000, (float) $movOrigem->quantidade_anterior);
         $this->assertEquals(70.000, (float) $movOrigem->quantidade_posterior);
 
@@ -267,8 +212,13 @@ class EstoqueTest extends TestCase
             ->first();
 
         $this->assertNotNull($movDestino);
+        $this->assertEquals($this->estoquePrincipal($unidade2), $movDestino->estoque_id);
         $this->assertEquals(0.000, (float) $movDestino->quantidade_anterior);
         $this->assertEquals(30.000, (float) $movDestino->quantidade_posterior);
+
+        // O saldo da loja é a soma dos estoques dela (SaldoEstoque é o ponto único)
+        $this->assertEquals(70.0, SaldoEstoque::naUnidade($this->unidade->id, $produto->id));
+        $this->assertEquals(30.0, SaldoEstoque::naUnidade($unidade2->id, $produto->id));
     }
 
     public function test_stock_isolated_by_unidade(): void
@@ -291,29 +241,15 @@ class EstoqueTest extends TestCase
         ]);
 
         // Stock in unidade 1
-        EstoqueMovimentacao::withoutGlobalScopes()->create([
-            'empresa_id'           => $this->empresa->id,
-            'unidade_id'           => $this->unidade->id,
-            'produto_id'           => $produto->id,
-            'tipo'                 => TipoMovimentacaoEstoque::Entrada,
-            'quantidade'           => 50,
-            'quantidade_anterior'  => 0,
-            'quantidade_posterior' => 50,
-            'custo_unitario'       => 10.00,
-            'user_id'              => $gerente->id,
+        $this->darEntradaEstoque($this->unidade, $produto, 50, [
+            'custo_unitario' => 10.00,
+            'user_id'        => $gerente->id,
         ]);
 
         // Stock in unidade 2
-        EstoqueMovimentacao::withoutGlobalScopes()->create([
-            'empresa_id'           => $this->empresa->id,
-            'unidade_id'           => $unidade2->id,
-            'produto_id'           => $produto->id,
-            'tipo'                 => TipoMovimentacaoEstoque::Entrada,
-            'quantidade'           => 80,
-            'quantidade_anterior'  => 0,
-            'quantidade_posterior' => 80,
-            'custo_unitario'       => 10.00,
-            'user_id'              => $gerente->id,
+        $this->darEntradaEstoque($unidade2, $produto, 80, [
+            'custo_unitario' => 10.00,
+            'user_id'        => $gerente->id,
         ]);
 
         // Gerente at unidade 1 should only see unidade 1 stock

@@ -8,7 +8,7 @@ use App\Models\ContaReceber;
 use App\Models\EstoqueMovimentacao;
 use App\Models\Pedido;
 use App\Models\PedidoItem;
-use App\Models\Produto;
+use App\Services\SaldoEstoque;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
@@ -165,17 +165,10 @@ class PedidoTest extends TestCase
         $produto = $this->createProduto($this->empresa, ['preco_venda' => 100.00]);
 
         // Create initial stock entry
-        EstoqueMovimentacao::withoutGlobalScopes()->create([
-            'empresa_id'           => $this->empresa->id,
-            'unidade_id'           => $this->unidade->id,
-            'produto_id'           => $produto->id,
-            'tipo'                 => TipoMovimentacaoEstoque::Entrada,
-            'quantidade'           => 50,
-            'quantidade_anterior'  => 0,
-            'quantidade_posterior' => 50,
-            'custo_unitario'       => 50.00,
-            'user_id'              => $dono->id,
-            'observacoes'          => 'Estoque inicial',
+        $this->darEntradaEstoque($this->unidade, $produto, 50, [
+            'custo_unitario' => 50.00,
+            'user_id'        => $dono->id,
+            'observacoes'    => 'Estoque inicial',
         ]);
 
         // Create pedido with items
@@ -190,7 +183,7 @@ class PedidoTest extends TestCase
             'status'      => StatusPedido::Confirmado,
         ]);
 
-        $item = PedidoItem::create([
+        PedidoItem::create([
             'pedido_id'      => $pedido->id,
             'produto_id'     => $produto->id,
             'descricao'      => $produto->descricao,
@@ -199,37 +192,11 @@ class PedidoTest extends TestCase
             'total'          => 1000.00,
         ]);
 
-        // Simulate faturamento logic from PedidoController::updateStatus
-        $this->actingAs($dono);
-        session(['unidade_id' => $this->unidade->id, 'empresa_id' => $this->empresa->id]);
-
-        DB::transaction(function () use ($pedido) {
-            foreach ($pedido->itens as $item) {
-                if ($item->produto_id) {
-                    $produtoItem = Produto::find($item->produto_id);
-                    $estoqueAnterior = $produtoItem->estoqueMovimentacoes()
-                        ->where('unidade_id', $pedido->unidade_id)
-                        ->latest()
-                        ->value('quantidade_posterior') ?? 0;
-
-                    EstoqueMovimentacao::create([
-                        'empresa_id'           => $pedido->empresa_id,
-                        'unidade_id'           => $pedido->unidade_id,
-                        'produto_id'           => $item->produto_id,
-                        'tipo'                 => TipoMovimentacaoEstoque::Saida,
-                        'quantidade'           => $item->quantidade,
-                        'quantidade_anterior'  => $estoqueAnterior,
-                        'quantidade_posterior' => $estoqueAnterior - $item->quantidade,
-                        'custo_unitario'       => $item->preco_unitario,
-                        'origem_tipo'          => Pedido::class,
-                        'origem_id'            => $pedido->id,
-                        'user_id'              => auth()->id(),
-                        'observacoes'          => "Faturamento Pedido #{$pedido->numero}",
-                    ]);
-                }
-            }
-            $pedido->update(['status' => StatusPedido::Faturado]);
-        });
+        // Faturar pela ROTA de verdade. A versão antiga deste teste copiava a
+        // lógica do PedidoController aqui dentro e por isso ficou cega à
+        // mudança para estoque_id/SaldoEstoque de 12/08/2026.
+        $this->actingAsUser($dono, $this->unidade)
+            ->post(route('app.pedidos.update-status', $pedido), ['status' => 'faturado']);
 
         // Check stock was reduced
         $movSaida = EstoqueMovimentacao::withoutGlobalScopes()
@@ -239,9 +206,11 @@ class PedidoTest extends TestCase
             ->first();
 
         $this->assertNotNull($movSaida);
+        $this->assertEquals($this->estoquePrincipal($this->unidade), $movSaida->estoque_id);
         $this->assertEquals(10.000, (float) $movSaida->quantidade);
         $this->assertEquals(50.000, (float) $movSaida->quantidade_anterior);
         $this->assertEquals(40.000, (float) $movSaida->quantidade_posterior);
         $this->assertEquals(StatusPedido::Faturado, $pedido->fresh()->status);
+        $this->assertEquals(40.0, SaldoEstoque::naUnidade($this->unidade->id, $produto->id));
     }
 }
