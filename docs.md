@@ -2356,6 +2356,32 @@ e regrava. `show` exibe o badge.
 usuário `ubuntu` dá `Permission denied`. Contorno usado: gerar o conteúdo fora e `rm` + `cp` (o
 diretório é do `ubuntu`). Lista completa: `find app resources routes database -type f -user root`.
 
+### O vínculo conferido EM PRODUÇÃO (depois do deploy)
+
+O badge do `show` nunca tinha renderizado em produção — os 2.520 produtos estavam com
+`fornecedor_id` NULL, então o caminho inteiro estava por provar. Testado com um produto real da
+DONA DOURO, vinculado e **revertido para NULL** em seguida: a relação `$produto->fornecedor`
+resolve, a tela do produto responde **200**, o badge sai com o nome do fornecedor, o `href` aponta
+para `/app/fornecedores/10` e **seguir o link responde 200**.
+
+⚠️ Vale conferir esse caminho sempre que um badge novo depender de `route(...)` de um recurso que
+ninguém usa ainda: rota inexistente só estoura quando o primeiro registro é vinculado — em
+produção, na cara do cliente (é a armadilha 26b um nível acima, a do `route()` não definido).
+
+### Até onde o vínculo vai hoje
+
+É **registro cadastral**: guarda e mostra. Ainda NÃO existe:
+
+- **"Produtos deste fornecedor"** na tela do fornecedor — abrir a EQUATORIAL não mostra o que a
+  loja compra dela;
+- **filtro por fornecedor** na lista de produtos (a lista filtra por categoria, não por
+  fornecedor);
+- uso em **compras / entrada de estoque** — dar entrada não sugere nem registra o fornecedor;
+- **relatórios** quebrados por fornecedor.
+
+Os dois primeiros são só tela, sem migration, e são o que dá utilidade imediata ao campo.
+Aguardando decisão do Dennis (02/09).
+
 ---
 
 ## Armadilhas conhecidas
@@ -2661,6 +2687,23 @@ diretório é do `ubuntu`). Lista completa: `find app resources routes database 
 > Estado do banco conferido em **20/08/2026** (ver a seção Auditoria de produção). Onde a
 > realidade divergia do que estava escrito aqui, o texto foi corrigido — vale a auditoria, não a
 > memória do que se pretendia fazer.
+
+**Fila de 02/09 (entregas do dia, todas EM PRODUÇÃO — o que ficou pendente):**
+
+1. **Decidir o `plano_id` da N S BORBA (empresa 6)** — está NULL, e por isso ela **não cria loja
+   nenhuma pela tela dela** desde que nasceu (`getPlanoAtivo()` null → `limiteAtingido()` devolve
+   `true` já na 1ª). As 3 lojas dela nasceram pelo admin.
+2. **Fazer o select do admin gravar `plano_id`** — enquanto não fizer, toda troca de plano continua
+   valendo só como rótulo, e o sintoma reaparece longe da causa (armadilha 56).
+3. **ia365 (empresa 1) está no plano Básico (máx. 1 loja) com 4 lojas** — só não se auto-bloqueia
+   porque o regime é `pos_pago`. Trocar o regime para `padrao` trava a própria plataforma.
+4. **Realiza Phone: conferir se o contador resolveu o relato** dos "500 caracteres" — se ela ainda
+   disser que trava, é outra tela e precisa de print (armadilha 60).
+5. **Fornecedor do produto**: decidir se entram "Produtos deste fornecedor" e o filtro por
+   fornecedor na lista (ver a seção do fornecedor).
+6. **`chown` dos 8 arquivos root-owned** do repo, resíduo da entrega de 31/08.
+7. **Gerentes veem TODAS as lojas** da empresa porque estão vinculados a todas em `unidade_user` —
+   o código já respeita o recorte; restringir é desvincular em Funcionários.
 
 **Fila de 20/08, na ordem em que precisa acontecer:**
 
