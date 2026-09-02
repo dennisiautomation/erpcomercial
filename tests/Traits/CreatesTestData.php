@@ -26,6 +26,7 @@ trait CreatesTestData
             'cnpj'              => '12345678000' . str_pad($s, 3, '0', STR_PAD_LEFT),
             'razao_social'      => 'Empresa Teste ' . $s,
             'nome_fantasia'     => 'Teste ' . $s,
+            'ie'                => '11122233344' . $s,
             'regime_tributario'  => 'simples_nacional',
             'cep'               => '01001000',
             'logradouro'        => 'Rua Teste',
@@ -46,6 +47,8 @@ trait CreatesTestData
             'empresa_id' => $empresa->id,
             'nome'       => 'Matriz ' . $s,
             'cnpj'       => $empresa->cnpj,
+            // Sem IE a SEFAZ rejeita NFC-e/NF-e e o FiscalPayloadBuilder nem monta o payload
+            'ie'         => '11122233344' . $s,
             'cep'        => '01001000',
             'logradouro' => 'Rua Teste',
             'numero'     => '100',

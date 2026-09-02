@@ -4,11 +4,13 @@ namespace Tests\Feature\Fiscal;
 
 use App\Enums\StatusNotaFiscal;
 use App\Enums\TipoNotaFiscal;
+use App\Jobs\BaixarXmlNotaJob;
 use App\Models\ConfiguracaoFiscal;
 use App\Models\NotaFiscal;
 use App\Services\FocusNFe\FocusNFeClient;
 use App\Services\FocusNFe\NFSeService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 use Tests\Traits\CreatesTestData;
@@ -24,6 +26,12 @@ class NFSeServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        // A nota autorizada dispara BaixarXmlNotaJob (cópia local de 5 anos).
+        // Na fila `sync` do phpunit ele roda NA HORA, tenta baixar o XML da Focus,
+        // falha e derruba a emissão — o arquivamento é assunto de outro teste.
+        Bus::fake([BaixarXmlNotaJob::class]);
+
 
         [$this->empresa, $this->unidade] = $this->createTenant();
 

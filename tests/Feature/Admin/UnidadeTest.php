@@ -22,7 +22,7 @@ class UnidadeTest extends TestCase
         parent::setUp();
 
         $this->empresa = Empresa::create([
-            'cnpj'              => '12.345.678/0001-99',
+            'cnpj'              => '12.345.678/0001-95',
             'razao_social'      => 'Empresa Teste LTDA',
             'nome_fantasia'     => 'Empresa Teste',
             'regime_tributario' => 'simples_nacional',
@@ -47,7 +47,7 @@ class UnidadeTest extends TestCase
         $this->unidade = Unidade::create([
             'empresa_id' => $this->empresa->id,
             'nome'       => 'Unidade Matriz',
-            'cnpj'       => '12.345.678/0001-99',
+            'cnpj'       => '12.345.678/0001-95',
             'cep'        => '01001000',
             'logradouro' => 'Rua Teste',
             'numero'     => '100',
@@ -64,7 +64,7 @@ class UnidadeTest extends TestCase
         $response = $this->actingAs($this->admin)
             ->post(route('admin.empresas.unidades.store', $this->empresa), [
                 'nome'       => 'Nova Filial',
-                'cnpj'       => '12.345.678/0003-99',
+                'cnpj'       => '12.345.678/0003-57',
                 'cep'        => '01001000',
                 'logradouro' => 'Rua Nova',
                 'numero'     => '300',
@@ -98,7 +98,7 @@ class UnidadeTest extends TestCase
         $response = $this->actingAs($this->admin)
             ->put(route('admin.unidades.update', $this->unidade), [
                 'nome'       => 'Unidade Atualizada',
-                'cnpj'       => '12.345.678/0001-99',
+                'cnpj'       => '12.345.678/0001-95',
                 'cep'        => '01001000',
                 'logradouro' => 'Rua Teste',
                 'numero'     => '100',

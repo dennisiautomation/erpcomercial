@@ -88,8 +88,17 @@ class FocusReferenciasTest extends TestCase
 
     public function test_municipios_exige_uf_valida(): void
     {
-        $this->assertEquals([], FocusReferenciasService::make()->municipios('XY'));
+        // Sem este fake o teste SAÍA PARA A INTERNET: 'XY' tem 2 letras, passa na
+        // guarda de tamanho e vira uma chamada real a api.focusnfe.com.br — a
+        // resposta de erro da Focus voltava mapeada como se fosse município.
+        Http::fake();
+
+        // UF vazia nem chega a consultar
         $this->assertEquals([], FocusReferenciasService::make()->municipios(''));
+        Http::assertNothingSent();
+
+        // 2 letras que não existem: consulta, não vem lista, resultado vazio
+        $this->assertEquals([], FocusReferenciasService::make()->municipios('XY'));
     }
 
     public function test_municipios_normaliza_codigo_ibge(): void
