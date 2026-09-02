@@ -613,4 +613,76 @@ class PdvTest extends TestCase
         $this->assertEquals(180.00, (float) $parcelas->first()->valor);
         $this->assertEquals(1080.00, round($parcelas->sum(fn ($p) => (float) $p->valor), 2));
     }
+
+    /* ------------------------------------------------------------------
+     *  Valor da parcela no select do PDV (flag + trava)
+     * ------------------------------------------------------------------ */
+
+    private function servicoJuros(): \App\Services\JurosParcelamentoService
+    {
+        return app(\App\Services\JurosParcelamentoService::class);
+    }
+
+    public function test_loja_sem_juros_e_sem_flag_nao_mostra_valor_da_parcela(): void
+    {
+        // As outras empresas: PDV identico ao de sempre ("2x", "3x").
+        $config = ConfiguracaoLoja::create([
+            'empresa_id'   => $this->empresa->id,
+            'unidade_id'   => $this->unidade->id,
+            'max_parcelas' => 6,
+        ]);
+
+        $this->assertFalse($this->servicoJuros()->mostrarValorParcelas($config));
+    }
+
+    public function test_loja_sem_config_nenhuma_nao_mostra_valor_da_parcela(): void
+    {
+        // Loja que nunca abriu Configuracoes da Loja: daUnidade() devolve model
+        // novo, sem flag e sem tabela — nao pode mudar de tela.
+        $config = ConfiguracaoLoja::daUnidade($this->empresa->id, $this->unidade->id);
+
+        $this->assertFalse($config->exists);
+        $this->assertFalse($this->servicoJuros()->mostrarValorParcelas($config));
+    }
+
+    public function test_flag_ligado_mostra_valor_da_parcela_mesmo_sem_juros(): void
+    {
+        $config = ConfiguracaoLoja::create([
+            'empresa_id'                 => $this->empresa->id,
+            'unidade_id'                 => $this->unidade->id,
+            'max_parcelas'               => 6,
+            'pdv_mostrar_valor_parcelas' => true,
+        ]);
+
+        $this->assertTrue($this->servicoJuros()->mostrarValorParcelas($config));
+    }
+
+    public function test_tabela_de_juros_ignora_o_flag_desligado(): void
+    {
+        // A trava: esconder o acrescimo de uma venda que encarece surpreende o
+        // cliente no total. Tabela cadastrada manda no flag.
+        $config = ConfiguracaoLoja::create([
+            'empresa_id'                 => $this->empresa->id,
+            'unidade_id'                 => $this->unidade->id,
+            'max_parcelas'               => 12,
+            'juros_por_parcela'          => ['6' => 8],
+            'pdv_mostrar_valor_parcelas' => false,
+        ]);
+
+        $this->assertTrue($this->servicoJuros()->mostrarValorParcelas($config));
+    }
+
+    public function test_tabela_so_com_zeros_nao_liga_a_trava(): void
+    {
+        // Linha zerada e parcela sem juros — nao deve mudar a tela de ninguem.
+        $config = ConfiguracaoLoja::create([
+            'empresa_id'                 => $this->empresa->id,
+            'unidade_id'                 => $this->unidade->id,
+            'max_parcelas'               => 12,
+            'juros_por_parcela'          => ['6' => 0, '12' => 0],
+            'pdv_mostrar_valor_parcelas' => false,
+        ]);
+
+        $this->assertFalse($this->servicoJuros()->mostrarValorParcelas($config));
+    }
 }

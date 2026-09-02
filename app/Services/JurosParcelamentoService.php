@@ -64,6 +64,29 @@ class JurosParcelamentoService
     }
 
     /**
+     * O select de parcelas do PDV mostra o valor de cada parcela?
+     *
+     * A loja liga em Configurações da Loja (`pdv_mostrar_valor_parcelas`, nasce
+     * desligado — quem não pediu continua vendo "2x", "3x" como sempre).
+     *
+     * ⚠️ Tabela de juros cadastrada IGNORA o flag: se a venda encarece, o caixa
+     * tem que ver "6x de R$ 180,00 · total R$ 1.080,00" para falar o número certo
+     * ao cliente. Esconder o acréscimo aqui seria surpreender o cliente no total,
+     * que é pior do que qualquer mudança de tela.
+     */
+    public function mostrarValorParcelas(ConfiguracaoLoja $config): bool
+    {
+        if ($config->pdv_mostrar_valor_parcelas) {
+            return true;
+        }
+
+        return ! empty(array_filter(
+            (array) ($config->juros_por_parcela ?? []),
+            fn ($percentual) => (float) $percentual > 0
+        ));
+    }
+
+    /**
      * Juros só existe em cartão de crédito parcelado — dinheiro, PIX, débito e
      * 1x nunca levam acréscimo, independente do que estiver configurado.
      */

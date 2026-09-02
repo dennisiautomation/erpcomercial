@@ -146,6 +146,34 @@
             <strong>"Máximo de parcelas"</strong> ali em cima.
         </div>
 
+        @php
+            $temJuros = collect($jurosTabela)->contains(fn ($v) => (float) $v > 0);
+            $mostrarParcelas = (bool) old('pdv_mostrar_valor_parcelas', $config->pdv_mostrar_valor_parcelas ?? false);
+        @endphp
+        <div class="form-check form-switch mb-1">
+            {{-- Campo `disabled` NAO e enviado no POST: com a tabela de juros travando o
+                 switch, o hidden precisa devolver o valor REAL salvo, senao salvar a tela
+                 zeraria a flag sem ninguem pedir. --}}
+            <input type="hidden" name="pdv_mostrar_valor_parcelas"
+                   value="{{ $temJuros ? (int) $mostrarParcelas : 0 }}">
+            <input class="form-check-input" type="checkbox" role="switch" value="1"
+                   id="pdv_mostrar_valor_parcelas" name="pdv_mostrar_valor_parcelas"
+                   @checked($mostrarParcelas || $temJuros) @disabled($temJuros)>
+            <label class="form-check-label" for="pdv_mostrar_valor_parcelas">
+                Mostrar o valor de cada parcela na lista do PDV
+            </label>
+        </div>
+        <div class="form-text mb-2">
+            @if($temJuros)
+                <i class="bi bi-lock me-1"></i>Ligado e travado porque esta loja cobra juros: o caixa
+                precisa ver <strong>"6x de R$ 180,00 · total R$ 1.080,00"</strong> para falar o valor
+                certo ao cliente. Zere a tabela acima para poder desligar.
+            @else
+                Desligado, a lista mostra só <strong>"2x", "3x"</strong> — como sempre foi. Ligado, mostra
+                quanto dá cada parcela ("3x de R$ 333,33 sem juros"), mesmo sem cobrar juros.
+            @endif
+        </div>
+
         <script>
             // As linhas de juros acompanham o "Máximo de parcelas" na hora, sem
             // precisar salvar antes. O que passa do máximo fica escondido, mas o

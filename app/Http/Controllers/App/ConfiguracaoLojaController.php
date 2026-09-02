@@ -25,6 +25,7 @@ class ConfiguracaoLojaController extends Controller
             'max_parcelas'               => 'required|integer|min:1|max:24',
             'juros_por_parcela'          => 'nullable|array',
             'juros_por_parcela.*'        => 'nullable|numeric|min:0|max:100',
+            'pdv_mostrar_valor_parcelas' => 'nullable|boolean',
             'cupom_automatico_cartao'    => 'nullable|boolean',
             'cpf_emite_fiscal'           => 'nullable|boolean',
             'padrao_impressao'           => 'required|in:recibo,cupom_fiscal',
@@ -46,6 +47,7 @@ class ConfiguracaoLojaController extends Controller
             'os_mostrar_assinatura',
             'os_mostrar_laudo',
             'os_mostrar_valores',
+            'pdv_mostrar_valor_parcelas',
         ] as $flag) {
             $dados[$flag] = (bool) ($dados[$flag] ?? false);
         }

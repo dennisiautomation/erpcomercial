@@ -1231,6 +1231,10 @@ const PDV = {
         'regra_split'             => $configLoja->regra_preco_split ?? 'cartao_maior',
         'max_parcelas'            => (int) ($configLoja->max_parcelas ?? 6),
         'juros_por_parcela'       => (object) ($configLoja->juros_por_parcela ?? []),
+        // Quem decide e o service, no PHP — o front so consome, para a regra
+        // nao viver em dois lugares e divergir.
+        'mostrar_valor_parcelas'  => app(\App\Services\JurosParcelamentoService::class)
+                                        ->mostrarValorParcelas($configLoja),
         'exists'                  => $configLoja->exists,
         'cupom_automatico_cartao' => (bool) ($configLoja->cupom_automatico_cartao ?? false),
         'cpf_emite_fiscal'        => (bool) ($configLoja->cpf_emite_fiscal ?? false),
@@ -2010,10 +2014,15 @@ const PDV = {
             const sim = this.simularParcelas(base, n);
             const opt = document.createElement('option');
             opt.value = n;
-            opt.textContent = n === 1
-                ? 'À vista (1x) — ' + this.formatMoney(sim.total)
-                : n + 'x de ' + this.formatMoney(sim.valorParcela)
-                  + (sim.temJuros ? ' · total ' + this.formatMoney(sim.total) : ' sem juros');
+            // Loja que nao ligou o valor da parcela (e nao cobra juros) ve o
+            // select de sempre: '2x', '3x'. Mudar a tela de quem nao pediu nada
+            // e o unico jeito desta entrega vazar para os outros clientes.
+            opt.textContent = !this.configLoja.mostrar_valor_parcelas
+                ? (n === 1 ? 'À vista (1x)' : n + 'x')
+                : n === 1
+                    ? 'À vista (1x) — ' + this.formatMoney(sim.total)
+                    : n + 'x de ' + this.formatMoney(sim.valorParcela)
+                      + (sim.temJuros ? ' · total ' + this.formatMoney(sim.total) : ' sem juros');
             sel.appendChild(opt);
         }
 
