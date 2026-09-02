@@ -30,10 +30,15 @@ class ConfiguracaoLojaController extends Controller
             'cpf_emite_fiscal'           => 'nullable|boolean',
             'padrao_impressao'           => 'required|in:recibo,cupom_fiscal',
             // Impressão da Ordem de Serviço
-            'os_cabecalho'               => 'nullable|string|max:2000',
-            'os_termos_garantia'         => 'nullable|string|max:5000',
-            'os_texto_legal'             => 'nullable|string|max:5000',
-            'os_rodape'                  => 'nullable|string|max:2000',
+            // Limites ampliados em 02/09/2026: a Realiza Phone reportou "está
+            // limitado a 500". Não havia limite de 500 em lugar nenhum (a coluna é
+            // TEXT, ~65 mil) — o que faltava era a tela DIZER quanto cabe. Junto do
+            // contador de caracteres, os tetos subiram para não encostar de novo:
+            // um termo de garantia de assistência técnica passa fácil de 5 mil.
+            'os_cabecalho'               => 'nullable|string|max:5000',
+            'os_termos_garantia'         => 'nullable|string|max:15000',
+            'os_texto_legal'             => 'nullable|string|max:15000',
+            'os_rodape'                  => 'nullable|string|max:5000',
             'os_mostrar_assinatura'      => 'nullable|boolean',
             'os_mostrar_laudo'           => 'nullable|boolean',
             'os_mostrar_valores'         => 'nullable|boolean',

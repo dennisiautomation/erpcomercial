@@ -442,37 +442,37 @@
 
         <div class="mb-3">
             <label for="os_cabecalho" class="form-label fw-semibold">Texto do cabeçalho</label>
-            <textarea name="os_cabecalho" id="os_cabecalho" rows="2"
+            <textarea name="os_cabecalho" id="os_cabecalho" rows="4" data-contador="5000"
                       class="form-control @error('os_cabecalho') is-invalid @enderror"
                       placeholder="Ex.: Assistência Técnica Autorizada — Atendimento de segunda a sexta, 8h às 18h">{{ old('os_cabecalho', $config->os_cabecalho) }}</textarea>
-            <div class="form-text">Sai logo abaixo do nome e endereço da loja, no topo da folha.</div>
+            <div class="form-text d-flex justify-content-between gap-2 flex-wrap"><span>Sai logo abaixo do nome e endereço da loja, no topo da folha.</span><span class="text-muted" data-contador-de="os_cabecalho"></span></div>
             @error('os_cabecalho') <div class="invalid-feedback">{{ $message }}</div> @enderror
         </div>
 
         <div class="mb-3">
             <label for="os_termos_garantia" class="form-label fw-semibold">Termos de garantia</label>
-            <textarea name="os_termos_garantia" id="os_termos_garantia" rows="4"
+            <textarea name="os_termos_garantia" id="os_termos_garantia" rows="12" data-contador="15000"
                       class="form-control @error('os_termos_garantia') is-invalid @enderror"
                       placeholder="Ex.: Garantia de 90 dias sobre o serviço executado e as peças aplicadas, contados da data de entrega. A garantia não cobre mau uso, quedas, oxidação ou violação por terceiros.">{{ old('os_termos_garantia', $config->os_termos_garantia) }}</textarea>
-            <div class="form-text">Sai em bloco destacado antes das assinaturas — é o que o cliente assina junto.</div>
+            <div class="form-text d-flex justify-content-between gap-2 flex-wrap"><span>Sai em bloco destacado antes das assinaturas — é o que o cliente assina junto.</span><span class="text-muted" data-contador-de="os_termos_garantia"></span></div>
             @error('os_termos_garantia') <div class="invalid-feedback">{{ $message }}</div> @enderror
         </div>
 
         <div class="mb-3">
             <label for="os_texto_legal" class="form-label fw-semibold">Texto legal / observações fixas</label>
-            <textarea name="os_texto_legal" id="os_texto_legal" rows="3"
+            <textarea name="os_texto_legal" id="os_texto_legal" rows="8" data-contador="15000"
                       class="form-control @error('os_texto_legal') is-invalid @enderror"
                       placeholder="Ex.: Equipamentos não retirados em até 90 dias após o aviso de conclusão poderão ser vendidos para custeio do serviço (art. 1.275 CC).">{{ old('os_texto_legal', $config->os_texto_legal) }}</textarea>
-            <div class="form-text">Para prazo de retirada, LGPD, ou qualquer aviso que precise constar sempre.</div>
+            <div class="form-text d-flex justify-content-between gap-2 flex-wrap"><span>Para prazo de retirada, LGPD, ou qualquer aviso que precise constar sempre.</span><span class="text-muted" data-contador-de="os_texto_legal"></span></div>
             @error('os_texto_legal') <div class="invalid-feedback">{{ $message }}</div> @enderror
         </div>
 
         <div class="mb-4">
             <label for="os_rodape" class="form-label fw-semibold">Rodapé</label>
-            <textarea name="os_rodape" id="os_rodape" rows="2"
+            <textarea name="os_rodape" id="os_rodape" rows="4" data-contador="5000"
                       class="form-control @error('os_rodape') is-invalid @enderror"
                       placeholder="Ex.: Dúvidas? (11) 4002-8922 — contato@minhaloja.com.br">{{ old('os_rodape', $config->os_rodape) }}</textarea>
-            <div class="form-text">Última linha da folha. Em branco, sai a data de emissão de sempre.</div>
+            <div class="form-text d-flex justify-content-between gap-2 flex-wrap"><span>Última linha da folha. Em branco, sai a data de emissão de sempre.</span><span class="text-muted" data-contador-de="os_rodape"></span></div>
             @error('os_rodape') <div class="invalid-feedback">{{ $message }}</div> @enderror
         </div>
 
@@ -534,6 +534,37 @@
     </x-erp.card>
 
     <div class="d-flex justify-content-end gap-2 mb-4">
+
+        <script>
+            // Contador de caracteres dos textos da OS. Existe porque a Realiza Phone
+            // reportou "está limitado a 500" numa tela que aceitava 5.000 e não dizia
+            // nada: sem número na tela, o lojista escreve, o texto rola pra fora do
+            // campo e ele conclui que bateu no teto. O limite real é o do servidor
+            // (data-contador), então os dois nunca divergem.
+            (function () {
+                document.querySelectorAll('textarea[data-contador]').forEach(function (campo) {
+                    const limite = parseInt(campo.dataset.contador, 10);
+                    const saida  = document.querySelector('[data-contador-de="' + campo.name + '"]');
+                    if (!saida) return;
+
+                    const fmt = n => n.toLocaleString('pt-BR');
+
+                    const render = function () {
+                        const usado = campo.value.length;
+                        saida.textContent = fmt(usado) + ' de ' + fmt(limite) + ' caracteres';
+                        // Só muda de cor quando encosta de verdade — contador vermelho
+                        // em campo vazio assusta sem motivo.
+                        saida.classList.toggle('text-danger', usado > limite);
+                        saida.classList.toggle('text-warning', usado <= limite && usado > limite * 0.9);
+                        saida.classList.toggle('text-muted',   usado <= limite * 0.9);
+                    };
+
+                    campo.addEventListener('input', render);
+                    render();
+                });
+            })();
+        </script>
+
         <button type="submit" class="btn btn-primary btn-lg px-4">
             <i class="bi bi-check-lg me-1"></i> Salvar Configurações
         </button>
