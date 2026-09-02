@@ -2,7 +2,7 @@
 
 > SaaS ERP multi-tenant para PMEs. Admin (IA365) gerencia a plataforma; cada empresa-cliente tem múltiplas unidades com fiscal, estoque e caixa independentes. Integração 100% Focus NFe (NF-e, NFC-e, NFS-e, CC-e, manifestação do destinatário, backup XMLs).
 
-**Última revisão:** 2026-09-02 (**CPF/CNPJ opcional por empresa + juros de parcelamento por loja** — entrega da N S BORBA SERVICOS (empresa 6) que precisava entrar **sem mexer nas outras 5 empresas**: a obrigatoriedade do documento vira `empresas.exige_documento_cadastro` (default TRUE, switch no admin da plataforma porque a NF-e modelo 55 continua exigindo destinatário com CPF/CNPJ) e o parcelamento no crédito ganha a tabela `configuracoes_loja.juros_por_parcela` (nasce vazia, no formato em que a adquirente manda a dela, com o servidor refazendo a conta em `registrarVenda` e a NFC-e mandando `vOutro` — sem ele `vNF = vProd − vDesc + vOutro` não fecha e a SEFAZ rejeita); o que **vazava** para as outras lojas era o select de parcelas do PDV, que passava a mostrar o valor de cada parcela em todo mundo — agora depende de `pdv_mostrar_valor_parcelas`, **mas tabela de juros cadastrada ignora o flag desligado**, porque esconder o acréscimo de uma venda que encarece surpreende o cliente no total; merge das duas branches sem cherry-pick — o `UTC` na ponta da branch de juros era herança do merge-base, não mudança dela (armadilha 54); **rodada 2 no mesmo dia**: no teste ao vivo a tela de configuração do juros se mostrou ilegível — faltava o 1x na tabela (que mora no "Acréscimo no Crédito", em outro card), o exemplo era texto fixo e nada avisava que os dois acréscimos SOMAM numa loja que já cobra 4% no crédito; ganhou linha do 1x travada, simulador ao vivo por parcela e aviso da soma com número real; seção própria) · 2026-08-31 (**preço de atacado por cliente + módulo de Ordem de Serviço** — `produto_precos` ganha a 4ª modalidade `atacado` e `clientes.tipo_preco` decide a tabela: cliente de atacado leva o preço de atacado em QUALQUER forma de pagamento, com o servidor refazendo a conta em `registrarVenda` (senão a venda voltaria para varejo na gravação); OS ganha cadastro de cliente na própria abertura, impressão com textos e blocos por loja (7 colunas em `configuracoes_loja`, lidas da loja DONA da OS) e — o que faltava — **baixa de estoque na conversão em venda**, que até aqui deixava a peça sair da loja sem registro nenhum; `entregue`/`cancelada` viram estados finais; **fix junto**: a conversão gravava a chave `desconto`, que não existe em `vendas` nem no `$fillable`, e a venda nascia com subtotal − desconto ≠ total (armadilha 53); o merge da produção `2037c47` foi feito na branch ANTES do build para não reverter o fuso (armadilha 52); seção própria) · 2026-08-25 noite (**fuso horário: app sai de UTC para America/Sao_Paulo SEM data-fix** — o Histórico de Caixas da DONA DOURO exibia abertura "12:13" para um caixa aberto às 9:13: `config/app.php` tinha `timezone => 'UTC'` hardcoded desde o nascimento; como TODAS as 178 colunas de data são **TIMESTAMP** (epoch UTC convertido pelo fuso da SESSÃO MySQL), bastou virar o app (`APP_TIMEZONE` no .env + config env-driven) e o MySQL (`SET GLOBAL time_zone='-03:00'` + `--default-time-zone=-03:00` no compose) — o histórico INTEIRO passou a exibir hora local sozinho, zero UPDATE; o script de shift -3h chegou a ser preparado e foi DESCARTADO (teria causado correção dupla); backup prévio `pre-fuso-fix-20260825.sql.gz` mantido; crons `dailyAt` passam a valer em hora LOCAL; armadilha 51b) · 2026-08-25 noite (**entrega na CONVERSA do agente — fecha a "próxima fase" da Fase 3**: rota nova `POST /api/integracao/v1/entrega/cotar` sempre-200 response-driven; `POST /pedidos` aceita `entrega{metodo,endereço}` gravando endereço no CLIENTE + `pedidos.metodo_entrega` (migration `2026_08_25_170000`); `DespacharEntregaUberJob` respeita `retirada`; `GET /pedidos` com bloco `entrega` + rastreio Uber; template/agentes do app.ia365 sincronizados lá (§282); ver subseção na Fase 3) · 2026-08-25 tarde (**vendedor troca a foto do produto** — ação nova `foto` no módulo produtos (matriz do CheckPermission) + rota própria `POST produtos/{produto}/foto` + formulário discreto na tela do produto, visível só para quem tem a ação; vendedor NÃO ganhou `editar` — preço/fiscal seguem fora do alcance; **rodada 2**: no teste real a vendedora usou o botão Editar e tomou 403 no PUT — a tela de edição agora funciona em modo "só foto" para o perfil (campos bloqueados + salvar só da imagem no próprio update); ver seção RBAC) · 2026-08-25 (**card Uber Direct: rótulos iguais aos do painel do Uber + guarda anti-inversão** — a DONA DOURO cadastrou o "ID do usuário" no campo Client ID e vice-versa (o painel do Uber em PT chama Client ID de "ID de cliente do desenvolvedor" e Customer ID de "ID do usuário"); data-fix aplicado em produção e o card agora usa os nomes do painel, com validação que recusa UUID no Client ID e vice-versa; ⚠️ a conta Uber da DONA DOURO ainda NÃO tem o escopo `eats.deliveries` liberado — só `direct.organizations`; ver seção Fase 3) · 2026-08-20 (**fix da conferência de bobina nas etiquetas** — o bloco de JS entrou fora da tag `<script>` do push e era IMPRESSO como texto no rodapé de `/app/etiquetas`; a conta da bobina ficou 8 dias morta; armadilha 51 — e **auditoria de produção completa**: a worktree que builda a imagem está ATRÁS do container e um rebuild reverteria 3 entregas (armadilha 52), o webhook da Focus AINDA responde 419, rate limit fantasma em toda chamada à Focus e R$ 13.264/ano contratados sem fatura; seção própria) · 2026-08-14 (**Landing V2 "formato Apple" PROMOVIDA A PADRÃO** — site público redesenhado no estilo Apple/Find My é a página oficial em `/`; v1 clássica segue no ar via `/?visual=classico`; 2 fixes de mobile no mesmo dia: botão Entrar visível e overflow horizontal do `span 6` inline; seção própria) · 2026-08-13 tarde (**Agente IA v2** — busca com ordenar/preco_min/max + fallback de catálogo + JSON forçado no api/integracao + merge do admin-acesso-como + armadilha 50; seção 9f) · 2026-08-13 (**"Acessar como"** — admin da plataforma entra no sistema logado como o dono de qualquer empresa-cliente, com banner, bypass de suspensão e rastro `acesso_como_admin_id` em toda activity da sessão) · 2026-08-13 noite (**PIX Sicredi no Agente IA** — gateway por empresa em `empresa_gateways` com credenciais cifradas + cobrança automática no pedido do agente + webhook re-consultado via mTLS + cron de sincronização; piloto DONA DOURO; seção 9f) · 2026-08-13 (**Agente IA** — banco vetorial pgvector `erp-com-vector` + busca semântica multi-tenant + pedidos rascunho via API, módulo ativável por empresa no admin; consumido pelo app.ia365; seção 9f) · 2026-08-12 (**API de Integração v1 — Gersen**: primeira API externa do ERP, somente leitura, token por empresa gerado no admin; seção própria) · 2026-08-12 madrugada (**backup mensal de XMLs virou pacote LOCAL** — o `/v2/backups` da Focus não existe, armadilha 49; **DONA DOURO em `producao`** com série 2 e CSC na Focus) · 2026-08-12 noite (**editor visual de layout de etiqueta** — arrasta-e-solta com imagens e formas, branch `layout-etiquetas` DEPLOYADA em produção; armadilha 48 + lição de deploy na 26b) · 2026-08-12 (vários estoques por loja + contagem cega + bonificação que deve voltar + estilo de etiqueta "nome no topo" + conferência de bobina; armadilhas 43-47; **imagem rebuildada** e main promovida) · 2026-08-11 (formato de etiqueta cadastrável pelo lojista + fix do CRUD de categorias — `status` feminino, armadilha 42) · 2026-08-05 (filtro por loja em vendas + imports de vendas/contas a receber + import robusto + lojas mesmo CNPJ compartilham empresa Focus) · **Estado:** integração fiscal Fase 1-4 + multi-loja + regime de cobrança + auto-sync Focus + UX config fiscal + caixa por forma de pagamento (14/07) + Configurações da Loja/tabelas de preço/emissão parametrizada/adquirentes (24/07) + **Reforma Tributária NT 2025.002 (obrigatório 03/08/2026) + CNPJ alfanumérico NT 2025.001 (25/07)** + **e-mails/no-reply + cobrança direta mensal/anual com bloqueio + pode_ver_financeiro (04/08)** + **doc de alterações do Dennis (05/08)** + **etiqueta cadastrável pelo lojista em cm + fix do CRUD de categorias + auditoria de produção (11/08)** — concluídos
+**Última revisão:** 2026-09-02 (**limite de lojas por plano — a troca de plano no admin não valia** — a MISS MERLINDA não cadastrava a 4ª loja mesmo com badge `enterprise`: `empresas` tem `plano` (enum, o que o select do admin grava e as badges mostram) e `plano_id` (FK, o que `getPlanoAtivo()` lê para TODOS os limites), e **nenhuma tela altera o `plano_id` depois do onboarding** — ela seguia no Profissional (3 lojas); as lojas que existem nunca passaram pelo limite porque só a tela do CLIENTE o checa, o `Admin\UnidadeController` não (é assim que a STILO VINTE tem 8 lojas num plano de 3); destravada em produção com **plano de exceção `ativo = 0`** ("Profissional 6 Lojas", teto 6) apontado pelo `plano_id` — some de todo select porque as telas usam `Plano::ativo()` e continua valendo porque o `belongsTo` não filtra `ativo`, sem tocar no pacote de DONA DOURO e STILO VINTE e sem deploy; ⚠️ segue em aberto: o select do admin gravar `plano_id`, a N S BORBA sem `plano_id` nenhum (não cria loja pela tela dela desde que nasceu) e a própria ia365 no Básico com 4 lojas, salva só pelo `pos_pago`; armadilha 56, seção própria) · 2026-09-02 (**CPF/CNPJ opcional por empresa + juros de parcelamento por loja** — entrega da N S BORBA SERVICOS (empresa 6) que precisava entrar **sem mexer nas outras 5 empresas**: a obrigatoriedade do documento vira `empresas.exige_documento_cadastro` (default TRUE, switch no admin da plataforma porque a NF-e modelo 55 continua exigindo destinatário com CPF/CNPJ) e o parcelamento no crédito ganha a tabela `configuracoes_loja.juros_por_parcela` (nasce vazia, no formato em que a adquirente manda a dela, com o servidor refazendo a conta em `registrarVenda` e a NFC-e mandando `vOutro` — sem ele `vNF = vProd − vDesc + vOutro` não fecha e a SEFAZ rejeita); o que **vazava** para as outras lojas era o select de parcelas do PDV, que passava a mostrar o valor de cada parcela em todo mundo — agora depende de `pdv_mostrar_valor_parcelas`, **mas tabela de juros cadastrada ignora o flag desligado**, porque esconder o acréscimo de uma venda que encarece surpreende o cliente no total; merge das duas branches sem cherry-pick — o `UTC` na ponta da branch de juros era herança do merge-base, não mudança dela (armadilha 54); **rodada 2 no mesmo dia**: no teste ao vivo a tela de configuração do juros se mostrou ilegível — faltava o 1x na tabela (que mora no "Acréscimo no Crédito", em outro card), o exemplo era texto fixo e nada avisava que os dois acréscimos SOMAM numa loja que já cobra 4% no crédito; ganhou linha do 1x travada, simulador ao vivo por parcela e aviso da soma com número real; seção própria) · 2026-08-31 (**preço de atacado por cliente + módulo de Ordem de Serviço** — `produto_precos` ganha a 4ª modalidade `atacado` e `clientes.tipo_preco` decide a tabela: cliente de atacado leva o preço de atacado em QUALQUER forma de pagamento, com o servidor refazendo a conta em `registrarVenda` (senão a venda voltaria para varejo na gravação); OS ganha cadastro de cliente na própria abertura, impressão com textos e blocos por loja (7 colunas em `configuracoes_loja`, lidas da loja DONA da OS) e — o que faltava — **baixa de estoque na conversão em venda**, que até aqui deixava a peça sair da loja sem registro nenhum; `entregue`/`cancelada` viram estados finais; **fix junto**: a conversão gravava a chave `desconto`, que não existe em `vendas` nem no `$fillable`, e a venda nascia com subtotal − desconto ≠ total (armadilha 53); o merge da produção `2037c47` foi feito na branch ANTES do build para não reverter o fuso (armadilha 52); seção própria) · 2026-08-25 noite (**fuso horário: app sai de UTC para America/Sao_Paulo SEM data-fix** — o Histórico de Caixas da DONA DOURO exibia abertura "12:13" para um caixa aberto às 9:13: `config/app.php` tinha `timezone => 'UTC'` hardcoded desde o nascimento; como TODAS as 178 colunas de data são **TIMESTAMP** (epoch UTC convertido pelo fuso da SESSÃO MySQL), bastou virar o app (`APP_TIMEZONE` no .env + config env-driven) e o MySQL (`SET GLOBAL time_zone='-03:00'` + `--default-time-zone=-03:00` no compose) — o histórico INTEIRO passou a exibir hora local sozinho, zero UPDATE; o script de shift -3h chegou a ser preparado e foi DESCARTADO (teria causado correção dupla); backup prévio `pre-fuso-fix-20260825.sql.gz` mantido; crons `dailyAt` passam a valer em hora LOCAL; armadilha 51b) · 2026-08-25 noite (**entrega na CONVERSA do agente — fecha a "próxima fase" da Fase 3**: rota nova `POST /api/integracao/v1/entrega/cotar` sempre-200 response-driven; `POST /pedidos` aceita `entrega{metodo,endereço}` gravando endereço no CLIENTE + `pedidos.metodo_entrega` (migration `2026_08_25_170000`); `DespacharEntregaUberJob` respeita `retirada`; `GET /pedidos` com bloco `entrega` + rastreio Uber; template/agentes do app.ia365 sincronizados lá (§282); ver subseção na Fase 3) · 2026-08-25 tarde (**vendedor troca a foto do produto** — ação nova `foto` no módulo produtos (matriz do CheckPermission) + rota própria `POST produtos/{produto}/foto` + formulário discreto na tela do produto, visível só para quem tem a ação; vendedor NÃO ganhou `editar` — preço/fiscal seguem fora do alcance; **rodada 2**: no teste real a vendedora usou o botão Editar e tomou 403 no PUT — a tela de edição agora funciona em modo "só foto" para o perfil (campos bloqueados + salvar só da imagem no próprio update); ver seção RBAC) · 2026-08-25 (**card Uber Direct: rótulos iguais aos do painel do Uber + guarda anti-inversão** — a DONA DOURO cadastrou o "ID do usuário" no campo Client ID e vice-versa (o painel do Uber em PT chama Client ID de "ID de cliente do desenvolvedor" e Customer ID de "ID do usuário"); data-fix aplicado em produção e o card agora usa os nomes do painel, com validação que recusa UUID no Client ID e vice-versa; ⚠️ a conta Uber da DONA DOURO ainda NÃO tem o escopo `eats.deliveries` liberado — só `direct.organizations`; ver seção Fase 3) · 2026-08-20 (**fix da conferência de bobina nas etiquetas** — o bloco de JS entrou fora da tag `<script>` do push e era IMPRESSO como texto no rodapé de `/app/etiquetas`; a conta da bobina ficou 8 dias morta; armadilha 51 — e **auditoria de produção completa**: a worktree que builda a imagem está ATRÁS do container e um rebuild reverteria 3 entregas (armadilha 52), o webhook da Focus AINDA responde 419, rate limit fantasma em toda chamada à Focus e R$ 13.264/ano contratados sem fatura; seção própria) · 2026-08-14 (**Landing V2 "formato Apple" PROMOVIDA A PADRÃO** — site público redesenhado no estilo Apple/Find My é a página oficial em `/`; v1 clássica segue no ar via `/?visual=classico`; 2 fixes de mobile no mesmo dia: botão Entrar visível e overflow horizontal do `span 6` inline; seção própria) · 2026-08-13 tarde (**Agente IA v2** — busca com ordenar/preco_min/max + fallback de catálogo + JSON forçado no api/integracao + merge do admin-acesso-como + armadilha 50; seção 9f) · 2026-08-13 (**"Acessar como"** — admin da plataforma entra no sistema logado como o dono de qualquer empresa-cliente, com banner, bypass de suspensão e rastro `acesso_como_admin_id` em toda activity da sessão) · 2026-08-13 noite (**PIX Sicredi no Agente IA** — gateway por empresa em `empresa_gateways` com credenciais cifradas + cobrança automática no pedido do agente + webhook re-consultado via mTLS + cron de sincronização; piloto DONA DOURO; seção 9f) · 2026-08-13 (**Agente IA** — banco vetorial pgvector `erp-com-vector` + busca semântica multi-tenant + pedidos rascunho via API, módulo ativável por empresa no admin; consumido pelo app.ia365; seção 9f) · 2026-08-12 (**API de Integração v1 — Gersen**: primeira API externa do ERP, somente leitura, token por empresa gerado no admin; seção própria) · 2026-08-12 madrugada (**backup mensal de XMLs virou pacote LOCAL** — o `/v2/backups` da Focus não existe, armadilha 49; **DONA DOURO em `producao`** com série 2 e CSC na Focus) · 2026-08-12 noite (**editor visual de layout de etiqueta** — arrasta-e-solta com imagens e formas, branch `layout-etiquetas` DEPLOYADA em produção; armadilha 48 + lição de deploy na 26b) · 2026-08-12 (vários estoques por loja + contagem cega + bonificação que deve voltar + estilo de etiqueta "nome no topo" + conferência de bobina; armadilhas 43-47; **imagem rebuildada** e main promovida) · 2026-08-11 (formato de etiqueta cadastrável pelo lojista + fix do CRUD de categorias — `status` feminino, armadilha 42) · 2026-08-05 (filtro por loja em vendas + imports de vendas/contas a receber + import robusto + lojas mesmo CNPJ compartilham empresa Focus) · **Estado:** integração fiscal Fase 1-4 + multi-loja + regime de cobrança + auto-sync Focus + UX config fiscal + caixa por forma de pagamento (14/07) + Configurações da Loja/tabelas de preço/emissão parametrizada/adquirentes (24/07) + **Reforma Tributária NT 2025.002 (obrigatório 03/08/2026) + CNPJ alfanumérico NT 2025.001 (25/07)** + **e-mails/no-reply + cobrança direta mensal/anual com bloqueio + pode_ver_financeiro (04/08)** + **doc de alterações do Dennis (05/08)** + **etiqueta cadastrável pelo lojista em cm + fix do CRUD de categorias + auditoria de produção (11/08)** — concluídos
 
 ---
 
@@ -25,6 +25,7 @@
 9g. [Auditoria de produção (20/08/2026)](#auditoria-de-produção-20082026)
 9h. [Preço de atacado + módulo de Ordem de Serviço (31/08/2026)](#preço-de-atacado-por-cliente--módulo-de-ordem-de-serviço-31082026)
 9i. [CPF/CNPJ opcional + juros de parcelamento (02/09/2026)](#cpfcnpj-opcional-por-empresa--juros-de-parcelamento-por-loja-02092026)
+9j. [Limite de lojas por plano — `plano` × `plano_id` (02/09/2026)](#limite-de-lojas-por-plano--plano--plano_id-02092026)
 10. [Armadilhas conhecidas](#armadilhas-conhecidas)
 11. [Próximos passos](#próximos-passos)
 
@@ -2087,6 +2088,94 @@ pode dar "já existe").
 
 ---
 
+## Limite de lojas por plano — `plano` × `plano_id` (02/09/2026)
+
+A MISS MERLINDA (empresa 4) mudou de plano no admin e mesmo assim **não conseguia cadastrar a 4ª
+loja**. A causa não é o limite: é que **trocar o plano na tela do admin não troca o plano que vale**.
+
+### As duas colunas de plano
+
+`empresas` tem dois campos e eles não conversam:
+
+| Campo | Quem grava | Quem lê |
+|---|---|---|
+| `plano` — enum `basico\|profissional\|enterprise` | o select de `/admin/empresas/{id}/edit` | **só 5 badges de tela** no admin |
+| `plano_id` — FK → `planos` | **só o onboarding**, na criação da empresa | **todo o gating**: `getPlanoAtivo()` → limites e features |
+
+`EmpresaController::update` valida e grava `'plano' => ['nullable','string','max:50']` e **nunca toca
+em `plano_id`**. Não existe nenhuma tela — admin ou cliente — que mude o `plano_id` depois que a
+empresa nasce. O select mostra os planos reais (nome + preço mensal) e grava o **slug** no enum:
+parece um seletor de plano e é um rótulo.
+
+Resultado na MISS MERLINDA: badge `enterprise` no admin, `plano_id = 2` (Profissional, max 3), 3
+lojas (a LOJA CAXIAS entrou em 02/09 12:53) → `3 >= 3` → bloqueio.
+
+### Por que "antes deixava"
+
+Porque as lojas que existem **não passaram por esse limite**. Só `App\LojaController`
+(Minhas Lojas, tela do cliente) chama `limiteAtingido('unidades')`; o
+`Admin\UnidadeController` — o cadastro que a IA365 usa — **não checa limite nenhum**. A IA365
+sempre conseguiu criar; o dono nunca conseguiu pela tela dele. É por isso que a STILO VINTE tem
+8 lojas num plano de 3.
+
+### Estado das 6 empresas (conferido 02/09/2026)
+
+| Empresa | Badge no admin | Plano que vale | Lojas | Situação |
+|---|---|---|---|---|
+| 1 ia365 | enterprise | **Básico (1)** | 4 | não trava só porque é `pos_pago` (`bypassaLimitesPlano`) |
+| 2 EB GESTÃO | enterprise | Enterprise (999) | 1 | ok — mas trial vencido em 13/07 |
+| 3 STILO VINTE | profissional | Profissional (3) | 8 | **já estourado** — 9ª loja bloqueada na tela do cliente |
+| 4 MISS MERLINDA | enterprise | → **Profissional 6 Lojas (6)** | 3 | **destravada em 02/09** |
+| 5 DONA DOURO | profissional | Profissional (3) | 1 | ok |
+| 6 N S BORBA | enterprise | **`plano_id` NULL** | 3 | **bloqueada desde que nasceu** — sem plano, `limiteAtingido()` devolve `true` já na 1ª loja |
+
+Os 3 planos do seed têm **todas as features ligadas** (`pdv`, `fiscal`, `multilojas`, `os`,
+`contratos`, `conciliacao`, `dre`, `boletos`, `api`) — o único diferencial real entre eles hoje
+são os 4 limites numéricos.
+
+### O data-fix da MISS MERLINDA (feito em produção, 02/09)
+
+Decisão do Dennis: **6 lojas para ela**, sem mexer no pacote de ninguém. Como o limite mora no
+plano (não existe teto por empresa), a via foi um **plano de exceção**:
+
+```sql
+-- plano 4: cópia do Profissional (id 2) com max_unidades = 6 e ativo = 0
+INSERT INTO planos (...) SELECT 'Profissional 6 Lojas','profissional-6-lojas', ... FROM planos WHERE id=2;
+UPDATE empresas SET plano_id = 4 WHERE id = 4;
+```
+
+🔑 **`ativo = 0` é o que torna isso seguro.** Todas as telas que listam plano usam
+`Plano::ativo()` — o select do admin (`create`/`edit`/`index`) e a vitrine do cliente
+(`/app/plano`, `/app/plano/comparar`). Um plano inativo **não aparece em lugar nenhum**, mas
+`getPlanoAtivo()` é `belongsTo` puro pelo `plano_id` e **não filtra `ativo`** — então os limites
+valem normalmente. É assim que se dá exceção comercial a um cliente sem publicá-la como oferta.
+
+⚠️ E é por isso que o plano de exceção **não pode ser `ativo = 1`**: `planos.slug` é UNIQUE e
+`empresas.plano` é ENUM de 3 valores com `sql_mode` STRICT — um plano visível no select faria o
+admin gravar `profissional-6-lojas` no enum e estourar `Data truncated for column 'plano'`
+(armadilha 42 de novo, agora no cadastro de empresa).
+
+Conferido depois, pelo código e não pelo SQL (`limiteAtingido('unidades')` no tinker):
+MISS MERLINDA `false` (3/6, pode criar), STILO VINTE `true` (8/3, intacta), DONA DOURO `false`
+(1/3, intacta). A tela do dono (Michel) mostra `Unidades 3 / 6`. Backup prévio das duas tabelas:
+`/home/ubuntu/erp-backups/pre-limite-unidades-merlinda-20260902-1615.sql.gz`. **Sem deploy** —
+nenhum código mudou, então o opcache não entra na história (armadilha 26b não se aplica).
+
+⚠️ O badge do admin dela **continua dizendo `enterprise`** — o enum não foi tocado. A divergência
+segue visível até o fix abaixo.
+
+### O que ainda está quebrado
+
+1. **Trocar plano pelo admin continua não valendo.** O select precisa gravar `plano_id` (e manter
+   o enum como espelho, ou aposentá-lo). Sem isso, a próxima troca falha em silêncio igual.
+2. **`Admin\UnidadeController` ignora o limite** — a IA365 cria loja além do plano sem aviso.
+   Não é bug puro: é o que permite atender um cliente na hora. Mas deveria ao menos avisar.
+3. **N S BORBA está sem `plano_id`** e não cria loja pela tela dela. Falta o Dennis dizer o plano.
+4. **ia365 (empresa 1) está no Básico** com 4 lojas — só não trava por ser `pos_pago`. Se o
+   regime mudar para `padrao`, a plataforma se auto-bloqueia.
+
+---
+
 ## Armadilhas conhecidas
 
 1. **EmpresaScope recursão**: `auth()->user()` dentro do scope chama User model que tem o scope → loop infinito. Scopes têm flag `static $applying`. Não remover.
@@ -2331,6 +2420,20 @@ pode dar "já existe").
     `erp-com-app:latest` não traz dependências de dev (`composer install` dentro do container para
     ter o phpunit) e que os `bootstrap/cache/*.php` da imagem precisam ser apagados, senão o
     Laravel ignora as env do `phpunit.xml`.
+
+56. **Trocar o plano da empresa na tela do admin NÃO muda limite nenhum.** `empresas` tem
+    `plano` (enum, o que o select grava e as badges mostram) e `plano_id` (FK, o que
+    `getPlanoAtivo()` lê para TODOS os limites e features). `EmpresaController::update` grava só
+    o enum; **`plano_id` só nasce no onboarding e nenhuma tela o altera depois**. A MISS MERLINDA
+    ficou com badge `enterprise` e teto de Profissional (3 lojas) até 02/09/2026 — e o sintoma
+    aparece longe da causa, na tela do CLIENTE ("atingiu o limite de lojas do plano atual"),
+    enquanto o admin exibe o plano grande. Ao ler plano em qualquer lugar, use
+    `$empresa->getPlanoAtivo()`, nunca `$empresa->plano`. Exceção comercial de um cliente só
+    (teto diferente do pacote) se faz com **plano `ativo = 0`** apontado pelo `plano_id`: some de
+    todo select (`Plano::ativo()`) e continua valendo, porque o `belongsTo` não filtra `ativo`.
+    ⚠️ Plano de exceção com `ativo = 1` quebra o cadastro de empresa: `planos.slug` é UNIQUE e
+    `empresas.plano` é ENUM de 3 valores sob `sql_mode` STRICT.
+
 
 ---
 
