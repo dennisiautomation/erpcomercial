@@ -430,7 +430,9 @@ Route::middleware(['auth', 'suspensao', 'unidade'])->prefix('app')->name('app.')
 
     /* ------ Integrações (tokens da API — Gersen) ------ */
     // {token} casa com $token do controller (armadilha do route model binding)
-    Route::prefix('configuracoes/integracao')->name('integracao.')->middleware('permission:configuracoes')->group(function () {
+    // Módulo 'integracoes' (não 'configuracoes'): o token lê a empresa inteira,
+    // todas as lojas, fora do escopo de unidade — fica com admin/dono (02/09/2026).
+    Route::prefix('configuracoes/integracao')->name('integracao.')->middleware('permission:integracoes')->group(function () {
         Route::get('/', [App\IntegracaoTokenController::class, 'index'])->name('index');
         Route::post('/', [App\IntegracaoTokenController::class, 'store'])->name('store');
         Route::post('/{token}/revogar', [App\IntegracaoTokenController::class, 'revogar'])->name('revogar');
@@ -448,7 +450,9 @@ Route::middleware(['auth', 'suspensao', 'unidade'])->prefix('app')->name('app.')
     });
 
     /* ------ Configuração Fiscal ------ */
-    Route::prefix('configuracao-fiscal')->name('configuracao-fiscal.')->middleware(['permission:configuracoes', 'plano:fiscal'])->group(function () {
+    // Módulo 'configuracoes_fiscais' (não 'configuracoes'): certificado A1, token
+    // da Focus, CSC, série e regime — admin/dono só (02/09/2026).
+    Route::prefix('configuracao-fiscal')->name('configuracao-fiscal.')->middleware(['permission:configuracoes_fiscais', 'plano:fiscal'])->group(function () {
         Route::get('/', [App\ConfiguracaoFiscalController::class, 'edit'])->name('edit');
         Route::put('/', [App\ConfiguracaoFiscalController::class, 'update'])->name('update');
         Route::post('/testar', [App\ConfiguracaoFiscalController::class, 'testarConexao'])->name('testar');
@@ -508,12 +512,14 @@ Route::middleware(['auth', 'suspensao', 'unidade'])->prefix('app')->name('app.')
         ->name('auditoria.index')
         ->middleware('permission:auditoria');
 
-    /* ------ Multilojas (Dono/Admin only) ------ */
-    Route::prefix('multilojas')->name('multilojas.')->middleware('plano:multilojas')->group(function () {
+    /* ------ Multilojas (Dono/Admin/Gerente — gerente vê só as lojas vinculadas) ------ */
+    Route::prefix('multilojas')->name('multilojas.')->middleware(['plano:multilojas', 'permission:multilojas'])->group(function () {
         Route::get('/', [App\MultilojaController::class, 'index'])->name('index');
         Route::get('/comparar', [App\MultilojaController::class, 'comparar'])->name('comparar');
         Route::get('/estoque', [App\MultilojaController::class, 'estoque'])->name('estoque');
-        Route::post('/estoque/ajustar', [App\MultilojaController::class, 'ajustarEstoque'])->name('estoque.ajustar');
+        // POST derivaria 'criar' pelo verbo; o ajuste é edição de saldo, não criação
+        Route::post('/estoque/ajustar', [App\MultilojaController::class, 'ajustarEstoque'])
+            ->middleware('permission:multilojas,editar')->name('estoque.ajustar');
     });
 
     /* ------ Fiscal — Dashboard ------ */

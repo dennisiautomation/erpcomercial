@@ -23,14 +23,7 @@ class MultilojaController extends Controller
         $user = auth()->user();
         $empresaId = $user->empresa_id;
 
-        // Only Dono/Admin can access
-        if (! $user->isDono() && ! $user->isAdmin()) {
-            abort(403, 'Acesso restrito ao Dono/Administrador.');
-        }
-
-        $unidades = Unidade::where('empresa_id', $empresaId)
-            ->where('status', 'ativa')
-            ->get();
+        $unidades = $this->unidadesVisiveis();
 
         $mesAtual = Carbon::now()->startOfMonth();
         $fimMes = Carbon::now()->endOfMonth();
@@ -134,13 +127,7 @@ class MultilojaController extends Controller
         $user = auth()->user();
         $empresaId = $user->empresa_id;
 
-        if (! $user->isDono() && ! $user->isAdmin()) {
-            abort(403, 'Acesso restrito ao Dono/Administrador.');
-        }
-
-        $unidades = Unidade::where('empresa_id', $empresaId)
-            ->where('status', 'ativa')
-            ->get();
+        $unidades = $this->unidadesVisiveis();
 
         $dataInicio = $request->filled('data_inicio')
             ? Carbon::parse($request->data_inicio)->startOfDay()
@@ -201,14 +188,7 @@ class MultilojaController extends Controller
         $user = auth()->user();
         $empresaId = $user->empresa_id;
 
-        if (! $user->isDono() && ! $user->isAdmin()) {
-            abort(403, 'Acesso restrito ao Dono/Administrador.');
-        }
-
-        $unidades = Unidade::where('empresa_id', $empresaId)
-            ->where('status', 'ativa')
-            ->orderBy('nome')
-            ->get();
+        $unidades = $this->unidadesVisiveis();
 
         $busca = trim((string) $request->input('q', ''));
 
@@ -252,10 +232,6 @@ class MultilojaController extends Controller
         $user = auth()->user();
         $empresaId = $user->empresa_id;
 
-        if (! $user->isDono() && ! $user->isAdmin()) {
-            abort(403, 'Acesso restrito ao Dono/Administrador.');
-        }
-
         $validated = $request->validate([
             'saldos'     => ['required', 'array'],
             'saldos.*'   => ['array'],
@@ -267,10 +243,9 @@ class MultilojaController extends Controller
             ->get()
             ->keyBy('id');
 
-        $unidadesValidas = Unidade::where('empresa_id', $empresaId)
-            ->where('status', 'ativa')
-            ->pluck('id')
-            ->all();
+        // Ajuste só nas lojas que ESTE usuário enxerga — a mesma lista da tela.
+        // Sem isso, um POST forjado gravaria em loja fora do alcance do gerente.
+        $unidadesValidas = $this->unidadesVisiveis()->pluck('id')->all();
 
         $ajustes = 0;
         $produtosAlterados = [];
@@ -329,5 +304,44 @@ class MultilojaController extends Controller
         $nProdutos = count($produtosAlterados);
 
         return back()->with('success', "Estoque atualizado — {$ajustes} ajuste(s) em {$nProdutos} produto(s).");
+    }
+
+    /**
+     * As lojas que o usuário logado enxerga nas telas de multiloja.
+     *
+     * Admin/Dono veem a empresa inteira. Os demais perfis (hoje o gerente,
+     * liberado em 02/09/2026) veem só as lojas às quais estão VINCULADOS em
+     * `unidade_user` — mesmo critério do LojaController::podeEditar, com o
+     * mesmo fallback para a loja da sessão quando não há vínculo nenhum.
+     *
+     * É aqui que mora o escopo: as rotas de multiloja passam pela matriz
+     * (`permission:multilojas`), que diz QUEM entra; este método diz o que
+     * cada um vê depois de entrar. O `ajustarEstoque` usa a MESMA lista, senão
+     * um POST forjado gravaria em loja fora do alcance.
+     *
+     * ⚠️ O UnidadeScope prende os não-dono à unidade da SESSÃO — uma loja só.
+     * A tela de multiloja quebra isso de propósito, então o recorte tem que ser
+     * explícito. Não trocar por `Unidade::where('empresa_id', ...)` sem filtro.
+     */
+    private function unidadesVisiveis()
+    {
+        $user = auth()->user();
+        $perfil = $user->perfil instanceof \App\Enums\Perfil ? $user->perfil->value : $user->perfil;
+
+        $query = Unidade::where('empresa_id', $user->empresa_id)
+            ->where('status', 'ativa')
+            ->orderBy('nome');
+
+        if ($user->is_admin || in_array($perfil, ['admin', 'dono'], true)) {
+            return $query->get();
+        }
+
+        $vinculadas = $user->unidades()->pluck('unidades.id');
+
+        if ($vinculadas->isEmpty()) {
+            $vinculadas = collect(array_filter([session('unidade_id')]));
+        }
+
+        return $query->whereIn('id', $vinculadas)->get();
     }
 }

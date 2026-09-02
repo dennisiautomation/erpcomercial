@@ -900,10 +900,14 @@
                                     <a class="nav-link {{ request()->routeIs('app.backups-xml.*') ? 'active' : '' }}"
                                        href="{{ route('app.backups-xml.index') }}">Backups XML</a>
                                 </li>
+                                {{-- Só quem tem o módulo: o link aparecia para todo perfil e
+                                     dava 403 no clique (vendedor, caixa, gerente). --}}
+                                @if(\App\Http\Middleware\CheckPermission::can(auth()->user()->perfil?->value ?? '', 'configuracoes_fiscais', 'ver'))
                                 <li class="nav-item">
                                     <a class="nav-link {{ request()->routeIs('app.configuracao-fiscal.*') ? 'active' : '' }}"
                                        href="{{ route('app.configuracao-fiscal.edit') }}">Configuracao Fiscal</a>
                                 </li>
+                                @endif
                             </ul>
                         </div>
                     </li>
@@ -952,7 +956,12 @@
                     {{-- ---- Gestao (gerente só vê Minhas Lojas) ---- --}}
                     @if(auth()->user()->perfil && in_array(auth()->user()->perfil->value, ['dono', 'admin', 'gerente']))
                         @php
-                            $gestaoCompleta = in_array(auth()->user()->perfil->value, ['dono', 'admin']);
+                            // O menu pergunta à MESMA matriz que o middleware usa, em vez de
+                            // repetir a lista de perfis aqui (02/09/2026). Antes eram duas
+                            // fontes: a matriz já deixava o gerente ver Plano de Contas e
+                            // Centros de Custo, mas o menu escondia os links assim mesmo.
+                            $perfilAtual = auth()->user()->perfil->value;
+                            $podeVer = fn (string $modulo) => \App\Http\Middleware\CheckPermission::can($perfilAtual, $modulo, 'ver');
                         @endphp
                         <li class="sidebar-heading">Gestao</li>
                         <li class="nav-item">
@@ -980,7 +989,7 @@
                                             <i class="bi bi-shop me-1"></i> Minhas Lojas
                                         </a>
                                     </li>
-                                    @if($gestaoCompleta)
+                                    @if($podeVer('multilojas'))
                                     <li class="nav-item">
                                         <a class="nav-link {{ request()->routeIs('app.multilojas.index', 'app.multilojas.comparar') ? 'active' : '' }}"
                                            href="{{ route('app.multilojas.index') }}">Multilojas</a>
@@ -989,6 +998,8 @@
                                         <a class="nav-link {{ request()->routeIs('app.multilojas.estoque') ? 'active' : '' }}"
                                            href="{{ route('app.multilojas.estoque') }}">Estoque por Loja</a>
                                     </li>
+                                    @endif
+                                    @if($podeVer('financeiro'))
                                     <li class="nav-item">
                                         <a class="nav-link {{ request()->routeIs('app.plano-contas.*') ? 'active' : '' }}"
                                            href="{{ route('app.plano-contas.index') }}">Plano de Contas</a>
@@ -997,18 +1008,24 @@
                                         <a class="nav-link {{ request()->routeIs('app.centros-custo.*') ? 'active' : '' }}"
                                            href="{{ route('app.centros-custo.index') }}">Centros de Custo</a>
                                     </li>
+                                    @endif
+                                    @if($podeVer('configuracoes'))
                                     <li class="nav-item">
                                         <a class="nav-link {{ request()->routeIs('app.configuracoes.*') ? 'active' : '' }}"
                                            href="{{ route('app.configuracoes.edit') }}">
                                             <i class="bi bi-sliders me-1"></i> Configurações da Loja
                                         </a>
                                     </li>
+                                    @endif
+                                    @if($podeVer('integracoes'))
                                     <li class="nav-item">
                                         <a class="nav-link {{ request()->routeIs('app.integracao.*') ? 'active' : '' }}"
                                            href="{{ route('app.integracao.index') }}">
                                             <i class="bi bi-plug me-1"></i> Integrações
                                         </a>
                                     </li>
+                                    @endif
+                                    @if($podeVer('auditoria'))
                                     <li class="nav-item">
                                         <a class="nav-link {{ request()->routeIs('app.auditoria.*') ? 'active' : '' }}"
                                            href="{{ route('app.auditoria.index') }}">

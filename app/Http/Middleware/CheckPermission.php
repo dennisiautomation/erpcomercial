@@ -98,9 +98,37 @@ class CheckPermission
             'financeiro' => ['ver'],
             'consulta' => ['ver'],
         ],
+        // Configurações OPERACIONAIS da loja: juros, parcelas, impressão, textos
+        // da OS, estoques (salão/depósito/avaria). É rotina de quem toca a loja —
+        // por isso o gerente entra (02/09/2026). Excluir segue fora: quem apaga
+        // configuração de loja é o dono.
         'configuracoes' => [
             'admin' => ['ver', 'criar', 'editar', 'excluir'],
             'dono' => ['ver', 'criar', 'editar'],
+            'gerente' => ['ver', 'criar', 'editar'],
+        ],
+        // Configuração FISCAL vive separada de propósito (02/09/2026): certificado
+        // A1, token da Focus, CSC, série e regime tributário. Errar aqui derruba a
+        // emissão da loja inteira e é a IA365 que configura. Antes compartilhava o
+        // módulo 'configuracoes' — liberar aquele para o gerente entregaria isto
+        // junto, calado.
+        'configuracoes_fiscais' => [
+            'admin' => ['ver', 'criar', 'editar', 'excluir'],
+            'dono' => ['ver', 'criar', 'editar'],
+        ],
+        // Tokens da API de integração: leem a empresa INTEIRA, todas as lojas,
+        // sem passar pelo escopo de unidade. Mesmo motivo do split acima.
+        'integracoes' => [
+            'admin' => ['ver', 'criar', 'editar', 'excluir'],
+            'dono' => ['ver', 'criar', 'editar'],
+        ],
+        // Visão consolidada das lojas (faturamento comparado, matriz de estoque).
+        // O gerente entra, mas enxergando só as lojas às quais está VINCULADO —
+        // o escopo mora no MultilojaController, não aqui.
+        'multilojas' => [
+            'admin' => ['ver', 'criar', 'editar'],
+            'dono' => ['ver', 'criar', 'editar'],
+            'gerente' => ['ver', 'criar', 'editar'],
         ],
         'auditoria' => [
             'admin' => ['ver'],
