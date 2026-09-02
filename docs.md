@@ -2053,11 +2053,24 @@ lojista não pergunta "qual a regra"; ele pergunta "quanto o cliente vai pagar".
 campos diferentes mexem no mesmo preço final, a tela tem que mostrar a conta somada, não explicar
 a soma em prosa.
 
-### Deploy
+### Deploy — FEITO em 02/09/2026
 
-Exige **rebuild + recreate** — o entrypoint roda `migrate --force` no boot, então as **3**
-migrations entram sozinhas (`juros_por_parcela`, `exige_documento_cadastro`,
-`pdv_mostrar_valor_parcelas`). Backup do banco antes; tag de rollback da imagem anterior.
+**Em produção**, em duas rodadas no mesmo dia, as duas por rebuild + recreate (o entrypoint roda
+`migrate --force` no boot):
+
+| Rodada | Imagem | O que entrou | Rollback |
+|---|---|---|---|
+| manhã | `23cfbf966c65` | as 2 features + flag do PDV, **3 migrations** | `erp-com-app:pre-borba-20260902` |
+| tarde | `f10ce803482e` | ajuste de usabilidade da tela (só view + docs, **sem migration**) | `erp-com-app:pre-juros-ux-20260902` |
+
+Backup do banco antes da 1ª: `/home/ubuntu/erp-backups/pre-borba-juros-documento-20260902-1114.sql.gz`
+(70 tabelas). Conferido depois do deploy: as 3 colunas criadas, `fornecedores.cpf_cnpj` nullable,
+**as 6 empresas continuam com `exige_documento_cadastro = 1`** (o default segurou — ninguém mudou
+de comportamento sozinho), fuso intacto (`America/Sao_Paulo` + MySQL `-03:00`), `.env` sobreviveu
+ao recreate (armadilha 46) e o webhook da Focus segue isento de CSRF.
+
+⚠️ A branch de juros nasceu de `e8aa638`, anterior aos commits do fuso — mas o merge preservou
+tudo sozinho, sem cherry-pick (armadilha 54).
 
 ⚠️ `feat/juros-por-parcela` nasceu de `e8aa638` e sua ponta tem `config/app.php` com
 `'timezone' => 'UTC'` — mas isso é herança da base compartilhada, **não** uma mudança do commit
