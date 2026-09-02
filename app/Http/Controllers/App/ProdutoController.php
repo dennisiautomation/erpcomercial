@@ -4,9 +4,11 @@ namespace App\Http\Controllers\App;
 
 use App\Http\Controllers\Controller;
 use App\Models\Categoria;
+use App\Models\Fornecedor;
 use App\Models\Produto;
 use App\Services\FiscalAutoConfig;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Storage;
 
 class ProdutoController extends Controller
@@ -58,13 +60,20 @@ class ProdutoController extends Controller
         $origemOptions = FiscalAutoConfig::origemOptions();
         $categorias = Categoria::where('empresa_id', $empresa->id)->orderBy('nome')->get();
 
+        // Fornecedor do produto é OPCIONAL. Fornecedor NÃO tem coluna `status`
+        // (armadilha 3) e o nome é `razao_social`, não `nome_razao_social`
+        // (armadilha 2) — não filtrar por status nem procurar o campo errado.
+        $fornecedores = Fornecedor::where('empresa_id', $empresa->id)
+            ->orderBy('razao_social')
+            ->get();
+
         // Config fiscal da unidade ativa — usada para decidir se mostra campos da Reforma Tributária
         $configFiscal = \App\Models\ConfiguracaoFiscal::withoutGlobalScopes()
             ->where('empresa_id', $empresa->id)
             ->where('unidade_id', session('unidade_id'))
             ->first();
 
-        return view('app.produtos.create', compact('categorias', 'fiscalDefaults', 'cfopOptions', 'origemOptions', 'configFiscal'));
+        return view('app.produtos.create', compact('categorias', 'fornecedores', 'fiscalDefaults', 'cfopOptions', 'origemOptions', 'configFiscal'));
     }
 
     public function store(Request $request)
@@ -81,6 +90,14 @@ class ProdutoController extends Controller
             'descricao_detalhada'=> 'nullable|string',
             'unidade_medida'     => 'required|in:UN,KG,CX,PCT,LT,MT,M2,M3,PAR,JG',
             'categoria_id'       => 'nullable|exists:categorias,id',
+            // Escopado à empresa de propósito: 'exists:fornecedores,id' solto
+            // aceitaria o id de um fornecedor de OUTRO cliente do SaaS.
+            'fornecedor_id'      => [
+                'nullable',
+                Rule::exists('fornecedores', 'id')->where(
+                    fn ($q) => $q->where('empresa_id', auth()->user()->empresa_id)
+                ),
+            ],
             'ncm'                => 'nullable|string|max:10',
             'cest'               => 'nullable|string|max:10',
             'origem'             => 'nullable|string|max:1',
@@ -216,12 +233,19 @@ class ProdutoController extends Controller
         $origemOptions = FiscalAutoConfig::origemOptions();
         $categorias = Categoria::where('empresa_id', $empresa->id)->orderBy('nome')->get();
 
+        // Fornecedor do produto é OPCIONAL. Fornecedor NÃO tem coluna `status`
+        // (armadilha 3) e o nome é `razao_social`, não `nome_razao_social`
+        // (armadilha 2) — não filtrar por status nem procurar o campo errado.
+        $fornecedores = Fornecedor::where('empresa_id', $empresa->id)
+            ->orderBy('razao_social')
+            ->get();
+
         $configFiscal = \App\Models\ConfiguracaoFiscal::withoutGlobalScopes()
             ->where('empresa_id', $empresa->id)
             ->where('unidade_id', session('unidade_id'))
             ->first();
 
-        return view('app.produtos.edit', compact('produto', 'categorias', 'fiscalDefaults', 'cfopOptions', 'origemOptions', 'configFiscal'));
+        return view('app.produtos.edit', compact('produto', 'categorias', 'fornecedores', 'fiscalDefaults', 'cfopOptions', 'origemOptions', 'configFiscal'));
     }
 
     public function update(Request $request, Produto $produto)
@@ -254,6 +278,14 @@ class ProdutoController extends Controller
             'descricao_detalhada'=> 'nullable|string',
             'unidade_medida'     => 'required|in:UN,KG,CX,PCT,LT,MT,M2,M3,PAR,JG',
             'categoria_id'       => 'nullable|exists:categorias,id',
+            // Escopado à empresa de propósito: 'exists:fornecedores,id' solto
+            // aceitaria o id de um fornecedor de OUTRO cliente do SaaS.
+            'fornecedor_id'      => [
+                'nullable',
+                Rule::exists('fornecedores', 'id')->where(
+                    fn ($q) => $q->where('empresa_id', auth()->user()->empresa_id)
+                ),
+            ],
             'ncm'                => 'nullable|string|max:10',
             'cest'               => 'nullable|string|max:10',
             'origem'             => 'nullable|string|max:1',

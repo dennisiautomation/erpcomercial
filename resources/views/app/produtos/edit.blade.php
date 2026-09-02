@@ -243,6 +243,30 @@
                         <div class="form-text"><i class="bi bi-info-circle me-1"></i>Escaneie o codigo com leitor de barras ou digite manualmente</div>
                     </div>
 
+                    {{-- Fornecedor (opcional) — de quem a loja compra este produto --}}
+                    <div class="col-md-6">
+                        <label for="fornecedor_id" class="form-label">
+                            <i class="bi bi-truck me-1"></i> Fornecedor <span class="text-muted fw-normal">(opcional)</span>
+                        </label>
+                        <select name="fornecedor_id" id="fornecedor_id" class="form-select @error('fornecedor_id') is-invalid @enderror">
+                            <option value="">Sem fornecedor</option>
+                            @foreach($fornecedores as $forn)
+                                <option value="{{ $forn->id }}" {{ old('fornecedor_id', $produto->fornecedor_id) == $forn->id ? 'selected' : '' }}>
+                                    {{ $forn->razao_social }}@if($forn->nome_fantasia && $forn->nome_fantasia !== $forn->razao_social) ({{ $forn->nome_fantasia }})@endif
+                                </option>
+                            @endforeach
+                        </select>
+                        @error('fornecedor_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                        <div class="form-text">
+                            <i class="bi bi-info-circle me-1"></i>
+                            @if($fornecedores->isEmpty())
+                                Nenhum fornecedor cadastrado ainda — <a href="{{ route('app.fornecedores.create') }}" target="_blank">cadastre um</a> se quiser registrar de quem você compra. O produto funciona normalmente sem isso.
+                            @else
+                                De quem a loja compra. Deixe em branco se não quiser controlar isso — o produto funciona igual.
+                            @endif
+                        </div>
+                    </div>
+
                     {{-- SKU --}}
                     <div class="col-md-4">
                         <label for="sku" class="form-label">

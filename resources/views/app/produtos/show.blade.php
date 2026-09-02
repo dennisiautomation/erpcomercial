@@ -33,6 +33,13 @@
             <i class="bi bi-tag me-1"></i>{{ $produto->categoria->nome }}
         </span>
     @endif
+    {{-- Fornecedor é opcional: sem ele o badge simplesmente não existe --}}
+    @if($produto->fornecedor)
+        <a href="{{ route('app.fornecedores.show', $produto->fornecedor) }}"
+           class="badge bg-secondary fs-6 ms-1 text-decoration-none">
+            <i class="bi bi-truck me-1"></i>{{ $produto->fornecedor->razao_social }}
+        </a>
+    @endif
     <span class="badge bg-light text-dark fs-6 ms-1">
         {{ $produto->unidade_medida }}
     </span>

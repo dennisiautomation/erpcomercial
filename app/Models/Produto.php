@@ -22,6 +22,7 @@ class Produto extends Model
         'descricao_detalhada',
         'unidade_medida',
         'categoria_id',
+        'fornecedor_id',
         'ncm',
         'cest',
         'origem',
@@ -102,6 +103,15 @@ class Produto extends Model
     public function categoria(): BelongsTo
     {
         return $this->belongsTo(Categoria::class);
+    }
+
+    /**
+     * Fornecedor de quem a loja compra este produto. Opcional — produto sem
+     * fornecedor é o caso normal de quem não controla compra por aqui.
+     */
+    public function fornecedor(): BelongsTo
+    {
+        return $this->belongsTo(Fornecedor::class);
     }
 
     public function vendaItens(): HasMany
