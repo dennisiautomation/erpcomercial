@@ -23,6 +23,8 @@ class ConfiguracaoLojaController extends Controller
             'percentual_debito'          => 'required|numeric|min:0|max:100',
             'percentual_credito'         => 'required|numeric|min:0|max:100',
             'max_parcelas'               => 'required|integer|min:1|max:24',
+            'juros_por_parcela'          => 'nullable|array',
+            'juros_por_parcela.*'        => 'nullable|numeric|min:0|max:100',
             'cupom_automatico_cartao'    => 'nullable|boolean',
             'cpf_emite_fiscal'           => 'nullable|boolean',
             'padrao_impressao'           => 'required|in:recibo,cupom_fiscal',
@@ -47,6 +49,14 @@ class ConfiguracaoLojaController extends Controller
         ] as $flag) {
             $dados[$flag] = (bool) ($dados[$flag] ?? false);
         }
+
+        // Tabela de juros: guarda só as parcelas que têm acréscimo de verdade.
+        // Campo em branco ou zerado é parcela sem juros — não precisa de linha
+        // no JSON, e assim a tabela some inteira quando a loja zera tudo.
+        $dados['juros_por_parcela'] = collect($dados['juros_por_parcela'] ?? [])
+            ->map(fn ($valor) => (float) $valor)
+            ->filter(fn ($valor, $parcelas) => $valor > 0 && (int) $parcelas >= 2)
+            ->all();
 
         // Unique (empresa_id, unidade_id): where()->first() + update()/create()
         $config = ConfiguracaoLoja::withoutGlobalScopes()

@@ -105,6 +105,71 @@
         <hr>
 
         <label class="form-label fw-semibold mb-1">
+            <i class="bi bi-percent me-1"></i>Juros do parcelamento no cartão de crédito
+        </label>
+        <div class="text-muted small mb-2">
+            Quanto a venda <strong>encarece</strong> em cada quantidade de parcelas. É o mesmo formato da
+            tabela que a adquirente (Stone, Cielo, PagSeguro...) manda — dá para copiar o número dela e
+            somar a sua margem. <strong>Em branco ou 0 = aquela parcela não tem juros.</strong>
+            <div class="mt-1">
+                <i class="bi bi-arrow-return-right me-1"></i>Exemplo: numa venda de <strong>R$ 1.000,00</strong>,
+                digitar <strong>8</strong> na linha do 6x faz o cliente pagar R$ 1.080,00 — 6x de R$ 180,00.
+            </div>
+        </div>
+        <div class="text-muted small mb-3">
+            <i class="bi bi-info-circle me-1"></i>Vale <strong>só para cartão de crédito parcelado</strong>.
+            Dinheiro, PIX, débito e crédito à vista nunca levam acréscimo. É diferente do "Acréscimo no
+            Crédito" acima, que é o preço da tabela do cartão — os dois somam quando os dois estão ligados.
+        </div>
+
+        @php
+            $jurosTabela = old('juros_por_parcela', $config->juros_por_parcela ?? []);
+            $maxParcelas = (int) old('max_parcelas', $config->max_parcelas ?? 6);
+        @endphp
+        <div class="row g-2 mb-2" id="jurosParcelasGrid">
+            @for($n = 2; $n <= 24; $n++)
+                <div class="col-6 col-md-3 col-lg-2 juros-linha" data-parcelas="{{ $n }}"
+                     @if($n > $maxParcelas) style="display:none;" @endif>
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text" style="min-width:3.2rem;">{{ $n }}x</span>
+                        <input type="number" step="0.01" min="0" max="100" class="form-control"
+                               name="juros_por_parcela[{{ $n }}]"
+                               placeholder="0"
+                               value="{{ $jurosTabela[$n] ?? $jurosTabela[(string) $n] ?? '' }}">
+                        <span class="input-group-text">%</span>
+                    </div>
+                </div>
+            @endfor
+        </div>
+        <div class="form-text mb-2">
+            Só aparecem as parcelas que a loja usa. Para cadastrar mais, aumente o
+            <strong>"Máximo de parcelas"</strong> ali em cima.
+        </div>
+
+        <script>
+            // As linhas de juros acompanham o "Máximo de parcelas" na hora, sem
+            // precisar salvar antes. O que passa do máximo fica escondido, mas o
+            // valor continua guardado — voltou o máximo, volta o número.
+            (function () {
+                const campoMax = document.querySelector('input[name="max_parcelas"]');
+                const linhas = document.querySelectorAll('#jurosParcelasGrid .juros-linha');
+                if (!campoMax || !linhas.length) return;
+
+                const sincronizar = () => {
+                    const max = parseInt(campoMax.value || '6', 10) || 6;
+                    linhas.forEach(l => {
+                        l.style.display = parseInt(l.dataset.parcelas, 10) > max ? 'none' : '';
+                    });
+                };
+
+                campoMax.addEventListener('input', sincronizar);
+                sincronizar();
+            })();
+        </script>
+
+        <hr>
+
+        <label class="form-label fw-semibold mb-1">
             <i class="bi bi-signpost-split me-1"></i>Pagamento dividido (split): qual tabela vale?
         </label>
         <div class="text-muted small mb-2">

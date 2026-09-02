@@ -5,7 +5,9 @@ namespace Tests\Feature\App;
 use App\Enums\StatusCaixa;
 use App\Enums\TipoMovimentacaoCaixa;
 use App\Enums\TipoMovimentacaoEstoque;
+use App\Models\AdquirenteTaxa;
 use App\Models\Comissao;
+use App\Models\ConfiguracaoLoja;
 use App\Models\ContaReceber;
 use App\Models\EstoqueMovimentacao;
 use App\Models\MovimentacaoCaixa;
@@ -440,5 +442,175 @@ class PdvTest extends TestCase
 
         $response->assertOk();
         $response->assertJsonFragment(['descricao' => 'Agua Mineral 500ml']);
+    }
+
+    /* ------------------------------------------------------------------
+     *  Juros de parcelamento (cartao de credito)
+     * ------------------------------------------------------------------ */
+
+    private function configurarJuros(array $tabela): void
+    {
+        ConfiguracaoLoja::create([
+            'empresa_id'        => $this->empresa->id,
+            'unidade_id'        => $this->unidade->id,
+            'juros_por_parcela' => $tabela,
+            'max_parcelas'      => 12,
+        ]);
+    }
+
+    public function test_credito_parcelado_soma_juros_ao_total(): void
+    {
+        $this->configurarJuros(['6' => 8, '12' => 16]);
+
+        $operador = $this->createUser($this->empresa, $this->unidade, 'caixa');
+        $produto  = $this->createProduto($this->empresa, ['preco_venda' => 1000.00]);
+        $caixa    = $this->openCaixa($this->empresa, $this->unidade, $operador);
+
+        $this->actingAsUser($operador, $this->unidade)
+            ->withSession(['caixa_id' => $caixa->id])
+            ->postJson(route('app.pdv.venda'), [
+                'juros_parcelamento' => 1,
+                'itens' => [
+                    ['produto_id' => $produto->id, 'quantidade' => 1, 'preco_unitario' => 1000.00],
+                ],
+                'pagamentos' => [
+                    ['forma' => 'cartao_credito', 'valor' => 1000.00, 'parcelas' => 6],
+                ],
+            ])->assertOk();
+
+        // 6x na tabela = 8% -> 1.000 vira 1.080,00 -> 6x de 180,00
+        $venda = Venda::withoutGlobalScopes()->latest('id')->first();
+
+        $this->assertEquals(1000.00, (float) $venda->subtotal);
+        $this->assertEquals(1080.00, (float) $venda->total);
+        $this->assertEquals(80.00, $venda->outras_despesas);
+
+        $pgto = $venda->pagamento_detalhes[0];
+        $this->assertEquals(1080.00, $pgto['valor']);
+        $this->assertEquals(1000.00, $pgto['valor_sem_juros']);
+        $this->assertEquals(180.00, $pgto['valor_parcela']);
+        $this->assertEquals(8.0, $pgto['juros_percentual']);
+    }
+
+    public function test_parcela_fora_da_tabela_nao_tem_acrescimo(): void
+    {
+        $this->configurarJuros(['6' => 8, '12' => 16]);
+
+        $operador = $this->createUser($this->empresa, $this->unidade, 'caixa');
+        $produto  = $this->createProduto($this->empresa, ['preco_venda' => 1000.00]);
+        $caixa    = $this->openCaixa($this->empresa, $this->unidade, $operador);
+
+        $this->actingAsUser($operador, $this->unidade)
+            ->withSession(['caixa_id' => $caixa->id])
+            ->postJson(route('app.pdv.venda'), [
+                'juros_parcelamento' => 1,
+                'itens' => [
+                    ['produto_id' => $produto->id, 'quantidade' => 1, 'preco_unitario' => 1000.00],
+                ],
+                'pagamentos' => [
+                    ['forma' => 'cartao_credito', 'valor' => 1000.00, 'parcelas' => 3],
+                ],
+            ])->assertOk();
+
+        $venda = Venda::withoutGlobalScopes()->latest('id')->first();
+
+        $this->assertEquals(1000.00, (float) $venda->total);
+        $this->assertEquals(0.0, $venda->outras_despesas);
+    }
+
+    public function test_juros_nao_incide_sem_o_flag_do_front(): void
+    {
+        $this->configurarJuros(['6' => 8, '12' => 16]);
+
+        $operador = $this->createUser($this->empresa, $this->unidade, 'caixa');
+        $produto  = $this->createProduto($this->empresa, ['preco_venda' => 1000.00]);
+        $caixa    = $this->openCaixa($this->empresa, $this->unidade, $operador);
+
+        // Aba do PDV aberta antes do deploy: nao manda juros_parcelamento
+        $this->actingAsUser($operador, $this->unidade)
+            ->withSession(['caixa_id' => $caixa->id])
+            ->postJson(route('app.pdv.venda'), [
+                'itens' => [
+                    ['produto_id' => $produto->id, 'quantidade' => 1, 'preco_unitario' => 1000.00],
+                ],
+                'pagamentos' => [
+                    ['forma' => 'cartao_credito', 'valor' => 1000.00, 'parcelas' => 6],
+                ],
+            ])->assertOk();
+
+        $venda = Venda::withoutGlobalScopes()->latest('id')->first();
+
+        $this->assertEquals(1000.00, (float) $venda->total);
+    }
+
+    public function test_dinheiro_nao_leva_juros_no_split(): void
+    {
+        $this->configurarJuros(['6' => 8, '12' => 16]);
+
+        $operador = $this->createUser($this->empresa, $this->unidade, 'caixa');
+        $produto  = $this->createProduto($this->empresa, ['preco_venda' => 1000.00]);
+        $caixa    = $this->openCaixa($this->empresa, $this->unidade, $operador);
+
+        $this->actingAsUser($operador, $this->unidade)
+            ->withSession(['caixa_id' => $caixa->id])
+            ->postJson(route('app.pdv.venda'), [
+                'juros_parcelamento' => 1,
+                'itens' => [
+                    ['produto_id' => $produto->id, 'quantidade' => 1, 'preco_unitario' => 1000.00],
+                ],
+                'pagamentos' => [
+                    ['forma' => 'dinheiro', 'valor' => 400.00],
+                    ['forma' => 'cartao_credito', 'valor' => 600.00, 'parcelas' => 6],
+                ],
+            ])->assertOk();
+
+        // Juros so sobre os 600 do credito: 600 + 8% = 648,00
+        $venda = Venda::withoutGlobalScopes()->latest('id')->first();
+
+        $this->assertEquals(48.00, $venda->outras_despesas);
+        $this->assertEquals(1048.00, (float) $venda->total);
+        $this->assertEquals(400.00, $venda->pagamento_detalhes[0]['valor']);
+        $this->assertEquals(648.00, $venda->pagamento_detalhes[1]['valor']);
+    }
+
+    public function test_parcelas_do_contas_receber_somam_o_total_com_juros(): void
+    {
+        $this->configurarJuros(['6' => 8, '12' => 16]);
+
+        AdquirenteTaxa::create([
+            'empresa_id'      => $this->empresa->id,
+            'nome'            => 'Stone',
+            'forma'           => 'cartao_credito',
+            'parcelas_de'     => 1,
+            'parcelas_ate'    => 12,
+            'taxa_percentual' => 3.00,
+            'prazo_dias'      => 30,
+            'ativo'           => true,
+        ]);
+
+        $operador = $this->createUser($this->empresa, $this->unidade, 'caixa');
+        $produto  = $this->createProduto($this->empresa, ['preco_venda' => 1000.00]);
+        $caixa    = $this->openCaixa($this->empresa, $this->unidade, $operador);
+
+        $this->actingAsUser($operador, $this->unidade)
+            ->withSession(['caixa_id' => $caixa->id])
+            ->postJson(route('app.pdv.venda'), [
+                'juros_parcelamento' => 1,
+                'itens' => [
+                    ['produto_id' => $produto->id, 'quantidade' => 1, 'preco_unitario' => 1000.00],
+                ],
+                'pagamentos' => [
+                    ['forma' => 'cartao_credito', 'valor' => 1000.00, 'parcelas' => 6],
+                ],
+            ])->assertOk();
+
+        $parcelas = ContaReceber::withoutGlobalScopes()
+            ->where('empresa_id', $this->empresa->id)
+            ->orderBy('parcela')
+            ->get();
+
+        $this->assertCount(6, $parcelas);
+        $this->assertEquals(180.00, (float) $parcelas->first()->valor);
+        $this->assertEquals(1080.00, round($parcelas->sum(fn ($p) => (float) $p->valor), 2));
     }
 }
