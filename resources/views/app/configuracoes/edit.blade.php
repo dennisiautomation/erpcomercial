@@ -118,33 +118,74 @@
         </div>
         <div class="text-muted small mb-3">
             <i class="bi bi-info-circle me-1"></i>Vale <strong>só para cartão de crédito parcelado</strong>.
-            Dinheiro, PIX, débito e crédito à vista nunca levam acréscimo. É diferente do "Acréscimo no
-            Crédito" acima, que é o preço da tabela do cartão — os dois somam quando os dois estão ligados.
+            Dinheiro, PIX e débito nunca levam acréscimo. O <strong>crédito à vista (1x)</strong> não entra
+            aqui porque quem encarece ele é o <strong>"Acréscimo no Crédito"</strong> ali em cima — é por
+            isso que a tabela começa no 2x.
         </div>
 
         @php
             $jurosTabela = old('juros_por_parcela', $config->juros_por_parcela ?? []);
             $maxParcelas = (int) old('max_parcelas', $config->max_parcelas ?? 6);
+            $acrescimoCredito = (float) old('percentual_credito', $config->percentual_credito ?? 0);
         @endphp
+
+        {{-- Simulador: o exemplo deixa de ser texto fixo e passa a acompanhar o que a
+             loja digita. Sem isso o lojista preenche "8" sem saber quanto o cliente paga. --}}
+        <div class="d-flex align-items-center flex-wrap gap-2 mb-3">
+            <span class="small text-muted">Simular com uma venda de</span>
+            <div class="input-group input-group-sm" style="max-width:11rem;">
+                <span class="input-group-text">R$</span>
+                <input type="number" step="0.01" min="0" class="form-control" id="jurosBase" value="1000">
+            </div>
+            <span class="small text-muted">— os valores ao lado acompanham.</span>
+        </div>
+
+        {{-- 1x somente-leitura: a linha existe para a tabela nao ter buraco, mas o numero
+             vem do "Acrescimo no Credito" e nao e editavel aqui (dois donos para o mesmo
+             campo seria pior do que a ausencia dele). --}}
+        <div class="d-flex align-items-center flex-wrap gap-2 mb-2 px-2 py-2 rounded"
+             style="background:rgba(108,117,125,.08);">
+            <div class="input-group input-group-sm" style="max-width:11rem;">
+                <span class="input-group-text" style="min-width:3.2rem;">1x</span>
+                <input type="number" class="form-control" id="jurosCreditoAvista"
+                       value="{{ number_format($acrescimoCredito, 2, '.', '') }}" disabled>
+                <span class="input-group-text">%</span>
+            </div>
+            <span class="small text-muted flex-grow-1">
+                <i class="bi bi-lock me-1"></i>Crédito à vista — vem do <strong>"Acréscimo no Crédito"</strong>
+                lá em cima. Para mudar, altere aquele campo.
+                <span id="previa1x" class="d-block"></span>
+            </span>
+        </div>
+
         <div class="row g-2 mb-2" id="jurosParcelasGrid">
             @for($n = 2; $n <= 24; $n++)
-                <div class="col-6 col-md-3 col-lg-2 juros-linha" data-parcelas="{{ $n }}"
+                @php $valorLinha = $jurosTabela[$n] ?? $jurosTabela[(string) $n] ?? ''; @endphp
+                <div class="col-12 col-lg-6 juros-linha" data-parcelas="{{ $n }}"
                      @if($n > $maxParcelas) style="display:none;" @endif>
-                    <div class="input-group input-group-sm">
-                        <span class="input-group-text" style="min-width:3.2rem;">{{ $n }}x</span>
-                        <input type="number" step="0.01" min="0" max="100" class="form-control"
-                               name="juros_por_parcela[{{ $n }}]"
-                               placeholder="0"
-                               value="{{ $jurosTabela[$n] ?? $jurosTabela[(string) $n] ?? '' }}">
-                        <span class="input-group-text">%</span>
+                    <div class="d-flex align-items-center gap-2 px-2 py-1 rounded juros-caixa">
+                        <div class="input-group input-group-sm" style="max-width:11rem;">
+                            <span class="input-group-text" style="min-width:3.2rem;">{{ $n }}x</span>
+                            <input type="number" step="0.01" min="0" max="100" class="form-control juros-campo"
+                                   name="juros_por_parcela[{{ $n }}]"
+                                   placeholder="sem juros"
+                                   value="{{ $valorLinha }}">
+                            <span class="input-group-text">%</span>
+                        </div>
+                        <span class="small text-muted juros-previa flex-grow-1"></span>
                     </div>
                 </div>
             @endfor
         </div>
         <div class="form-text mb-2">
-            Só aparecem as parcelas que a loja usa. Para cadastrar mais, aumente o
-            <strong>"Máximo de parcelas"</strong> ali em cima.
+            Campo em branco = <strong>parcela sem juros</strong>. Só aparecem as parcelas que a loja usa;
+            para cadastrar mais, aumente o <strong>"Máximo de parcelas"</strong> ali em cima.
         </div>
+
+        {{-- Aviso da SOMA, com numero real. E a resposta do "devo aplicar isso?": quem ja
+             cobra acrescimo no credito nao paga so o juros da parcela. --}}
+        <div id="jurosAvisoSoma" class="small mb-3 px-3 py-2 rounded" style="display:none;
+             background:rgba(255,193,7,.12); border:1px solid rgba(255,193,7,.35);"></div>
 
         @php
             $temJuros = collect($jurosTabela)->contains(fn ($v) => (float) $v > 0);
@@ -169,29 +210,106 @@
                 precisa ver <strong>"6x de R$ 180,00 · total R$ 1.080,00"</strong> para falar o valor
                 certo ao cliente. Zere a tabela acima para poder desligar.
             @else
-                Desligado, a lista mostra só <strong>"2x", "3x"</strong> — como sempre foi. Ligado, mostra
-                quanto dá cada parcela ("3x de R$ 333,33 sem juros"), mesmo sem cobrar juros.
+                <strong>Não muda preço nenhum</strong> — é só o texto da lista de parcelas do PDV.
+                Desligado, mostra <strong>"2x", "3x"</strong>, como sempre foi. Ligado, mostra quanto dá
+                cada parcela ("3x de R$ 333,33 sem juros"), mesmo sem cobrar juros.
             @endif
         </div>
 
         <script>
-            // As linhas de juros acompanham o "Máximo de parcelas" na hora, sem
-            // precisar salvar antes. O que passa do máximo fica escondido, mas o
-            // valor continua guardado — voltou o máximo, volta o número.
+            // Espelha JurosParcelamentoService no que o lojista precisa VER enquanto
+            // preenche: quanto o cliente paga. Quem grava o valor da venda continua
+            // sendo o servidor — isto aqui e so a previa da tela de configuracao.
             (function () {
-                const campoMax = document.querySelector('input[name="max_parcelas"]');
-                const linhas = document.querySelectorAll('#jurosParcelasGrid .juros-linha');
-                if (!campoMax || !linhas.length) return;
+                const campoMax     = document.querySelector('input[name="max_parcelas"]');
+                const campoCredito = document.querySelector('input[name="percentual_credito"]');
+                const campoBase    = document.getElementById('jurosBase');
+                const espelho1x    = document.getElementById('jurosCreditoAvista');
+                const previa1x     = document.getElementById('previa1x');
+                const aviso        = document.getElementById('jurosAvisoSoma');
+                const linhas       = document.querySelectorAll('#jurosParcelasGrid .juros-linha');
+                if (!linhas.length) return;
 
-                const sincronizar = () => {
-                    const max = parseInt(campoMax.value || '6', 10) || 6;
-                    linhas.forEach(l => {
-                        l.style.display = parseInt(l.dataset.parcelas, 10) > max ? 'none' : '';
+                const dinheiro = v => 'R$ ' + (v || 0).toLocaleString('pt-BR',
+                    { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                const num = el => Math.max(0, parseFloat((el && el.value) || 0) || 0);
+
+                const render = () => {
+                    const max     = parseInt((campoMax && campoMax.value) || '6', 10) || 6;
+                    const base    = num(campoBase);
+                    const credito = num(campoCredito);
+
+                    // O 1x espelha o "Acrescimo no Credito": um campo, um dono.
+                    if (espelho1x) espelho1x.value = credito.toFixed(2);
+                    if (previa1x) {
+                        previa1x.textContent = base > 0
+                            ? (credito > 0
+                                ? 'Hoje: ' + dinheiro(base) + ' no crédito à vista sai por '
+                                  + dinheiro(base * (1 + credito / 100)) + '.'
+                                : 'Hoje o crédito à vista sai pelo mesmo preço do PIX.')
+                            : '';
+                    }
+
+                    let algumJuros = false;
+
+                    linhas.forEach(linha => {
+                        const n = parseInt(linha.dataset.parcelas, 10);
+                        linha.style.display = n > max ? 'none' : '';
+
+                        const campo  = linha.querySelector('.juros-campo');
+                        const previa = linha.querySelector('.juros-previa');
+                        const caixa  = linha.querySelector('.juros-caixa');
+                        const pct    = num(campo);
+                        const temJuros = pct > 0;
+
+                        if (temJuros && n <= max) algumJuros = true;
+
+                        // Destaque so em quem tem juros: a tabela cheia de zeros nao
+                        // deixava enxergar o que estava configurado de verdade.
+                        if (caixa) caixa.style.background = temJuros ? 'rgba(255,193,7,.12)' : '';
+
+                        if (!previa) return;
+                        if (base <= 0) { previa.textContent = ''; return; }
+
+                        // A conta que o cliente ve: o acrescimo do credito ja esta no
+                        // preco da tabela, e o juros da parcela vem POR CIMA dele.
+                        const comCredito = base * (1 + credito / 100);
+                        const total      = comCredito * (1 + pct / 100);
+
+                        previa.innerHTML = temJuros
+                            ? '<strong>' + n + 'x de ' + dinheiro(total / n) + '</strong> · total '
+                              + dinheiro(total)
+                            : n + 'x de ' + dinheiro(total / n) + ' · sem juros';
                     });
+
+                    // O aviso da soma so faz sentido quando os dois estao ligados.
+                    if (aviso) {
+                        if (algumJuros && credito > 0 && base > 0) {
+                            const exemplo = [...linhas].find(l =>
+                                num(l.querySelector('.juros-campo')) > 0 &&
+                                parseInt(l.dataset.parcelas, 10) <= max);
+                            const n   = parseInt(exemplo.dataset.parcelas, 10);
+                            const pct = num(exemplo.querySelector('.juros-campo'));
+                            const soJuros = base * (1 + pct / 100);
+                            const real    = base * (1 + credito / 100) * (1 + pct / 100);
+
+                            aviso.style.display = 'block';
+                            aviso.innerHTML =
+                                '<i class="bi bi-exclamation-triangle me-1"></i><strong>Os dois acréscimos somam.</strong> '
+                                + 'Esta loja já cobra <strong>' + credito.toFixed(2).replace('.', ',') + '%</strong> no crédito. '
+                                + 'Com <strong>' + pct.toFixed(2).replace('.', ',') + '%</strong> no ' + n + 'x, uma venda de '
+                                + dinheiro(base) + ' sai por <strong>' + dinheiro(real) + '</strong> — não por '
+                                + dinheiro(soJuros) + '. Se a intenção era cobrar só o juros da parcela, '
+                                + 'zere o "Acréscimo no Crédito" lá em cima.';
+                        } else {
+                            aviso.style.display = 'none';
+                        }
+                    }
                 };
 
-                campoMax.addEventListener('input', sincronizar);
-                sincronizar();
+                [campoMax, campoCredito, campoBase].forEach(c => c && c.addEventListener('input', render));
+                document.querySelectorAll('.juros-campo').forEach(c => c.addEventListener('input', render));
+                render();
             })();
         </script>
 
