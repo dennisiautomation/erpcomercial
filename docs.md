@@ -2542,6 +2542,20 @@ prazo 7 → fora do prazo, mesma trava; troca devolvendo 250 e levando 100 com s
 Cadeia de estoque conferida movimentação a movimentação (`anterior→posterior`). 20 páginas GET sem
 5xx nos 3 perfis (o único 500 foi um `@endif` colado em texto no Blade — armadilha 63 — corrigido).
 
+### Deploy — PENDENTE em 03/09/2026 (aguardando o Dennis)
+
+Branch `feat/trocas-vale-relatorio` @`f5c7b5b`, validada no `erp-test-app`, **não deployada e não
+mergeada**. Backup do banco de produção já feito:
+`/home/ubuntu/erp-backups/pre-trocas-vale-20260903-1302.sql.gz` (70 tabelas). O rito é o de
+sempre, sem rebuild (não toca `bootstrap/` nem `composer.json`): marcar a imagem atual como tag de
+rollback, tar de `app database resources routes config` para o container, `migrate --force`
+(migration `2026_09_03_120000`, inclui o ALTER do ENUM do caixa), `optimize`, chown www-data dos
+caches e recarga do opcache (USR2 no master do php-fpm — armadilha 26b).
+
+Conferir depois: `route:list --path=trocas` (9 rotas), `/app/pdv` renderiza `modalTroca`, e a tela
+Configurações da Loja mostra "Trocas e Devoluções" com os defaults (30 / vale / 90 / ligado).
+Rollback: `git checkout main` + mesmo tar + `migrate:rollback --step=1` + optimize + recarga.
+
 ### O que ficou de fora (decisões do Dennis 03/09) e pendências
 
 - **NF-e de devolução** (finalidade 4 + nota referenciada): fase 2. Hoje a troca sai sem documento
