@@ -9,6 +9,10 @@ enum TipoMovimentacaoCaixa: string
     case Suprimento = 'suprimento';
     case Abertura = 'abertura';
     case Fechamento = 'fechamento';
+    // Dinheiro devolvido ao cliente numa troca/devolução (03/09/2026).
+    // Sai da gaveta como a sangria, mas com nome próprio: no fechamento o
+    // caixa precisa saber o que foi devolução e o que foi retirada.
+    case Devolucao = 'devolucao';
 
     public function label(): string
     {
@@ -18,6 +22,7 @@ enum TipoMovimentacaoCaixa: string
             self::Suprimento => 'Suprimento',
             self::Abertura => 'Abertura',
             self::Fechamento => 'Fechamento',
+            self::Devolucao => 'Devolução',
         };
     }
 
@@ -25,7 +30,7 @@ enum TipoMovimentacaoCaixa: string
     {
         return match ($this) {
             self::Venda, self::Suprimento, self::Abertura => 1,
-            self::Sangria => -1,
+            self::Sangria, self::Devolucao => -1,
             self::Fechamento => 0,
         };
     }

@@ -42,6 +42,11 @@ class ConfiguracaoLojaController extends Controller
             'os_mostrar_assinatura'      => 'nullable|boolean',
             'os_mostrar_laudo'           => 'nullable|boolean',
             'os_mostrar_valores'         => 'nullable|boolean',
+            // Trocas (03/09/2026)
+            'troca_prazo_dias'           => 'required|integer|min:0|max:3650',
+            'troca_sobra'                => 'required|in:vale,dinheiro',
+            'troca_vale_validade_dias'   => 'required|integer|min:0|max:3650',
+            'troca_senha_gerente'        => 'nullable|boolean',
         ]);
 
         // Checkboxes desmarcados não vêm no request
@@ -53,6 +58,7 @@ class ConfiguracaoLojaController extends Controller
             'os_mostrar_laudo',
             'os_mostrar_valores',
             'pdv_mostrar_valor_parcelas',
+            'troca_senha_gerente',
         ] as $flag) {
             $dados[$flag] = (bool) ($dados[$flag] ?? false);
         }

@@ -888,6 +888,14 @@
                 <span>Desconto</span>
                 <span class="summary-val" id="summaryDiscount">- R$ 0,00</span>
             </div>
+            <div class="summary-row" id="creditoRow" style="display:none; color:var(--accent-teal, #20c997);">
+                <span>Crédito da troca <small id="creditoCodigo" style="opacity:.75;"></small></span>
+                <span class="summary-val" id="summaryCredito" style="color:var(--accent-teal, #20c997);">- R$ 0,00</span>
+            </div>
+            <div class="summary-row" id="restanteRow" style="display:none;">
+                <span>A pagar</span>
+                <span class="summary-val" id="summaryRestante">R$ 0,00</span>
+            </div>
             <div class="summary-total">
                 <span class="label">TOTAL</span>
                 <span class="amount" id="summaryTotal">R$ 0,00</span>
@@ -942,6 +950,10 @@
                 <i class="bi bi-percent"></i> Desconto
                 <kbd>F4</kbd>
             </button>
+            <button class="btn-action" onclick="PDV.openTroca()" title="Troca / devolução de uma venda">
+                <i class="bi bi-arrow-repeat"></i> Troca
+                <kbd>F6</kbd>
+            </button>
             <button class="btn-action" onclick="PDV.openSangria()" title="Sangria">
                 <i class="bi bi-arrow-down-circle"></i> Sangria
                 <kbd>F7</kbd>
@@ -978,6 +990,7 @@
     <span><kbd>F2</kbd> Cliente</span>
     <span><kbd>F3</kbd> Vendedor</span>
     <span><kbd>F4</kbd> Desconto</span>
+    <span><kbd>F6</kbd> Troca</span>
     <span><kbd>F7</kbd> Sangria</span>
     <span><kbd>F8</kbd> Suprimento</span>
     <span><kbd>F9</kbd> Cancelar Item</span>
@@ -1148,6 +1161,151 @@
     </div>
 </div>
 
+{{-- Modal: Troca / Devolução (F6) — 03/09/2026 --}}
+<div class="modal fade" id="modalTroca" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-arrow-repeat me-2" style="color:var(--accent-teal, #20c997)"></i><span id="trocaTitulo">Troca / Devolução</span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" style="max-height:70vh; overflow-y:auto;">
+                {{-- Passo 1: achar a venda --}}
+                <div id="trocaPasso1">
+                    <label class="form-label">Qual venda? <small style="color:var(--text-muted);">número da venda, código do cupom (V123) ou nome do cliente — vale venda de qualquer dia e de qualquer loja</small></label>
+                    <div class="d-flex gap-2">
+                        <input type="text" class="form-control" id="trocaBusca" placeholder="Ex.: 158, V158 ou Maria" autocomplete="off">
+                        <button type="button" class="modal-btn-primary" onclick="PDV.buscarVendasTroca()"><i class="bi bi-search"></i></button>
+                    </div>
+                    <div class="client-search-results" id="trocaResultados" style="margin-top:10px;"></div>
+                </div>
+
+                {{-- Passo 2: o que volta --}}
+                <div id="trocaPasso2" style="display:none;">
+                    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-2">
+                        <div>
+                            <div style="font-weight:700; font-size:1.05rem;">Venda #<span id="trocaVendaNumero"></span> <small id="trocaVendaInfo" style="color:var(--text-muted); font-weight:400;"></small></div>
+                            <div id="trocaVendaCliente" style="font-size:.85rem; color:var(--text-secondary);"></div>
+                        </div>
+                        <button type="button" class="modal-btn-secondary" onclick="PDV.trocaVoltar()"><i class="bi bi-arrow-left"></i> Outra venda</button>
+                    </div>
+                    <div id="trocaPolitica" style="display:none; padding:8px 12px; border-radius:8px; font-size:.83rem; margin-bottom:10px;"></div>
+
+                    <table class="table table-sm mb-2" style="color:var(--text-primary); font-size:.88rem;">
+                        <thead><tr style="color:var(--text-muted); font-size:.75rem; text-transform:uppercase;">
+                            <th>Item</th><th class="text-end">Vendido</th><th class="text-end" style="width:110px;">Devolver</th><th class="text-end">Valor</th><th class="text-center" title="A peça volta para a prateleira?">Estoque</th>
+                        </tr></thead>
+                        <tbody id="trocaItens"></tbody>
+                    </table>
+
+                    <div class="row g-2 mb-2">
+                        <div class="col-md-5">
+                            <label class="form-label">Motivo</label>
+                            <select class="form-select" id="trocaMotivo"></select>
+                        </div>
+                        <div class="col-md-7">
+                            <label class="form-label">Detalhe <small style="color:var(--text-muted);">(opcional)</small></label>
+                            <input type="text" class="form-control" id="trocaMotivoTexto" maxlength="500" placeholder="Ex.: veio pequeno, cliente quer o M">
+                        </div>
+                    </div>
+
+                    <div id="trocaEstoqueWrap" style="display:none;" class="mb-2">
+                        <label class="form-label">Em qual estoque a peça entra</label>
+                        <select class="form-select" id="trocaEstoque"></select>
+                    </div>
+
+                    <div id="trocaSobraWrap" class="mb-2" style="display:none;">
+                        <label class="form-label">O cliente não vai levar nada agora. A sobra…</label>
+                        <div class="d-flex gap-2 flex-wrap">
+                            <label class="form-check" style="padding:8px 12px; border:1px solid var(--border-color, #3a3a48); border-radius:8px; cursor:pointer;">
+                                <input class="form-check-input" type="radio" name="trocaSobra" value="vale" checked> vira <strong>crédito na loja (vale)</strong>
+                            </label>
+                            <label class="form-check" id="trocaSobraDinheiroOpt" style="padding:8px 12px; border:1px solid var(--border-color, #3a3a48); border-radius:8px; cursor:pointer;">
+                                <input class="form-check-input" type="radio" name="trocaSobra" value="dinheiro"> é <strong>devolvida em dinheiro</strong> pela gaveta
+                            </label>
+                        </div>
+                    </div>
+
+                    <div id="trocaGerenteWrap" style="display:none; padding:10px 12px; border:1px solid var(--accent-yellow); border-radius:8px; margin-bottom:10px;">
+                        <div style="font-size:.85rem; color:var(--accent-yellow); margin-bottom:6px;"><i class="bi bi-shield-lock me-1"></i><span id="trocaGerenteMotivo">Fora da política da loja</span> — autorização de um gerente:</div>
+                        <div class="row g-2">
+                            <div class="col-md-6"><input type="email" class="form-control" id="trocaGerenteEmail" placeholder="E-mail do gerente" autocomplete="off"></div>
+                            <div class="col-md-6"><input type="password" class="form-control" id="trocaGerenteSenha" placeholder="Senha do gerente" autocomplete="new-password"></div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2" style="padding-top:8px; border-top:1px solid var(--border-color, #3a3a48);">
+                        <div>
+                            <div style="font-size:.78rem; color:var(--text-muted);">VALOR A DEVOLVER</div>
+                            <div style="font-size:1.6rem; font-weight:800; color:var(--accent-teal, #20c997);" id="trocaTotal">R$ 0,00</div>
+                            <div id="trocaParcelasAviso" style="display:none; font-size:.78rem; color:var(--accent-yellow);"></div>
+                        </div>
+                        <div class="d-flex gap-2 flex-wrap">
+                            <button type="button" class="modal-btn-secondary" id="btnTrocaDevolver" onclick="PDV.trocaModo('devolucao')"><i class="bi bi-box-arrow-in-left"></i> Só devolver</button>
+                            <button type="button" class="modal-btn-green" id="btnTrocaTrocar" onclick="PDV.registrarTroca('troca')"><i class="bi bi-upc-scan"></i> Trocar agora (bipar o que leva)</button>
+                            <button type="button" class="modal-btn-green" id="btnTrocaConfirmarDevolucao" style="display:none;" onclick="PDV.registrarTroca('devolucao')"><i class="bi bi-check-lg"></i> Confirmar devolução</button>
+                        </div>
+                    </div>
+                </div>
+
+                {{-- Passo 3: resultado da devolução --}}
+                <div id="trocaPasso3" style="display:none; text-align:center; padding:12px 0;">
+                    <i class="bi bi-check-circle" style="font-size:3rem; color:var(--accent-green); display:block; margin-bottom:8px;"></i>
+                    <h5>Devolução registrada</h5>
+                    <div id="trocaResultado" style="font-size:.95rem; margin:10px 0 16px;"></div>
+                    <div class="d-flex gap-2 justify-content-center">
+                        <button type="button" class="modal-btn-primary" onclick="PDV.imprimirComprovanteTroca()"><i class="bi bi-printer"></i> Imprimir comprovante</button>
+                        <button type="button" class="modal-btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{-- Modal: Vale (código do crédito de troca) --}}
+<div class="modal fade" id="modalVale" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-ticket-perforated me-2" style="color:var(--accent-teal, #20c997)"></i>Vale</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <label class="form-label">Código do vale <small style="color:var(--text-muted);">(impresso no comprovante da troca)</small></label>
+                <input type="text" class="form-control modal-valor-input" id="valeCodigo" placeholder="VT-XXXX-XXXX" autocomplete="off" style="text-transform:uppercase; font-size:1.1rem;">
+                <div id="valeInfo" style="display:none; margin-top:10px; font-size:.85rem;"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="modal-btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="modal-btn-green" onclick="PDV.confirmarVale()"><i class="bi bi-check-lg"></i> Usar vale</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{-- Modal: sobra do crédito da troca (só quando a loja permite dinheiro) --}}
+<div class="modal fade" id="modalSobraTroca" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 460px;">
+        <div class="modal-content">
+            <div class="modal-body text-center" style="padding: 28px;">
+                <div style="font-size:1.05rem; font-weight:700; margin-bottom:6px;"><i class="bi bi-cash-coin me-1"></i> Sobram <span id="sobraTrocaValor"></span> do crédito</div>
+                <div style="font-size:.85rem; color:var(--text-muted); margin-bottom:16px;">O cliente devolveu mais do que está levando. O que fazer com a diferença?</div>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn-doc-escolha" onclick="PDV.decidirSobraTroca(true)">
+                        <i class="bi bi-cash-stack d-block fs-3 mb-1"></i> Devolver em dinheiro
+                        <div style="font-size:0.68rem; opacity:0.75;">sai da gaveta agora</div>
+                    </button>
+                    <button type="button" class="btn-doc-escolha" onclick="PDV.decidirSobraTroca(false)">
+                        <i class="bi bi-ticket-perforated d-block fs-3 mb-1"></i> Deixar no vale
+                        <div style="font-size:0.68rem; opacity:0.75;">cliente usa depois</div>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 {{-- Modal: Sucesso venda --}}
 {{-- Pergunta de documento na finalização (modo Auto sem regra automática) --}}
 <div class="modal fade" id="modalDocumento" tabindex="-1" data-bs-backdrop="static">
@@ -1188,9 +1346,13 @@
                     <div style="font-size:1.5rem; font-weight:700; color:var(--accent-yellow);" id="sucessoTrocoValor"></div>
                 </div>
                 <div id="sucessoNfceErro" style="display:none; margin-bottom:16px; padding:10px 14px; border:1px solid var(--accent-yellow); border-radius:8px; color:var(--accent-yellow); font-size:0.82rem; text-align:left; line-height:1.4;"></div>
-                <div class="d-flex gap-2 justify-content-center">
+                <div id="sucessoVale" style="display:none; margin-bottom:16px; padding:10px 14px; border:1px solid var(--accent-teal, #20c997); border-radius:8px; color:var(--text-primary); font-size:0.85rem; text-align:left; line-height:1.5;"></div>
+                <div class="d-flex gap-2 justify-content-center flex-wrap">
                     <button class="modal-btn-primary" onclick="PDV.imprimirCupom()">
                         <i class="bi bi-printer"></i> Imprimir Cupom
+                    </button>
+                    <button class="modal-btn-secondary" id="btnImprimirTroca" style="display:none;" onclick="PDV.imprimirComprovanteTroca()">
+                        <i class="bi bi-arrow-repeat"></i> Comprovante da troca
                     </button>
                     <button class="modal-btn-green" onclick="PDV.novaVenda()">
                         <i class="bi bi-plus-lg"></i> Nova Venda
@@ -1239,11 +1401,19 @@ const PDV = {
         'cupom_automatico_cartao' => (bool) ($configLoja->cupom_automatico_cartao ?? false),
         'cpf_emite_fiscal'        => (bool) ($configLoja->cpf_emite_fiscal ?? false),
         'padrao_impressao'        => $configLoja->padrao_impressao ?? 'recibo',
+        'troca_sobra'             => $configLoja->troca_sobra ?? 'vale',
         'fiscal_ativo'            => (bool) ($configFiscal
             && $configFiscal->emissao_fiscal_ativa
             && ($configFiscal->emite_nfce ?? ($configFiscal->tipo_cupom_pdv === 'fiscal'))),
     ]) !!},
+    estoquesLoja: {!! json_encode($estoquesLoja ?? []) !!},
     pagamentoAtual: null,
+    // Troca (F6): crédito da devolução aplicado na venda nova
+    creditoTroca: null,
+    valeSobraDinheiro: null,
+    lastTrocaHtml: '',
+    valeAtual: null,
+    _trocaSituacao: null,
     selectedItemIndex: -1,
     barcodeBuffer: '',
     barcodeTimeout: null,
@@ -1339,6 +1509,10 @@ const PDV = {
                 case 'F4':
                     e.preventDefault();
                     this.openDesconto();
+                    break;
+                case 'F6':
+                    e.preventDefault();
+                    this.openTroca();
                     break;
                 case 'F7':
                     e.preventDefault();
@@ -1848,8 +2022,28 @@ const PDV = {
             discountRow.style.display = 'none';
         }
 
+        // Crédito da troca (F6): abate do total; o que passar fica no vale
+        const creditoRow = document.getElementById('creditoRow');
+        const restanteRow = document.getElementById('restanteRow');
+        if (this.creditoTroca) {
+            const credito = this.creditoAplicado();
+            creditoRow.style.display = 'flex';
+            document.getElementById('creditoCodigo').textContent = this.creditoTroca.codigo;
+            document.getElementById('summaryCredito').textContent = '- ' + this.formatMoney(credito);
+            restanteRow.style.display = 'flex';
+            document.getElementById('summaryRestante').textContent = this.formatMoney(Math.max(0, round(total - credito, 2)));
+        } else {
+            creditoRow.style.display = 'none';
+            restanteRow.style.display = 'none';
+        }
+
         const btn = document.getElementById('btnFinalizar');
         btn.disabled = this.itens.length === 0;
+    },
+
+    creditoAplicado() {
+        if (!this.creditoTroca) return 0;
+        return round(Math.min(this.creditoTroca.saldo, this.getTotal()), 2);
     },
 
     getSubtotal() {
@@ -1872,6 +2066,7 @@ const PDV = {
         document.querySelectorAll('.btn-pay').forEach(btn => {
             btn.addEventListener('click', () => {
                 const forma = btn.dataset.forma;
+                if (forma === 'vale') { this.openVale(); return; }
                 this.openPagamento(forma);
             });
         });
@@ -1887,10 +2082,11 @@ const PDV = {
         this.repriceItens(forma);
 
         const total = this.getTotal();
-        const jaAdicionado = this.pagamentos.reduce((s, p) => s + p.valor, 0);
+        const jaAdicionado = this.pagamentos.reduce((s, p) => s + p.valor, 0) + this.creditoAplicado();
         const restante = round(total - jaAdicionado, 2);
+        const temParcial = this.pagamentos.length > 0 || this.creditoAplicado() > 0;
 
-        if (restante <= 0 && this.pagamentos.length > 0) {
+        if (restante <= 0 && temParcial) {
             this.showAlert('Pagamento ja completo. Finalize a venda.', 'warning');
             return;
         }
@@ -1910,7 +2106,7 @@ const PDV = {
 
         document.getElementById('modalPagamentoTitle').textContent = 'Pagamento - ' + (formaLabels[forma] || forma);
         document.getElementById('modalPagamentoForma').textContent = formaLabels[forma] || forma;
-        document.getElementById('modalPagamentoTotal').textContent = this.formatMoney(this.pagamentos.length > 0 ? restante : total);
+        document.getElementById('modalPagamentoTotal').textContent = this.formatMoney(temParcial ? restante : total);
 
         const valorInput = document.getElementById('valorRecebido');
 
@@ -1920,15 +2116,20 @@ const PDV = {
             document.getElementById('valorRecebidoWrap').style.display = 'block';
             valorInput.value = '';
             document.getElementById('modalTrocoWrap').style.display = 'none';
+        } else if (forma === 'vale' && this.valeAtual) {
+            // Vale: no máximo o saldo, no máximo o que falta pagar
+            document.getElementById('valorRecebidoWrap').style.display = 'block';
+            valorInput.value = Math.min(this.valeAtual.saldo, temParcial ? restante : total).toFixed(2);
+            document.getElementById('modalTrocoWrap').style.display = 'none';
         } else {
             document.getElementById('valorRecebidoWrap').style.display = 'block';
-            valorInput.value = (this.pagamentos.length > 0 ? restante : total).toFixed(2);
+            valorInput.value = (temParcial ? restante : total).toFixed(2);
             document.getElementById('modalTrocoWrap').style.display = 'none';
         }
 
         // Show/hide split checkbox
-        document.getElementById('splitCheck').style.display = this.pagamentos.length === 0 ? 'block' : 'none';
-        document.getElementById('isSplitPayment').checked = this.pagamentos.length > 0;
+        document.getElementById('splitCheck').style.display = temParcial ? 'none' : 'block';
+        document.getElementById('isSplitPayment').checked = temParcial;
 
         // Parcelas: só para cartão de crédito
         const parcelasWrap = document.getElementById('parcelasWrap');
@@ -1945,7 +2146,7 @@ const PDV = {
         valorInput.oninput = () => {
             if (forma === 'dinheiro') {
                 const recebido = parseFloat(valorInput.value) || 0;
-                const valorEsperado = this.pagamentos.length > 0 ? restante : total;
+                const valorEsperado = temParcial ? restante : total;
                 const troco = recebido - valorEsperado;
                 if (troco > 0) {
                     document.getElementById('modalTrocoWrap').style.display = 'block';
@@ -2053,14 +2254,22 @@ const PDV = {
         const forma = this.pagamentoAtual;
         const valorInput = document.getElementById('valorRecebido');
         const valor = parseFloat(valorInput.value) || 0;
-        const isSplit = document.getElementById('isSplitPayment').checked || this.pagamentos.length > 0;
+        const isSplit = document.getElementById('isSplitPayment').checked || this.pagamentos.length > 0 || this.creditoAplicado() > 0;
         const total = this.getTotal();
-        const jaAdicionado = this.pagamentos.reduce((s, p) => s + p.valor, 0);
+        const jaAdicionado = this.pagamentos.reduce((s, p) => s + p.valor, 0) + this.creditoAplicado();
         const restante = round(total - jaAdicionado, 2);
 
         if (valor <= 0) {
             this.showAlert('Informe o valor do pagamento', 'warning');
             return;
+        }
+
+        if (forma === 'vale') {
+            if (!this.valeAtual) { this.showAlert('Informe o código do vale', 'warning'); return; }
+            if (valor > this.valeAtual.saldo + 0.01) {
+                this.showAlert('O vale tem saldo de ' + this.formatMoney(this.valeAtual.saldo), 'warning');
+                return;
+            }
         }
 
         // For dinheiro, accept any value >= total for troco
@@ -2074,9 +2283,11 @@ const PDV = {
             ? parseInt(document.getElementById('parcelasSelect')?.value || '1', 10)
             : 1;
 
+        const extra = forma === 'vale' && this.valeAtual ? { vale_codigo: this.valeAtual.codigo } : {};
+
         if (isSplit) {
             // Split payment - add to list
-            this.pagamentos.push({ forma, valor: Math.min(valor, restante), parcelas });
+            this.pagamentos.push({ forma, valor: Math.min(valor, restante), parcelas, ...extra });
             this.renderSplitPayments();
 
             const novoRestante = round(total - this.pagamentos.reduce((s, p) => s + p.valor, 0), 2);
@@ -2090,7 +2301,7 @@ const PDV = {
             }
         } else {
             // Single payment
-            this.pagamentos = [{ forma, valor, parcelas }];
+            this.pagamentos = [{ forma, valor, parcelas, ...extra }];
             bootstrap.Modal.getInstance(document.getElementById('modalPagamento'))?.hide();
 
             // Calculate troco for display
@@ -2199,18 +2410,30 @@ const PDV = {
         }
 
         const total = this.getTotal();
+        const credito = this.creditoAplicado();
 
-        // If no payment selected, prompt
-        if (this.pagamentos.length === 0) {
-            this.showAlert('Selecione uma forma de pagamento', 'warning');
+        // If no payment selected, prompt (crédito da troca cobrindo tudo dispensa)
+        if (this.pagamentos.length === 0 && credito < total - 0.01) {
+            this.showAlert(credito > 0
+                ? `O crédito cobre ${this.formatMoney(credito)}. Escolha a forma para os ${this.formatMoney(total - credito)} restantes.`
+                : 'Selecione uma forma de pagamento', 'warning');
             return;
         }
 
-        const totalPago = this.pagamentos.reduce((s, p) => s + p.valor, 0);
+        const totalPago = this.pagamentos.reduce((s, p) => s + p.valor, 0) + credito;
         // For dinheiro, allow overpayment (troco). For others, must match.
         const hasDinheiro = this.pagamentos.some(p => p.forma === 'dinheiro');
         if (!hasDinheiro && totalPago < total - 0.01) {
             this.showAlert(`Pagamento insuficiente. Faltam ${this.formatMoney(total - totalPago)}`, 'warning');
+            return;
+        }
+
+        // Sobra do crédito da troca: se a loja permite dinheiro, o caixa decide
+        if (this.creditoTroca && this.creditoTroca.saldo > total + 0.009
+            && this.configLoja.troca_sobra === 'dinheiro' && this.valeSobraDinheiro === null) {
+            document.getElementById('sobraTrocaValor').textContent = this.formatMoney(round(this.creditoTroca.saldo - total, 2));
+            this._docAposSobra = docConfirmado;
+            new bootstrap.Modal(document.getElementById('modalSobraTroca')).show();
             return;
         }
 
@@ -2236,7 +2459,11 @@ const PDV = {
                     desconto_valor: i.desconto_valor,
                     unidade_origem_id: i.unidade_origem_id || null,
                 })),
-                pagamentos: this.pagamentos,
+                pagamentos: credito > 0
+                    ? [{ forma: 'vale', valor: credito, parcelas: 1, vale_codigo: this.creditoTroca.codigo }, ...this.pagamentos]
+                    : this.pagamentos,
+                vale_sobra_dinheiro: this.valeSobraDinheiro ? 1 : 0,
+                troca_devolucao_id: this.creditoTroca ? this.creditoTroca.devolucaoId : null,
                 cliente_id: this.clienteId,
                 cpf_cnpj_nota: document.getElementById('cpfNota')?.value || null,
                 vendedor_id: document.getElementById('vendedorSelect')?.value || null,
@@ -2276,6 +2503,24 @@ const PDV = {
             } else {
                 document.getElementById('sucessoTroco').style.display = 'none';
             }
+
+            // Vale / crédito da troca usado nesta venda
+            const valeBox = document.getElementById('sucessoVale');
+            if (data.vale) {
+                let txt = `<i class="bi bi-ticket-perforated"></i> Vale <strong>${data.vale.codigo}</strong>: usado ${this.formatMoney(data.vale.valor_usado)}.`;
+                if (data.vale.sobra_devolvida > 0) {
+                    txt += `<br><strong>${this.formatMoney(data.vale.sobra_devolvida)} devolvidos em dinheiro</strong> ao cliente (saíram do caixa).`;
+                } else if (data.vale.saldo_restante > 0) {
+                    txt += `<br>Ainda restam <strong>${this.formatMoney(data.vale.saldo_restante)}</strong> no vale — o cliente usa numa próxima compra.`;
+                } else {
+                    txt += ' Vale totalmente utilizado.';
+                }
+                valeBox.innerHTML = txt;
+                valeBox.style.display = 'block';
+            } else {
+                valeBox.style.display = 'none';
+            }
+            document.getElementById('btnImprimirTroca').style.display = this.lastTrocaHtml ? 'inline-flex' : 'none';
 
             // limpa o CPF na nota após uso (não vaza para a próxima venda)
             const cpfNotaPos = document.getElementById('cpfNota');
@@ -2319,6 +2564,10 @@ const PDV = {
         this.descontoPercentual = 0;
         this.pagamentos = [];
         this.pagamentoAtual = null;
+        this.creditoTroca = null;
+        this.valeSobraDinheiro = null;
+        this.valeAtual = null;
+        this.lastTrocaHtml = '';
         this.selectedItemIndex = -1;
         this.lastCupomHtml = '';
         this.tabelaAtiva = 'dinheiro_pix';
@@ -2465,6 +2714,302 @@ const PDV = {
         bootstrap.Modal.getInstance(document.getElementById('modalDesconto'))?.hide();
         if (val > 0) {
             this.showAlert(`Desconto de ${tipo === 'percentual' ? val + '%' : this.formatMoney(val)} aplicado`, 'success');
+        }
+    },
+
+    // ===== TROCA / DEVOLUÇÃO (F6) — 03/09/2026 =====
+    openTroca() {
+        if (this.creditoTroca) {
+            this.showAlert('Já há uma troca em andamento (crédito de ' + this.formatMoney(this.creditoTroca.saldo) + '). Finalize a venda ou inicie uma nova.', 'warning');
+            return;
+        }
+        this._trocaSituacao = null;
+        document.getElementById('trocaPasso1').style.display = 'block';
+        document.getElementById('trocaPasso2').style.display = 'none';
+        document.getElementById('trocaPasso3').style.display = 'none';
+        document.getElementById('trocaTitulo').textContent = 'Troca / Devolução';
+        const busca = document.getElementById('trocaBusca');
+        busca.value = '';
+        document.getElementById('trocaResultados').innerHTML = '';
+        busca.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); this.buscarVendasTroca(); } };
+        new bootstrap.Modal(document.getElementById('modalTroca')).show();
+        setTimeout(() => busca.focus(), 300);
+        // lista as últimas vendas já de cara
+        this.buscarVendasTroca();
+    },
+
+    async buscarVendasTroca() {
+        const q = document.getElementById('trocaBusca').value.trim();
+        const box = document.getElementById('trocaResultados');
+        box.innerHTML = '<div style="padding:12px; text-align:center; color:var(--text-muted);">Buscando...</div>';
+        try {
+            const resp = await fetch('{{ route("app.pdv.troca.vendas") }}?q=' + encodeURIComponent(q), { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' } });
+            const vendas = await resp.json();
+            if (!resp.ok) { box.innerHTML = '<div style="padding:12px; color:var(--accent-red);">' + (vendas.error || 'Erro ao buscar') + '</div>'; return; }
+            if (!vendas.length) { box.innerHTML = '<div style="padding:12px; text-align:center; color:var(--text-muted);">Nenhuma venda concluída encontrada</div>'; return; }
+            box.innerHTML = vendas.map(v => `
+                <div class="client-search-item" onclick="PDV.carregarVendaTroca(${v.id})">
+                    <div class="d-flex justify-content-between">
+                        <div style="font-weight:600;">Venda #${v.numero} <small style="color:var(--text-muted); font-weight:400;">${v.data}</small></div>
+                        <div style="font-weight:700;">${this.formatMoney(v.total)}</div>
+                    </div>
+                    <div style="font-size:0.82rem; color:var(--text-muted);">${v.cliente || 'Consumidor'} · ${v.itens} item(ns)${v.mesma_loja ? '' : ' · <span style="color:var(--accent-yellow);">' + (v.loja || 'outra loja') + '</span>'}</div>
+                </div>`).join('');
+        } catch (err) {
+            box.innerHTML = '<div style="padding:12px; color:var(--accent-red);">Erro de conexão</div>';
+        }
+    },
+
+    async carregarVendaTroca(id) {
+        try {
+            const resp = await fetch('/app/pdv/troca/venda/' + id, { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' } });
+            const s = await resp.json();
+            if (!resp.ok) { this.showAlert(s.error || 'Erro ao carregar a venda', 'error'); return; }
+            this._trocaSituacao = s;
+            this.renderTrocaVenda();
+        } catch (err) {
+            this.showAlert('Erro de conexão: ' + err.message, 'error');
+        }
+    },
+
+    trocaVoltar() {
+        document.getElementById('trocaPasso1').style.display = 'block';
+        document.getElementById('trocaPasso2').style.display = 'none';
+        document.getElementById('trocaBusca').focus();
+    },
+
+    renderTrocaVenda() {
+        const s = this._trocaSituacao;
+        document.getElementById('trocaPasso1').style.display = 'none';
+        document.getElementById('trocaPasso2').style.display = 'block';
+        document.getElementById('trocaVendaNumero').textContent = s.venda.numero;
+        document.getElementById('trocaVendaInfo').textContent = `${s.venda.data} · ${this.formatMoney(s.venda.total)}${s.venda.loja ? ' · ' + s.venda.loja : ''}`;
+        document.getElementById('trocaVendaCliente').textContent = s.venda.cliente ? 'Cliente: ' + s.venda.cliente : 'Consumidor (sem cadastro)';
+
+        // Itens
+        document.getElementById('trocaItens').innerHTML = s.itens.map(i => `
+            <tr data-item="${i.venda_item_id}" data-unit="${i.valor_unitario}" data-max="${i.disponivel}" ${i.disponivel <= 0 ? 'style="opacity:.45;"' : ''}>
+                <td>${i.descricao}${i.devolvida > 0 ? ` <small style="color:var(--accent-yellow);">(${i.devolvida} já devolvido)</small>` : ''}</td>
+                <td class="text-end">${i.quantidade}</td>
+                <td class="text-end"><input type="number" class="form-control form-control-sm text-end troca-qtd" min="0" max="${i.disponivel}" step="1" value="${i.disponivel > 0 ? i.disponivel : 0}" ${i.disponivel <= 0 ? 'disabled' : ''} oninput="PDV.recalcularTroca()" style="width:90px; display:inline-block;"></td>
+                <td class="text-end">${this.formatMoney(i.valor_unitario)}</td>
+                <td class="text-center"><input type="checkbox" class="form-check-input troca-estoque" ${i.e_servico ? 'disabled' : 'checked'} title="${i.e_servico ? 'Serviço não volta ao estoque' : 'Desmarque se a peça está avariada e não volta à prateleira'}"></td>
+            </tr>`).join('');
+
+        // Motivos
+        document.getElementById('trocaMotivo').innerHTML = Object.entries(s.motivos).map(([k, v]) => `<option value="${k}">${v}</option>`).join('');
+        document.getElementById('trocaMotivoTexto').value = '';
+
+        // Estoques da loja (só quando há mais de um)
+        const estoques = this.estoquesLoja || [];
+        const estWrap = document.getElementById('trocaEstoqueWrap');
+        if (estoques.length > 1) {
+            document.getElementById('trocaEstoque').innerHTML = estoques.map(e => `<option value="${e.id}" ${e.permite_venda ? 'selected' : ''}>${e.nome}</option>`).join('');
+            estWrap.style.display = 'block';
+        } else {
+            estWrap.style.display = 'none';
+        }
+
+        // Política
+        const pol = document.getElementById('trocaPolitica');
+        if (!s.pode_trocar) {
+            pol.style.display = 'block';
+            pol.style.background = 'rgba(239,68,68,.15)'; pol.style.color = 'var(--accent-red)';
+            pol.innerHTML = '<i class="bi bi-x-circle me-1"></i> Esta venda não tem itens disponíveis para troca.';
+        } else if (s.politica.fora_prazo) {
+            pol.style.display = 'block';
+            pol.style.background = 'rgba(255,193,7,.12)'; pol.style.color = 'var(--accent-yellow)';
+            pol.innerHTML = `<i class="bi bi-exclamation-triangle me-1"></i> Venda de <strong>${s.politica.dias_desde_venda} dias</strong> — fora do prazo de troca da loja (${s.politica.prazo_dias} dias).` + (s.politica.exige_gerente_fora_prazo ? ' Precisa da autorização de um gerente.' : (s.politica.usuario_e_gerente ? ' Você é gerente: pode autorizar.' : ''));
+        } else {
+            pol.style.display = 'block';
+            pol.style.background = 'rgba(34,197,94,.12)'; pol.style.color = 'var(--accent-green)';
+            pol.innerHTML = `<i class="bi bi-check-circle me-1"></i> Dentro do prazo de troca (${s.politica.dias_desde_venda} de ${s.politica.prazo_dias > 0 ? s.politica.prazo_dias : '∞'} dias).`;
+        }
+
+        // Sobra (só na devolução)
+        document.getElementById('trocaSobraWrap').style.display = 'none';
+        document.getElementById('trocaSobraDinheiroOpt').style.display = s.politica.permite_dinheiro ? 'inline-block' : 'none';
+        document.querySelector('input[name="trocaSobra"][value="vale"]').checked = true;
+        document.querySelectorAll('input[name="trocaSobra"]').forEach(r => r.onchange = () => this.atualizarGerenteTroca());
+
+        // Modo inicial: troca
+        this._trocaTipo = 'troca';
+        document.getElementById('btnTrocaTrocar').style.display = s.pode_trocar ? 'inline-flex' : 'none';
+        document.getElementById('btnTrocaDevolver').style.display = s.pode_trocar ? 'inline-flex' : 'none';
+        document.getElementById('btnTrocaConfirmarDevolucao').style.display = 'none';
+        document.getElementById('trocaGerenteEmail').value = '';
+        document.getElementById('trocaGerenteSenha').value = '';
+
+        this.recalcularTroca();
+        this.atualizarGerenteTroca();
+    },
+
+    trocaModo(tipo) {
+        this._trocaTipo = tipo;
+        const dev = tipo === 'devolucao';
+        document.getElementById('trocaSobraWrap').style.display = dev ? 'block' : 'none';
+        document.getElementById('btnTrocaTrocar').style.display = dev ? 'none' : 'inline-flex';
+        document.getElementById('btnTrocaDevolver').style.display = dev ? 'none' : 'inline-flex';
+        document.getElementById('btnTrocaConfirmarDevolucao').style.display = dev ? 'inline-flex' : 'none';
+        document.getElementById('trocaTitulo').textContent = dev ? 'Devolução (sem levar nada agora)' : 'Troca / Devolução';
+        this.atualizarGerenteTroca();
+    },
+
+    atualizarGerenteTroca() {
+        const s = this._trocaSituacao; if (!s) return;
+        const motivos = [];
+        if (s.politica.exige_gerente_fora_prazo) motivos.push('fora do prazo');
+        const sobra = document.querySelector('input[name="trocaSobra"]:checked')?.value;
+        if (this._trocaTipo === 'devolucao' && sobra === 'dinheiro' && s.politica.exige_gerente_dinheiro) motivos.push('devolução em dinheiro');
+        const wrap = document.getElementById('trocaGerenteWrap');
+        wrap.style.display = motivos.length ? 'block' : 'none';
+        document.getElementById('trocaGerenteMotivo').textContent = motivos.length ? motivos.join(' + ') : '';
+    },
+
+    recalcularTroca() {
+        let total = 0;
+        document.querySelectorAll('#trocaItens tr').forEach(tr => {
+            const inp = tr.querySelector('.troca-qtd'); if (!inp) return;
+            const max = parseFloat(tr.dataset.max) || 0;
+            let q = parseFloat(inp.value) || 0;
+            if (q > max) { q = max; inp.value = max; }
+            if (q < 0) { q = 0; inp.value = 0; }
+            total += q * (parseFloat(tr.dataset.unit) || 0);
+        });
+        total = round(total, 2);
+        document.getElementById('trocaTotal').textContent = this.formatMoney(total);
+        const s = this._trocaSituacao;
+        const aviso = document.getElementById('trocaParcelasAviso');
+        if (s && s.parcelas_abertas > 0) {
+            aviso.style.display = 'block';
+            aviso.innerHTML = `<i class="bi bi-info-circle"></i> Esta venda tem ${this.formatMoney(s.parcelas_abertas)} em parcelas abertas (crediário/boleto): o valor devolvido abate essas parcelas antes de virar crédito.`;
+        } else {
+            aviso.style.display = 'none';
+        }
+        return total;
+    },
+
+    async registrarTroca(tipo) {
+        const s = this._trocaSituacao; if (!s) return;
+        const itens = [];
+        document.querySelectorAll('#trocaItens tr').forEach(tr => {
+            const inp = tr.querySelector('.troca-qtd'); if (!inp) return;
+            const q = parseFloat(inp.value) || 0;
+            if (q <= 0) return;
+            itens.push({
+                venda_item_id: parseInt(tr.dataset.item, 10),
+                quantidade: q,
+                retorna_estoque: tr.querySelector('.troca-estoque')?.checked ? 1 : 0,
+                estoque_id: document.getElementById('trocaEstoqueWrap').style.display !== 'none' ? (parseInt(document.getElementById('trocaEstoque').value, 10) || null) : null,
+            });
+        });
+        if (!itens.length) { this.showAlert('Marque a quantidade de pelo menos um item para devolver', 'warning'); return; }
+
+        const payload = {
+            venda_id: s.venda.id,
+            tipo,
+            itens,
+            motivo: document.getElementById('trocaMotivo').value,
+            motivo_texto: document.getElementById('trocaMotivoTexto').value.trim() || null,
+            sobra_destino: tipo === 'devolucao' ? (document.querySelector('input[name="trocaSobra"]:checked')?.value || 'vale') : 'vale',
+            gerente_email: document.getElementById('trocaGerenteEmail').value.trim() || null,
+            gerente_senha: document.getElementById('trocaGerenteSenha').value || null,
+        };
+
+        document.getElementById('loadingOverlay').classList.add('show');
+        try {
+            const resp = await fetch('{{ route("app.pdv.troca.registrar") }}', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content, 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+            const data = await resp.json();
+            document.getElementById('loadingOverlay').classList.remove('show');
+            if (!resp.ok || data.error) {
+                const msg = data.error || (data.errors ? Object.values(data.errors).flat().join(' ') : 'Erro ao registrar a troca');
+                this.showAlert(msg, 'error');
+                return;
+            }
+
+            this.lastTrocaHtml = data.comprovante || '';
+            document.getElementById('trocaGerenteSenha').value = '';
+
+            if (tipo === 'troca') {
+                if (data.vale && data.vale.saldo > 0) {
+                    this.creditoTroca = { codigo: data.vale.codigo, saldo: data.vale.saldo, devolucaoId: data.devolucao.id, validade: data.vale.validade };
+                    bootstrap.Modal.getInstance(document.getElementById('modalTroca'))?.hide();
+                    this.updateSummary();
+                    this.showAlert(`Troca da venda #${data.devolucao.venda_numero}: crédito de ${this.formatMoney(data.vale.saldo)}. Bipe o que o cliente leva.`, 'success');
+                    document.getElementById('searchInput').focus();
+                } else {
+                    // Tudo abatido em parcelas abertas: não há crédito para a venda nova
+                    document.getElementById('trocaPasso2').style.display = 'none';
+                    document.getElementById('trocaPasso3').style.display = 'block';
+                    document.getElementById('trocaResultado').innerHTML = `Devolvido ${this.formatMoney(data.devolucao.valor_estornado)}, abatido das parcelas em aberto da venda. Não sobrou crédito — a venda nova é paga normalmente.`;
+                }
+            } else {
+                document.getElementById('trocaPasso2').style.display = 'none';
+                document.getElementById('trocaPasso3').style.display = 'block';
+                let r = `Devolvido <strong>${this.formatMoney(data.devolucao.valor_estornado)}</strong> da venda #${data.devolucao.venda_numero}.`;
+                if (data.devolucao.valor_abatido_parcelas > 0) r += `<br>${this.formatMoney(data.devolucao.valor_abatido_parcelas)} abatidos das parcelas em aberto.`;
+                if (data.vale) r += `<br><div style="margin-top:8px; font-size:1.2rem;">Vale <strong>${data.vale.codigo}</strong> — ${this.formatMoney(data.vale.saldo)}${data.vale.validade ? ' · válido até ' + data.vale.validade : ''}</div>`;
+                else if (data.devolucao.forma_sobra === 'dinheiro') r += `<br><div style="margin-top:8px; font-size:1.2rem;"><strong>${this.formatMoney(data.devolucao.valor_sobra)} devolvidos em dinheiro</strong> — saída registrada no caixa.</div>`;
+                document.getElementById('trocaResultado').innerHTML = r;
+                this.imprimirComprovanteTroca();
+            }
+        } catch (err) {
+            document.getElementById('loadingOverlay').classList.remove('show');
+            this.showAlert('Erro de conexão: ' + err.message, 'error');
+        }
+    },
+
+    imprimirComprovanteTroca() {
+        if (!this.lastTrocaHtml) return;
+        const frame = document.getElementById('printFrame');
+        frame.srcdoc = this.lastTrocaHtml;
+        frame.onload = () => frame.contentWindow.print();
+    },
+
+    decidirSobraTroca(dinheiro) {
+        this.valeSobraDinheiro = !!dinheiro;
+        bootstrap.Modal.getInstance(document.getElementById('modalSobraTroca'))?.hide();
+        this.finalizarVenda(this._docAposSobra || null);
+    },
+
+    // ===== VALE (crédito de troca como pagamento) =====
+    openVale() {
+        if (this.itens.length === 0) {
+            this.showAlert('Adicione itens antes de selecionar pagamento', 'warning');
+            return;
+        }
+        this.valeAtual = null;
+        const input = document.getElementById('valeCodigo');
+        input.value = '';
+        document.getElementById('valeInfo').style.display = 'none';
+        input.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); this.confirmarVale(); } };
+        new bootstrap.Modal(document.getElementById('modalVale')).show();
+        setTimeout(() => input.focus(), 300);
+    },
+
+    async confirmarVale() {
+        const codigo = document.getElementById('valeCodigo').value.trim();
+        if (!codigo) { this.showAlert('Digite ou bipe o código do vale', 'warning'); return; }
+        const info = document.getElementById('valeInfo');
+        try {
+            const resp = await fetch('/app/pdv/vale/' + encodeURIComponent(codigo), { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' } });
+            const data = await resp.json();
+            if (!resp.ok) {
+                info.style.display = 'block';
+                info.style.color = 'var(--accent-red)';
+                info.textContent = data.error || 'Vale inválido';
+                return;
+            }
+            this.valeAtual = data;
+            bootstrap.Modal.getInstance(document.getElementById('modalVale'))?.hide();
+            this.showAlert(`Vale ${data.codigo}: saldo ${this.formatMoney(data.saldo)}${data.cliente ? ' · ' + data.cliente : ''}`, 'success');
+            this.openPagamento('vale');
+        } catch (err) {
+            this.showAlert('Erro de conexão: ' + err.message, 'error');
         }
     },
 

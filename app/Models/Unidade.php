@@ -70,6 +70,11 @@ class Unidade extends Model
         return $this->hasMany(Caixa::class);
     }
 
+    public function empresa(): BelongsTo
+    {
+        return $this->belongsTo(Empresa::class);
+    }
+
     public function estoques(): HasMany
     {
         return $this->hasMany(Estoque::class);

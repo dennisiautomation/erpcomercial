@@ -430,6 +430,83 @@
     </x-erp.form-section>
 
     {{-- ============ IMPRESSÃO DA ORDEM DE SERVIÇO ============ --}}
+    {{-- ============ TROCAS E DEVOLUÇÕES (03/09/2026) ============ --}}
+    <x-erp.form-section title="Trocas e Devoluções" icon="arrow-repeat"
+        description="O que a loja faz quando o cliente traz uma peça de volta">
+
+        <div class="text-muted small mb-3">
+            <i class="bi bi-info-circle me-1"></i>
+            A troca é feita no <strong>PDV (tecla F6)</strong>: o caixa localiza a venda, marca o que volta,
+            bipa o que o cliente leva e a conta fecha na hora. Aqui você define a política — o que acontece
+            quando o cliente devolve <em>mais</em> do que compra, até quando a loja aceita a troca e quem
+            precisa autorizar o que sai da regra.
+        </div>
+
+        <div class="row g-3">
+            <div class="col-md-4">
+                <label for="troca_prazo_dias" class="form-label fw-semibold">Prazo para troca (dias)</label>
+                <input type="number" min="0" max="3650" step="1" name="troca_prazo_dias" id="troca_prazo_dias"
+                       class="form-control @error('troca_prazo_dias') is-invalid @enderror"
+                       value="{{ old('troca_prazo_dias', $config->troca_prazo_dias ?? 30) }}">
+                <div class="form-text">Contado da data da venda. <strong>0</strong> = sem prazo. Passou do prazo, a troca
+                    só sai com autorização do gerente (abaixo).</div>
+                @error('troca_prazo_dias') <div class="invalid-feedback">{{ $message }}</div> @enderror
+            </div>
+            <div class="col-md-4">
+                <label for="troca_vale_validade_dias" class="form-label fw-semibold">Validade do vale (dias)</label>
+                <input type="number" min="0" max="3650" step="1" name="troca_vale_validade_dias" id="troca_vale_validade_dias"
+                       class="form-control @error('troca_vale_validade_dias') is-invalid @enderror"
+                       value="{{ old('troca_vale_validade_dias', $config->troca_vale_validade_dias ?? 90) }}">
+                <div class="form-text">Quanto tempo o crédito da troca vale para o cliente usar. <strong>0</strong> = não vence.</div>
+                @error('troca_vale_validade_dias') <div class="invalid-feedback">{{ $message }}</div> @enderror
+            </div>
+        </div>
+
+        <hr class="my-3">
+
+        @php $sobraAtual = old('troca_sobra', $config->troca_sobra ?? 'vale'); @endphp
+        <div class="fw-semibold mb-2">Quando o cliente devolve mais do que leva, a sobra…</div>
+        <div class="text-muted small mb-2">
+            Exemplo: devolveu uma peça de R$ 150 e levou outra de R$ 100 — sobram <strong>R$ 50</strong> a favor dele.
+        </div>
+        <div class="row g-2 mb-2">
+            <div class="col-md-6">
+                <label class="form-check card-radio h-100 p-3 border rounded @if($sobraAtual === 'vale') border-primary bg-primary bg-opacity-10 @endif" for="troca_sobra_vale">
+                    <input class="form-check-input ms-0 me-2" type="radio" name="troca_sobra" id="troca_sobra_vale" value="vale" @checked($sobraAtual === 'vale')>
+                    <strong>Vira crédito na loja (vale)</strong> <span class="badge bg-secondary ms-1">padrão</span>
+                    <div class="small text-muted mt-1">A loja não devolve dinheiro. Os R$ 50 viram um vale com código impresso
+                        e validade, que o cliente usa numa próxima compra. É o que a maioria das lojas de roupa e semijoia faz.</div>
+                </label>
+            </div>
+            <div class="col-md-6">
+                <label class="form-check card-radio h-100 p-3 border rounded @if($sobraAtual === 'dinheiro') border-primary bg-primary bg-opacity-10 @endif" for="troca_sobra_dinheiro">
+                    <input class="form-check-input ms-0 me-2" type="radio" name="troca_sobra" id="troca_sobra_dinheiro" value="dinheiro" @checked($sobraAtual === 'dinheiro')>
+                    <strong>Pode ser devolvida em dinheiro</strong>
+                    <div class="small text-muted mt-1">O caixa pode devolver os R$ 50 na hora pela gaveta. A saída fica registrada no
+                        caixa e entra na conferência do fechamento. O caixa ainda pode escolher o vale, se o cliente preferir.</div>
+                </label>
+            </div>
+        </div>
+        @error('troca_sobra') <div class="text-danger small">{{ $message }}</div> @enderror
+
+        <hr class="my-3">
+
+        <div class="form-check form-switch mb-1">
+            <input class="form-check-input" type="checkbox" role="switch" value="1"
+                   id="troca_senha_gerente" name="troca_senha_gerente"
+                   @checked(old('troca_senha_gerente', $config->troca_senha_gerente ?? true))>
+            <label class="form-check-label" for="troca_senha_gerente">
+                <strong>Fora da política, pedir e-mail e senha de um gerente</strong>
+            </label>
+        </div>
+        <div class="text-muted small ps-4">
+            <div class="mb-1"><i class="bi bi-toggle-on me-1"></i><strong>Ligado (padrão):</strong> troca fora do prazo e
+                devolução em dinheiro só saem se um gerente ou o dono digitar e-mail e senha na tela. Quem já está logado
+                como gerente/dono não precisa digitar de novo.</div>
+            <div><i class="bi bi-toggle-off me-1"></i><strong>Desligado:</strong> vendedor e caixa fazem qualquer troca sem autorização.</div>
+        </div>
+    </x-erp.form-section>
+
     <x-erp.form-section title="Impressão da Ordem de Serviço" icon="wrench-adjustable"
         description="O que sai no papel quando você imprime uma OS — textos seus, desta loja">
 

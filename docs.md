@@ -2,7 +2,7 @@
 
 > SaaS ERP multi-tenant para PMEs. Admin (IA365) gerencia a plataforma; cada empresa-cliente tem múltiplas unidades com fiscal, estoque e caixa independentes. Integração 100% Focus NFe (NF-e, NFC-e, NFS-e, CC-e, manifestação do destinatário, backup XMLs).
 
-**Última revisão:** 2026-09-02 (**fornecedor no cadastro do produto, opcional** — não era campo de tela faltando: `produtos` **não tinha `fornecedor_id`**, as duas tabelas nunca se falaram; entrou na **etapa 2** do wizard ("Identificação — opcional"), ao lado do SKU, com `Sem fornecedor` por padrão, e é opcional nas 4 camadas (coluna nullable, FK `nullOnDelete` para que excluir o fornecedor não trave o produto, validação nullable, enviar vazio limpa o vínculo); 🔑 a validação é **escopada à empresa** — `exists:fornecedores,id` solto aceitaria o id de fornecedor de outro cliente do SaaS; ⚠️ `fornecedor_id` no `$fillable` do Produto, senão a chave seria descartada calada (armadilha 53); os ~2.500 produtos existentes ficam NULL; seção própria) · 2026-09-02 (**textos da OS: o limite de 500 não existia** — a Realiza Phone reportou que os Termos de garantia paravam em 500 caracteres; nas 4 camadas o campo aceitava **5.000** (coluna TEXT, `max:5000`, zero `maxlength` no HTML, sem corte na impressão) e um teste ao vivo em produção gravou 1.439 de 1.440 enviados — 📌 o que existia era uma **tela muda**: `rows="4"` e nenhum contador, então o texto rola para fora da caixa e o lojista conclui que bateu no teto (as 14 configurações de loja estavam com os 4 textos da OS NULL — ninguém nunca preencheu); ganhou contador `247 de 15.000 caracteres` lendo o MESMO número da validação, campos mais altos (garantia 4→12 linhas) e tetos ampliados (garantia e texto legal 5.000→15.000, cabeçalho e rodapé 2.000→5.000, sem migration); armadilha 60, seção própria) · 2026-09-02 (**gerente entra em Configurações da Loja e Multilojas** — o gerente não tinha `/app/multilojas/estoque` nem `/app/configuracoes`, e o bloqueio de cada uma era de natureza diferente: multiloja era `abort(403)` **hardcoded** nos 4 métodos do controller (a rota nem consultava a matriz), configurações era a matriz, e Plano de Contas / Centros de Custo eram **só o menu** — a matriz já liberava; 🔑 o módulo `configuracoes` cobria, sob o mesmo nome, a tela operacional da loja **e** o certificado A1 + token da Focus + tokens da API, então liberar o módulo inteiro teria entregado tudo calado: separado em `configuracoes` (gerente entra), `configuracoes_fiscais` e `integracoes` (admin/dono); multiloja virou módulo próprio com escopo — o gerente vê só as lojas **vinculadas** (`unidade_user`), mesmo critério do `LojaController::podeEditar`, e o POST de ajuste usa a mesma lista (POST forjado para loja alheia não grava); o menu passou a perguntar à matriz em vez de repetir a lista de perfis, o que também tirou o link de Configuração Fiscal da cara do vendedor e do caixa; armadilhas 57-59, seção própria) · 2026-09-02 (**limite de lojas por plano — a troca de plano no admin não valia** — a MISS MERLINDA não cadastrava a 4ª loja mesmo com badge `enterprise`: `empresas` tem `plano` (enum, o que o select do admin grava e as badges mostram) e `plano_id` (FK, o que `getPlanoAtivo()` lê para TODOS os limites), e **nenhuma tela altera o `plano_id` depois do onboarding** — ela seguia no Profissional (3 lojas); as lojas que existem nunca passaram pelo limite porque só a tela do CLIENTE o checa, o `Admin\UnidadeController` não (é assim que a STILO VINTE tem 8 lojas num plano de 3); destravada em produção com **plano de exceção `ativo = 0`** ("Profissional 6 Lojas", teto 6) apontado pelo `plano_id` — some de todo select porque as telas usam `Plano::ativo()` e continua valendo porque o `belongsTo` não filtra `ativo`, sem tocar no pacote de DONA DOURO e STILO VINTE e sem deploy; ⚠️ segue em aberto: o select do admin gravar `plano_id`, a N S BORBA sem `plano_id` nenhum (não cria loja pela tela dela desde que nasceu) e a própria ia365 no Básico com 4 lojas, salva só pelo `pos_pago`; armadilha 56, seção própria) · 2026-09-02 (**CPF/CNPJ opcional por empresa + juros de parcelamento por loja** — entrega da N S BORBA SERVICOS (empresa 6) que precisava entrar **sem mexer nas outras 5 empresas**: a obrigatoriedade do documento vira `empresas.exige_documento_cadastro` (default TRUE, switch no admin da plataforma porque a NF-e modelo 55 continua exigindo destinatário com CPF/CNPJ) e o parcelamento no crédito ganha a tabela `configuracoes_loja.juros_por_parcela` (nasce vazia, no formato em que a adquirente manda a dela, com o servidor refazendo a conta em `registrarVenda` e a NFC-e mandando `vOutro` — sem ele `vNF = vProd − vDesc + vOutro` não fecha e a SEFAZ rejeita); o que **vazava** para as outras lojas era o select de parcelas do PDV, que passava a mostrar o valor de cada parcela em todo mundo — agora depende de `pdv_mostrar_valor_parcelas`, **mas tabela de juros cadastrada ignora o flag desligado**, porque esconder o acréscimo de uma venda que encarece surpreende o cliente no total; merge das duas branches sem cherry-pick — o `UTC` na ponta da branch de juros era herança do merge-base, não mudança dela (armadilha 54); **rodada 2 no mesmo dia**: no teste ao vivo a tela de configuração do juros se mostrou ilegível — faltava o 1x na tabela (que mora no "Acréscimo no Crédito", em outro card), o exemplo era texto fixo e nada avisava que os dois acréscimos SOMAM numa loja que já cobra 4% no crédito; ganhou linha do 1x travada, simulador ao vivo por parcela e aviso da soma com número real; seção própria) · 2026-08-31 (**preço de atacado por cliente + módulo de Ordem de Serviço** — `produto_precos` ganha a 4ª modalidade `atacado` e `clientes.tipo_preco` decide a tabela: cliente de atacado leva o preço de atacado em QUALQUER forma de pagamento, com o servidor refazendo a conta em `registrarVenda` (senão a venda voltaria para varejo na gravação); OS ganha cadastro de cliente na própria abertura, impressão com textos e blocos por loja (7 colunas em `configuracoes_loja`, lidas da loja DONA da OS) e — o que faltava — **baixa de estoque na conversão em venda**, que até aqui deixava a peça sair da loja sem registro nenhum; `entregue`/`cancelada` viram estados finais; **fix junto**: a conversão gravava a chave `desconto`, que não existe em `vendas` nem no `$fillable`, e a venda nascia com subtotal − desconto ≠ total (armadilha 53); o merge da produção `2037c47` foi feito na branch ANTES do build para não reverter o fuso (armadilha 52); seção própria) · 2026-08-25 noite (**fuso horário: app sai de UTC para America/Sao_Paulo SEM data-fix** — o Histórico de Caixas da DONA DOURO exibia abertura "12:13" para um caixa aberto às 9:13: `config/app.php` tinha `timezone => 'UTC'` hardcoded desde o nascimento; como TODAS as 178 colunas de data são **TIMESTAMP** (epoch UTC convertido pelo fuso da SESSÃO MySQL), bastou virar o app (`APP_TIMEZONE` no .env + config env-driven) e o MySQL (`SET GLOBAL time_zone='-03:00'` + `--default-time-zone=-03:00` no compose) — o histórico INTEIRO passou a exibir hora local sozinho, zero UPDATE; o script de shift -3h chegou a ser preparado e foi DESCARTADO (teria causado correção dupla); backup prévio `pre-fuso-fix-20260825.sql.gz` mantido; crons `dailyAt` passam a valer em hora LOCAL; armadilha 51b) · 2026-08-25 noite (**entrega na CONVERSA do agente — fecha a "próxima fase" da Fase 3**: rota nova `POST /api/integracao/v1/entrega/cotar` sempre-200 response-driven; `POST /pedidos` aceita `entrega{metodo,endereço}` gravando endereço no CLIENTE + `pedidos.metodo_entrega` (migration `2026_08_25_170000`); `DespacharEntregaUberJob` respeita `retirada`; `GET /pedidos` com bloco `entrega` + rastreio Uber; template/agentes do app.ia365 sincronizados lá (§282); ver subseção na Fase 3) · 2026-08-25 tarde (**vendedor troca a foto do produto** — ação nova `foto` no módulo produtos (matriz do CheckPermission) + rota própria `POST produtos/{produto}/foto` + formulário discreto na tela do produto, visível só para quem tem a ação; vendedor NÃO ganhou `editar` — preço/fiscal seguem fora do alcance; **rodada 2**: no teste real a vendedora usou o botão Editar e tomou 403 no PUT — a tela de edição agora funciona em modo "só foto" para o perfil (campos bloqueados + salvar só da imagem no próprio update); ver seção RBAC) · 2026-08-25 (**card Uber Direct: rótulos iguais aos do painel do Uber + guarda anti-inversão** — a DONA DOURO cadastrou o "ID do usuário" no campo Client ID e vice-versa (o painel do Uber em PT chama Client ID de "ID de cliente do desenvolvedor" e Customer ID de "ID do usuário"); data-fix aplicado em produção e o card agora usa os nomes do painel, com validação que recusa UUID no Client ID e vice-versa; ⚠️ a conta Uber da DONA DOURO ainda NÃO tem o escopo `eats.deliveries` liberado — só `direct.organizations`; ver seção Fase 3) · 2026-08-20 (**fix da conferência de bobina nas etiquetas** — o bloco de JS entrou fora da tag `<script>` do push e era IMPRESSO como texto no rodapé de `/app/etiquetas`; a conta da bobina ficou 8 dias morta; armadilha 51 — e **auditoria de produção completa**: a worktree que builda a imagem está ATRÁS do container e um rebuild reverteria 3 entregas (armadilha 52), o webhook da Focus AINDA responde 419, rate limit fantasma em toda chamada à Focus e R$ 13.264/ano contratados sem fatura; seção própria) · 2026-08-14 (**Landing V2 "formato Apple" PROMOVIDA A PADRÃO** — site público redesenhado no estilo Apple/Find My é a página oficial em `/`; v1 clássica segue no ar via `/?visual=classico`; 2 fixes de mobile no mesmo dia: botão Entrar visível e overflow horizontal do `span 6` inline; seção própria) · 2026-08-13 tarde (**Agente IA v2** — busca com ordenar/preco_min/max + fallback de catálogo + JSON forçado no api/integracao + merge do admin-acesso-como + armadilha 50; seção 9f) · 2026-08-13 (**"Acessar como"** — admin da plataforma entra no sistema logado como o dono de qualquer empresa-cliente, com banner, bypass de suspensão e rastro `acesso_como_admin_id` em toda activity da sessão) · 2026-08-13 noite (**PIX Sicredi no Agente IA** — gateway por empresa em `empresa_gateways` com credenciais cifradas + cobrança automática no pedido do agente + webhook re-consultado via mTLS + cron de sincronização; piloto DONA DOURO; seção 9f) · 2026-08-13 (**Agente IA** — banco vetorial pgvector `erp-com-vector` + busca semântica multi-tenant + pedidos rascunho via API, módulo ativável por empresa no admin; consumido pelo app.ia365; seção 9f) · 2026-08-12 (**API de Integração v1 — Gersen**: primeira API externa do ERP, somente leitura, token por empresa gerado no admin; seção própria) · 2026-08-12 madrugada (**backup mensal de XMLs virou pacote LOCAL** — o `/v2/backups` da Focus não existe, armadilha 49; **DONA DOURO em `producao`** com série 2 e CSC na Focus) · 2026-08-12 noite (**editor visual de layout de etiqueta** — arrasta-e-solta com imagens e formas, branch `layout-etiquetas` DEPLOYADA em produção; armadilha 48 + lição de deploy na 26b) · 2026-08-12 (vários estoques por loja + contagem cega + bonificação que deve voltar + estilo de etiqueta "nome no topo" + conferência de bobina; armadilhas 43-47; **imagem rebuildada** e main promovida) · 2026-08-11 (formato de etiqueta cadastrável pelo lojista + fix do CRUD de categorias — `status` feminino, armadilha 42) · 2026-08-05 (filtro por loja em vendas + imports de vendas/contas a receber + import robusto + lojas mesmo CNPJ compartilham empresa Focus) · **Estado:** integração fiscal Fase 1-4 + multi-loja + regime de cobrança + auto-sync Focus + UX config fiscal + caixa por forma de pagamento (14/07) + Configurações da Loja/tabelas de preço/emissão parametrizada/adquirentes (24/07) + **Reforma Tributária NT 2025.002 (obrigatório 03/08/2026) + CNPJ alfanumérico NT 2025.001 (25/07)** + **e-mails/no-reply + cobrança direta mensal/anual com bloqueio + pode_ver_financeiro (04/08)** + **doc de alterações do Dennis (05/08)** + **etiqueta cadastrável pelo lojista em cm + fix do CRUD de categorias + auditoria de produção (11/08)** — concluídos
+**Última revisão:** 2026-09-03 (**Trocas no PDV (F6) + vale de crédito + relatório de vendas com listas** — o ERP não tinha troca: só "Cancelar Venda" (tudo ou nada, sem mexer no caixa), as tabelas `devolucoes`/`devolucao_itens` existiam desde abril com model e **zero controller/rota/tela** (o CLAUDE.md dizia que Devoluções estava pronto), e o botão Vale do PDV era um rótulo que aceitava qualquer valor; agora o caixa aperta **F6**, acha a venda (número, cupom bipado `V{id}` ou cliente — de qualquer dia e de qualquer loja), marca o que volta e bipa o que o cliente leva: a diferença é cobrada, zera ou vira **vale com código** (`VT-XXXX-XXXX`, saldo, validade, uso parcial, código de barras no comprovante) ou dinheiro pela gaveta, conforme **Configurações da Loja → Trocas** (prazo 30 dias, sobra em vale por padrão, validade 90 dias, fora da política pede e-mail+senha de um gerente); `TrocaService` é o ponto único (estoque de volta na loja da SESSÃO, abate de crediário/boleto em aberto antes do crédito, tipo `devolucao` no caixa com sinal −1 que entra no fechamento); tela `/app/trocas` + `/app/trocas/vales`; relatório de vendas ganhou select de vendedor, autocomplete de cliente, filtro de loja, card de trocas e **deixou de somar canceladas** no faturamento; armadilhas 61-63; seção própria) · 2026-09-02 (**fornecedor no cadastro do produto, opcional** — não era campo de tela faltando: `produtos` **não tinha `fornecedor_id`**, as duas tabelas nunca se falaram; entrou na **etapa 2** do wizard ("Identificação — opcional"), ao lado do SKU, com `Sem fornecedor` por padrão, e é opcional nas 4 camadas (coluna nullable, FK `nullOnDelete` para que excluir o fornecedor não trave o produto, validação nullable, enviar vazio limpa o vínculo); 🔑 a validação é **escopada à empresa** — `exists:fornecedores,id` solto aceitaria o id de fornecedor de outro cliente do SaaS; ⚠️ `fornecedor_id` no `$fillable` do Produto, senão a chave seria descartada calada (armadilha 53); os ~2.500 produtos existentes ficam NULL; seção própria) · 2026-09-02 (**textos da OS: o limite de 500 não existia** — a Realiza Phone reportou que os Termos de garantia paravam em 500 caracteres; nas 4 camadas o campo aceitava **5.000** (coluna TEXT, `max:5000`, zero `maxlength` no HTML, sem corte na impressão) e um teste ao vivo em produção gravou 1.439 de 1.440 enviados — 📌 o que existia era uma **tela muda**: `rows="4"` e nenhum contador, então o texto rola para fora da caixa e o lojista conclui que bateu no teto (as 14 configurações de loja estavam com os 4 textos da OS NULL — ninguém nunca preencheu); ganhou contador `247 de 15.000 caracteres` lendo o MESMO número da validação, campos mais altos (garantia 4→12 linhas) e tetos ampliados (garantia e texto legal 5.000→15.000, cabeçalho e rodapé 2.000→5.000, sem migration); armadilha 60, seção própria) · 2026-09-02 (**gerente entra em Configurações da Loja e Multilojas** — o gerente não tinha `/app/multilojas/estoque` nem `/app/configuracoes`, e o bloqueio de cada uma era de natureza diferente: multiloja era `abort(403)` **hardcoded** nos 4 métodos do controller (a rota nem consultava a matriz), configurações era a matriz, e Plano de Contas / Centros de Custo eram **só o menu** — a matriz já liberava; 🔑 o módulo `configuracoes` cobria, sob o mesmo nome, a tela operacional da loja **e** o certificado A1 + token da Focus + tokens da API, então liberar o módulo inteiro teria entregado tudo calado: separado em `configuracoes` (gerente entra), `configuracoes_fiscais` e `integracoes` (admin/dono); multiloja virou módulo próprio com escopo — o gerente vê só as lojas **vinculadas** (`unidade_user`), mesmo critério do `LojaController::podeEditar`, e o POST de ajuste usa a mesma lista (POST forjado para loja alheia não grava); o menu passou a perguntar à matriz em vez de repetir a lista de perfis, o que também tirou o link de Configuração Fiscal da cara do vendedor e do caixa; armadilhas 57-59, seção própria) · 2026-09-02 (**limite de lojas por plano — a troca de plano no admin não valia** — a MISS MERLINDA não cadastrava a 4ª loja mesmo com badge `enterprise`: `empresas` tem `plano` (enum, o que o select do admin grava e as badges mostram) e `plano_id` (FK, o que `getPlanoAtivo()` lê para TODOS os limites), e **nenhuma tela altera o `plano_id` depois do onboarding** — ela seguia no Profissional (3 lojas); as lojas que existem nunca passaram pelo limite porque só a tela do CLIENTE o checa, o `Admin\UnidadeController` não (é assim que a STILO VINTE tem 8 lojas num plano de 3); destravada em produção com **plano de exceção `ativo = 0`** ("Profissional 6 Lojas", teto 6) apontado pelo `plano_id` — some de todo select porque as telas usam `Plano::ativo()` e continua valendo porque o `belongsTo` não filtra `ativo`, sem tocar no pacote de DONA DOURO e STILO VINTE e sem deploy; ⚠️ segue em aberto: o select do admin gravar `plano_id`, a N S BORBA sem `plano_id` nenhum (não cria loja pela tela dela desde que nasceu) e a própria ia365 no Básico com 4 lojas, salva só pelo `pos_pago`; armadilha 56, seção própria) · 2026-09-02 (**CPF/CNPJ opcional por empresa + juros de parcelamento por loja** — entrega da N S BORBA SERVICOS (empresa 6) que precisava entrar **sem mexer nas outras 5 empresas**: a obrigatoriedade do documento vira `empresas.exige_documento_cadastro` (default TRUE, switch no admin da plataforma porque a NF-e modelo 55 continua exigindo destinatário com CPF/CNPJ) e o parcelamento no crédito ganha a tabela `configuracoes_loja.juros_por_parcela` (nasce vazia, no formato em que a adquirente manda a dela, com o servidor refazendo a conta em `registrarVenda` e a NFC-e mandando `vOutro` — sem ele `vNF = vProd − vDesc + vOutro` não fecha e a SEFAZ rejeita); o que **vazava** para as outras lojas era o select de parcelas do PDV, que passava a mostrar o valor de cada parcela em todo mundo — agora depende de `pdv_mostrar_valor_parcelas`, **mas tabela de juros cadastrada ignora o flag desligado**, porque esconder o acréscimo de uma venda que encarece surpreende o cliente no total; merge das duas branches sem cherry-pick — o `UTC` na ponta da branch de juros era herança do merge-base, não mudança dela (armadilha 54); **rodada 2 no mesmo dia**: no teste ao vivo a tela de configuração do juros se mostrou ilegível — faltava o 1x na tabela (que mora no "Acréscimo no Crédito", em outro card), o exemplo era texto fixo e nada avisava que os dois acréscimos SOMAM numa loja que já cobra 4% no crédito; ganhou linha do 1x travada, simulador ao vivo por parcela e aviso da soma com número real; seção própria) · 2026-08-31 (**preço de atacado por cliente + módulo de Ordem de Serviço** — `produto_precos` ganha a 4ª modalidade `atacado` e `clientes.tipo_preco` decide a tabela: cliente de atacado leva o preço de atacado em QUALQUER forma de pagamento, com o servidor refazendo a conta em `registrarVenda` (senão a venda voltaria para varejo na gravação); OS ganha cadastro de cliente na própria abertura, impressão com textos e blocos por loja (7 colunas em `configuracoes_loja`, lidas da loja DONA da OS) e — o que faltava — **baixa de estoque na conversão em venda**, que até aqui deixava a peça sair da loja sem registro nenhum; `entregue`/`cancelada` viram estados finais; **fix junto**: a conversão gravava a chave `desconto`, que não existe em `vendas` nem no `$fillable`, e a venda nascia com subtotal − desconto ≠ total (armadilha 53); o merge da produção `2037c47` foi feito na branch ANTES do build para não reverter o fuso (armadilha 52); seção própria) · 2026-08-25 noite (**fuso horário: app sai de UTC para America/Sao_Paulo SEM data-fix** — o Histórico de Caixas da DONA DOURO exibia abertura "12:13" para um caixa aberto às 9:13: `config/app.php` tinha `timezone => 'UTC'` hardcoded desde o nascimento; como TODAS as 178 colunas de data são **TIMESTAMP** (epoch UTC convertido pelo fuso da SESSÃO MySQL), bastou virar o app (`APP_TIMEZONE` no .env + config env-driven) e o MySQL (`SET GLOBAL time_zone='-03:00'` + `--default-time-zone=-03:00` no compose) — o histórico INTEIRO passou a exibir hora local sozinho, zero UPDATE; o script de shift -3h chegou a ser preparado e foi DESCARTADO (teria causado correção dupla); backup prévio `pre-fuso-fix-20260825.sql.gz` mantido; crons `dailyAt` passam a valer em hora LOCAL; armadilha 51b) · 2026-08-25 noite (**entrega na CONVERSA do agente — fecha a "próxima fase" da Fase 3**: rota nova `POST /api/integracao/v1/entrega/cotar` sempre-200 response-driven; `POST /pedidos` aceita `entrega{metodo,endereço}` gravando endereço no CLIENTE + `pedidos.metodo_entrega` (migration `2026_08_25_170000`); `DespacharEntregaUberJob` respeita `retirada`; `GET /pedidos` com bloco `entrega` + rastreio Uber; template/agentes do app.ia365 sincronizados lá (§282); ver subseção na Fase 3) · 2026-08-25 tarde (**vendedor troca a foto do produto** — ação nova `foto` no módulo produtos (matriz do CheckPermission) + rota própria `POST produtos/{produto}/foto` + formulário discreto na tela do produto, visível só para quem tem a ação; vendedor NÃO ganhou `editar` — preço/fiscal seguem fora do alcance; **rodada 2**: no teste real a vendedora usou o botão Editar e tomou 403 no PUT — a tela de edição agora funciona em modo "só foto" para o perfil (campos bloqueados + salvar só da imagem no próprio update); ver seção RBAC) · 2026-08-25 (**card Uber Direct: rótulos iguais aos do painel do Uber + guarda anti-inversão** — a DONA DOURO cadastrou o "ID do usuário" no campo Client ID e vice-versa (o painel do Uber em PT chama Client ID de "ID de cliente do desenvolvedor" e Customer ID de "ID do usuário"); data-fix aplicado em produção e o card agora usa os nomes do painel, com validação que recusa UUID no Client ID e vice-versa; ⚠️ a conta Uber da DONA DOURO ainda NÃO tem o escopo `eats.deliveries` liberado — só `direct.organizations`; ver seção Fase 3) · 2026-08-20 (**fix da conferência de bobina nas etiquetas** — o bloco de JS entrou fora da tag `<script>` do push e era IMPRESSO como texto no rodapé de `/app/etiquetas`; a conta da bobina ficou 8 dias morta; armadilha 51 — e **auditoria de produção completa**: a worktree que builda a imagem está ATRÁS do container e um rebuild reverteria 3 entregas (armadilha 52), o webhook da Focus AINDA responde 419, rate limit fantasma em toda chamada à Focus e R$ 13.264/ano contratados sem fatura; seção própria) · 2026-08-14 (**Landing V2 "formato Apple" PROMOVIDA A PADRÃO** — site público redesenhado no estilo Apple/Find My é a página oficial em `/`; v1 clássica segue no ar via `/?visual=classico`; 2 fixes de mobile no mesmo dia: botão Entrar visível e overflow horizontal do `span 6` inline; seção própria) · 2026-08-13 tarde (**Agente IA v2** — busca com ordenar/preco_min/max + fallback de catálogo + JSON forçado no api/integracao + merge do admin-acesso-como + armadilha 50; seção 9f) · 2026-08-13 (**"Acessar como"** — admin da plataforma entra no sistema logado como o dono de qualquer empresa-cliente, com banner, bypass de suspensão e rastro `acesso_como_admin_id` em toda activity da sessão) · 2026-08-13 noite (**PIX Sicredi no Agente IA** — gateway por empresa em `empresa_gateways` com credenciais cifradas + cobrança automática no pedido do agente + webhook re-consultado via mTLS + cron de sincronização; piloto DONA DOURO; seção 9f) · 2026-08-13 (**Agente IA** — banco vetorial pgvector `erp-com-vector` + busca semântica multi-tenant + pedidos rascunho via API, módulo ativável por empresa no admin; consumido pelo app.ia365; seção 9f) · 2026-08-12 (**API de Integração v1 — Gersen**: primeira API externa do ERP, somente leitura, token por empresa gerado no admin; seção própria) · 2026-08-12 madrugada (**backup mensal de XMLs virou pacote LOCAL** — o `/v2/backups` da Focus não existe, armadilha 49; **DONA DOURO em `producao`** com série 2 e CSC na Focus) · 2026-08-12 noite (**editor visual de layout de etiqueta** — arrasta-e-solta com imagens e formas, branch `layout-etiquetas` DEPLOYADA em produção; armadilha 48 + lição de deploy na 26b) · 2026-08-12 (vários estoques por loja + contagem cega + bonificação que deve voltar + estilo de etiqueta "nome no topo" + conferência de bobina; armadilhas 43-47; **imagem rebuildada** e main promovida) · 2026-08-11 (formato de etiqueta cadastrável pelo lojista + fix do CRUD de categorias — `status` feminino, armadilha 42) · 2026-08-05 (filtro por loja em vendas + imports de vendas/contas a receber + import robusto + lojas mesmo CNPJ compartilham empresa Focus) · **Estado:** integração fiscal Fase 1-4 + multi-loja + regime de cobrança + auto-sync Focus + UX config fiscal + caixa por forma de pagamento (14/07) + Configurações da Loja/tabelas de preço/emissão parametrizada/adquirentes (24/07) + **Reforma Tributária NT 2025.002 (obrigatório 03/08/2026) + CNPJ alfanumérico NT 2025.001 (25/07)** + **e-mails/no-reply + cobrança direta mensal/anual com bloqueio + pode_ver_financeiro (04/08)** + **doc de alterações do Dennis (05/08)** + **etiqueta cadastrável pelo lojista em cm + fix do CRUD de categorias + auditoria de produção (11/08)** — concluídos
 
 ---
 
@@ -29,6 +29,7 @@
 9k. [Gerente em Configurações da Loja e Multilojas (02/09/2026)](#gerente-entra-em-configurações-da-loja-e-multilojas-02092026)
 9l. [Textos da OS: o limite que não existia (02/09/2026)](#textos-da-os-o-limite-que-não-existia-02092026)
 9m. [Fornecedor no cadastro do produto (02/09/2026)](#fornecedor-no-cadastro-do-produto--opcional-02092026)
+9n. [Trocas no PDV + vale de crédito + relatório (03/09/2026)](#trocas-no-pdv-f6-vale-de-crédito-e-relatório-de-vendas-com-listas-03092026)
 10. [Armadilhas conhecidas](#armadilhas-conhecidas)
 11. [Próximos passos](#próximos-passos)
 
@@ -2384,6 +2385,173 @@ Aguardando decisão do Dennis (02/09).
 
 ---
 
+## Trocas no PDV (F6), vale de crédito e relatório de vendas com listas (03/09/2026)
+
+Branch `feat/trocas-vale-relatorio`. Dois pedidos do Dennis: no relatório de vendas, "em vez do ID
+abrir a lista"; e "no PDV não tem trocas com troco ou sem troco — isso deve estar em configurações,
+e como fazer a troca mesmo que for no outro dia". Decisões dele (03/09): sobra em **vale por padrão,
+dinheiro configurável por loja, gerente tem acesso à configuração**; prazo 30 dias com gerente
+passando por cima; troca sem cupom fica fora; sem NF-e de devolução nesta fase; devolução abate
+parcelas abertas; relatório tira canceladas e ganha filtro de loja.
+
+### O que existia (e não era troca)
+
+| Peça | Estado em 03/09 antes da entrega |
+|---|---|
+| "Cancelar Venda" | único caminho de volta: tudo ou nada, devolve estoque, cancela contas a receber, **não registra dinheiro saindo do caixa** |
+| `devolucoes` + `devolucao_itens` | tabelas + models desde abril (`2026_04_10`), **zero controller, rota, tela, menu, permissão**; 0 registros. O CLAUDE.md listava "Devoluções" como pronto |
+| Botão **Vale** do PDV | só rótulo: aceitava qualquer valor, sem código, saldo ou validade — 0 vendas usaram |
+| `TipoMovimentacaoCaixa` | nenhuma saída além de sangria; `TipoMovimentacaoEstoque::Devolucao` já existia (usado pelo cancelamento) |
+| Fiscal | NFC-e cancela em 30 min; depois, devolução formal exige NF-e finalidade 4 com nota referenciada, que o `FiscalPayloadBuilder` não monta |
+
+### Como a troca funciona
+
+**No PDV, F6 (botão "Troca")** — `modalTroca`, 3 passos, tudo por `PdvController`:
+
+1. **Achar a venda**: `GET /app/pdv/troca/vendas?q=` aceita número da venda, `V{id}` (o cupom passou a
+   sair com esse código em barras CODE128 no rodapé — o leitor lê direto) ou nome do cliente. Só
+   vendas **concluídas**, de **qualquer loja da empresa** (`withoutGlobalScope(UnidadeScope)` + `where
+   empresa_id`): o cliente pode ter comprado na outra unidade. A lista já abre com as últimas vendas.
+2. **Marcar o que volta**: `GET /app/pdv/troca/venda/{id}` → `TrocaService::situacao()` — itens com
+   quantidade já devolvida e disponível, **valor unitário líquido** (total do item ÷ quantidade ×
+   rateio do desconto global; juros de parcelamento não são devolvidos), prazo, parcelas abertas,
+   o que a política vai exigir. Por item: quantidade, "volta ao estoque?" (desmarcado = avariado, não
+   entra no estoque) e, se a loja tem mais de um estoque, em qual entra. Motivo (tamanho, defeito,
+   arrependimento, presente, outro + texto livre).
+3. **"Trocar agora"** ou **"Só devolver"**: `POST /app/pdv/troca` → `TrocaService::registrar()`:
+   - `troca` → o valor devolvido vira um **vale** na hora e o PDV o aplica como **crédito** na venda
+     nova (linha "Crédito da troca" + "A pagar" no resumo). O caixa bipa o que o cliente leva. Leva
+     mais caro: paga a diferença em qualquer forma. Leva o mesmo: finaliza zerado. Leva mais barato:
+     a sobra **fica no vale** — ou, se a loja permite dinheiro, o `modalSobraTroca` pergunta
+     "devolver em dinheiro ou deixar no vale?" na finalização (`vale_sobra_dinheiro` no payload;
+     o servidor só devolve se `troca_sobra = dinheiro`). `troca_devolucao_id` liga a devolução à
+     venda nova (`devolucoes.venda_nova_id`).
+   - `devolucao` → cliente não leva nada agora: sobra vira vale (padrão) ou dinheiro pela gaveta
+     (só se a loja ligou; exige caixa aberto NESTA loja; `MovimentacaoCaixa` tipo `devolucao`).
+   - Comprovante térmico 80 mm (`trocas/comprovante.blade.php`) com o vale em código de barras;
+     sai na impressão junto do cupom da venda nova ou sozinho na devolução.
+
+**Fora do PDV**: `/app/trocas` (menu Vendas → "Trocas e Vales") lista trocas com filtros e KPIs;
+`/app/trocas/nova` registra a **devolução** sem venda nova (a troca com produto é no PDV, a tela
+avisa); `/app/trocas/vales` lista vales (cancelar = `trocas,editar`); `/app/trocas/{id}` mostra o
+que voltou, como fechou, os usos do vale e a venda nova; botão "Trocar / Devolver" na tela da venda
++ card "Trocas e devoluções desta venda".
+
+### O vale (`vales` + `vale_usos`)
+
+- Código `VT-XXXX-XXXX` (alfabeto sem 0/O/1/I/L — o caixa digita o que lê; `Vale::normalizarCodigo`
+  aceita minúsculas e sem traços). `valor`, `saldo`, `validade` (null = não vence), `status`
+  `ativo|utilizado|expirado|cancelado`. **É da EMPRESA**, não da loja: emitido numa unidade, vale
+  em qualquer outra (sem `BelongsToUnidade`, de propósito).
+- **Botão Vale do PDV passou a pedir o código** (`modalVale` → `GET /app/pdv/vale/{codigo}`):
+  valida empresa, status, validade e saldo; o pagamento nasce com `vale_codigo` e o valor é limitado
+  ao saldo e ao restante da venda. Uso parcial permitido — o que sobra continua no vale.
+- No `registrarVenda` o vale é lido com **`lockForUpdate`** (dois caixas não gastam o mesmo crédito),
+  abatido por `Vale::abater()` → `vale_usos` (`tipo` `venda` ou `dinheiro`), e `pagamento_detalhes`
+  guarda `vale_codigo` + `vale_saldo_restante` (o cupom imprime os dois).
+- Fiscal: forma `vale` → **`05` Crédito Loja** no `FiscalPayloadBuilder` (antes caía em `99`).
+- Vencimento é **preguiçoso**: `motivoIndisponivel()` compara `validade` com hoje na consulta e na
+  venda; não há cron marcando `expirado` (a listagem mostra "Vencido" pelo mesmo cálculo).
+
+### Política — Configurações da Loja → Trocas (`configuracoes_loja`)
+
+| Campo | Default | Efeito |
+|---|---|---|
+| `troca_prazo_dias` | 30 | 0 = sem prazo. Passou: fora da política |
+| `troca_sobra` | `vale` | `dinheiro` libera a devolução pela gaveta (o vale continua disponível) |
+| `troca_vale_validade_dias` | 90 | 0 = não vence |
+| `troca_senha_gerente` | true | fora do prazo **e** devolução em dinheiro pedem e-mail + senha de um gerente/dono ativo da empresa (`Hash::check`); quem já está logado como gerente/dono/admin autoriza sozinho (`aprovado_por` = ele) |
+
+A política é lida da **unidade da sessão** (onde o cliente está), não da loja da venda. O gerente
+entra na tela desde 02/09 (módulo `configuracoes`). Loja que nunca abriu a tela opera com os
+defaults do `$attributes` do model — nenhuma loja mudou de comportamento no deploy.
+
+### Regras do `TrocaService::registrar()` (ponto único)
+
+- Venda precisa estar `concluida`; quantidade por item ≤ vendida − já devolvida (devoluções
+  canceladas não contam).
+- **Estoque volta para a loja da SESSÃO** (`SaldoEstoque::registrar`, tipo `devolucao`,
+  `origem_tipo = Devolucao`), no estoque escolhido ou no estoque de venda dela — é onde a peça vai
+  parar fisicamente. Item avariado (`retorna_estoque = false`) não gera movimentação. Serviço nunca
+  volta ao estoque.
+- **Parcelas abertas primeiro**: contas a receber da venda com status `pendente|vencida` e forma
+  `crediario|boleto` são abatidas (`valor_pago`, `paga` quando quita, observação com o nº da
+  devolução) antes de qualquer crédito — o cliente não leva vale enquanto deve a venda. Cartão
+  pendente de adquirente **não** entra: é recebível da operadora, não dívida do cliente.
+  📌 Na prática o PDV grava crediário/boleto como `paga` na hora (comportamento antigo do
+  `registrarVenda`), então o abate só alcança contas a prazo vindas de pedido faturado/import.
+- `forma_sobra`: `vale` | `dinheiro` | `parcelas` (tudo abatido) | `nenhuma`.
+- Tudo devolvido → `vendas.status = devolvida`; parcial segue `concluida` com o histórico na tela.
+  Comissão do vendedor **não** é estornada (registrado como pendência).
+- `devolucoes.fora_politica` + `motivo_fora_politica` + `aprovado_por` guardam a exceção e quem
+  autorizou; `status` já nasce `concluida` (o enum `pendente/aprovada` da tabela antiga não é usado).
+
+### Caixa
+
+`TipoMovimentacaoCaixa::Devolucao` (sinal −1; ENUM alterado — armadilha 36). `resumoCaixa()` soma
+`devolucoes` e o **esperado em dinheiro** = abertura + vendas em dinheiro + suprimentos − sangrias −
+devoluções. Extrato e fechamento mostram a linha "Devoluções (trocas)" só quando houve. Validado:
+caixa com abertura 100 + 550 em dinheiro − 150 devolvidos = esperado 500.
+
+### Relatório de vendas (`/app/relatorios/vendas`)
+
+- **Vendedor** virou `<select>` (dono/gerente/vendedor/caixa ativos — a mesma lista do F3 do PDV);
+  **Cliente** virou autocomplete do erp-core (`data-autocomplete` em `search.clientes`, id no hidden,
+  nome preservado ao recarregar). Os dois são validados contra a empresa — id de outro tenant é
+  ignorado.
+- **Filtro de loja** igual ao de `/app/vendas`: admin/dono veem todas; **gerente vê as vinculadas**
+  (`unidade_user`); padrão = loja da sessão; "Todas" adiciona a coluna Loja. Antes o relatório somava
+  a empresa inteira enquanto o topo dizia o nome da loja.
+- **Canceladas saíram do faturamento** (entravam — 5 na base). Card novo "Trocas / Devoluções" com
+  valor e quantidade do período e "líquido de trocas" embaixo do faturamento; venda `devolvida`
+  ganha badge na lista.
+- Empresa lida de `auth()->user()->empresa_id ?? session('empresa_id')` (admin da plataforma,
+  armadilha 25).
+
+### Permissões e rotas
+
+Módulo `trocas` na matriz: admin/dono `ver,criar,editar,excluir`; gerente `ver,criar,editar`;
+vendedor/caixa `ver,criar`; financeiro/consulta `ver`. Rotas do PDV (`/app/pdv/troca/*`) com
+`permission:trocas,criar`; `/app/pdv/vale/{codigo}` com `vendas,criar`; grupo `/app/trocas` com
+`permission:trocas` (+ `criar` em nova/store, `editar` em cancelar vale). Menu pergunta à matriz
+(armadilha 59).
+
+### Schema (migration `2026_09_03_120000`)
+
+```
+configuracoes_loja  + troca_prazo_dias, troca_sobra ENUM(vale,dinheiro), troca_vale_validade_dias, troca_senha_gerente
+vales               empresa_id, unidade_id, cliente_id?, devolucao_id?, user_id, codigo UNIQUE, valor, saldo, validade?, status, observacoes
+vale_usos           vale_id, venda_id?, user_id, tipo ENUM(venda,dinheiro), valor
+devolucoes          + tipo ENUM(troca,devolucao), venda_nova_id?, vale_id?, caixa_id?, forma_sobra ENUM(vale,dinheiro,parcelas,nenhuma),
+                      valor_sobra, valor_abatido_parcelas, fora_politica, motivo_fora_politica, aprovado_por?, observacoes
+devolucao_itens     + estoque_id?, retorna_estoque, condicao
+movimentacoes_caixa tipo ENUM += 'devolucao'
+```
+
+### Validação (ambiente `erp-test-app`, base de 20/08 + migration)
+
+Usuários QA `qa.dono@ / qa.gerente@ / qa.caixa@teste.local` (só no banco de teste). Roteiro que
+passou: venda de 250 → F6 devolve a camisa (150) → vale `VT-…` de 150 → venda nova de 100 paga
+com o vale (saldo 50, cupom com código e saldo) → venda de 100 com vale 50 + dinheiro 50 → vale
+`utilizado`; vale esgotado/inexistente/cancelado recusados (422); devolver de novo o mesmo item
+recusado ("restam 0"); devolução de item avariado → vale sem movimentação de estoque; dinheiro com
+loja em `vale` → 422 explicando onde ligar; caixa sem gerente → 422 pedindo autorização; senha
+errada → 422; com gerente → saída de 100 no caixa e `aprovado_por` gravado; venda de 14 dias com
+prazo 7 → fora do prazo, mesma trava; troca devolvendo 250 e levando 100 com sobra em dinheiro →
+150 saem do caixa, vale `utilizado`, fechamento com "Devoluções (trocas) 150" e esperado 500.
+Cadeia de estoque conferida movimentação a movimentação (`anterior→posterior`). 20 páginas GET sem
+5xx nos 3 perfis (o único 500 foi um `@endif` colado em texto no Blade — armadilha 63 — corrigido).
+
+### O que ficou de fora (decisões do Dennis 03/09) e pendências
+
+- **NF-e de devolução** (finalidade 4 + nota referenciada): fase 2. Hoje a troca sai sem documento
+  fiscal; a venda nova emite NFC-e normal. Se a NFC-e original ainda estiver nos 30 min e a
+  devolução for total, cancelar a nota é manual na tela da nota.
+- **Troca sem cupom** (peça sem venda de origem): fora desta fase.
+- Comissão do vendedor não é estornada na devolução.
+- Vale não tem cron de expiração (é calculado na hora) nem aviso ao cliente.
+- Cancelar uma devolução (desfazer) não existe — só cancelar o vale.
+
 ## Armadilhas conhecidas
 
 1. **EmpresaScope recursão**: `auth()->user()` dentro do scope chama User model que tem o scope → loop infinito. Scopes têm flag `static $applying`. Não remover.
@@ -2679,6 +2847,27 @@ Aguardando decisão do Dennis (02/09).
     problema é de tela. E todo textarea de conteúdo livre nasce com contador, que é o que impede o
     relato de existir.
 
+61. **Tabela + model sem controller NÃO é módulo — e o CLAUDE.md pode dizer que é.** `devolucoes` e
+    `devolucao_itens` existiam desde abril com model, migration e relação em `Venda`, e o guia
+    listava "Devoluções" como implementado. Não havia uma linha de rota, tela ou menu; o "Vale" do
+    PDV era um botão que aceitava qualquer valor sem registro nenhum. Antes de dizer que uma
+    funcionalidade existe, `grep -rn <Model> routes/ app/Http/Controllers resources/views` — a
+    tabela conta a intenção, a rota conta o que o cliente consegue fazer.
+
+62. **Crédito de troca não é forma de pagamento livre.** Forma de pagamento que representa um
+    direito do cliente (vale, crédito loja) precisa de registro com código, saldo e lock: sem
+    isso qualquer operador "paga" uma venda com um vale que não existe, e dois caixas podem gastar
+    o mesmo crédito. O `registrarVenda` lê o vale com `lockForUpdate` dentro da transação e recusa
+    valor acima do saldo ou do total. O valor da devolução vai para a loja da SESSÃO no estoque e o
+    vale é da EMPRESA — misturar os dois escopos (vale preso à loja, estoque preso à venda) deixa a
+    peça na prateleira errada ou o cliente sem crédito na outra unidade.
+
+63. **`@endif`/`@endforeach` colado em texto não compila.** Blade só reconhece a diretiva quando ela
+    não está grudada numa letra (`\B@`): `não volta@endif` sobrevive ao `php -l`, passa pelo
+    `view:cache` e só estoura em runtime com "syntax error, unexpected token endforeach" (a diretiva
+    de fora fecha o bloco de dentro). Sempre um espaço ou quebra de linha antes de `@end*` quando
+    vem depois de texto. `grep -rn "[a-zA-Z0-9]@end" resources/views` pega.
+
 
 ---
 
@@ -2687,6 +2876,17 @@ Aguardando decisão do Dennis (02/09).
 > Estado do banco conferido em **20/08/2026** (ver a seção Auditoria de produção). Onde a
 > realidade divergia do que estava escrito aqui, o texto foi corrigido — vale a auditoria, não a
 > memória do que se pretendia fazer.
+
+**Fila de 03/09 (trocas + vale + relatório):**
+
+1. **Dennis testar no balcão**: F6 numa venda de outro dia, troca levando mais caro e mais barato,
+   vale usado em outra loja, devolução em dinheiro com a senha do gerente. O que der errado vem com
+   print (regra da entrega de 26/08).
+2. **Merge/push da branch `feat/trocas-vale-relatorio`** — só com o OK dele.
+3. NF-e de devolução (finalidade 4, `notas_referenciadas`) — fase 2 quando alguma loja fiscal pedir.
+4. Estornar comissão do vendedor na devolução (hoje fica).
+5. Aviso de vale vencendo (sino / WhatsApp) — nenhum cron olha `vales.validade`.
+6. Apagar os usuários `qa.*@teste.local` do `erp-test-app` quando o ambiente for reciclado.
 
 **Fila de 02/09 (entregas do dia, todas EM PRODUÇÃO — o que ficou pendente):**
 

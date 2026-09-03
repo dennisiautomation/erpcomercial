@@ -67,6 +67,18 @@ class CheckPermission
             'caixa' => ['ver', 'criar'],
             'consulta' => ['ver'],
         ],
+        // Trocas, devoluções e vales (03/09/2026). Vendedor e caixa registram
+        // a troca no PDV; o que sai da política (prazo vencido, dinheiro) passa
+        // pela senha do gerente dentro do próprio fluxo. Cancelar vale é edição.
+        'trocas' => [
+            'admin' => ['ver', 'criar', 'editar', 'excluir'],
+            'dono' => ['ver', 'criar', 'editar', 'excluir'],
+            'gerente' => ['ver', 'criar', 'editar'],
+            'vendedor' => ['ver', 'criar'],
+            'caixa' => ['ver', 'criar'],
+            'financeiro' => ['ver'],
+            'consulta' => ['ver'],
+        ],
         'estoque' => [
             'admin' => ['ver', 'criar', 'editar', 'excluir'],
             'dono' => ['ver', 'criar', 'editar', 'excluir'],

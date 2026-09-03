@@ -33,6 +33,11 @@ class ConfiguracaoLoja extends Model
         'os_mostrar_assinatura',
         'os_mostrar_laudo',
         'os_mostrar_valores',
+        // Trocas (03/09/2026)
+        'troca_prazo_dias',
+        'troca_sobra',
+        'troca_vale_validade_dias',
+        'troca_senha_gerente',
     ];
 
     /**
@@ -43,6 +48,12 @@ class ConfiguracaoLoja extends Model
         'os_mostrar_assinatura' => true,
         'os_mostrar_laudo'      => true,
         'os_mostrar_valores'    => true,
+        // Trocas: loja que nunca abriu a tela troca em até 30 dias, sobra vira
+        // vale de 90 dias e fora da política pede o gerente.
+        'troca_prazo_dias'         => 30,
+        'troca_sobra'              => 'vale',
+        'troca_vale_validade_dias' => 90,
+        'troca_senha_gerente'      => true,
     ];
 
     protected function casts(): array
@@ -59,6 +70,9 @@ class ConfiguracaoLoja extends Model
             'os_mostrar_assinatura'      => 'boolean',
             'os_mostrar_laudo'           => 'boolean',
             'os_mostrar_valores'         => 'boolean',
+            'troca_prazo_dias'           => 'integer',
+            'troca_vale_validade_dias'   => 'integer',
+            'troca_senha_gerente'        => 'boolean',
         ];
     }
 

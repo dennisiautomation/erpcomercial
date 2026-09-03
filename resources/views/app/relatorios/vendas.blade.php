@@ -25,6 +25,17 @@
                 <label class="form-label small fw-semibold">Data Fim</label>
                 <input type="date" name="data_fim" class="form-control form-control-sm" value="{{ $dataFim->format('Y-m-d') }}">
             </div>
+            @if(isset($lojas) && $lojas->count() > 1)
+            <div class="col-md-2">
+                <label class="form-label small fw-semibold">Loja</label>
+                <select name="loja" class="form-select form-select-sm">
+                    <option value="todas" @selected(empty($lojaFiltro) && request()->filled('loja'))>Todas as lojas</option>
+                    @foreach($lojas as $loja)
+                        <option value="{{ $loja->id }}" @selected((int) ($lojaFiltro ?? 0) === $loja->id)>{{ $loja->nome }}</option>
+                    @endforeach
+                </select>
+            </div>
+            @endif
             <div class="col-md-2">
                 <label class="form-label small fw-semibold">Origem</label>
                 <select name="origem" class="form-select form-select-sm">
@@ -35,11 +46,26 @@
             </div>
             <div class="col-md-2">
                 <label class="form-label small fw-semibold">Vendedor</label>
-                <input type="text" name="vendedor_id" class="form-control form-control-sm" value="{{ request('vendedor_id') }}" placeholder="ID do vendedor">
+                {{-- Lista de quem vende (mesma do F3 do PDV) — antes pedia o ID numérico --}}
+                <select name="vendedor_id" class="form-select form-select-sm">
+                    <option value="">Todos</option>
+                    @foreach($vendedores ?? [] as $v)
+                        <option value="{{ $v->id }}" @selected(($vendedorId ?? null) === $v->id)>{{ $v->name }}</option>
+                    @endforeach
+                </select>
             </div>
             <div class="col-md-2">
                 <label class="form-label small fw-semibold">Cliente</label>
-                <input type="text" name="cliente_id" class="form-control form-control-sm" value="{{ request('cliente_id') }}" placeholder="ID do cliente">
+                {{-- Autocomplete do erp-core (o mesmo de Pedidos); o id vai no hidden --}}
+                <div class="position-relative">
+                    <input type="text" class="form-control form-control-sm" id="clienteFiltroBusca"
+                           placeholder="Digite o nome..." autocomplete="off"
+                           value="{{ $clienteFiltro->nome_razao_social ?? '' }}"
+                           data-autocomplete="{{ route('app.search.clientes') }}"
+                           data-autocomplete-target="clienteFiltroId"
+                           data-autocomplete-display="nome_razao_social">
+                    <input type="hidden" name="cliente_id" id="clienteFiltroId" value="{{ $clienteFiltro->id ?? '' }}">
+                </div>
             </div>
             <div class="col-md-2 d-flex gap-2">
                 <button type="submit" class="btn btn-primary btn-sm flex-grow-1">
@@ -55,7 +81,7 @@
 
 {{-- Stats Cards --}}
 <div class="row g-3 mb-4">
-    <div class="col-md-4">
+    <div class="col-md-3">
         <div class="card shadow-sm border-0 h-100">
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-start">
@@ -70,13 +96,16 @@
             </div>
         </div>
     </div>
-    <div class="col-md-4">
+    <div class="col-md-3">
         <div class="card shadow-sm border-0 h-100">
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-start">
                     <div>
                         <p class="text-muted small mb-1">Faturamento</p>
                         <h3 class="fw-bold mb-0 text-success">R$ {{ number_format($faturamento, 2, ',', '.') }}</h3>
+                        @if(($devolucoesValor ?? 0) > 0)
+                            <small class="text-muted">líquido de trocas: <strong>R$ {{ number_format($faturamentoLiquido, 2, ',', '.') }}</strong></small>
+                        @endif
                     </div>
                     <div class="rounded-3 bg-success bg-opacity-10 p-2">
                         <i class="bi bi-currency-dollar fs-4 text-success"></i>
@@ -85,7 +114,7 @@
             </div>
         </div>
     </div>
-    <div class="col-md-4">
+    <div class="col-md-3">
         <div class="card shadow-sm border-0 h-100">
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-start">
@@ -95,6 +124,22 @@
                     </div>
                     <div class="rounded-3 bg-info bg-opacity-10 p-2">
                         <i class="bi bi-receipt fs-4 text-info"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <p class="text-muted small mb-1">Trocas / Devoluções</p>
+                        <h3 class="fw-bold mb-0 text-warning">R$ {{ number_format($devolucoesValor ?? 0, 2, ',', '.') }}</h3>
+                        <small class="text-muted">{{ $devolucoesQtd ?? 0 }} registro(s) · <a href="{{ route('app.trocas.index') }}">ver trocas</a></small>
+                    </div>
+                    <div class="rounded-3 bg-warning bg-opacity-10 p-2">
+                        <i class="bi bi-arrow-repeat fs-4 text-warning"></i>
                     </div>
                 </div>
             </div>
@@ -114,6 +159,7 @@
                 <tr>
                     <th>Data</th>
                     <th>Numero</th>
+                    @if(isset($lojas) && $lojas->count() > 1 && empty($lojaFiltro))<th>Loja</th>@endif
                     <th>Cliente</th>
                     <th>Vendedor</th>
                     <th>Forma Pgto</th>
@@ -127,7 +173,10 @@
                         <small class="text-muted"><i class="bi bi-calendar3 me-1"></i></small>
                         {{ $venda->created_at->format('d/m/Y H:i') }}
                     </td>
-                    <td><strong>#{{ $venda->numero ?? $venda->id }}</strong></td>
+                    <td><strong>#{{ $venda->numero ?? $venda->id }}</strong>
+                        @if($venda->status->value === 'devolvida')<span class="badge bg-warning text-dark ms-1" title="Itens devolvidos/trocados">devolvida</span>@endif
+                    </td>
+                    @if(isset($lojas) && $lojas->count() > 1 && empty($lojaFiltro))<td><small>{{ $venda->unidade->nome ?? '-' }}</small></td>@endif
                     <td>{{ $venda->cliente->nome_razao_social ?? 'Consumidor' }}</td>
                     <td>{{ $venda->vendedor->name ?? '-' }}</td>
                     <td>

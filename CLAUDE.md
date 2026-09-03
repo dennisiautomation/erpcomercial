@@ -129,7 +129,8 @@ public/
 - **Venda Balcão**: Fora do PDV, com itens dinâmicos + autocomplete
 - PDV fullscreen dark, atalhos F1-F12, split payment, verificação estoque
 - **Lógica de emissão no PDV**: `emissao_fiscal_ativa && emite_nfce` → emite NFC-e; senão, só cupom/recibo. Cupom/recibo **sempre é impresso**. Falha na NFC-e cai silenciosamente no recibo.
-- Devoluções; Comissões (config por produto/categoria, pagamento em lote)
+- **Trocas e devoluções (03/09/2026)**: F6 no PDV (venda de qualquer dia/loja → itens que voltam → bipa o que leva; diferença cobrada, zerada ou vira **vale** `VT-XXXX-XXXX`/dinheiro conforme Configurações da Loja → Trocas); `TrocaService` é o ponto único; `/app/trocas` + `/app/trocas/vales`; módulo `trocas` na matriz. Ver docs.md seção 9n.
+- Comissões (config por produto/categoria, pagamento em lote)
 
 ### Fiscal (Focus NFe — 95% cobertura)
 

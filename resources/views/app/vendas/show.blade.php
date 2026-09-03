@@ -20,6 +20,11 @@
         </nav>
     </div>
     <div class="d-flex gap-2 flex-wrap">
+        @if($venda->status->value === 'concluida' && \App\Http\Middleware\CheckPermission::can(auth()->user()->perfil?->value ?? '', 'trocas', 'criar'))
+            <a href="{{ route('app.trocas.create', ['venda' => $venda->id]) }}" class="btn btn-outline-warning" title="Devolver itens desta venda (sem levar nada agora). Para trocar por outro produto, use o PDV — F6.">
+                <i class="bi bi-arrow-repeat me-1"></i> Trocar / Devolver
+            </a>
+        @endif
         @if($venda->status->value === 'concluida')
             <form method="POST" action="{{ route('app.vendas.destroy', $venda) }}"
                   data-confirm="Cancelar esta venda? O estoque sera revertido e as contas a receber serao canceladas.">
@@ -355,6 +360,32 @@
     </div>
 
     {{-- Contas a Receber --}}
+    @if($venda->devolucoes->where('status', '!=', 'cancelada')->count())
+    <div class="col-12">
+        <x-erp.card title="Trocas e devoluções desta venda" icon="arrow-repeat">
+            <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                    <thead class="table-light"><tr><th>Data</th><th>Tipo</th><th>Itens</th><th class="text-end">Valor</th><th>Sobra</th><th>Por</th><th></th></tr></thead>
+                    <tbody>
+                    @foreach($venda->devolucoes->where('status', '!=', 'cancelada') as $dev)
+                        <tr>
+                            <td class="text-nowrap"><small>{{ $dev->created_at->format('d/m/Y H:i') }}</small></td>
+                            <td><span class="badge {{ $dev->tipo === 'troca' ? 'bg-info text-dark' : 'bg-warning text-dark' }}">{{ $dev->tipoLabel() }}</span></td>
+                            <td><small>{{ $dev->itens->map(fn ($i) => rtrim(rtrim(number_format($i->quantidade, 3, ',', '.'), '0'), ',') . '× ' . ($i->produto->descricao ?? $i->vendaItem->descricao ?? 'item'))->implode(', ') }}</small></td>
+                            <td class="text-end fw-semibold">R$ {{ number_format($dev->valor_estornado, 2, ',', '.') }}</td>
+                            <td><small>{{ $dev->formaSobraLabel() }}@if($dev->vale) — <code>{{ $dev->vale->codigo }}</code>@endif
+                                @if($dev->vendaNova) · gerou <a href="{{ route('app.vendas.show', $dev->vendaNova) }}">venda #{{ $dev->vendaNova->numero }}</a>@endif</small></td>
+                            <td><small>{{ $dev->user->name ?? '-' }}</small></td>
+                            <td class="text-end"><a href="{{ route('app.trocas.show', $dev) }}" class="btn btn-sm btn-outline-secondary">Detalhes</a></td>
+                        </tr>
+                    @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </x-erp.card>
+    </div>
+    @endif
+
     @if($venda->contasReceber->count())
         <div class="col-12">
             <div class="card border-0 shadow-sm">

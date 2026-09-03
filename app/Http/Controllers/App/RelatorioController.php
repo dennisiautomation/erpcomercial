@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\App;
 
+use App\Enums\StatusVenda;
 use App\Http\Controllers\Controller;
 use App\Models\ContaPagar;
 use App\Models\ContaReceber;
@@ -13,6 +14,8 @@ use App\Models\Unidade;
 use App\Models\Estoque;
 use App\Models\Categoria;
 use App\Services\SaldoEstoque;
+use App\Models\User;
+use App\Models\Cliente;
 use App\Models\Venda;
 use App\Models\VendaItem;
 use Carbon\Carbon;
@@ -23,7 +26,8 @@ class RelatorioController extends Controller
 {
     public function vendas(Request $request)
     {
-        $empresaId = auth()->user()->empresa_id;
+        // Admin da plataforma não tem empresa (armadilha 25): a empresa vem da sessão
+        $empresaId = auth()->user()->empresa_id ?? session('empresa_id');
 
         $dataInicio = $request->filled('data_inicio')
             ? Carbon::parse($request->data_inicio)
@@ -33,8 +37,40 @@ class RelatorioController extends Controller
             ? Carbon::parse($request->data_fim)
             : now()->endOfMonth();
 
-        $query = Venda::with(['cliente', 'vendedor'])
+        // Filtro por loja (03/09/2026): admin/dono/gerente escolhem; os demais
+        // seguem presos à loja da sessão pelo UnidadeScope. Padrão = loja atual.
+        $lojas = $this->lojasParaFiltro($request->user());
+        $lojaFiltro = (int) session('unidade_id');
+        if ($lojas->count() > 1 && $request->filled('loja')) {
+            $lojaFiltro = $request->loja === 'todas' ? null
+                : ($lojas->contains('id', (int) $request->loja) ? (int) $request->loja : $lojaFiltro);
+        }
+        $escopoLoja = function ($q) use ($lojaFiltro, $lojas) {
+            if ($lojaFiltro) {
+                $q->where('unidade_id', $lojaFiltro);
+            } elseif ($lojas->isNotEmpty()) {
+                $q->whereIn('unidade_id', $lojas->pluck('id'));
+            }
+        };
+
+        // Vendedor e cliente viram lista (03/09/2026): a tela pedia o ID numérico.
+        // Os dois são validados contra a empresa — id de outro tenant é ignorado.
+        $vendedores = User::where('empresa_id', $empresaId)
+            ->whereIn('perfil', ['dono', 'gerente', 'vendedor', 'caixa'])
+            ->where('status', 'ativo')
+            ->orderBy('name')
+            ->get(['id', 'name']);
+        $vendedorId = $request->filled('vendedor_id') && $vendedores->contains('id', (int) $request->vendedor_id)
+            ? (int) $request->vendedor_id : null;
+        $clienteFiltro = $request->filled('cliente_id')
+            ? Cliente::where('empresa_id', $empresaId)->find((int) $request->cliente_id)
+            : null;
+
+        // Canceladas ficam fora do faturamento (antes entravam — 03/09/2026)
+        $query = Venda::with(['cliente', 'vendedor', 'unidade:id,nome'])
             ->where('empresa_id', $empresaId)
+            ->where('status', '!=', StatusVenda::Cancelada)
+            ->tap($escopoLoja)
             ->whereBetween('created_at', [$dataInicio, $dataFim->endOfDay()]);
 
         // Origem: vendas diretas (PDV/balcão) × pedidos faturados
@@ -44,12 +80,12 @@ class RelatorioController extends Controller
             $query->where(fn ($q) => $q->where('tipo', '!=', 'pedido')->orWhereNull('tipo'));
         }
 
-        if ($request->filled('vendedor_id')) {
-            $query->where('vendedor_id', $request->vendedor_id);
+        if ($vendedorId) {
+            $query->where('vendedor_id', $vendedorId);
         }
 
-        if ($request->filled('cliente_id')) {
-            $query->where('cliente_id', $request->cliente_id);
+        if ($clienteFiltro) {
+            $query->where('cliente_id', $clienteFiltro->id);
         }
 
         $vendas = $query->orderByDesc('created_at')->get();
@@ -57,6 +93,16 @@ class RelatorioController extends Controller
         $totalVendas = $vendas->count();
         $faturamento = $vendas->sum('total');
         $ticketMedio = $totalVendas > 0 ? $faturamento / $totalVendas : 0;
+
+        // Trocas/devoluções do período (03/09/2026): o que saiu do faturamento
+        $devolucoesQuery = \App\Models\Devolucao::withoutGlobalScope(\App\Scopes\UnidadeScope::class)
+            ->where('empresa_id', $empresaId)
+            ->where('status', '!=', 'cancelada')
+            ->tap($escopoLoja)
+            ->whereBetween('created_at', [$dataInicio, $dataFim->endOfDay()]);
+        $devolucoesQtd = (clone $devolucoesQuery)->count();
+        $devolucoesValor = (float) (clone $devolucoesQuery)->sum('valor_estornado');
+        $faturamentoLiquido = round($faturamento - $devolucoesValor, 2);
 
         // Top 10 produtos
         $topProdutos = VendaItem::select(
@@ -91,8 +137,36 @@ class RelatorioController extends Controller
 
         return view('app.relatorios.vendas', compact(
             'vendas', 'totalVendas', 'faturamento', 'ticketMedio',
-            'topProdutos', 'topClientes', 'dataInicio', 'dataFim'
+            'topProdutos', 'topClientes', 'dataInicio', 'dataFim',
+            'lojas', 'lojaFiltro', 'vendedores', 'vendedorId', 'clienteFiltro',
+            'devolucoesQtd', 'devolucoesValor', 'faturamentoLiquido'
         ));
+    }
+
+    /** Mesmo critério de VendaController::lojasParaFiltro (+ gerente, que vê as suas). */
+    private function lojasParaFiltro($user): \Illuminate\Support\Collection
+    {
+        $perfil = $user->perfil instanceof \App\Enums\Perfil ? $user->perfil->value : $user->perfil;
+
+        if (! $user->is_admin && ! in_array($perfil, ['admin', 'dono', 'gerente'])) {
+            return collect();
+        }
+
+        $query = \App\Models\Unidade::withoutGlobalScopes()
+            ->where('empresa_id', session('empresa_id'))
+            ->where('status', 'ativa');
+
+        // Gerente: só as lojas vinculadas (mesmo recorte do MultilojaController)
+        if (! $user->is_admin && $perfil === 'gerente') {
+            $vinculadas = \Illuminate\Support\Facades\DB::table('unidade_user')->where('user_id', $user->id)->pluck('unidade_id');
+            if ($vinculadas->isNotEmpty()) {
+                $query->whereIn('id', $vinculadas);
+            } else {
+                $query->where('id', session('unidade_id'));
+            }
+        }
+
+        return $query->orderBy('nome')->get(['id', 'nome']);
     }
 
     public function estoque(Request $request)

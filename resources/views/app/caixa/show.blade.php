@@ -78,6 +78,12 @@
                 <span class="text-muted">Sangrias</span>
                 <span class="text-danger">- R$ {{ number_format($resumo['sangrias'], 2, ',', '.') }}</span>
             </div>
+            @if(($resumo['devolucoes'] ?? 0) > 0)
+            <div class="d-flex justify-content-between">
+                <span class="text-muted">Devoluções em dinheiro (trocas)</span>
+                <span class="text-danger">- R$ {{ number_format($resumo['devolucoes'], 2, ',', '.') }}</span>
+            </div>
+            @endif
         </x-erp.card>
 
         {{-- Dados do fechamento --}}
@@ -187,6 +193,7 @@
                                 'venda' => 'bg-success',
                                 'suprimento' => 'bg-info text-dark',
                                 'sangria' => 'bg-danger',
+                                'devolucao' => 'bg-warning text-dark',
                                 'fechamento' => 'bg-dark',
                                 default => 'bg-light text-dark',
                             };

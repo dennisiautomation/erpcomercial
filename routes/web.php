@@ -266,6 +266,31 @@ Route::middleware(['auth', 'suspensao', 'unidade'])->prefix('app')->name('app.')
     Route::get('/pdv/estoque/{produto}', [App\PdvController::class, 'verificarEstoque'])
         ->name('pdv.verificar-estoque')
         ->middleware('permission:vendas,criar');
+    // Trocas no PDV (F6) e consulta de vale — módulo 'trocas' (03/09/2026)
+    Route::get('/pdv/troca/vendas', [App\PdvController::class, 'trocaBuscarVendas'])
+        ->name('pdv.troca.vendas')
+        ->middleware('permission:trocas,criar');
+    Route::get('/pdv/troca/venda/{venda}', [App\PdvController::class, 'trocaVenda'])
+        ->name('pdv.troca.venda')
+        ->middleware('permission:trocas,criar');
+    Route::post('/pdv/troca', [App\PdvController::class, 'trocaRegistrar'])
+        ->name('pdv.troca.registrar')
+        ->middleware('permission:trocas,criar');
+    Route::get('/pdv/vale/{codigo}', [App\PdvController::class, 'valeConsultar'])
+        ->name('pdv.vale')
+        ->middleware('permission:vendas,criar');
+
+    /* ------ Trocas, devoluções e vales (03/09/2026) ------ */
+    Route::prefix('trocas')->name('trocas.')->middleware('permission:trocas')->group(function () {
+        Route::get('/', [App\TrocaController::class, 'index'])->name('index');
+        Route::get('/nova', [App\TrocaController::class, 'create'])->name('create')->middleware('permission:trocas,criar');
+        Route::post('/', [App\TrocaController::class, 'store'])->name('store')->middleware('permission:trocas,criar');
+        Route::get('/vales', [App\TrocaController::class, 'vales'])->name('vales');
+        Route::get('/vales/{vale}/imprimir', [App\TrocaController::class, 'imprimirVale'])->name('vales.imprimir');
+        Route::post('/vales/{vale}/cancelar', [App\TrocaController::class, 'cancelarVale'])->name('vales.cancelar')->middleware('permission:trocas,editar');
+        Route::get('/{devolucao}', [App\TrocaController::class, 'show'])->name('show');
+        Route::get('/{devolucao}/comprovante', [App\TrocaController::class, 'comprovante'])->name('comprovante');
+    });
 
     /* ------ Caixa ------ */
     // Histórico de caixas (extrato + conferência) — leitura

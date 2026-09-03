@@ -343,9 +343,15 @@
     @if($venda->pagamento_detalhes && is_array($venda->pagamento_detalhes))
         @foreach($venda->pagamento_detalhes as $pgto)
             <div class="row">
-                <span>{{ $formaLabels[$pgto['forma'] ?? ''] ?? ucfirst($pgto['forma'] ?? '-') }}</span>
+                <span>{{ $formaLabels[$pgto['forma'] ?? ''] ?? ucfirst($pgto['forma'] ?? '-') }}@if(($pgto['forma'] ?? '') === 'vale' && ! empty($pgto['vale_codigo'])) {{ $pgto['vale_codigo'] }}@endif</span>
                 <span>R$ {{ number_format($pgto['valor'] ?? 0, 2, ',', '.') }}</span>
             </div>
+            @if(($pgto['forma'] ?? '') === 'vale' && isset($pgto['vale_saldo_restante']))
+            <div class="row" style="font-size:10px;">
+                <span>Saldo restante no vale:</span>
+                <span>R$ {{ number_format((float) $pgto['vale_saldo_restante'], 2, ',', '.') }}</span>
+            </div>
+            @endif
         @endforeach
     @else
         <div class="row">
@@ -423,7 +429,16 @@
     <p style="margin-top:6px; font-size:9px;">
         Documento gerado eletronicamente | {{ $venda->created_at->format('d/m/Y H:i:s') }}
     </p>
+    {{-- Código da venda para a troca (F6 no PDV lê "V{id}") — 03/09/2026 --}}
+    <div style="margin-top:6px; text-align:center;">
+        <svg id="vendaBarcode" style="max-width:100%; height:34px;"></svg>
+        <div style="font-size:9px; letter-spacing:1px;">TROCA: V{{ $venda->id }}</div>
+    </div>
 </div>
+<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+<script>
+    try { JsBarcode('#vendaBarcode', 'V{{ $venda->id }}', { format: 'CODE128', displayValue: false, height: 34, width: 1.6, margin: 0 }); } catch (e) {}
+</script>
 
 @if(request()->boolean('print'))
 <script>window.addEventListener('load', () => setTimeout(() => window.print(), 300));</script>

@@ -745,15 +745,15 @@
                     {{-- ---- Vendas ---- --}}
                     <li class="sidebar-heading">Comercial</li>
                     <li class="nav-item">
-                        <a class="nav-link nav-toggle {{ request()->routeIs('app.orcamentos.*', 'app.pedidos.*', 'app.vendas.*', 'app.ordens-servico.*') ? '' : 'collapsed' }}"
+                        <a class="nav-link nav-toggle {{ request()->routeIs('app.orcamentos.*', 'app.pedidos.*', 'app.vendas.*', 'app.ordens-servico.*', 'app.trocas.*') ? '' : 'collapsed' }}"
                            data-bs-toggle="collapse" href="#menuVendas" role="button"
-                           aria-expanded="{{ request()->routeIs('app.orcamentos.*', 'app.pedidos.*', 'app.vendas.*', 'app.ordens-servico.*') ? 'true' : 'false' }}"
+                           aria-expanded="{{ request()->routeIs('app.orcamentos.*', 'app.pedidos.*', 'app.vendas.*', 'app.ordens-servico.*', 'app.trocas.*') ? 'true' : 'false' }}"
                            aria-controls="menuVendas">
                             <i class="bi bi-cart3 nav-icon"></i>
                             <span class="nav-text">Vendas</span>
                             <i class="bi bi-chevron-right toggle-icon"></i>
                         </a>
-                        <div class="collapse {{ request()->routeIs('app.orcamentos.*', 'app.pedidos.*', 'app.vendas.*', 'app.ordens-servico.*') ? 'show' : '' }}" id="menuVendas">
+                        <div class="collapse {{ request()->routeIs('app.orcamentos.*', 'app.pedidos.*', 'app.vendas.*', 'app.ordens-servico.*', 'app.trocas.*') ? 'show' : '' }}" id="menuVendas">
                             <ul class="nav flex-column submenu">
                                 <li class="nav-item">
                                     <a class="nav-link {{ request()->routeIs('app.orcamentos.*') ? 'active' : '' }}"
@@ -771,6 +771,12 @@
                                     <a class="nav-link {{ request()->routeIs('app.ordens-servico.*') ? 'active' : '' }}"
                                        href="{{ route('app.ordens-servico.index') }}">Ordens de Servico</a>
                                 </li>
+                                @if(\App\Http\Middleware\CheckPermission::can(auth()->user()->perfil?->value ?? '', 'trocas', 'ver'))
+                                <li class="nav-item">
+                                    <a class="nav-link {{ request()->routeIs('app.trocas.*') ? 'active' : '' }}"
+                                       href="{{ route('app.trocas.index') }}">Trocas e Vales</a>
+                                </li>
+                                @endif
                             </ul>
                         </div>
                     </li>

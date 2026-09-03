@@ -18,6 +18,11 @@ use App\Models\Unidade;
 use App\Models\User;
 use App\Models\Venda;
 use App\Models\VendaItem;
+use App\Models\Vale;
+use App\Models\ValeUso;
+use App\Models\Devolucao;
+use App\Scopes\UnidadeScope;
+use App\Services\TrocaService;
 use App\Models\ConfiguracaoFiscal;
 use App\Models\ConfiguracaoLoja;
 use App\Services\EstoqueMultiUnidadeService;
@@ -65,7 +70,16 @@ class PdvController extends Controller
 
         $configLoja = ConfiguracaoLoja::daUnidade();
 
-        return view('app.pdv.index', compact('caixa', 'unidade', 'configFiscal', 'operadores', 'configLoja'));
+        // Estoques ativos da loja — o modal de troca (F6) só mostra o seletor
+        // quando há mais de um (salão/depósito/avaria)
+        $estoquesLoja = \App\Models\Estoque::withoutGlobalScopes()
+            ->where('unidade_id', session('unidade_id'))
+            ->where('status', 'ativo')
+            ->orderByDesc('permite_venda')
+            ->orderBy('nome')
+            ->get(['id', 'nome', 'permite_venda']);
+
+        return view('app.pdv.index', compact('caixa', 'unidade', 'configFiscal', 'operadores', 'configLoja', 'estoquesLoja'));
     }
 
     public function verificarEstoque(Request $request, $produtoId, EstoqueMultiUnidadeService $estoqueSvc)
@@ -157,6 +171,10 @@ class PdvController extends Controller
             'vendedor_id'              => 'nullable|exists:users,id',
             'tabela_precos'            => 'nullable|boolean',
             'documento'                => 'nullable|in:recibo,cupom_fiscal',
+            // Vale de troca (03/09/2026)
+            'pagamentos.*.vale_codigo' => 'nullable|string|max:20',
+            'vale_sobra_dinheiro'      => 'nullable|boolean',
+            'troca_devolucao_id'       => 'nullable|integer',
         ]);
 
         $caixaId = session('caixa_id');
@@ -284,6 +302,37 @@ class PdvController extends Controller
                     $total = round($total + $acrescimoJuros, 2);
                 }
 
+                // Vale de troca como forma de pagamento (03/09/2026): o código
+                // precisa existir NESTA empresa, estar ativo, dentro da validade e
+                // com saldo. Lock de linha: dois caixas com o mesmo vale não gastam
+                // o mesmo crédito duas vezes.
+                $valesAplicar = [];
+                foreach ($pagamentos as $idx => $pgto) {
+                    if (($pgto['forma'] ?? '') !== 'vale') {
+                        continue;
+                    }
+                    $codigoVale = Vale::normalizarCodigo((string) ($pgto['vale_codigo'] ?? ''));
+                    $vale = $codigoVale !== ''
+                        ? Vale::withoutGlobalScopes()->where('empresa_id', $empresaId)->where('codigo', $codigoVale)->lockForUpdate()->first()
+                        : null;
+                    if (! $vale) {
+                        throw new \DomainException('Vale não encontrado. Informe o código impresso no comprovante da troca.');
+                    }
+                    if ($motivoVale = $vale->motivoIndisponivel()) {
+                        throw new \DomainException($motivoVale);
+                    }
+                    $valorVale = round((float) $pgto['valor'], 2);
+                    if ($valorVale > (float) $vale->saldo + 0.001) {
+                        throw new \DomainException('O vale ' . $vale->codigo . ' tem saldo de R$ ' . number_format((float) $vale->saldo, 2, ',', '.') . '.');
+                    }
+                    if ($valorVale > $total + 0.001) {
+                        throw new \DomainException('O valor do vale não pode passar do total da venda.');
+                    }
+                    $pagamentos[$idx]['vale_codigo'] = $vale->codigo;
+                    $pagamentos[$idx]['vale_saldo_restante'] = round((float) $vale->saldo - $valorVale, 2);
+                    $valesAplicar[] = [$vale, $valorVale];
+                }
+
                 $formaPrincipal = $pagamentos[0]['forma'];
                 $totalPago = collect($pagamentos)->sum('valor');
                 $troco = max(0, round($totalPago - $total, 2));
@@ -339,6 +388,37 @@ class PdvController extends Controller
                             ]
                         );
                     }
+                }
+
+                // Abate o(s) vale(s) usado(s) e, se o caixa pediu e a loja permite,
+                // devolve a sobra em dinheiro pela gaveta (troca "com troco").
+                foreach ($valesAplicar as [$vale, $valorVale]) {
+                    $vale->abater($valorVale, 'venda', $venda->id);
+
+                    if ($request->boolean('vale_sobra_dinheiro')
+                        && (float) $vale->saldo > 0
+                        && $configLojaJuros->troca_sobra === 'dinheiro') {
+                        $sobraVale = (float) $vale->saldo;
+                        MovimentacaoCaixa::create([
+                            'empresa_id'      => $empresaId,
+                            'unidade_id'      => $unidadeId,
+                            'caixa_id'        => $caixa->id,
+                            'tipo'            => TipoMovimentacaoCaixa::Devolucao,
+                            'valor'           => $sobraVale,
+                            'forma_pagamento' => 'dinheiro',
+                            'descricao'       => "Sobra do vale {$vale->codigo} — venda #{$venda->numero}",
+                            'user_id'         => auth()->id(),
+                        ]);
+                        $vale->abater($sobraVale, 'dinheiro', $venda->id);
+                    }
+                }
+
+                // Troca feita no PDV (F6): liga a devolução à venda nova
+                if ($request->filled('troca_devolucao_id')) {
+                    Devolucao::withoutGlobalScopes()
+                        ->where('empresa_id', $empresaId)
+                        ->where('id', (int) $request->troca_devolucao_id)
+                        ->update(['venda_nova_id' => $venda->id]);
                 }
 
                 // Vendedor responsável pela entrada no caixa (Configurações da Loja)
@@ -456,6 +536,10 @@ class PdvController extends Controller
 
             $venda->load(['itens.produto', 'cliente', 'vendedor', 'empresa']);
 
+            // Vale usado nesta venda (para o modal e o cupom)
+            $valeUsado = collect($venda->pagamento_detalhes ?? [])->firstWhere('forma', 'vale');
+            $valeSobraDevolvida = (float) ValeUso::where('venda_id', $venda->id)->where('tipo', 'dinheiro')->sum('valor');
+
             // Verificar configuracao fiscal da unidade
             $empresaId = session('empresa_id');
             $unidadeId = session('unidade_id');
@@ -519,8 +603,16 @@ class PdvController extends Controller
                 'nota_fiscal' => $notaFiscal,
                 'tipo_cupom'  => ($deveEmitirNfce && $notaFiscal) ? 'fiscal' : 'nao_fiscal',
                 'nfce_erro'   => $nfceErro,
+                'vale'        => $valeUsado ? [
+                    'codigo'          => $valeUsado['vale_codigo'] ?? null,
+                    'valor_usado'     => (float) ($valeUsado['valor'] ?? 0),
+                    'saldo_restante'  => $valeSobraDevolvida > 0 ? 0.0 : (float) ($valeUsado['vale_saldo_restante'] ?? 0),
+                    'sobra_devolvida' => $valeSobraDevolvida,
+                ] : null,
             ]);
 
+        } catch (\DomainException $e) {
+            return response()->json(['error' => $e->getMessage()], 422);
         } catch (\Throwable $e) {
             Log::error('[PDV] Erro ao registrar venda.', [
                 'error' => $e->getMessage(),
@@ -531,5 +623,147 @@ class PdvController extends Controller
                 'error' => 'Erro ao registrar venda: ' . $e->getMessage(),
             ], 500);
         }
+    }
+
+    /* ------------------------------------------------------------------ */
+    /*  Trocas (F6) e vales — 03/09/2026                                   */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * Vendas candidatas à troca: por número, por id bipado do cupom ("V158")
+     * ou por nome do cliente. Qualquer loja da EMPRESA — o cliente pode ter
+     * comprado em outra unidade — por isso o UnidadeScope sai daqui.
+     */
+    public function trocaBuscarVendas(Request $request)
+    {
+        $q = trim((string) $request->input('q', ''));
+        $empresaId = (int) session('empresa_id');
+        $unidadeSessao = (int) session('unidade_id');
+
+        $query = Venda::withoutGlobalScope(UnidadeScope::class)
+            ->where('empresa_id', $empresaId)
+            ->where('status', StatusVenda::Concluida)
+            ->with(['cliente:id,nome_razao_social', 'unidade:id,nome'])
+            ->withCount('itens');
+
+        if ($q !== '') {
+            if (preg_match('/^V(\d+)$/i', $q, $m)) {
+                $query->where('id', (int) $m[1]);
+            } elseif (ctype_digit($q)) {
+                $query->where(fn ($w) => $w->where('numero', (int) $q)->orWhere('id', (int) $q));
+            } else {
+                $query->whereHas('cliente', fn ($c) => $c->where('nome_razao_social', 'like', "%{$q}%"));
+            }
+        }
+
+        $vendas = $query->orderByDesc('created_at')->limit(15)->get();
+
+        return response()->json($vendas->map(fn ($v) => [
+            'id'         => $v->id,
+            'numero'     => $v->numero,
+            'data'       => $v->created_at->format('d/m/Y H:i'),
+            'total'      => (float) $v->total,
+            'cliente'    => $v->cliente->nome_razao_social ?? null,
+            'loja'       => $v->unidade->nome ?? null,
+            'mesma_loja' => (int) $v->unidade_id === $unidadeSessao,
+            'itens'      => (int) $v->itens_count,
+        ]));
+    }
+
+    public function trocaVenda(int $venda, TrocaService $trocas)
+    {
+        $v = Venda::withoutGlobalScope(UnidadeScope::class)
+            ->where('empresa_id', session('empresa_id'))
+            ->findOrFail($venda);
+
+        return response()->json($trocas->situacao($v, ConfiguracaoLoja::daUnidade(), auth()->user()));
+    }
+
+    public function trocaRegistrar(Request $request, TrocaService $trocas)
+    {
+        $request->validate([
+            'venda_id'                 => 'required|integer',
+            'tipo'                     => 'required|in:troca,devolucao',
+            'itens'                    => 'required|array|min:1',
+            'itens.*.venda_item_id'    => 'required|integer',
+            'itens.*.quantidade'       => 'required|numeric|min:0.001',
+            'itens.*.retorna_estoque'  => 'nullable|boolean',
+            'itens.*.estoque_id'       => 'nullable|integer',
+            'motivo'                   => 'required|string|max:40',
+            'motivo_texto'             => 'nullable|string|max:500',
+            'sobra_destino'            => 'nullable|in:vale,dinheiro',
+            'gerente_email'            => 'nullable|string|max:255',
+            'gerente_senha'            => 'nullable|string|max:255',
+            'observacoes'              => 'nullable|string|max:1000',
+        ]);
+
+        $venda = Venda::withoutGlobalScope(UnidadeScope::class)
+            ->where('empresa_id', session('empresa_id'))
+            ->findOrFail((int) $request->venda_id);
+
+        try {
+            $devolucao = $trocas->registrar(
+                $venda,
+                $request->all(),
+                auth()->user(),
+                ConfiguracaoLoja::daUnidade(),
+                (int) session('unidade_id'),
+                session('caixa_id') ? (int) session('caixa_id') : null
+            );
+        } catch (\DomainException $e) {
+            return response()->json(['error' => $e->getMessage()], 422);
+        } catch (\Throwable $e) {
+            Log::error('[PDV] Erro ao registrar troca.', ['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+
+            return response()->json(['error' => 'Erro ao registrar a troca: ' . $e->getMessage()], 500);
+        }
+
+        $comprovante = view('app.trocas.comprovante', ['devolucao' => $devolucao, 'autoPrint' => false])->render();
+
+        return response()->json([
+            'success'   => true,
+            'devolucao' => [
+                'id'                     => $devolucao->id,
+                'tipo'                   => $devolucao->tipo,
+                'venda_numero'           => $venda->numero,
+                'valor_estornado'        => (float) $devolucao->valor_estornado,
+                'valor_abatido_parcelas' => (float) $devolucao->valor_abatido_parcelas,
+                'forma_sobra'            => $devolucao->forma_sobra,
+                'valor_sobra'            => (float) $devolucao->valor_sobra,
+            ],
+            'vale' => $devolucao->vale ? [
+                'id'       => $devolucao->vale->id,
+                'codigo'   => $devolucao->vale->codigo,
+                'saldo'    => (float) $devolucao->vale->saldo,
+                'validade' => $devolucao->vale->validade?->format('d/m/Y'),
+            ] : null,
+            'comprovante' => $comprovante,
+        ]);
+    }
+
+    /** Consulta de vale pelo código digitado/bipado no botão Vale do PDV. */
+    public function valeConsultar(string $codigo)
+    {
+        $vale = Vale::withoutGlobalScopes()
+            ->where('empresa_id', session('empresa_id'))
+            ->where('codigo', Vale::normalizarCodigo($codigo))
+            ->with('cliente:id,nome_razao_social')
+            ->first();
+
+        if (! $vale) {
+            return response()->json(['error' => 'Vale não encontrado nesta empresa. Confira o código impresso no comprovante.'], 404);
+        }
+
+        if ($motivo = $vale->motivoIndisponivel()) {
+            return response()->json(['error' => $motivo, 'codigo' => $vale->codigo], 422);
+        }
+
+        return response()->json([
+            'codigo'   => $vale->codigo,
+            'valor'    => (float) $vale->valor,
+            'saldo'    => (float) $vale->saldo,
+            'validade' => $vale->validade?->format('d/m/Y'),
+            'cliente'  => $vale->cliente->nome_razao_social ?? null,
+        ]);
     }
 }

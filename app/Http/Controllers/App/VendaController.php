@@ -277,7 +277,8 @@ class VendaController extends Controller
 
     public function show(Venda $venda)
     {
-        $venda->load(['cliente', 'vendedor', 'itens.produto', 'itens.servico', 'caixa', 'pedido', 'notasFiscais', 'contasReceber']);
+        $venda->load(['cliente', 'vendedor', 'itens.produto', 'itens.servico', 'caixa', 'pedido', 'notasFiscais', 'contasReceber',
+            'devolucoes.itens.produto', 'devolucoes.itens.vendaItem', 'devolucoes.vale', 'devolucoes.vendaNova', 'devolucoes.user']);
 
         return view('app.vendas.show', compact('venda'));
     }

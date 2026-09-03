@@ -36,6 +36,7 @@ class FiscalPayloadBuilder
         'debito'            => '04',
         'crediario'         => '05',
         'credito_loja'      => '05',
+        'vale'              => '05', // vale de troca = crédito na loja (03/09/2026)
         'vale_alimentacao'  => '10',
         'vale_refeicao'     => '11',
         'vale_presente'     => '12',

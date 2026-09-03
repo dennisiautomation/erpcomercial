@@ -33,6 +33,8 @@ class CaixaController extends Controller
         $vendasDinheiro = (float) ($porForma['dinheiro'] ?? 0);
         $suprimentos = (float) $movs->where('tipo', TipoMovimentacaoCaixa::Suprimento)->sum('valor');
         $sangrias = (float) $movs->where('tipo', TipoMovimentacaoCaixa::Sangria)->sum('valor');
+        // Dinheiro devolvido ao cliente em troca/devolução: saiu da gaveta.
+        $devolucoes = (float) $movs->where('tipo', TipoMovimentacaoCaixa::Devolucao)->sum('valor');
         $abertura = (float) $caixa->valor_abertura;
 
         return [
@@ -42,7 +44,8 @@ class CaixaController extends Controller
             'vendas_por_forma'  => $porForma,
             'suprimentos'       => $suprimentos,
             'sangrias'          => $sangrias,
-            'esperado_dinheiro' => round($abertura + $vendasDinheiro + $suprimentos - $sangrias, 2),
+            'devolucoes'        => $devolucoes,
+            'esperado_dinheiro' => round($abertura + $vendasDinheiro + $suprimentos - $sangrias - $devolucoes, 2),
         ];
     }
 

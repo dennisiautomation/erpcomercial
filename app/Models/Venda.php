@@ -106,6 +106,19 @@ class Venda extends Model
         return $this->hasMany(ContaReceber::class);
     }
 
+    public function valeUsos(): HasMany
+    {
+        return $this->hasMany(ValeUso::class);
+    }
+
+    /** Valor já devolvido/trocado desta venda (devoluções não canceladas). */
+    public function getTotalDevolvidoAttribute(): float
+    {
+        return round((float) $this->devolucoes
+            ->where('status', '!=', 'cancelada')
+            ->sum('valor_estornado'), 2);
+    }
+
     /* ------------------------------------------------------------------ */
     /*  Acessores                                                          */
     /* ------------------------------------------------------------------ */
