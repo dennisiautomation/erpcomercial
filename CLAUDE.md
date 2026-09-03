@@ -191,7 +191,7 @@ public/
 
 ### PWA — instalar como aplicativo (03/09/2026)
 - `PwaController` serve `/manifest.webmanifest`, `/sw.js`, `/pwa/{icone}.png` e `/offline` **por rota** — nada em `public/` (o deploy por tar não leva `public/`, armadilha 46)
-- Ícones em `resources/pwa/` (regerar: `python3 resources/pwa/gerar-icones.py`)
+- Ícones em `resources/pwa/` = marca **IA / ERP** (regerar: `python3 resources/pwa/gerar-icones.py`; arg `ink` = variante da landing)
 - Convite: `<x-erp.pwa-head />` no `<head>` + `<x-erp.pwa-install />` antes do `</body>` em `layouts/app.blade.php` e `auth/login.blade.php`. **PDV fica de fora** (documento próprio, tela operacional)
 - Service worker: rede primeiro em navegação, **nunca cacheia HTML de `/app` ou `/admin`** (multi-tenant), só estáticos + `/offline`
 - **Kill switch**: `PWA_ATIVO=false` no `.env` → convite some e o `/sw.js` se desregistra nos navegadores. Ver docs.md seção 9o e armadilha 64

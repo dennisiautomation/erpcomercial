@@ -2603,10 +2603,12 @@ num `--force-recreate`. `PwaController` serve tudo:
 | `GET /pwa/{arquivo}.png` | ícones, lidos de `resources/pwa/` (whitelist de 4 nomes; qualquer outro é 404) |
 | `GET /offline` | casca offline, única página que fica em cache |
 
-Os ícones (`icone-192`, `icone-512`, `icone-maskable-512`, `icone-apple-180`) são a **grade 3×3 do
-sidebar** (`bi-grid-3x3-gap-fill`) em branco sobre o gradiente `#6366f1 → #8b5cf6` do design system.
-Regerar: `python3 resources/pwa/gerar-icones.py` (PIL). O `maskable` tem 30% de margem porque o
-Windows e o Android recortam o ícone.
+Os ícones (`icone-192`, `icone-512`, `icone-maskable-512`, `icone-apple-180`) são a marca
+**IA / ERP** — o mesmo lockup da landing V2 (`.brand__mark` com "IA" seguido de "ERP"), empilhado
+para caber num quadrado — em branco sobre o gradiente `#6366f1 → #8b5cf6` do design system. Regerar:
+`python3 resources/pwa/gerar-icones.py` (PIL); o script aceita `ink` como argumento para a variante
+`#1d1d1f` da landing. O `maskable` tem 30% de margem porque o Windows e o Android recortam o ícone,
+e a linha "ERP" some visualmente abaixo de ~24px — é o "IA" que carrega a marca na barra de tarefas.
 
 ### O service worker é deliberadamente burro
 
