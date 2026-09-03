@@ -2544,8 +2544,9 @@ Cadeia de estoque conferida movimentação a movimentação (`anterior→posteri
 
 ### Deploy — FEITO em 03/09/2026 (Dennis mandou, sem rebuild)
 
-**EM PRODUÇÃO** desde 03/09 ~13:30 a partir da branch `feat/trocas-vale-relatorio` (worktree na
-branch; **não mergeada na `main`, não pushada** — só com o OK dele). Rollback da imagem:
+**EM PRODUÇÃO** desde 03/09 ~13:30 a partir da branch `feat/trocas-vale-relatorio`; **mergeada na
+`main` (fast-forward) e pushada em 03/09 por ordem do Dennis** — `main == origin/main == produção`,
+worktree de build de volta na `main` (armadilha 52 satisfeita). Rollback da imagem:
 `erp-com-app:pre-trocas-20260903`. Conferido depois: migration `[33] Ran`, 8 rotas `app.trocas.*`,
 as 15 configs de loja com `30 / vale / 90 / 1`, ENUM do caixa com `devolucao`, `/app/trocas` e
 `/app/pdv/vale/*` respondendo (302 para login sem sessão), `laravel.log` sem erro novo.
@@ -2900,7 +2901,7 @@ Rollback: `git checkout main` + mesmo tar + `migrate:rollback --step=1` + optimi
 1. **Dennis testar no balcão**: F6 numa venda de outro dia, troca levando mais caro e mais barato,
    vale usado em outra loja, devolução em dinheiro com a senha do gerente. O que der errado vem com
    print (regra da entrega de 26/08).
-2. **Merge/push da branch `feat/trocas-vale-relatorio`** — só com o OK dele.
+2. ✅ Merge/push da branch `feat/trocas-vale-relatorio` — feito em 03/09 por ordem dele.
 3. NF-e de devolução (finalidade 4, `notas_referenciadas`) — fase 2 quando alguma loja fiscal pedir.
 4. Estornar comissão do vendedor na devolução (hoje fica).
 5. Aviso de vale vencendo (sino / WhatsApp) — nenhum cron olha `vales.validade`.
