@@ -13,6 +13,9 @@
     <!-- ERP Design System -->
     <link href="{{ asset('css/erp.css') }}" rel="stylesheet">
 
+    {{-- PWA: manifest + ícones (instalar o ERP como aplicativo) --}}
+    <x-erp.pwa-head />
+
     <style>
         /* ================================================================
            CSS Custom Properties — Theming
@@ -1210,6 +1213,12 @@
                             </span>
                         </li>
                         <li><hr class="dropdown-divider"></li>
+                        {{-- Só aparece quando o navegador aceita instalar o app --}}
+                        <li data-pwa-menu hidden>
+                            <a class="dropdown-item" href="#" data-pwa-instalar>
+                                <i class="bi bi-download me-2"></i>Instalar aplicativo
+                            </a>
+                        </li>
                         @if(!auth()->user()->is_admin && auth()->user()->isDono())
                             <li>
                                 <a class="dropdown-item" href="{{ route('app.plano.index') }}">
@@ -1417,5 +1426,8 @@
     @auth
         <x-erp.fiscal-help-modal />
     @endauth
+
+    {{-- PWA: convite de instalação + service worker --}}
+    <x-erp.pwa-install />
 </body>
 </html>

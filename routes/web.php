@@ -16,6 +16,19 @@ Route::post('/agendar-demonstracao', [\App\Http\Controllers\SiteController::clas
     ->middleware('throttle:10,1')
     ->name('site.demo.store');
 
+/* ------ PWA — instalar o ERP como aplicativo (manifest, SW, ícones, offline) ------
+   Servidos por rota, e não por arquivo em public/: o deploy por tar não leva
+   public/ (armadilha 46), então o PWA sobe junto com o resto do código. */
+Route::get('/manifest.webmanifest', [\App\Http\Controllers\PwaController::class, 'manifest'])
+    ->name('pwa.manifest');
+Route::get('/sw.js', [\App\Http\Controllers\PwaController::class, 'serviceWorker'])
+    ->name('pwa.sw');
+Route::get('/pwa/{arquivo}', [\App\Http\Controllers\PwaController::class, 'icone'])
+    ->where('arquivo', '[a-z0-9\-]+\.png')
+    ->name('pwa.icone');
+Route::get('/offline', [\App\Http\Controllers\PwaController::class, 'offline'])
+    ->name('pwa.offline');
+
 /* ------------------------------------------------------------------ */
 /*  Auth                                                               */
 /* ------------------------------------------------------------------ */

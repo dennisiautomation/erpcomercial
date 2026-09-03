@@ -6,6 +6,9 @@
     <title>Login - ERP Comercial</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+
+    {{-- PWA: manifest + ícones (instalar o ERP como aplicativo) --}}
+    <x-erp.pwa-head />
     <style>
         :root {
             --primary: #2563eb;
@@ -533,5 +536,8 @@
             }
         });
     </script>
+
+    {{-- PWA: convite de instalação + service worker --}}
+    <x-erp.pwa-install />
 </body>
 </html>

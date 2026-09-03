@@ -189,6 +189,13 @@ public/
 - Feature gating por plano (middleware `plano:feature`)
 - Limites: max_unidades, max_usuarios, max_produtos, max_notas_mes
 
+### PWA — instalar como aplicativo (03/09/2026)
+- `PwaController` serve `/manifest.webmanifest`, `/sw.js`, `/pwa/{icone}.png` e `/offline` **por rota** — nada em `public/` (o deploy por tar não leva `public/`, armadilha 46)
+- Ícones em `resources/pwa/` (regerar: `python3 resources/pwa/gerar-icones.py`)
+- Convite: `<x-erp.pwa-head />` no `<head>` + `<x-erp.pwa-install />` antes do `</body>` em `layouts/app.blade.php` e `auth/login.blade.php`. **PDV fica de fora** (documento próprio, tela operacional)
+- Service worker: rede primeiro em navegação, **nunca cacheia HTML de `/app` ou `/admin`** (multi-tenant), só estáticos + `/offline`
+- **Kill switch**: `PWA_ATIVO=false` no `.env` → convite some e o `/sw.js` se desregistra nos navegadores. Ver docs.md seção 9o e armadilha 64
+
 ### Funcionalidades Transversais
 - **Reset de senha**, **Busca global** (clientes/produtos/vendas)
 - **Notificações**: sino no topbar, contas vencidas, estoque baixo, trial expirando
