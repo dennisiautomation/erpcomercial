@@ -2542,10 +2542,14 @@ prazo 7 → fora do prazo, mesma trava; troca devolvendo 250 e levando 100 com s
 Cadeia de estoque conferida movimentação a movimentação (`anterior→posterior`). 20 páginas GET sem
 5xx nos 3 perfis (o único 500 foi um `@endif` colado em texto no Blade — armadilha 63 — corrigido).
 
-### Deploy — PENDENTE em 03/09/2026 (aguardando o Dennis)
+### Deploy — FEITO em 03/09/2026 (Dennis mandou, sem rebuild)
 
-Branch `feat/trocas-vale-relatorio` @`f5c7b5b`, validada no `erp-test-app`, **não deployada e não
-mergeada**. Backup do banco de produção já feito:
+**EM PRODUÇÃO** desde 03/09 ~13:30 a partir da branch `feat/trocas-vale-relatorio` (worktree na
+branch; **não mergeada na `main`, não pushada** — só com o OK dele). Rollback da imagem:
+`erp-com-app:pre-trocas-20260903`. Conferido depois: migration `[33] Ran`, 8 rotas `app.trocas.*`,
+as 15 configs de loja com `30 / vale / 90 / 1`, ENUM do caixa com `devolucao`, `/app/trocas` e
+`/app/pdv/vale/*` respondendo (302 para login sem sessão), `laravel.log` sem erro novo.
+Backup prévio do banco:
 `/home/ubuntu/erp-backups/pre-trocas-vale-20260903-1302.sql.gz` (70 tabelas). O rito é o de
 sempre, sem rebuild (não toca `bootstrap/` nem `composer.json`): marcar a imagem atual como tag de
 rollback, tar de `app database resources routes config` para o container, `migrate --force`
