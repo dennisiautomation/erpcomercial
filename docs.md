@@ -3426,6 +3426,17 @@ suja de `1,5` **não gerou nenhuma**. POST forjado com `-5` barrado pelo servido
 > realidade divergia do que estava escrito aqui, o texto foi corrigido — vale a auditoria, não a
 > memória do que se pretendia fazer.
 
+**Fila de 04/09 (roda do mouse / estoque fracionário):**
+
+1. ⚠️ **623 produtos da MISS MERLINDA seguem com saldo fracionário** — Dennis decidiu em 04/09
+   **não** rodar limpeza em massa; a loja corrige na contagem, com a célula âmbar apontando onde.
+   Se um dia quiser o script: **622 dos 623 já eram `0` antes** do primeiro ajuste acidental (zerar
+   devolve o estado real), e o único diferente é **BODY ELISE na LOJA RIVERSIDE, que tinha 3 e está
+   com 0,003**. Enquanto existirem, o PDV acha que esses produtos têm estoque (o aviso é `<= 0`).
+2. **Fechar a validação do servidor em `integer`** — só depois da limpeza: hoje o form reenvia as
+   623 células fracionárias e um `integer` daria 422 na MISS MERLINDA inteira.
+3. **O `erp-core.js` precisa de `docker cp` próprio no deploy** — `public/` não vai no tar.
+
 **Fila de 04/09 (vendedor só PDV):**
 
 1. **Dennis ligar as chaves** (ele mesmo, em 04/09) — o código já está em produção com as duas
