@@ -3040,6 +3040,41 @@ teclado do celular continua numérico. O resto vira JS na própria view:
 e 623 delas ainda têm saldo fracionário no banco. Com `integer`, abrir a tela da MISS MERLINDA e
 salvar daria 422. Fechar no servidor depende da limpeza (fila abaixo).
 
+### A célula mostra o saldo REAL — e a reconstrução que não achou estoque (rodada 3, 04/09 noite)
+
+Depois de a tela passar a exibir inteiro, o Dennis abriu `/app/multilojas/estoque` da MISS MERLINDA
+e viu **coluna após coluna de zeros**: os 619 saldos em milésimos apareciam como `0`. A leitura
+imediata — justa — foi *"você zerou o estoque do cliente"*.
+
+**Nada tinha sido zerado.** O que a apuração mostrou, nesta ordem:
+
+- `estoque_movimentacoes` intacta: **2.477 linhas no backup das 09:05 → 2.767 às 17h**, nenhuma
+  apagada, todos os ids preservados;
+- **nenhum ajuste gravado depois das 12:52**, e a tela nova só entrou às 14:47;
+- 🔑 e o dado que explica tudo: a MISS MERLINDA tem **890 movimentações de estoque — 73 vendas, 817
+  ajustes manuais e ZERO entradas**. A primeira movimentação da empresa, em 20/08, já é uma venda
+  saindo de saldo zero para −1. **O estoque nunca foi carregado no ERP**; a equipe estava fazendo o
+  inventário à mão pela tela desde 02/09, e foi isso que a roda do mouse destruiu.
+
+A reconstrução pedida — percorrer todo o histórico, adotando ajuste inteiro como digitação humana,
+ignorando o ruído em milésimos e descontando toda venda — foi escrita, simulada e aplicada
+(621 movimentações). O resultado provou o diagnóstico: **1 produto recuperado** (BODY ELISE, 3
+peças na RIVERSIDE) e o resto indo a zero ou negativo. Como a tela continuou mostrando zeros, o
+Dennis pediu tudo de volta *"nem que volte em fração"* — as 621 linhas foram **apagadas** e os
+saldos voltaram ao estado anterior no mesmo minuto (elas ficaram isoladas nos ids 2863–3483, e
+nenhuma venda ou ajuste da equipe foi tocado).
+
+⚠️ **A lição da rodada**: numa base onde o dado já está quebrado, **arredondar na exibição esconde o
+problema em vez de resolvê-lo** — e some justamente com a evidência que o dono precisa ver. A célula
+voltou a mostrar o **saldo real** (`0,007`), em amarelo, com o `title` explicando; quem digita, digita
+inteiro; e **abrir a tela e salvar não mexe em saldo que ninguém contou** (célula intocada é
+comparada com `defaultValue` e sai do envio).
+
+O `pattern="[0-9]*"` continua fora — ele travava o Salvar exatamente como o `min="0"` travava antes.
+
+📌 O caminho para o estoque existir de fato é o **import de saldo** (`/app/import/estoque`), o mesmo
+da migração da DONA DOURO. Nenhuma tela de ajuste substitui a carga inicial.
+
 ### A célula suja aparece no inteiro e se acerta ao salvar (rodada 2, 04/09 noite)
 
 A primeira versão exibia o valor real (`0,007`) e mandava o submit **ignorar** a célula intocada,

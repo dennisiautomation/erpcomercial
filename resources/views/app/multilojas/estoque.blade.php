@@ -101,15 +101,16 @@
                                             //
                                             // A tela e de CONTAGEM DE PECA: mostra sempre INTEIRO.
                                             // O amarelo marca quem chegou fracionario, e salvar a
-                                            // tela grava o inteiro que esta a vista — e assim que
-                                            // esses saldos se acertam, loja por loja, sem script.
-                                            // Negativo tambem entra no amarelo: o -0,999 de
-                                            // producao (e o -2 de quem vendeu sem estoque) some ao
-                                            // salvar, e o gerente tem que VER que sumiu — o title
-                                            // diz quanto era. Sem isso a tela zeraria um saldo
-                                            // negativo calada.
+                                            // 04/09 noite: a celula volta a mostrar o SALDO REAL,
+                                            // com fracao ("nem que volte em fracao, eu preciso das
+                                            // quantidades"). Arredondar na tela escondia o numero
+                                            // que esta no banco — e numero escondido assusta mais
+                                            // do que numero feio.
+                                            //
+                                            // Amarelo marca o que precisa de contagem: fracao (o
+                                            // ruido da roda do mouse, armadilha 66) ou negativo.
                                             $precisaAcerto = ($saldo != round($saldo)) || $saldo < 0;
-                                            $exibido = max(0, (int) round($saldo));
+                                            $exibido = rtrim(rtrim(number_format($saldo, 3, ',', ''), '0'), ',');
                                         @endphp
                                         {{-- type="text", NAO "number": o spinner do type=number
                                              responde a RODA DO MOUSE numa tabela que rola.
@@ -123,7 +124,7 @@
                                                name="saldos[{{ $produto->id }}][{{ $unidade->id }}]"
                                                value="{{ $exibido }}"
                                                @if($precisaAcerto)
-                                                   title="Este saldo está como {{ rtrim(rtrim(number_format($saldo, 3, ',', ''), '0'), ',') }}{{ $saldo < 0 ? ' (negativo — saiu mais do que tinha)' : ' — resto de um acerto antigo da tela' }}. Salvando, ele vira {{ $exibido }}."
+                                                   title="{{ $saldo < 0 ? 'Saldo negativo — saiu mais do que tinha em estoque.' : 'Saldo com fração — resto de um acerto antigo da tela. Digite a quantidade contada por cima para corrigir.' }}"
                                                @endif
                                                class="form-control form-control-sm text-center
                                                       {{ $precisaAcerto ? 'border-warning bg-warning bg-opacity-10' : ($saldo <= 0 ? 'border-danger text-danger' : '') }}"
@@ -131,7 +132,7 @@
                                     </td>
                                 @endforeach
                                 <td class="text-center fw-bold">
-                                    {{ (int) round($linha['total']) }}
+                                    {{ rtrim(rtrim(number_format($linha['total'], 3, ',', ''), '0'), ',') }}
                                 </td>
                             </tr>
                         @empty
@@ -154,10 +155,10 @@
                 @if($temFracionario ?? false)
                     <span class="text-warning d-block">
                         <i class="bi bi-exclamation-triangle me-1"></i>
-                        Células em amarelo estão com saldo quebrado (ex.: <code>0,007</code>, resto
-                        de um acerto antigo desta tela) ou <strong>negativo</strong>. Aqui já
-                        aparecem no inteiro — <strong>salvar acerta o saldo delas</strong>. Passe o
-                        mouse na célula para ver quanto era; confira a contagem antes.
+                        Células em amarelo estão com saldo <strong>quebrado</strong>
+                        (ex.: <code>0,007</code>, resto de um acerto antigo desta tela) ou
+                        <strong>negativo</strong>. Digite a quantidade contada por cima para
+                        corrigir — só o que você digitar é gravado.
                     </span>
                 @endif
                 @if(count($matriz) >= 300)
@@ -180,10 +181,10 @@
  * Resultado em producao: 623 produtos com saldo "0,005". Sem spinner o acidente
  * nao existe mais — aqui so resta aceitar numero inteiro e barrar o resto.
  *
- * A tela mostra SEMPRE inteiro, inclusive nas celulas que chegaram fracionarias
- * (as amarelas): salvar grava o inteiro que esta a vista e acerta aquele saldo.
- * E assim que os 623 saldos quebrados de producao se resolvem — pela contagem de
- * quem esta olhando a tela, loja por loja, sem script de limpeza em massa.
+ * A celula mostra o saldo REAL (com fracao, quando houver): o numero da tela e o
+ * numero do banco, sem arredondar por baixo. Quem digita, digita INTEIRO — e so
+ * o que for digitado vira ajuste. Abrir a tela e salvar nao mexe em saldo que
+ * ninguem contou.
  */
 (function () {
     const form = document.querySelector('form[action="{{ route('app.multilojas.estoque.ajustar') }}"]');
@@ -212,7 +213,9 @@
             const bruto = el.value.trim();
             el.classList.remove('is-invalid');
 
-            if (bruto === '') return;
+            // Celula intocada (ainda com o saldo original) passa como veio: o
+            // controller compara e nao gera movimentacao nenhuma.
+            if (bruto === '' || bruto === el.defaultValue) return;
 
             if (!/^\d+$/.test(bruto)) {
                 el.classList.add('is-invalid');
