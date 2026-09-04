@@ -130,6 +130,7 @@ public/
 - PDV fullscreen dark, atalhos F1-F12, split payment, verificação estoque
 - **Lógica de emissão no PDV**: `emissao_fiscal_ativa && emite_nfce` → emite NFC-e; senão, só cupom/recibo. Cupom/recibo **sempre é impresso**. Falha na NFC-e cai silenciosamente no recibo.
 - **Trocas e devoluções (03/09/2026)**: F6 no PDV (venda de qualquer dia/loja → itens que voltam → bipa o que leva; diferença cobrada, zerada ou vira **vale** `VT-XXXX-XXXX`/dinheiro conforme Configurações da Loja → Trocas); `TrocaService` é o ponto único; `/app/trocas` + `/app/trocas/vales`; módulo `trocas` na matriz. Ver docs.md seção 9n.
+- **Acréscimo do cartão por parte (04/09/2026)**: 4ª regra de `configuracoes_loja.regra_preco_split` — `por_parte`. Nela o preço do item **nunca** muda com a forma de pagamento; o acréscimo de débito/crédito incide sobre o **valor pago naquela forma** e vira `acrescimo_forma_valor` em `pagamento_detalhes`, somado por `Venda::outras_despesas` (mesmo caminho dos juros: `vOutro` na NFC-e + linha no cupom). Ordem: acréscimo da forma → juros de parcelamento (é a ordem da maquininha). Preço próprio por produto (`produto_precos`) não vale nessa regra. `TrocaService` devolve o acréscimo junto. Ver docs.md seção própria e armadilha 67
 - Comissões (config por produto/categoria, pagamento em lote)
 
 ### Fiscal (Focus NFe — 95% cobertura)

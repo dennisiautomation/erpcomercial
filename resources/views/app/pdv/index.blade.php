@@ -904,6 +904,10 @@
                 <span>Crédito da troca <small id="creditoCodigo" style="opacity:.75;"></small></span>
                 <span class="summary-val" id="summaryCredito" style="color:var(--accent-teal, #20c997);">- R$ 0,00</span>
             </div>
+            <div class="summary-row" id="acrescimoRow" style="display:none; color:var(--accent-yellow, #ffc107);">
+                <span>Acréscimo cartão</span>
+                <span class="summary-val" id="summaryAcrescimo" style="color:var(--accent-yellow, #ffc107);">+ R$ 0,00</span>
+            </div>
             <div class="summary-row" id="restanteRow" style="display:none;">
                 <span>A pagar</span>
                 <span class="summary-val" id="summaryRestante">R$ 0,00</span>
@@ -1036,6 +1040,11 @@
                     <input type="number" class="form-control modal-valor-input" id="valorRecebido"
                         step="0.01" min="0" placeholder="0,00">
                 </div>
+                {{-- Acréscimo da forma (regra `por_parte`): a conta aparece enquanto o
+                     caixa digita, para ele falar o número certo na maquininha. --}}
+                <div id="acrescimoFormaResumo" style="display:none; margin-bottom:1rem; padding:.6rem .75rem;
+                     border-radius:.5rem; background:rgba(255,193,7,.12);
+                     border:1px solid rgba(255,193,7,.35); font-size:.9rem;"></div>
                 <div class="mb-3" id="parcelasWrap" style="display:none;">
                     <label class="form-label">Parcelas</label>
                     <select class="form-select" id="parcelasSelect"
@@ -1403,6 +1412,11 @@ const PDV = {
     documentoEscolhido: null,
     configLoja: {!! json_encode([
         'regra_split'             => $configLoja->regra_preco_split ?? 'cartao_maior',
+        // Acréscimo por parte (regra `por_parte`, 04/09/2026): o front precisa dos
+        // percentuais para mostrar a conta ANTES de confirmar. Quem grava é o
+        // servidor, que refaz o cálculo — isto aqui é prévia.
+        'percentual_debito'       => (float) ($configLoja->percentual_debito ?? 0),
+        'percentual_credito'      => (float) ($configLoja->percentual_credito ?? 0),
         'max_parcelas'            => (int) ($configLoja->max_parcelas ?? 6),
         'juros_por_parcela'       => (object) ($configLoja->juros_por_parcela ?? []),
         // Quem decide e o service, no PHP — o front so consome, para a regra
@@ -1790,6 +1804,12 @@ const PDV = {
         // Cliente de atacado leva o preco de atacado em qualquer forma de pagamento
         if (this.clienteTipoPreco === 'atacado') return 'atacado';
 
+        // Regra `por_parte` (04/09/2026): o item fica SEMPRE no preço à vista e o
+        // acréscimo do cartão é cobrado sobre o valor pago em cada forma. Espelha
+        // TabelaPrecoService::modalidadeDosPagamentos — a regra tem que ser a
+        // mesma dos dois lados, senão a tela mostra um total e o servidor grava outro.
+        if (this.cobraPorParte()) return 'dinheiro_pix';
+
         const formas = this.pagamentos.map(p => p.forma);
         if (formaExtra) formas.push(formaExtra);
         if (formas.length === 0) return 'dinheiro_pix';
@@ -1803,6 +1823,58 @@ const PDV = {
         // cartao_maior: a maior tabela entre as formas presentes
         const peso = { dinheiro_pix: 0, debito: 1, credito: 2 };
         return mods.sort((a, b) => peso[b] - peso[a])[0];
+    },
+
+    // ===== ACRÉSCIMO DO CARTÃO POR PARTE (regra `por_parte`) =====
+    // Espelha TabelaPrecoService::acrescimoDaForma/acrescimoSobre. O valor que o
+    // caixa digita é SEMPRE o preço à vista; o acréscimo entra por cima e a tela
+    // mostra quanto passa na maquininha. Quem grava é o servidor.
+    cobraPorParte() {
+        return this.configLoja.regra_split === 'por_parte';
+    },
+
+    percentualAcrescimoForma(forma) {
+        if (!this.cobraPorParte()) return 0;
+        // Cliente de atacado leva o preço de atacado no item, mas o acréscimo é
+        // do meio de pagamento — continua valendo.
+        if (forma === 'cartao_debito') return Math.max(0, parseFloat(this.configLoja.percentual_debito) || 0);
+        if (forma === 'cartao_credito') return Math.max(0, parseFloat(this.configLoja.percentual_credito) || 0);
+        return 0;
+    },
+
+    acrescimoDe(valorBase, forma) {
+        const pct = this.percentualAcrescimoForma(forma);
+        if (pct <= 0 || valorBase <= 0) return 0;
+        return round(round(valorBase, 2) * (pct / 100), 2);
+    },
+
+    /** Soma do acréscimo dos pagamentos JÁ registrados (o `valor` deles é à vista). */
+    acrescimoFormasTotal() {
+        return round(this.pagamentos.reduce(
+            (soma, p) => soma + this.acrescimoDe(p.valor, p.forma), 0
+        ), 2);
+    },
+
+    /** Mostra no modal quanto o cartão acrescenta sobre o que está digitado. */
+    renderResumoAcrescimoForma(forma) {
+        const box = document.getElementById('acrescimoFormaResumo');
+        if (!box) return;
+
+        const pct = this.percentualAcrescimoForma(forma);
+        const base = parseFloat(document.getElementById('valorRecebido')?.value) || 0;
+        const acrescimo = this.acrescimoDe(base, forma);
+
+        if (pct <= 0 || acrescimo <= 0) {
+            box.style.display = 'none';
+            return;
+        }
+
+        const rotulo = forma === 'cartao_debito' ? 'débito' : 'crédito';
+        box.style.display = 'block';
+        box.innerHTML = `
+            <div>À vista: <strong>${this.formatMoney(base)}</strong></div>
+            <div>Acréscimo ${rotulo} (${pct.toFixed(2).replace('.', ',')}%): + ${this.formatMoney(acrescimo)}</div>
+            <div>Passa na maquininha: <strong>${this.formatMoney(round(base + acrescimo, 2))}</strong></div>`;
     },
 
     // Reaplica a tabela de preço da modalidade vigente em todos os itens
@@ -1823,7 +1895,12 @@ const PDV = {
     updateTabelaBadge() {
         const badge = document.getElementById('tabelaPrecoBadge');
         if (!badge) return;
-        const labels = { dinheiro_pix: null, debito: 'Tabela: Débito', credito: 'Tabela: Crédito', atacado: 'Tabela: Atacado' };
+        // Na regra por parte o item não muda de tabela — quem informa o acréscimo
+        // é a linha própria do resumo, não este badge (que falaria de uma tabela
+        // que não está sendo aplicada).
+        const labels = this.cobraPorParte()
+            ? { dinheiro_pix: null, debito: null, credito: null, atacado: 'Tabela: Atacado' }
+            : { dinheiro_pix: null, debito: 'Tabela: Débito', credito: 'Tabela: Crédito', atacado: 'Tabela: Atacado' };
         const texto = labels[this.tabelaAtiva];
         badge.style.display = texto ? 'block' : 'none';
         badge.textContent = texto || '';
@@ -2022,8 +2099,21 @@ const PDV = {
         }
         const total = Math.max(0, round(subtotal - desconto, 2));
 
+        // Acréscimo do cartão por parte: o TOTAL na tela tem que ser o que o
+        // cliente vai pagar. Sem isso a tela diria R$ 300 e o cupom sairia R$ 330.
+        const acrescimoFormas = this.acrescimoFormasTotal();
+        const acrescimoRow = document.getElementById('acrescimoRow');
+        if (acrescimoRow) {
+            if (acrescimoFormas > 0) {
+                acrescimoRow.style.display = 'flex';
+                document.getElementById('summaryAcrescimo').textContent = '+ ' + this.formatMoney(acrescimoFormas);
+            } else {
+                acrescimoRow.style.display = 'none';
+            }
+        }
+
         document.getElementById('summarySubtotal').textContent = this.formatMoney(subtotal);
-        document.getElementById('summaryTotal').textContent = this.formatMoney(total);
+        document.getElementById('summaryTotal').textContent = this.formatMoney(round(total + acrescimoFormas, 2));
         document.getElementById('itemsCount').textContent = this.itens.length + (this.itens.length === 1 ? ' item' : ' itens');
 
         const discountRow = document.getElementById('discountRow');
@@ -2143,6 +2233,9 @@ const PDV = {
         document.getElementById('splitCheck').style.display = temParcial ? 'none' : 'block';
         document.getElementById('isSplitPayment').checked = temParcial;
 
+        // Acréscimo por parte: mostra a conta assim que a forma é escolhida
+        this.renderResumoAcrescimoForma(forma);
+
         // Parcelas: só para cartão de crédito
         const parcelasWrap = document.getElementById('parcelasWrap');
         if (forma === 'cartao_credito') {
@@ -2153,6 +2246,9 @@ const PDV = {
             parcelasWrap.style.display = 'none';
             document.getElementById('jurosResumo').style.display = 'none';
         }
+
+        // Split já registrado: o resumo lateral acompanha o acréscimo acumulado
+        this.updateSummary();
 
         // Troco calculation for dinheiro
         valorInput.oninput = () => {
@@ -2167,6 +2263,9 @@ const PDV = {
                     document.getElementById('modalTrocoWrap').style.display = 'none';
                 }
             }
+            // Mudou o valor? O acréscimo do cartão acompanha na hora.
+            this.renderResumoAcrescimoForma(forma);
+
             // Mudou o valor a parcelar? As parcelas e o juros acompanham.
             if (forma === 'cartao_credito') {
                 this.atualizarParcelas();

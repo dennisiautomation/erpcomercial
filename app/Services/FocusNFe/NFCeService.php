@@ -377,9 +377,10 @@ class NFCeService
             $payload['valor_desconto'] = number_format($descontoTotal, 2, '.', '');
         }
 
-        // Outras despesas (vOutro) = juros do parcelamento cobrado do cliente.
-        // Sem isso a conta vNF = vProd − vDesc + vOutro não fecha e a SEFAZ
-        // rejeita a venda parcelada com juros.
+        // Outras despesas (vOutro) = o que a venda cobrou além dos itens: juros do
+        // parcelamento (02/09) e o acréscimo do cartão cobrado por parte
+        // (04/09, regra `por_parte`). Sem isso a conta vNF = vProd − vDesc + vOutro
+        // não fecha e a SEFAZ rejeita a venda.
         $outrasDespesas = (float) ($venda->outras_despesas ?? 0);
         if ($outrasDespesas > 0) {
             $payload['valor_outras_despesas'] = number_format($outrasDespesas, 2, '.', '');

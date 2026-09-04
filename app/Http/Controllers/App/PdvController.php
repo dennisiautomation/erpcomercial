@@ -324,6 +324,50 @@ class PdvController extends Controller
                 $jurosService = app(JurosParcelamentoService::class);
                 $acrescimoJuros = 0;
 
+                // Acréscimo do cartão POR PARTE (04/09/2026), quando a loja usa a
+                // regra `por_parte`: o item fica no preço à vista e cada forma paga
+                // o acréscimo dela sobre o que foi pago nela. Numa venda de R$ 300
+                // com R$ 100 no PIX e R$ 200 no crédito a 10%, só os R$ 200 sobem.
+                //
+                // Roda ANTES do juros de propósito: na maquininha o parcelamento
+                // incide sobre o valor que passou nela, já acrescido.
+                //
+                // O servidor é a autoridade (mesma regra do juros): o front manda o
+                // valor à vista e a conta é refeita aqui.
+                $tabelaPreco = app(TabelaPrecoService::class);
+                $acrescimoFormas = 0;
+
+                // ⚠️ Só entra quando o SERVIDOR reprecificou os itens ($modalidade
+                // definido, isto é, o front mandou `tabela_precos`). Um PDV antigo
+                // demais para esse flag manda os itens já na tabela do cartão — somar
+                // o acréscimo por cima cobraria o cliente duas vezes. Sem o flag, a
+                // venda segue o comportamento antigo e ninguém é surpreendido.
+                if ($modalidade !== null && $tabelaPreco->cobraPorParte($configLojaJuros)) {
+                    foreach ($pagamentos as $idx => $pgto) {
+                        $calc = $tabelaPreco->acrescimoSobre(
+                            (float) $pgto['valor'],
+                            (string) ($pgto['forma'] ?? ''),
+                            $configLojaJuros
+                        );
+
+                        if (! $calc['tem_acrescimo'] || $calc['acrescimo'] <= 0) {
+                            continue;
+                        }
+
+                        // O `valor` fica COM acréscimo: é o que passa na maquininha,
+                        // o que entra no caixa e o que a nota soma nas formas de
+                        // pagamento. O valor à vista fica guardado ao lado.
+                        $pagamentos[$idx]['valor_sem_acrescimo']    = $calc['total'] - $calc['acrescimo'];
+                        $pagamentos[$idx]['valor']                  = $calc['total'];
+                        $pagamentos[$idx]['acrescimo_forma_valor']  = $calc['acrescimo'];
+                        $pagamentos[$idx]['acrescimo_forma_percentual'] = $calc['percentual'];
+
+                        $acrescimoFormas = round($acrescimoFormas + $calc['acrescimo'], 2);
+                    }
+
+                    $total = round($total + $acrescimoFormas, 2);
+                }
+
                 if ($request->boolean('juros_parcelamento')) {
                     foreach ($pagamentos as $idx => $pgto) {
                         $parcelasPgto = max(1, (int) ($pgto['parcelas'] ?? 1));

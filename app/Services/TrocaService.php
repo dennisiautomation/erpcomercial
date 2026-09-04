@@ -319,16 +319,29 @@ class TrocaService
     /*  Apoio                                                              */
     /* ------------------------------------------------------------------ */
 
-    /** Desconto global da venda rateado sobre os itens (o item já é líquido do desconto próprio). */
+    /**
+     * O que a venda de fato cobrou, rateado sobre os itens.
+     *
+     * Desconto global desce o fator; acréscimo (juros de parcelamento e o
+     * acréscimo do cartão cobrado por parte) sobe. O item já é líquido do
+     * desconto próprio dele.
+     *
+     * 🔑 O acréscimo entrou aqui em 04/09/2026, por decisão do Dennis: quem
+     * pagou 10% a mais no cartão recebe esses 10% de volta ao devolver a peça.
+     * Vale também para venda parcelada com juros — que até então devolvia sem
+     * eles, porque o acréscimo não estava no preço do item.
+     */
     private function fatorDescontoGlobal(Venda $venda): float
     {
         $subtotal = (float) $venda->subtotal;
         $desconto = (float) $venda->desconto_valor;
-        if ($subtotal <= 0 || $desconto <= 0) {
+        $acrescimo = (float) $venda->outras_despesas;
+
+        if ($subtotal <= 0 || ($desconto <= 0 && $acrescimo <= 0)) {
             return 1.0;
         }
 
-        return max(0, ($subtotal - $desconto) / $subtotal);
+        return max(0, ($subtotal - $desconto + $acrescimo) / $subtotal);
     }
 
     private function resolverEstoque(?int $estoqueId, int $unidadeId): int

@@ -291,9 +291,20 @@
         </div>
     @endif
     @if($venda->outras_despesas > 0)
-        {{-- Sem esta linha o TOTAL não fecha com "subtotal − desconto" no cupom --}}
+        {{-- Sem esta linha o TOTAL não fecha com "subtotal − desconto" no cupom.
+             O rótulo segue o que compõe o valor: juros de parcelamento, acréscimo
+             do cartão cobrado por parte (04/09/2026), ou os dois na mesma venda. --}}
+        @php
+            $temJurosCupom = collect($venda->pagamento_detalhes ?? [])->contains(fn ($pg) => (float) ($pg['juros_valor'] ?? 0) > 0);
+            $temAcrescimoCartao = collect($venda->pagamento_detalhes ?? [])->contains(fn ($pg) => (float) ($pg['acrescimo_forma_valor'] ?? 0) > 0);
+            $rotuloAcrescimo = match (true) {
+                $temJurosCupom && $temAcrescimoCartao => 'Acréscimo cartão + juros',
+                $temAcrescimoCartao                   => 'Acréscimo cartão',
+                default                               => 'Juros parcelamento',
+            };
+        @endphp
         <div class="row">
-            <span>Juros parcelamento:</span>
+            <span>{{ $rotuloAcrescimo }}:</span>
             <span>+ R$ {{ number_format($venda->outras_despesas, 2, ',', '.') }}</span>
         </div>
     @endif

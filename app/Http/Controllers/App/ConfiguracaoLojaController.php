@@ -51,9 +51,23 @@ class ConfiguracaoLojaController extends Controller
                 ->count()
             : 0;
 
+        // Produtos com preço PRÓPRIO no débito/crédito (produto_precos). A regra
+        // de split "por parte" cobra o percentual geral sobre o valor pago e não
+        // sabe abrir um preço fechado de item — a tela avisa, com o número, antes
+        // de o lojista escolher. Lição da tela do juros (02/09): configuração sem
+        // número é configuração que ninguém sabe se deve ligar.
+        $produtosComPrecoProprio = $empresa
+            ? \App\Models\ProdutoPreco::whereIn('modalidade', ['debito', 'credito'])
+                ->whereIn('produto_id', \App\Models\Produto::withoutGlobalScopes()
+                    ->where('empresa_id', $empresa->id)->select('id'))
+                ->distinct()
+                ->count('produto_id')
+            : 0;
+
         return view('app.configuracoes.edit', compact(
             'config', 'empresa', 'podeMudarAcessoVendedor',
-            'vendedoresAtivos', 'vendedoresDestaLoja', 'vendedoresSemVinculo'
+            'vendedoresAtivos', 'vendedoresDestaLoja', 'vendedoresSemVinculo',
+            'produtosComPrecoProprio'
         ));
     }
 
@@ -92,7 +106,7 @@ class ConfiguracaoLojaController extends Controller
     {
         $dados = $request->validate([
             'vendedor_responsavel_caixa' => 'nullable|boolean',
-            'regra_preco_split'          => 'required|in:cartao_maior,sempre_menor,sempre_maior',
+            'regra_preco_split'          => 'required|in:cartao_maior,sempre_menor,sempre_maior,por_parte',
             'percentual_debito'          => 'required|numeric|min:0|max:100',
             'percentual_credito'         => 'required|numeric|min:0|max:100',
             'max_parcelas'               => 'required|integer|min:1|max:24',

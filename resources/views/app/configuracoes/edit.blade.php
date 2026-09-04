@@ -469,9 +469,55 @@
                     conservadora para a loja.</div>
             </label>
         </div>
+        <div class="form-check mt-2">
+            <input class="form-check-input" type="radio" name="regra_preco_split"
+                   id="regra_por_parte" value="por_parte" @checked($regra === 'por_parte')>
+            <label class="form-check-label" for="regra_por_parte">
+                <strong>Cada forma paga a sua própria tabela</strong>
+                <div class="text-muted small">
+                    O acréscimo do cartão incide <strong>só sobre a parte paga no cartão</strong>, não sobre a
+                    venda inteira.
+                    @php
+                        $pctCred = (float) old('percentual_credito', $config->percentual_credito ?? 0);
+                        $exBase = 300; $exPix = 100; $exCartao = $exBase - $exPix;
+                        $exAcrescimo = round($exCartao * $pctCred / 100, 2);
+                    @endphp
+                    @if($pctCred > 0)
+                        <div class="mt-1">
+                            Na sua loja: venda de R$ {{ number_format($exBase, 2, ',', '.') }} com
+                            R$ {{ number_format($exPix, 2, ',', '.') }} no PIX e o resto no crédito
+                            ({{ rtrim(rtrim(number_format($pctCred, 2, ',', '.'), '0'), ',') }}%) →
+                            as outras regras cobram
+                            <strong>R$ {{ number_format($exBase * (1 + $pctCred/100), 2, ',', '.') }}</strong>;
+                            esta cobra <strong>R$ {{ number_format($exBase + $exAcrescimo, 2, ',', '.') }}</strong>
+                            (os {{ rtrim(rtrim(number_format($pctCred, 2, ',', '.'), '0'), ',') }}% só sobre os
+                            R$ {{ number_format($exCartao, 2, ',', '.') }} do cartão).
+                        </div>
+                    @endif
+                    <div class="mt-1">
+                        Aqui o preço dos itens <strong>não muda</strong> com a forma de pagamento: o cupom e a
+                        nota saem com o preço da etiqueta e uma linha à parte de "Acréscimo cartão".
+                        Quem devolve a peça recebe o acréscimo de volta.
+                    </div>
+                </div>
+            </label>
+        </div>
+
+        @if(($produtosComPrecoProprio ?? 0) > 0)
+            <div class="alert alert-warning border-0 bg-warning bg-opacity-10 mt-2 mb-0 small">
+                <i class="bi bi-exclamation-triangle me-1"></i>
+                <strong>{{ $produtosComPrecoProprio }}</strong>
+                {{ $produtosComPrecoProprio === 1 ? 'produto tem preço próprio' : 'produtos têm preço próprio' }}
+                no débito/crédito (campo no cadastro do produto). Na regra <em>"cada forma paga a sua própria
+                tabela"</em> esse preço fechado <strong>não é usado</strong> — vale o percentual geral acima,
+                aplicado sobre o valor pago no cartão.
+            </div>
+        @endif
+
         <div class="form-text mt-2">
-            <i class="bi bi-eye me-1"></i>No PDV o operador vê a mudança na hora: ao escolher a forma de pagamento,
-            os preços dos itens se ajustam e aparece o aviso "Tabela: Crédito/Débito" ao lado do total.
+            <i class="bi bi-eye me-1"></i>No PDV o operador vê a mudança na hora: nas três primeiras regras os
+            preços dos itens se ajustam e aparece o aviso "Tabela: Crédito/Débito" ao lado do total; na quarta,
+            os preços ficam parados e o acréscimo aparece como linha própria no resumo da venda.
         </div>
     </x-erp.form-section>
 

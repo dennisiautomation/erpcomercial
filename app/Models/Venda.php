@@ -137,8 +137,13 @@ class Venda extends Model
             return 0.0;
         }
 
+        // Dois acréscimos moram aqui: o juros do parcelamento (02/09) e o
+        // acréscimo do cartão cobrado por parte (04/09, regra `por_parte`).
+        // Os dois seguem o mesmo caminho — vOutro na NFC-e, linha no cupom —
+        // e podem coexistir na mesma venda parcelada.
         return round(array_sum(array_map(
-            fn ($pg) => (float) ($pg['juros_valor'] ?? 0),
+            fn ($pg) => (float) ($pg['juros_valor'] ?? 0)
+                      + (float) ($pg['acrescimo_forma_valor'] ?? 0),
             $this->pagamento_detalhes
         )), 2);
     }
