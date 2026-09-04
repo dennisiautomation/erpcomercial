@@ -85,9 +85,15 @@
                                 @foreach($unidades as $unidade)
                                     @php $saldo = $linha['saldos'][$unidade->id] ?? 0; @endphp
                                     <td class="text-center">
-                                        <input type="number" step="0.001" min="0"
+                                        {{-- type="text", NAO "number" (04/09/2026): com o spinner,
+                                             a RODA DO MOUSE sobre o campo focado somava step de
+                                             0,001 sem ninguem perceber — 787 ajustes fracionarios
+                                             em 3 dias, 623 produtos com saldo tipo "0,005 peca".
+                                             inputmode="decimal" mantem o teclado numerico no
+                                             celular e aceita virgula, sem setinha nenhuma. --}}
+                                        <input type="text" inputmode="decimal" data-qtd autocomplete="off"
                                                name="saldos[{{ $produto->id }}][{{ $unidade->id }}]"
-                                               value="{{ rtrim(rtrim(number_format($saldo, 3, '.', ''), '0'), '.') }}"
+                                               value="{{ rtrim(rtrim(number_format($saldo, 3, ',', ''), '0'), ',') }}"
                                                class="form-control form-control-sm text-center
                                                       {{ $saldo <= 0 ? 'border-danger text-danger' : '' }}"
                                                style="max-width:100px; margin:0 auto;">
@@ -112,6 +118,8 @@
             <span class="text-muted small">
                 <i class="bi bi-info-circle me-1"></i>
                 Só as quantidades alteradas geram movimentação de <strong>Ajuste</strong> no histórico.
+                Digite o número inteiro da contagem (<code>13</code>); use vírgula só se a loja
+                vende fracionado (<code>1,5</code> kg). Negativo não entra.
                 @if(count($matriz) >= 300)
                     <span class="text-warning d-block">Exibindo os primeiros 300 produtos — use a busca para refinar.</span>
                 @endif
@@ -122,4 +130,67 @@
         </div>
     </div>
 </form>
+
+@push('scripts')
+<script>
+/* Quantidades da tabela de estoque por loja.
+ *
+ * O campo era <input type="number" step="0.001">: a roda do mouse sobre o campo
+ * focado incrementava o valor em milesimos, e a tabela e larga (rola muito).
+ * Resultado em producao: 623 produtos com saldo "0,005". Sem spinner o acidente
+ * nao existe mais — aqui so resta aceitar virgula e barrar o que nao e numero.
+ */
+(function () {
+    const form = document.querySelector('form[action="{{ route('app.multilojas.estoque.ajustar') }}"]');
+    if (!form) return;
+
+    const campos = () => form.querySelectorAll('input[data-qtd]');
+
+    // Digitacao: so digito e UM separador decimal. Sinal de menos nao entra.
+    form.addEventListener('input', function (e) {
+        const el = e.target;
+        if (!el.matches('input[data-qtd]')) return;
+
+        let v = el.value.replace(/[^0-9.,]/g, '').replace(/\./g, ',');
+        const partes = v.split(',');
+        if (partes.length > 2) v = partes.shift() + ',' + partes.join('');
+        if (v !== el.value) el.value = v;
+
+        el.classList.remove('is-invalid');
+    });
+
+    // Envio: virgula vira ponto (o que o servidor espera) e o que sobrou
+    // invalido para o usuario na tela, em vez de sumir num 422.
+    form.addEventListener('submit', function (e) {
+        let primeiroRuim = null;
+
+        campos().forEach(function (el) {
+            const bruto = el.value.trim();
+            el.classList.remove('is-invalid');
+
+            if (bruto === '') return;                 // vazio = nao mexeu, o controller ignora
+
+            const num = parseFloat(bruto.replace(',', '.'));
+
+            if (isNaN(num) || num < 0) {
+                el.classList.add('is-invalid');
+                primeiroRuim = primeiroRuim || el;
+                return;
+            }
+
+            el.value = String(num);                   // 1,5 -> "1.5"
+        });
+
+        if (primeiroRuim) {
+            e.preventDefault();
+            primeiroRuim.scrollIntoView({block: 'center', inline: 'center'});
+            primeiroRuim.focus();
+            if (window.ERP && ERP.toast) {
+                ERP.toast('Quantidade inválida: use números, sem sinal de menos.', 'danger');
+            }
+        }
+    });
+})();
+</script>
+@endpush
 @endsection
