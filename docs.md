@@ -2877,6 +2877,32 @@ As duas chaves são independentes: testadas nas 4 combinações, e com as duas l
 segue operando o PDV com o F3 já recortado. Gerente vê os dois switches travados e não zera nenhum,
 nem forjando o POST. `laravel.log` sem erro novo.
 
+### Deploy — FEITO em 04/09/2026
+
+**EM PRODUÇÃO** desde 04/09 ~09:07, a partir da branch `feat/vendedor-apenas-pdv` @`2a604e5`.
+Rito de sempre, **sem rebuild** (não toca `bootstrap/`, `public/` nem `composer.json`).
+
+Pré-voo que vale registrar: a produção foi conferida **arquivo a arquivo** contra `6f56be8`
+(a ponta do PWA, base da branch) em `app`, `routes`, `config`, `database` e `resources` —
+**byte-idêntica**, então o tar não estava atrás de nada (armadilhas 50 e 52).
+
+| Passo | O quê |
+|---|---|
+| Backup | `/home/ubuntu/erp-backups/pre-vendedor-pdv-20260904-0905.sql.gz` (72 tabelas) |
+| Rollback | imagem `erp-com-app:pre-vendedor-pdv-20260904` (`docker commit` — pega a camada de escrita, onde vivem trocas e PWA) |
+| Código | `tar app database resources routes config` |
+| Migrations | `2026_09_04_100000` e `2026_09_04_110000`, as duas `DONE` |
+| Caches | `artisan optimize` → `chown www-data` (armadilha 34) → `kill -USR2 29` no master do php-fpm (**não** o PID 1, que é o supervisord — armadilha 26b) |
+
+Conferido depois: as **6 empresas com as duas chaves em `0`** (os defaults seguraram — ninguém mudou
+de comportamento sozinho); `/`, `/login`, `/manifest.webmanifest` em 200 e `/app/pdv` e `/app/trocas`
+em 302 para o login — **302 e não 500 é a prova de que o `RestringeVendedorAoPdv` resolveu na cadeia
+do grupo `/app`**, porque classe ausente daria "Target class does not exist"; PWA e trocas intactos;
+`laravel.log` sem erro novo. Rollback: `docker tag`/recreate a partir da imagem acima + `migrate:rollback --step=2`.
+
+⚠️ **As duas chaves ficaram desligadas** — quem liga é o Dennis, empresa por empresa, em
+Configurações da Loja ou em `/admin/empresas/{id}/edit`.
+
 ### O que ficou de fora
 
 - **Perfil `consulta`** (4 usuários na N S BORBA) vê o mesmo menu inteiro que o vendedor via. Fora
