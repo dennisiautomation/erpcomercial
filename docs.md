@@ -3536,6 +3536,29 @@ até alguém escolher a quarta opção — Dennis decidiu entregar com todas des
 > realidade divergia do que estava escrito aqui, o texto foi corrigido — vale a auditoria, não a
 > memória do que se pretendia fazer.
 
+### Estado do repositório (04/09/2026, fim do dia)
+
+Trabalha-se em `/home/ubuntu/apps/erp-agente-ia` (worktree da `main`); `/root/erp` está numa branch
+de agosto e **não** é a referência.
+
+| Ref | Onde está | O que tem |
+|---|---|---|
+| `main` = `origin/main` = **produção** | `c35fe58` | tudo até "gerente altera Configurações da Loja inteira", deployado em 04/09 ~10:14 |
+| `fix/estoque-roda-do-mouse` | `36dc693` | campo de quantidade só-inteiro, guard global de `wheel`, docs — **não deployado** |
+| `feat/split-acrescimo-por-parte` | `b05ac25` | a 4ª regra `por_parte` (nasce da anterior, então **carrega as duas entregas**) — **não deployado**, tem migration |
+
+🔑 **A regra da casa é `main` == produção.** As duas branches acima ficam fora dela até serem
+deployadas — quem for entregar sai de `feat/split-acrescimo-por-parte`, que já contém o fix da roda
+do mouse, e só depois faz o merge na `main`.
+
+⚠️ **O deploy dessas duas exige um passo a mais**: o `public/js/erp-core.js` (guard da roda do
+mouse) **não vai no tar** — precisa de `docker cp` próprio (armadilha 46). E há migration
+(`2026_09_04_140000`).
+
+📌 Os 3 commits da roda do mouse nasceram direto na `main` local por acidente (o merge anterior tinha
+deixado o repositório nela) e foram movidos para a branch depois — a `main` voltou a espelhar a
+produção sem perder nada.
+
 **Fila de 04/09 (roda do mouse / estoque fracionário):**
 
 1. ⚠️ **623 produtos da MISS MERLINDA seguem com saldo fracionário** — Dennis decidiu em 04/09
@@ -3546,6 +3569,16 @@ até alguém escolher a quarta opção — Dennis decidiu entregar com todas des
 2. **Fechar a validação do servidor em `integer`** — só depois da limpeza: hoje o form reenvia as
    623 células fracionárias e um `integer` daria 422 na MISS MERLINDA inteira.
 3. **O `erp-core.js` precisa de `docker cp` próprio no deploy** — `public/` não vai no tar.
+
+**Fila de 04/09 (acréscimo do cartão por parte):**
+
+1. **Deploy da branch `feat/split-acrescimo-por-parte`** (com migration e o `docker cp` do
+   `erp-core.js`) — leva junto o fix da roda do mouse.
+2. **Nenhuma loja está na regra nova** — Dennis decidiu entregar com todas desligadas. Quem quiser
+   liga em Configurações da Loja → "Pagamento dividido (split)".
+3. ⚠️ **Preço próprio por produto não vale na regra nova** — se a MISS MERLINDA ligar, o único
+   produto dela com preço fechado no cartão passa a seguir o percentual geral. STILO VINTE (515) e
+   DONA DOURO (66) sentiriam muito mais, se um dia escolherem.
 
 **Fila de 04/09 (vendedor só PDV):**
 
