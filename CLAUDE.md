@@ -165,6 +165,8 @@ public/
 - `FiscalAutoConfig`: presets CST/CSOSN/alíquotas por regime (Simples/Presumido/Real)
 
 ### Estoque
+- ⚠️ **O saldo é DERIVADO** da última `estoque_movimentacoes.quantidade_posterior` do par (estoque, produto) — não existe coluna de saldo. Carga inicial só entra por `/app/import/estoque` ("completa até o saldo da planilha", idempotente). **A MISS MERLINDA (empresa 4) nunca teve carga: 73 vendas, 817 ajustes manuais e ZERO entradas** — ver docs.md, seção "O estoque da MISS MERLINDA nunca foi carregado"
+- `scripts/reconstruir-saldo-pelo-historico.php` reconstrói saldo pelo histórico (ajuste inteiro vale, milésimo é ruído da roda do mouse, venda desconta). `DRY_RUN=1` simula. Rodar por CLI exige `user_id` explícito (armadilha 69)
 - Movimentações (entrada/saída/ajuste/transferência)
 - Transferências entre unidades (solicitação→aprovação)
 
