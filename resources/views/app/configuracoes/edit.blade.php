@@ -47,6 +47,71 @@
         </div>
     </x-erp.form-section>
 
+    {{-- ============ ACESSO DO VENDEDOR (empresa inteira) ============ --}}
+    @if($empresa)
+    <x-erp.form-section title="Acesso do vendedor" icon="person-lock"
+        description="O que o perfil Vendedor enxerga ao entrar no sistema">
+
+        <div class="alert alert-warning border-0 bg-warning bg-opacity-10 mb-3">
+            <i class="bi bi-building me-1"></i>
+            <strong>Atenção: esta opção vale para a empresa inteira</strong> — todas as
+            {{ $empresa->unidades()->where('status', 'ativa')->count() }} lojas de
+            <strong>{{ $empresa->nome_fantasia ?: $empresa->razao_social }}</strong>, não só esta.
+            É a única desta tela que sai do escopo da loja.
+        </div>
+
+        <div class="form-check form-switch mb-1">
+            <input class="form-check-input" type="checkbox" role="switch" value="1"
+                   id="vendedor_apenas_pdv" name="vendedor_apenas_pdv"
+                   @checked(old('vendedor_apenas_pdv', $empresa->vendedor_apenas_pdv))
+                   @disabled(! $podeMudarAcessoVendedor)>
+            <label class="form-check-label" for="vendedor_apenas_pdv">
+                <strong>Vendedor opera somente o PDV</strong>
+            </label>
+        </div>
+
+        <div class="text-muted small ps-4 mb-2">
+            <div class="mb-1"><i class="bi bi-toggle-off me-1"></i><strong>Desligado (padrão):</strong>
+                o vendedor entra no Dashboard e navega pelo menu como sempre.</div>
+            <div class="mb-1"><i class="bi bi-toggle-on me-1"></i><strong>Ligado:</strong>
+                ao entrar, o vendedor cai <em>direto no PDV</em>. Continua vendendo, fazendo
+                troca pelo F6, usando vale e abrindo/fechando o caixa — e deixa de alcançar
+                Dashboard, relatórios, cadastros, estoque, financeiro, fiscal e comissões,
+                inclusive digitando o endereço no navegador.</div>
+            <div><i class="bi bi-lightbulb me-1"></i><em>Use quando o vendedor é balcão:
+                hoje ele enxerga faturamento do mês, ticket médio, o relatório financeiro da
+                loja e o preço de custo dos produtos.</em></div>
+        </div>
+
+        <div class="small ps-4">
+            @if($vendedoresAtivos > 0)
+                <span class="badge bg-secondary-subtle text-secondary-emphasis">
+                    <i class="bi bi-people me-1"></i>
+                    Alcança {{ $vendedoresAtivos }}
+                    {{ $vendedoresAtivos === 1 ? 'vendedor ativo' : 'vendedores ativos' }} desta empresa
+                </span>
+            @else
+                <span class="badge bg-secondary-subtle text-secondary-emphasis">
+                    <i class="bi bi-people me-1"></i>
+                    Nenhum vendedor ativo hoje — ligar agora não muda nada até cadastrar um
+                </span>
+            @endif
+            <div class="text-muted mt-1">
+                Gerente, caixa, financeiro, consulta e dono <strong>não</strong> são afetados.
+            </div>
+        </div>
+
+        @unless($podeMudarAcessoVendedor)
+            <div class="alert alert-light border mt-3 mb-0 small">
+                <i class="bi bi-lock me-1"></i>
+                Só o <strong>dono da empresa</strong> (ou a IA365) altera esta opção — ela muda
+                o acesso de outro usuário e vale para todas as lojas. Salvar esta tela
+                <strong>não</strong> mexe nela.
+            </div>
+        @endunless
+    </x-erp.form-section>
+    @endif
+
     {{-- ============ TABELAS DE PREÇO ============ --}}
     <x-erp.form-section title="Preços por Forma de Pagamento" icon="tags"
         description="Um preço para Dinheiro/PIX, outro para Débito, outro para Crédito">

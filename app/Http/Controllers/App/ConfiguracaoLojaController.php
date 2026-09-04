@@ -4,6 +4,7 @@ namespace App\Http\Controllers\App;
 
 use App\Http\Controllers\Controller;
 use App\Models\ConfiguracaoLoja;
+use App\Models\Empresa;
 use Illuminate\Http\Request;
 
 class ConfiguracaoLojaController extends Controller
@@ -12,7 +13,49 @@ class ConfiguracaoLojaController extends Controller
     {
         $config = ConfiguracaoLoja::daUnidade();
 
-        return view('app.configuracoes.edit', compact('config'));
+        // "Acesso do vendedor" é a única opção desta tela que vale para a EMPRESA
+        // inteira, não só para a loja da sessão — por isso vem de outro model e a
+        // tela diz isso em voz alta. Admin da plataforma não tem empresa própria
+        // (armadilha 25): cai na empresa da sessão.
+        $empresa = $this->empresaDaSessao();
+        $podeMudarAcessoVendedor = $this->podeMudarAcessoVendedor();
+
+        // Quantos usuários a chave alcança de verdade. Lição de 02/09 (tela do
+        // juros): configuração sem número na tela é configuração que o lojista
+        // não sabe se deve ligar.
+        $vendedoresAtivos = $empresa
+            ? \App\Models\User::where('empresa_id', $empresa->id)
+                ->where('perfil', \App\Enums\Perfil::Vendedor->value)
+                ->where('status', 'ativo')
+                ->count()
+            : 0;
+
+        return view('app.configuracoes.edit', compact(
+            'config', 'empresa', 'podeMudarAcessoVendedor', 'vendedoresAtivos'
+        ));
+    }
+
+    /** Empresa do usuário logado, ou a da sessão quando é o admin da plataforma. */
+    private function empresaDaSessao(): ?Empresa
+    {
+        $empresaId = auth()->user()->empresa_id ?? session('empresa_id');
+
+        return $empresaId ? Empresa::find($empresaId) : null;
+    }
+
+    /**
+     * Quem liga/desliga o modo "vendedor só opera o PDV".
+     *
+     * O gerente entra nesta tela desde 02/09, mas esta opção mexe no acesso de
+     * OUTRO usuário e vale para todas as lojas — fica com o dono e com a IA365.
+     * A guarda é aqui, no servidor: `@disabled` na view não impede POST forjado
+     * (mesma pegadinha do switch travado dos juros).
+     */
+    private function podeMudarAcessoVendedor(): bool
+    {
+        $user = auth()->user();
+
+        return (bool) ($user->is_admin || $user->isDono());
     }
 
     public function update(Request $request)
@@ -47,7 +90,15 @@ class ConfiguracaoLojaController extends Controller
             'troca_sobra'                => 'required|in:vale,dinheiro',
             'troca_vale_validade_dias'   => 'required|integer|min:0|max:3650',
             'troca_senha_gerente'        => 'nullable|boolean',
+            // Não é coluna de configuracoes_loja — é da empresa. Tratado à parte
+            // logo abaixo e REMOVIDO do array antes do update, senão o Eloquent
+            // descartaria a chave em silêncio (armadilha 53) e o switch pareceria
+            // funcionar sem nunca gravar.
+            'vendedor_apenas_pdv'        => 'nullable|boolean',
         ]);
+
+        $vendedorApenasPdv = (bool) ($dados['vendedor_apenas_pdv'] ?? false);
+        unset($dados['vendedor_apenas_pdv']);
 
         // Checkboxes desmarcados não vêm no request
         foreach ([
@@ -84,6 +135,12 @@ class ConfiguracaoLojaController extends Controller
                 'empresa_id' => session('empresa_id'),
                 'unidade_id' => session('unidade_id'),
             ]);
+        }
+
+        // Acesso do vendedor: empresa inteira, e só dono/admin mudam. Quem não
+        // pode simplesmente não tem o campo aplicado — o valor salvo permanece.
+        if ($this->podeMudarAcessoVendedor() && ($empresa = $this->empresaDaSessao())) {
+            $empresa->update(['vendedor_apenas_pdv' => $vendedorApenasPdv]);
         }
 
         return redirect()->route('app.configuracoes.edit')

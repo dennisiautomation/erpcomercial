@@ -516,6 +516,28 @@
                         CPF/CNPJ do destinatário — venda para cliente sem documento não emite nota modelo 55.
                         A NFC-e não é afetada.
                     </small>
+
+                    <hr class="my-3">
+
+                    @php $soPdv = (bool) old('vendedor_apenas_pdv', $empresa->vendedor_apenas_pdv ?? false); @endphp
+                    <div class="form-check form-switch">
+                        <input type="hidden" name="vendedor_apenas_pdv" value="0">
+                        <input class="form-check-input" type="checkbox" role="switch" value="1"
+                               id="vendedor_apenas_pdv" name="vendedor_apenas_pdv"
+                               @checked($soPdv)>
+                        <label class="form-check-label" for="vendedor_apenas_pdv">
+                            Vendedor opera somente o PDV
+                        </label>
+                    </div>
+                    <small class="text-muted d-block mt-2">
+                        <i class="bi bi-info-circle me-1"></i>
+                        Marcado, o perfil <strong>Vendedor</strong> desta empresa entra direto no PDV e
+                        perde o Dashboard, os relatórios, os cadastros, o estoque, o financeiro e o
+                        fiscal — inclusive digitando o endereço no navegador. Continua vendendo, trocando
+                        (F6), usando vale e abrindo/fechando o caixa. Vale para todas as lojas da empresa;
+                        gerente, caixa, financeiro, consulta e dono não mudam. O dono também liga isto em
+                        <strong>Configurações da Loja</strong>.
+                    </small>
                 </div>
             </div>
 

@@ -229,9 +229,15 @@
             <i class="bi bi-unlock"></i> Abrir Caixa
         </button>
 
-        <a href="{{ route('app.dashboard') }}" class="btn-voltar">
-            <i class="bi bi-arrow-left"></i> Voltar ao Dashboard
-        </a>
+        @if(\App\Http\Middleware\CheckPermission::modoPdv(auth()->user()))
+            <a href="{{ route('app.pdv.index') }}" class="btn-voltar">
+                <i class="bi bi-arrow-left"></i> Voltar ao PDV
+            </a>
+        @else
+            <a href="{{ route('app.dashboard') }}" class="btn-voltar">
+                <i class="bi bi-arrow-left"></i> Voltar ao Dashboard
+            </a>
+        @endif
     </form>
 </div>
 

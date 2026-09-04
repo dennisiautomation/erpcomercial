@@ -189,6 +189,13 @@ public/
 - Feature gating por plano (middleware `plano:feature`)
 - Limites: max_unidades, max_usuarios, max_produtos, max_notas_mes
 
+### Vendedor opera somente o PDV (04/09/2026)
+- `empresas.vendedor_apenas_pdv` (default **false**) tranca o perfil `vendedor` no PDV: continua vendendo, trocando (F6), usando vale e abrindo/fechando o caixa; todo o resto do `/app` **redireciona para `/app/pdv`** (AJAX recebe 403 JSON)
+- Gate único: `CheckPermission::modoPdv($user)` + `CheckPermission::canUser($user, $modulo, $acao)`. **Views devem usar `canUser()`, não `can()`** — `can()` só conhece a matriz estática e não vê o modo PDV
+- A tranca real é de ROTA: `App\Http\Middleware\RestringeVendedorAoPdv`, registrado **por classe** no grupo `/app` em `routes/web.php` (alias exigiria rebuild — armadilha 46). Whitelist: `app.pdv.*` + `app.caixa.abrir|fechar|sangria|suprimento`
+- Liga em `/app/configuracoes` (card "Acesso do vendedor", só dono/admin gravam — guarda no SERVIDOR) e em `/admin/empresas/{id}/edit`. Vale para a empresa inteira, não por loja
+- ⚠️ O menu ainda NÃO pergunta permissão nos 8 blocos fora de Gestão — ver docs.md armadilha 65
+
 ### PWA — instalar como aplicativo (03/09/2026)
 - `PwaController` serve `/manifest.webmanifest`, `/sw.js`, `/pwa/{icone}.png` e `/offline` **por rota** — nada em `public/` (o deploy por tar não leva `public/`, armadilha 46)
 - Ícones em `resources/pwa/` = marca **IA / ERP** (regerar: `python3 resources/pwa/gerar-icones.py`; arg `ink` = variante da landing)
@@ -239,6 +246,9 @@ notificacoes: user_id, tipo, titulo, mensagem, url, lida
 7. **VendaItem total é `total`** — NÃO `subtotal`.
 8. **ConfiguracaoFiscal tem unique (empresa_id, unidade_id)** — NÃO usar `updateOrCreate` direto. Usar `where()->first()` + `update()` ou `create()`.
 9. **$user->perfil é enum Perfil** — converter com `->value` antes de usar como string/array key.
+9b. **Menu não é permissão** — esconder `<li>` não impede o usuário de digitar a URL; e o menu fora
+   do bloco Gestão não consulta a matriz, então mostra links que dão 403. Trava vai no middleware
+   da rota; view pergunta a `CheckPermission::canUser()`.
 10. **$errors pode ser null em views standalone** — usar `$errors = $errors ?? new ViewErrorBag()`.
 11. **OrdemServico table = `ordens_servico`** — definir `$table` no model.
 12. **Porta host é 8091** (container escuta em 80; 8091 no `docker-compose.prod.yml`, exposto só em 127.0.0.1 e publicado pelo nginx do host). A porta 8080/8000 da primeira versão não é mais usada.

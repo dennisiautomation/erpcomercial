@@ -690,6 +690,23 @@
                 {{-- ======================================================
                      MENU EMPRESA
                      ====================================================== --}}
+                @if(\App\Http\Middleware\CheckPermission::modoPdv(auth()->user()))
+                    {{-- Modo "vendedor só opera o PDV" (empresas.vendedor_apenas_pdv).
+                         ⚠️ Esconder o menu NÃO é a proteção — quem fecha a porta é o
+                         middleware RestringeVendedorAoPdv. Na prática este bloco quase
+                         nunca aparece: PDV, abrir e fechar caixa são views standalone,
+                         que não usam este layout. Ele existe para o dia em que uma rota
+                         liberada usar o layout, e para o menu não mentir se isso mudar. --}}
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link nav-link-pdv {{ request()->routeIs('app.pdv.*') ? 'active' : '' }}"
+                               href="{{ route('app.pdv.index') }}">
+                                <i class="bi bi-upc-scan nav-icon"></i>
+                                <span class="nav-text">PDV</span>
+                            </a>
+                        </li>
+                    </ul>
+                @else
                 <ul class="nav flex-column">
                     {{-- Dashboard --}}
                     <li class="nav-item">
@@ -774,7 +791,7 @@
                                     <a class="nav-link {{ request()->routeIs('app.ordens-servico.*') ? 'active' : '' }}"
                                        href="{{ route('app.ordens-servico.index') }}">Ordens de Servico</a>
                                 </li>
-                                @if(\App\Http\Middleware\CheckPermission::can(auth()->user()->perfil?->value ?? '', 'trocas', 'ver'))
+                                @if(\App\Http\Middleware\CheckPermission::canUser(auth()->user(), 'trocas', 'ver'))
                                 <li class="nav-item">
                                     <a class="nav-link {{ request()->routeIs('app.trocas.*') ? 'active' : '' }}"
                                        href="{{ route('app.trocas.index') }}">Trocas e Vales</a>
@@ -911,7 +928,7 @@
                                 </li>
                                 {{-- Só quem tem o módulo: o link aparecia para todo perfil e
                                      dava 403 no clique (vendedor, caixa, gerente). --}}
-                                @if(\App\Http\Middleware\CheckPermission::can(auth()->user()->perfil?->value ?? '', 'configuracoes_fiscais', 'ver'))
+                                @if(\App\Http\Middleware\CheckPermission::canUser(auth()->user(), 'configuracoes_fiscais', 'ver'))
                                 <li class="nav-item">
                                     <a class="nav-link {{ request()->routeIs('app.configuracao-fiscal.*') ? 'active' : '' }}"
                                        href="{{ route('app.configuracao-fiscal.edit') }}">Configuracao Fiscal</a>
@@ -969,8 +986,7 @@
                             // repetir a lista de perfis aqui (02/09/2026). Antes eram duas
                             // fontes: a matriz já deixava o gerente ver Plano de Contas e
                             // Centros de Custo, mas o menu escondia os links assim mesmo.
-                            $perfilAtual = auth()->user()->perfil->value;
-                            $podeVer = fn (string $modulo) => \App\Http\Middleware\CheckPermission::can($perfilAtual, $modulo, 'ver');
+                            $podeVer = fn (string $modulo) => \App\Http\Middleware\CheckPermission::canUser(auth()->user(), $modulo, 'ver');
                         @endphp
                         <li class="sidebar-heading">Gestao</li>
                         <li class="nav-item">
@@ -1058,6 +1074,7 @@
                         </li>
                     @endif
                 </ul>
+                @endif
             @endif
         </div>
 

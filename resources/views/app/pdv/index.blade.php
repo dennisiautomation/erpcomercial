@@ -798,9 +798,21 @@
         <a href="{{ route('app.caixa.abrir') }}" class="btn-open-caixa">
             <i class="bi bi-unlock"></i> Abrir Caixa
         </a>
-        <a href="{{ route('app.dashboard') }}" class="btn-back">
-            <i class="bi bi-arrow-left"></i> Voltar ao Dashboard
-        </a>
+        @if(\App\Http\Middleware\CheckPermission::modoPdv(auth()->user()))
+            {{-- Modo "só PDV": o dashboard não existe para este usuário, e mandá-lo
+                 para lá só produziria um redirect de volta ao PDV. A saída é sair. --}}
+            <form method="POST" action="{{ route('logout') }}" style="margin:0;">
+                @csrf
+                <button type="submit" class="btn-back"
+                        style="background:none;border:0;padding:0;width:100%;cursor:pointer;">
+                    <i class="bi bi-box-arrow-right"></i> Sair do sistema
+                </button>
+            </form>
+        @else
+            <a href="{{ route('app.dashboard') }}" class="btn-back">
+                <i class="bi bi-arrow-left"></i> Voltar ao Dashboard
+            </a>
+        @endif
     </div>
 </div>
 @endif

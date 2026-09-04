@@ -148,6 +148,19 @@ class CheckPermission
         ],
     ];
 
+    /**
+     * Modo "vendedor só opera o PDV" (04/09/2026, `empresas.vendedor_apenas_pdv`):
+     * os únicos módulos que sobram para o perfil `vendedor` quando o cliente liga
+     * a chave. `vendas` cobre o PDV, a consulta de vale e abrir/fechar o caixa
+     * (todos `permission:vendas,criar`); `trocas` cobre o F6.
+     *
+     * Isto é o que a MATRIZ passa a responder — e é a matriz que o menu pergunta.
+     * A tranca de ROTA (o vendedor digitar /app/produtos na barra de endereço)
+     * é do `RestringeVendedorAoPdv`, porque `vendas` e `trocas` também cobrem
+     * telas que ficam fora do PDV (/app/vendas, /app/trocas, /app/caixa).
+     */
+    private const MODULOS_MODO_PDV = ['vendas', 'trocas'];
+
     public function handle(Request $request, Closure $next, string $modulo, string $acao = ''): Response
     {
         $user = $request->user();
@@ -173,14 +186,57 @@ class CheckPermission
             };
         }
 
-        $perfil = $user->perfil instanceof \App\Enums\Perfil ? $user->perfil->value : $user->perfil;
-        $permissions = self::PERMISSIONS[$modulo][$perfil] ?? [];
-
-        if (! in_array($acao, $permissions)) {
+        // Fonte única: o middleware e o menu passam pela MESMA função, para não
+        // repetir a regra em dois lugares e divergir (armadilha 59).
+        if (! self::canUser($user, $modulo, $acao)) {
             abort(403, 'Você não tem permissão para acessar este recurso.');
         }
 
         return $next($request);
+    }
+
+    /**
+     * O usuário está no modo "só PDV"? Só o perfil `vendedor` de uma empresa com
+     * a chave ligada. Admin da plataforma nunca (e `?->` protege o `empresa`
+     * null dele — armadilha 25).
+     */
+    public static function modoPdv(?\App\Models\User $user): bool
+    {
+        if (! $user || $user->is_admin) {
+            return false;
+        }
+
+        $perfil = $user->perfil instanceof \App\Enums\Perfil ? $user->perfil->value : $user->perfil;
+
+        if ($perfil !== Perfil::Vendedor->value) {
+            return false;
+        }
+
+        return (bool) $user->empresa?->vendedorApenasPdv();
+    }
+
+    /**
+     * Igual ao `can()`, mas resolvendo o perfil a partir do usuário e aplicando
+     * as restrições que dependem do BANCO (hoje: o modo "só PDV" da empresa).
+     * É esta que as views devem chamar — `can()` só conhece a matriz estática.
+     */
+    public static function canUser(?\App\Models\User $user, string $modulo, string $acao): bool
+    {
+        if (! $user) {
+            return false;
+        }
+
+        if ($user->is_admin) {
+            return true;
+        }
+
+        if (self::modoPdv($user) && ! in_array($modulo, self::MODULOS_MODO_PDV, true)) {
+            return false;
+        }
+
+        $perfil = $user->perfil instanceof \App\Enums\Perfil ? $user->perfil->value : $user->perfil;
+
+        return self::can((string) $perfil, $modulo, $acao);
     }
 
     /**

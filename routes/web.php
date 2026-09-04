@@ -157,7 +157,12 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
 /*  App (usuarios empresa, unidade selecionada)                       */
 /* ------------------------------------------------------------------ */
 
-Route::middleware(['auth', 'suspensao', 'unidade'])->prefix('app')->name('app.')->group(function () {
+// O 4º middleware é registrado POR CLASSE de propósito: alias exigiria mexer em
+// `bootstrap/app.php`, que só chega à produção com rebuild (armadilha 46).
+// Ordem importa — ele roda DEPOIS de `unidade`, senão o vendedor sem loja na
+// sessão seria mandado ao PDV antes de escolher a loja.
+Route::middleware(['auth', 'suspensao', 'unidade', \App\Http\Middleware\RestringeVendedorAoPdv::class])
+    ->prefix('app')->name('app.')->group(function () {
 
     Route::get('/dashboard', [App\DashboardController::class, 'index'])->name('dashboard');
 

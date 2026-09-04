@@ -24,6 +24,7 @@ class Empresa extends Model
         'regime_tributario',
         'politica_estoque_inter_unidade',
         'exige_documento_cadastro',
+        'vendedor_apenas_pdv',
         'cep',
         'logradouro',
         'numero',
@@ -77,6 +78,7 @@ class Empresa extends Model
             'cobranca_bloqueio_automatico'  => 'boolean',
             'cobranca_suspensa_em'          => 'datetime',
             'exige_documento_cadastro'      => 'boolean',
+            'vendedor_apenas_pdv'           => 'boolean',
         ];
     }
 
@@ -90,6 +92,19 @@ class Empresa extends Model
     public function exigeDocumentoCadastro(): bool
     {
         return (bool) ($this->exige_documento_cadastro ?? true);
+    }
+
+    /**
+     * Vendedor desta empresa opera SÓ o PDV? (04/09/2026)
+     *
+     * Default false — empresa sem a coluna preenchida (ou contexto sem empresa,
+     * como o admin da plataforma) segue com o menu completo, comportamento de
+     * sempre. Alcança apenas o perfil `vendedor`; gerente, caixa, financeiro,
+     * consulta e dono nunca mudam.
+     */
+    public function vendedorApenasPdv(): bool
+    {
+        return (bool) ($this->vendedor_apenas_pdv ?? false);
     }
 
     /** Visualiza estoque de outras unidades da mesma empresa? */
