@@ -803,3 +803,19 @@ acStyle.textContent = `
 @keyframes slideIn{from{opacity:0;transform:translateX(100%)}to{opacity:1;transform:translateX(0)}}
 `;
 document.head.appendChild(acStyle);
+
+/* A roda do mouse NAO altera campo numerico (armadilha 66 — 04/09/2026).
+ *
+ * <input type="number"> incrementa com a roda quando esta focado. Numa tabela
+ * larga, que se rola, isso vira dado errado sem ninguem digitar: em
+ * /app/multilojas/estoque (step 0,001) foram 787 ajustes fracionarios em 3 dias
+ * e 623 produtos com saldo tipo "0,005 peca". Ao rolar sobre um campo focado,
+ * tiramos o foco: a pagina rola normalmente e o valor fica onde estava.
+ */
+document.addEventListener('wheel', function (e) {
+    const el = document.activeElement;
+
+    if (el && el.type === 'number' && el === e.target) {
+        el.blur();   // so quando a roda passa sobre o proprio campo focado
+    }
+}, { passive: true });

@@ -5,6 +5,12 @@
 @section('content')
 @php
     $errors = $errors ?? new \Illuminate\Support\ViewErrorBag();
+
+    // Alguma celula da pagina tem saldo com fracao? (resto do acidente da roda
+    // do mouse, armadilha 66 — o rodape so avisa quando ha o que avisar)
+    $temFracionario = collect($matriz)->contains(
+        fn ($linha) => collect($linha['saldos'])->contains(fn ($v) => (float) $v != round((float) $v))
+    );
 @endphp
 <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
     <h4 class="mb-0">
@@ -85,17 +91,28 @@
                                 @foreach($unidades as $unidade)
                                     @php $saldo = $linha['saldos'][$unidade->id] ?? 0; @endphp
                                     <td class="text-center">
-                                        {{-- type="text", NAO "number" (04/09/2026): com o spinner,
-                                             a RODA DO MOUSE sobre o campo focado somava step de
-                                             0,001 sem ninguem perceber — 787 ajustes fracionarios
-                                             em 3 dias, 623 produtos com saldo tipo "0,005 peca".
-                                             inputmode="decimal" mantem o teclado numerico no
-                                             celular e aceita virgula, sem setinha nenhuma. --}}
-                                        <input type="text" inputmode="decimal" data-qtd autocomplete="off"
+                                        @php
+                                            // Saldo com fracao so existe por acidente nesta base
+                                            // (armadilha 66): 623 produtos ficaram assim quando o
+                                            // campo era type="number" e a roda do mouse somava
+                                            // 0,001 por clique. Mostramos o valor REAL — arredondar
+                                            // na tela transformaria a proxima gravacao numa limpeza
+                                            // em massa silenciosa — e marcamos a celula para a loja
+                                            // corrigir na contagem.
+                                            $sujo = $saldo != round($saldo);
+                                        @endphp
+                                        {{-- type="text", NAO "number": o spinner do type=number
+                                             responde a RODA DO MOUSE numa tabela que rola.
+                                             inputmode="numeric" = teclado numerico no celular. --}}
+                                        <input type="text" inputmode="numeric" pattern="[0-9]*"
+                                               data-qtd autocomplete="off"
                                                name="saldos[{{ $produto->id }}][{{ $unidade->id }}]"
                                                value="{{ rtrim(rtrim(number_format($saldo, 3, ',', ''), '0'), ',') }}"
+                                               @if($sujo) data-fracionario
+                                                   title="Saldo com fração — veio de um acerto antigo da tela. Digite a quantidade contada para corrigir."
+                                               @endif
                                                class="form-control form-control-sm text-center
-                                                      {{ $saldo <= 0 ? 'border-danger text-danger' : '' }}"
+                                                      {{ $sujo ? 'border-warning bg-warning bg-opacity-10' : ($saldo <= 0 ? 'border-danger text-danger' : '') }}"
                                                style="max-width:100px; margin:0 auto;">
                                     </td>
                                 @endforeach
@@ -118,8 +135,15 @@
             <span class="text-muted small">
                 <i class="bi bi-info-circle me-1"></i>
                 Só as quantidades alteradas geram movimentação de <strong>Ajuste</strong> no histórico.
-                Digite o número inteiro da contagem (<code>13</code>); use vírgula só se a loja
-                vende fracionado (<code>1,5</code> kg). Negativo não entra.
+                Digite a quantidade contada em <strong>número inteiro</strong> (<code>13</code>) —
+                sem vírgula e sem sinal de menos.
+                @if($temFracionario ?? false)
+                    <span class="text-warning d-block">
+                        <i class="bi bi-exclamation-triangle me-1"></i>
+                        Células em amarelo têm saldo com fração (ex.: <code>0,005</code>), resto de
+                        um acerto antigo desta tela. Digite a quantidade contada para corrigir.
+                    </span>
+                @endif
                 @if(count($matriz) >= 300)
                     <span class="text-warning d-block">Exibindo os primeiros 300 produtos — use a busca para refinar.</span>
                 @endif
@@ -138,47 +162,46 @@
  * O campo era <input type="number" step="0.001">: a roda do mouse sobre o campo
  * focado incrementava o valor em milesimos, e a tabela e larga (rola muito).
  * Resultado em producao: 623 produtos com saldo "0,005". Sem spinner o acidente
- * nao existe mais — aqui so resta aceitar virgula e barrar o que nao e numero.
+ * nao existe mais — aqui so resta aceitar numero inteiro e barrar o resto.
+ *
+ * A CELULA pode CHEGAR fracionaria (o saldo sujo que ainda esta no banco): o
+ * valor so e normalizado quando o usuario mexe nela. Quem nao for tocado vai
+ * para o servidor como esta, e o controller nao gera movimentacao nenhuma —
+ * senao abrir a tela e salvar viraria uma limpeza em massa sem ninguem pedir.
  */
 (function () {
     const form = document.querySelector('form[action="{{ route('app.multilojas.estoque.ajustar') }}"]');
     if (!form) return;
 
-    const campos = () => form.querySelectorAll('input[data-qtd]');
-
-    // Digitacao: so digito e UM separador decimal. Sinal de menos nao entra.
+    // Digitacao: so digito. Virgula, ponto, sinal e letra nao entram.
     form.addEventListener('input', function (e) {
         const el = e.target;
         if (!el.matches('input[data-qtd]')) return;
 
-        let v = el.value.replace(/[^0-9.,]/g, '').replace(/\./g, ',');
-        const partes = v.split(',');
-        if (partes.length > 2) v = partes.shift() + ',' + partes.join('');
+        // Virgula/ponto CORTA o resto: quem digitar "13,5" fica com 13, nao com
+        // 135 — errar por 10x o estoque e pior do que perder a casa decimal.
+        let v = el.value.split(/[.,]/)[0].replace(/[^0-9]/g, '').replace(/^0+(?=\d)/, '');
         if (v !== el.value) el.value = v;
 
         el.classList.remove('is-invalid');
+        el.removeAttribute('data-fracionario');       // mexeu, deixou de ser resto antigo
+        el.classList.remove('border-warning', 'bg-warning', 'bg-opacity-10');
     });
 
-    // Envio: virgula vira ponto (o que o servidor espera) e o que sobrou
-    // invalido para o usuario na tela, em vez de sumir num 422.
+    // Envio: valida o que o usuario digitou. Celula intocada passa como veio.
     form.addEventListener('submit', function (e) {
         let primeiroRuim = null;
 
-        campos().forEach(function (el) {
+        form.querySelectorAll('input[data-qtd]').forEach(function (el) {
             const bruto = el.value.trim();
             el.classList.remove('is-invalid');
 
-            if (bruto === '') return;                 // vazio = nao mexeu, o controller ignora
+            if (bruto === '' || el.hasAttribute('data-fracionario')) return;
 
-            const num = parseFloat(bruto.replace(',', '.'));
-
-            if (isNaN(num) || num < 0) {
+            if (!/^\d+$/.test(bruto)) {
                 el.classList.add('is-invalid');
                 primeiroRuim = primeiroRuim || el;
-                return;
             }
-
-            el.value = String(num);                   // 1,5 -> "1.5"
         });
 
         if (primeiroRuim) {
@@ -186,7 +209,7 @@
             primeiroRuim.scrollIntoView({block: 'center', inline: 'center'});
             primeiroRuim.focus();
             if (window.ERP && ERP.toast) {
-                ERP.toast('Quantidade inválida: use números, sem sinal de menos.', 'danger');
+                ERP.toast('Quantidade inválida: use só números inteiros, sem vírgula nem sinal.', 'danger');
             }
         }
     });
