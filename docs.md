@@ -3544,7 +3544,7 @@ de agosto e **não** é a referência.
 | Ref | Onde está | O que tem |
 |---|---|---|
 | `main` = `origin/main` = **produção** | `c35fe58` | tudo até "gerente altera Configurações da Loja inteira", deployado em 04/09 ~10:14 |
-| `fix/estoque-roda-do-mouse` | `36dc693` | campo de quantidade só-inteiro, guard global de `wheel`, docs — **não deployado** |
+| `estoque-roda-do-mouse` | `36dc693` | campo de quantidade só-inteiro, guard global de `wheel`, docs — **não deployado** |
 | `feat/split-acrescimo-por-parte` | `b05ac25` | a 4ª regra `por_parte` (nasce da anterior, então **carrega as duas entregas**) — **não deployado**, tem migration |
 
 🔑 **A regra da casa é `main` == produção.** As duas branches acima ficam fora dela até serem
@@ -3558,6 +3558,11 @@ mouse) **não vai no tar** — precisa de `docker cp` próprio (armadilha 46). E
 📌 Os 3 commits da roda do mouse nasceram direto na `main` local por acidente (o merge anterior tinha
 deixado o repositório nela) e foram movidos para a branch depois — a `main` voltou a espelhar a
 produção sem perder nada.
+
+⚠️ **`refs/heads/fix/` no `.git` é de root** (`/root/erp/.git`, que é o repositório real desta
+worktree): `git branch fix/<nome>` falha com *permission denied*. Por isso a branch se chama
+`estoque-roda-do-mouse`, sem o prefixo. Vale para qualquer branch nova daqui — usar nome sem barra,
+ou pedir ao Dennis para criar.
 
 **Fila de 04/09 (roda do mouse / estoque fracionário):**
 
