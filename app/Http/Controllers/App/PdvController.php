@@ -68,6 +68,8 @@ class PdvController extends Controller
             ->orderBy('name')
             ->get();
 
+        $operadores = static::filtrarOperadoresPelaLoja($operadores, $unidade?->empresa);
+
         $configLoja = ConfiguracaoLoja::daUnidade();
 
         // Estoques ativos da loja — o modal de troca (F6) só mostra o seletor
@@ -80,6 +82,55 @@ class PdvController extends Controller
             ->get(['id', 'nome', 'permite_venda']);
 
         return view('app.pdv.index', compact('caixa', 'unidade', 'configFiscal', 'operadores', 'configLoja', 'estoquesLoja'));
+    }
+
+    /**
+     * Select de vendedor (F3) só com quem está vinculado à loja da sessão, quando
+     * a empresa liga `pdv_vendedores_da_loja` (04/09/2026).
+     *
+     * Motivo: MISS MERLINDA tem 6 lojas e 4 vendedores, cada um vinculado a UMA
+     * loja — o caixa de qualquer loja via os 4 no mesmo select.
+     *
+     * Três exceções, todas ditadas pelo dado real de produção:
+     *  - **dono e admin aparecem sempre**: o dono da MISS MERLINDA está vinculado
+     *    a 1 loja de 6 e sumiria das outras 5; no resto do sistema ele também não
+     *    é preso pelo `UnidadeScope`;
+     *  - **sem vínculo nenhum aparece em todas**: não dá para dizer onde a pessoa
+     *    está, e esconder esvaziaria o select (mesmo fallback do
+     *    `MultilojaController::unidadesVisiveis`);
+     *  - o operador logado já saiu da lista antes daqui e continua sendo o padrão,
+     *    então o select nunca fica sem opção.
+     *
+     * O filtro é feito em PHP sobre uma consulta só ao pivô: a lista tem no máximo
+     * algumas dezenas de nomes, e `whereHas('unidades')` traria os global scopes de
+     * `Unidade` para dentro da subconsulta sem necessidade.
+     */
+    private static function filtrarOperadoresPelaLoja($operadores, ?\App\Models\Empresa $empresa)
+    {
+        if (! $empresa?->pdvVendedoresDaLoja() || $operadores->isEmpty()) {
+            return $operadores;
+        }
+
+        $unidadeId = (int) session('unidade_id');
+
+        $vinculos = \Illuminate\Support\Facades\DB::table('unidade_user')
+            ->whereIn('user_id', $operadores->pluck('id'))
+            ->get(['user_id', 'unidade_id'])
+            ->groupBy('user_id');
+
+        return $operadores->filter(function ($operador) use ($unidadeId, $vinculos) {
+            $perfil = $operador->perfil instanceof \App\Enums\Perfil
+                ? $operador->perfil->value
+                : $operador->perfil;
+
+            if (in_array($perfil, ['dono', 'admin'], true)) {
+                return true;
+            }
+
+            $lojas = $vinculos->get($operador->id);
+
+            return $lojas === null || $lojas->pluck('unidade_id')->contains($unidadeId);
+        })->values();
     }
 
     public function verificarEstoque(Request $request, $produtoId, EstoqueMultiUnidadeService $estoqueSvc)

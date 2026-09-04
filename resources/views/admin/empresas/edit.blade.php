@@ -538,6 +538,24 @@
                         gerente, caixa, financeiro, consulta e dono não mudam. O dono também liga isto em
                         <strong>Configurações da Loja</strong>.
                     </small>
+
+                    @php $soLoja = (bool) old('pdv_vendedores_da_loja', $empresa->pdv_vendedores_da_loja ?? false); @endphp
+                    <div class="form-check form-switch mt-3">
+                        <input type="hidden" name="pdv_vendedores_da_loja" value="0">
+                        <input class="form-check-input" type="checkbox" role="switch" value="1"
+                               id="pdv_vendedores_da_loja" name="pdv_vendedores_da_loja"
+                               @checked($soLoja)>
+                        <label class="form-check-label" for="pdv_vendedores_da_loja">
+                            No PDV, mostrar só os vendedores da loja
+                        </label>
+                    </div>
+                    <small class="text-muted d-block mt-2">
+                        <i class="bi bi-info-circle me-1"></i>
+                        Marcado, o select de vendedor do PDV (F3) lista só quem está vinculado à loja
+                        em que o caixa está operando (pivô <code>unidade_user</code>, ajustado em
+                        Funcionários). <strong>Dono e IA365 aparecem em qualquer loja</strong>, e quem
+                        não tem loja vinculada aparece em todas. Independente da opção acima.
+                    </small>
                 </div>
             </div>
 

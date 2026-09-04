@@ -161,6 +161,7 @@ class EmpresaController extends Controller
             'politica_estoque_inter_unidade' => ['nullable', 'in:silos,ver_apenas,ver_e_vender'],
             'exige_documento_cadastro' => ['nullable', 'boolean'],
             'vendedor_apenas_pdv' => ['nullable', 'boolean'],
+            'pdv_vendedores_da_loja' => ['nullable', 'boolean'],
             'regime_cobranca'   => ['nullable', 'in:padrao,cortesia,parceiro,pos_pago'],
             'cortesia_motivo'   => ['nullable', 'string', 'max:255', 'required_unless:regime_cobranca,padrao'],
             'cortesia_concedida_em' => ['nullable', 'date', 'required_unless:regime_cobranca,padrao'],
@@ -237,6 +238,7 @@ class EmpresaController extends Controller
         // Checkbox desmarcado não vem no request — sem isto, desmarcar nunca gravaria.
         $validated['exige_documento_cadastro'] = $request->boolean('exige_documento_cadastro');
         $validated['vendedor_apenas_pdv'] = $request->boolean('vendedor_apenas_pdv');
+        $validated['pdv_vendedores_da_loja'] = $request->boolean('pdv_vendedores_da_loja');
 
         if ($request->hasFile('logo')) {
             if ($empresa->logo) {

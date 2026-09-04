@@ -195,6 +195,8 @@ public/
 - A tranca real é de ROTA: `App\Http\Middleware\RestringeVendedorAoPdv`, registrado **por classe** no grupo `/app` em `routes/web.php` (alias exigiria rebuild — armadilha 46). Whitelist: `app.pdv.*` + `app.caixa.abrir|fechar|sangria|suprimento`
 - Liga em `/app/configuracoes` (card "Acesso do vendedor", só dono/admin gravam — guarda no SERVIDOR) e em `/admin/empresas/{id}/edit`. Vale para a empresa inteira, não por loja
 - ⚠️ O menu ainda NÃO pergunta permissão nos 8 blocos fora de Gestão — ver docs.md armadilha 65
+- **Chave irmã `empresas.pdv_vendedores_da_loja`** (default false): o select de vendedor do PDV (F3) passa a listar só quem está vinculado à loja da sessão (`unidade_user`). **Dono e admin aparecem sempre**; quem não tem vínculo nenhum aparece em todas. Filtro em `PdvController::filtrarOperadoresPelaLoja()`. O relatório de vendas monta a mesma lista e ficou de fora de propósito (lá o filtro de loja pode ser "Todas")
+- Vínculo loja↔usuário se ajusta em **Funcionários** (`unidades()->sync`)
 
 ### PWA — instalar como aplicativo (03/09/2026)
 - `PwaController` serve `/manifest.webmanifest`, `/sw.js`, `/pwa/{icone}.png` e `/offline` **por rota** — nada em `public/` (o deploy por tar não leva `public/`, armadilha 46)

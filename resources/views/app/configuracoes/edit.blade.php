@@ -101,12 +101,55 @@
             </div>
         </div>
 
+        <hr class="my-3">
+
+        {{-- Filtro do select de vendedor do PDV (F3) --}}
+        <div class="form-check form-switch mb-1">
+            <input class="form-check-input" type="checkbox" role="switch" value="1"
+                   id="pdv_vendedores_da_loja" name="pdv_vendedores_da_loja"
+                   @checked(old('pdv_vendedores_da_loja', $empresa->pdv_vendedores_da_loja))
+                   @disabled(! $podeMudarAcessoVendedor)>
+            <label class="form-check-label" for="pdv_vendedores_da_loja">
+                <strong>No PDV, mostrar só os vendedores desta loja</strong>
+            </label>
+        </div>
+
+        <div class="text-muted small ps-4 mb-2">
+            <div class="mb-1"><i class="bi bi-toggle-off me-1"></i><strong>Desligado (padrão):</strong>
+                o <strong>F3</strong> lista todos os vendedores, caixas, gerentes e o dono da
+                empresa — inclusive quem trabalha em outra loja.</div>
+            <div class="mb-1"><i class="bi bi-toggle-on me-1"></i><strong>Ligado:</strong>
+                o F3 lista só quem está <em>vinculado à loja em que o caixa está operando</em>.
+                O <strong>dono e a IA365 continuam aparecendo em qualquer loja</strong>, e quem
+                não tem nenhuma loja vinculada aparece em todas (não há como saber onde está).</div>
+            <div><i class="bi bi-lightbulb me-1"></i><em>Use quando cada vendedor atende numa loja
+                fixa e o caixa se perde numa lista com a rede inteira.</em></div>
+        </div>
+
+        <div class="small ps-4">
+            <span class="badge bg-secondary-subtle text-secondary-emphasis">
+                <i class="bi bi-shop me-1"></i>
+                Nesta loja: {{ $vendedoresDestaLoja }} de {{ $vendedoresAtivos }}
+                {{ $vendedoresAtivos === 1 ? 'vendedor está vinculado' : 'vendedores estão vinculados' }}
+            </span>
+            @if($vendedoresSemVinculo > 0)
+                <span class="badge bg-warning-subtle text-warning-emphasis">
+                    <i class="bi bi-exclamation-triangle me-1"></i>
+                    {{ $vendedoresSemVinculo }} sem loja vinculada — aparecem em todas
+                </span>
+            @endif
+            <div class="text-muted mt-1">
+                Quem some do F3 é quem não está vinculado. O vínculo se ajusta em
+                <a href="{{ route('app.funcionarios.index') }}">Funcionários</a>.
+            </div>
+        </div>
+
         @unless($podeMudarAcessoVendedor)
             <div class="alert alert-light border mt-3 mb-0 small">
                 <i class="bi bi-lock me-1"></i>
-                Só o <strong>dono da empresa</strong> (ou a IA365) altera esta opção — ela muda
-                o acesso de outro usuário e vale para todas as lojas. Salvar esta tela
-                <strong>não</strong> mexe nela.
+                Só o <strong>dono da empresa</strong> (ou a IA365) altera estas duas opções — elas
+                mudam o acesso de outro usuário e valem para todas as lojas. Salvar esta tela
+                <strong>não</strong> mexe nelas.
             </div>
         @endunless
     </x-erp.form-section>

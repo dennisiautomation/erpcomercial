@@ -25,6 +25,7 @@ class Empresa extends Model
         'politica_estoque_inter_unidade',
         'exige_documento_cadastro',
         'vendedor_apenas_pdv',
+        'pdv_vendedores_da_loja',
         'cep',
         'logradouro',
         'numero',
@@ -79,6 +80,7 @@ class Empresa extends Model
             'cobranca_suspensa_em'          => 'datetime',
             'exige_documento_cadastro'      => 'boolean',
             'vendedor_apenas_pdv'           => 'boolean',
+            'pdv_vendedores_da_loja'        => 'boolean',
         ];
     }
 
@@ -105,6 +107,18 @@ class Empresa extends Model
     public function vendedorApenasPdv(): bool
     {
         return (bool) ($this->vendedor_apenas_pdv ?? false);
+    }
+
+    /**
+     * O select de vendedor do PDV (F3) mostra só quem está vinculado à loja?
+     * (04/09/2026)
+     *
+     * Default false — o select continua listando a empresa inteira, como sempre.
+     * Independente do `vendedor_apenas_pdv`: são duas chaves separadas.
+     */
+    public function pdvVendedoresDaLoja(): bool
+    {
+        return (bool) ($this->pdv_vendedores_da_loja ?? false);
     }
 
     /** Visualiza estoque de outras unidades da mesma empresa? */

@@ -30,8 +30,30 @@ class ConfiguracaoLojaController extends Controller
                 ->count()
             : 0;
 
+        // Quantos desses estão vinculados A ESTA loja. É o número que responde
+        // "se eu ligar o filtro, quem sobra no F3?" — sem ele o lojista liga às
+        // cegas e descobre no balcão.
+        $vendedoresDestaLoja = $empresa
+            ? \App\Models\User::where('empresa_id', $empresa->id)
+                ->where('perfil', \App\Enums\Perfil::Vendedor->value)
+                ->where('status', 'ativo')
+                ->whereHas('unidades', fn ($q) => $q->where('unidades.id', (int) session('unidade_id')))
+                ->count()
+            : 0;
+
+        // Vendedor sem vínculo nenhum aparece em TODAS as lojas (fallback), então
+        // ele não entra na conta acima mas aparece no select.
+        $vendedoresSemVinculo = $empresa
+            ? \App\Models\User::where('empresa_id', $empresa->id)
+                ->where('perfil', \App\Enums\Perfil::Vendedor->value)
+                ->where('status', 'ativo')
+                ->whereDoesntHave('unidades')
+                ->count()
+            : 0;
+
         return view('app.configuracoes.edit', compact(
-            'config', 'empresa', 'podeMudarAcessoVendedor', 'vendedoresAtivos'
+            'config', 'empresa', 'podeMudarAcessoVendedor',
+            'vendedoresAtivos', 'vendedoresDestaLoja', 'vendedoresSemVinculo'
         ));
     }
 
@@ -95,10 +117,14 @@ class ConfiguracaoLojaController extends Controller
             // descartaria a chave em silêncio (armadilha 53) e o switch pareceria
             // funcionar sem nunca gravar.
             'vendedor_apenas_pdv'        => 'nullable|boolean',
+            'pdv_vendedores_da_loja'     => 'nullable|boolean',
         ]);
 
-        $vendedorApenasPdv = (bool) ($dados['vendedor_apenas_pdv'] ?? false);
-        unset($dados['vendedor_apenas_pdv']);
+        $daEmpresa = [
+            'vendedor_apenas_pdv'    => (bool) ($dados['vendedor_apenas_pdv'] ?? false),
+            'pdv_vendedores_da_loja' => (bool) ($dados['pdv_vendedores_da_loja'] ?? false),
+        ];
+        unset($dados['vendedor_apenas_pdv'], $dados['pdv_vendedores_da_loja']);
 
         // Checkboxes desmarcados não vêm no request
         foreach ([
@@ -140,7 +166,7 @@ class ConfiguracaoLojaController extends Controller
         // Acesso do vendedor: empresa inteira, e só dono/admin mudam. Quem não
         // pode simplesmente não tem o campo aplicado — o valor salvo permanece.
         if ($this->podeMudarAcessoVendedor() && ($empresa = $this->empresaDaSessao())) {
-            $empresa->update(['vendedor_apenas_pdv' => $vendedorApenasPdv]);
+            $empresa->update($daEmpresa);
         }
 
         return redirect()->route('app.configuracoes.edit')
