@@ -9,7 +9,9 @@
     // Alguma celula da pagina tem saldo com fracao? (resto do acidente da roda
     // do mouse, armadilha 66 — o rodape so avisa quando ha o que avisar)
     $temFracionario = collect($matriz)->contains(
-        fn ($linha) => collect($linha['saldos'])->contains(fn ($v) => (float) $v != round((float) $v))
+        fn ($linha) => collect($linha['saldos'])->contains(
+            fn ($v) => (float) $v != round((float) $v) || (float) $v < 0
+        )
     );
 @endphp
 <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
@@ -95,29 +97,41 @@
                                             // Saldo com fracao so existe por acidente nesta base
                                             // (armadilha 66): 623 produtos ficaram assim quando o
                                             // campo era type="number" e a roda do mouse somava
-                                            // 0,001 por clique. Mostramos o valor REAL — arredondar
-                                            // na tela transformaria a proxima gravacao numa limpeza
-                                            // em massa silenciosa — e marcamos a celula para a loja
-                                            // corrigir na contagem.
-                                            $sujo = $saldo != round($saldo);
+                                            // 0,001 por clique.
+                                            //
+                                            // A tela e de CONTAGEM DE PECA: mostra sempre INTEIRO.
+                                            // O amarelo marca quem chegou fracionario, e salvar a
+                                            // tela grava o inteiro que esta a vista — e assim que
+                                            // esses saldos se acertam, loja por loja, sem script.
+                                            // Negativo tambem entra no amarelo: o -0,999 de
+                                            // producao (e o -2 de quem vendeu sem estoque) some ao
+                                            // salvar, e o gerente tem que VER que sumiu — o title
+                                            // diz quanto era. Sem isso a tela zeraria um saldo
+                                            // negativo calada.
+                                            $precisaAcerto = ($saldo != round($saldo)) || $saldo < 0;
+                                            $exibido = max(0, (int) round($saldo));
                                         @endphp
                                         {{-- type="text", NAO "number": o spinner do type=number
                                              responde a RODA DO MOUSE numa tabela que rola.
-                                             inputmode="numeric" = teclado numerico no celular. --}}
-                                        <input type="text" inputmode="numeric" pattern="[0-9]*"
+                                             inputmode="numeric" = teclado numerico no celular.
+                                             ⚠️ SEM `pattern`: a validacao nativa trava o Salvar do
+                                             formulario inteiro com "o formato deve corresponder ao
+                                             exigido" e nao diz qual celula — mesmo defeito do
+                                             `min=0` que esta tela ja teve. Quem valida e o JS. --}}
+                                        <input type="text" inputmode="numeric"
                                                data-qtd autocomplete="off"
                                                name="saldos[{{ $produto->id }}][{{ $unidade->id }}]"
-                                               value="{{ rtrim(rtrim(number_format($saldo, 3, ',', ''), '0'), ',') }}"
-                                               @if($sujo) data-fracionario
-                                                   title="Saldo com fração — veio de um acerto antigo da tela. Digite a quantidade contada para corrigir."
+                                               value="{{ $exibido }}"
+                                               @if($precisaAcerto)
+                                                   title="Este saldo está como {{ rtrim(rtrim(number_format($saldo, 3, ',', ''), '0'), ',') }}{{ $saldo < 0 ? ' (negativo — saiu mais do que tinha)' : ' — resto de um acerto antigo da tela' }}. Salvando, ele vira {{ $exibido }}."
                                                @endif
                                                class="form-control form-control-sm text-center
-                                                      {{ $sujo ? 'border-warning bg-warning bg-opacity-10' : ($saldo <= 0 ? 'border-danger text-danger' : '') }}"
+                                                      {{ $precisaAcerto ? 'border-warning bg-warning bg-opacity-10' : ($saldo <= 0 ? 'border-danger text-danger' : '') }}"
                                                style="max-width:100px; margin:0 auto;">
                                     </td>
                                 @endforeach
                                 <td class="text-center fw-bold">
-                                    {{ rtrim(rtrim(number_format($linha['total'], 3, '.', ''), '0'), '.') }}
+                                    {{ (int) round($linha['total']) }}
                                 </td>
                             </tr>
                         @empty
@@ -140,8 +154,10 @@
                 @if($temFracionario ?? false)
                     <span class="text-warning d-block">
                         <i class="bi bi-exclamation-triangle me-1"></i>
-                        Células em amarelo têm saldo com fração (ex.: <code>0,005</code>), resto de
-                        um acerto antigo desta tela. Digite a quantidade contada para corrigir.
+                        Células em amarelo estão com saldo quebrado (ex.: <code>0,007</code>, resto
+                        de um acerto antigo desta tela) ou <strong>negativo</strong>. Aqui já
+                        aparecem no inteiro — <strong>salvar acerta o saldo delas</strong>. Passe o
+                        mouse na célula para ver quanto era; confira a contagem antes.
                     </span>
                 @endif
                 @if(count($matriz) >= 300)
@@ -164,10 +180,10 @@
  * Resultado em producao: 623 produtos com saldo "0,005". Sem spinner o acidente
  * nao existe mais — aqui so resta aceitar numero inteiro e barrar o resto.
  *
- * A CELULA pode CHEGAR fracionaria (o saldo sujo que ainda esta no banco): o
- * valor so e normalizado quando o usuario mexe nela. Quem nao for tocado vai
- * para o servidor como esta, e o controller nao gera movimentacao nenhuma —
- * senao abrir a tela e salvar viraria uma limpeza em massa sem ninguem pedir.
+ * A tela mostra SEMPRE inteiro, inclusive nas celulas que chegaram fracionarias
+ * (as amarelas): salvar grava o inteiro que esta a vista e acerta aquele saldo.
+ * E assim que os 623 saldos quebrados de producao se resolvem — pela contagem de
+ * quem esta olhando a tela, loja por loja, sem script de limpeza em massa.
  */
 (function () {
     const form = document.querySelector('form[action="{{ route('app.multilojas.estoque.ajustar') }}"]');
@@ -184,11 +200,11 @@
         if (v !== el.value) el.value = v;
 
         el.classList.remove('is-invalid');
-        el.removeAttribute('data-fracionario');       // mexeu, deixou de ser resto antigo
-        el.classList.remove('border-warning', 'bg-warning', 'bg-opacity-10');
+        el.classList.remove('border-warning', 'bg-warning', 'bg-opacity-10');  // mexeu, saiu do amarelo
     });
 
-    // Envio: valida o que o usuario digitou. Celula intocada passa como veio.
+    // Envio: valida tudo que tem valor — inclusive as celulas amarelas, que agora
+    // carregam o inteiro e vao ser gravadas.
     form.addEventListener('submit', function (e) {
         let primeiroRuim = null;
 
@@ -196,7 +212,7 @@
             const bruto = el.value.trim();
             el.classList.remove('is-invalid');
 
-            if (bruto === '' || el.hasAttribute('data-fracionario')) return;
+            if (bruto === '') return;
 
             if (!/^\d+$/.test(bruto)) {
                 el.classList.add('is-invalid');
