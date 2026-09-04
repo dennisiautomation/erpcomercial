@@ -1848,6 +1848,51 @@ const PDV = {
         return round(round(valorBase, 2) * (pct / 100), 2);
     },
 
+    /**
+     * O caixa pensa (e digita) no valor que PASSA NA MAQUININHA; o servidor
+     * calcula sobre o valor à vista. Estas duas funções fazem a tradução.
+     *
+     * ⚠️ A volta (`baseDoValorCobrado`) só é usada quando o caixa EDITA o campo.
+     * Quando ele aceita o valor sugerido, o front manda a base original que já
+     * tinha em mãos — sem dividir, sem risco de sobrar centavo no arredondamento.
+     */
+    valorCobradoDe(valorBase, forma) {
+        return round(round(valorBase, 2) + this.acrescimoDe(valorBase, forma), 2);
+    },
+
+    baseDoValorCobrado(valorCobrado, forma) {
+        const pct = this.percentualAcrescimoForma(forma);
+        if (pct <= 0) return round(valorCobrado, 2);
+
+        const alvo = round(valorCobrado, 2);
+        const chute = round(alvo / (1 + pct / 100), 2);
+
+        // ⚠️ Nem todo valor de maquininha é alcançável: com 10%, R$ 0,60 exigiria
+        // uma mercadoria de R$ 0,5454... — 0,55 dá 0,61 e 0,54 dá 0,59. A divisão
+        // sozinha erra 1 centavo em ~14% dos valores, então olhamos os vizinhos e
+        // ficamos com a base cujo valor cobrado chega MAIS PERTO do que o caixa
+        // digitou (empate: a menor, para nunca cobrar a mais do que ele disse).
+        let melhor = chute;
+        let melhorErro = Infinity;
+
+        for (const base of [round(chute - 0.01, 2), chute, round(chute + 0.01, 2)]) {
+            if (base < 0) continue;
+            const erro = Math.abs(this.valorCobradoDe(base, forma) - alvo);
+            if (erro < melhorErro - 0.0001) { melhor = base; melhorErro = erro; }
+        }
+
+        return melhor;
+    },
+
+    /**
+     * O valor que a maquininha vai receber de fato para o que o caixa digitou.
+     * Igual ao digitado quase sempre; difere em 1 centavo quando o número não é
+     * alcançável por `mercadoria × (1 + %)`.
+     */
+    valorCobradoAlcancavel(valorDigitado, forma) {
+        return this.valorCobradoDe(this.baseDoValorCobrado(valorDigitado, forma), forma);
+    },
+
     /** Soma do acréscimo dos pagamentos JÁ registrados (o `valor` deles é à vista). */
     acrescimoFormasTotal() {
         return round(this.pagamentos.reduce(
@@ -1855,26 +1900,38 @@ const PDV = {
         ), 2);
     },
 
-    /** Mostra no modal quanto o cartão acrescenta sobre o que está digitado. */
+    /**
+     * Abre a conta do que está no campo: o número digitado É o da maquininha,
+     * então o resumo mostra de que ele é feito, e não o contrário.
+     */
     renderResumoAcrescimoForma(forma) {
         const box = document.getElementById('acrescimoFormaResumo');
         if (!box) return;
 
         const pct = this.percentualAcrescimoForma(forma);
-        const base = parseFloat(document.getElementById('valorRecebido')?.value) || 0;
-        const acrescimo = this.acrescimoDe(base, forma);
+        const cobrado = parseFloat(document.getElementById('valorRecebido')?.value) || 0;
 
-        if (pct <= 0 || acrescimo <= 0) {
+        if (pct <= 0 || cobrado <= 0) {
             box.style.display = 'none';
             return;
         }
 
+        const base = this.baseDoValorCobrado(cobrado, forma);
+        const real = this.valorCobradoDe(base, forma);
+        const acrescimo = round(real - base, 2);
         const rotulo = forma === 'cartao_debito' ? 'débito' : 'crédito';
+
+        // ~9% dos valores não são alcançáveis por `mercadoria × (1 + %)` com duas
+        // casas (R$ 500,00 a 10% cairia em 499,99). Em vez de esconder, a tela
+        // mostra o número que a maquininha vai receber de fato.
+        const ajustou = Math.abs(real - cobrado) >= 0.005;
+
         box.style.display = 'block';
         box.innerHTML = `
-            <div>À vista: <strong>${this.formatMoney(base)}</strong></div>
+            <div>Passa na maquininha: <strong>${this.formatMoney(real)}</strong></div>
+            <div>Mercadoria: ${this.formatMoney(base)}</div>
             <div>Acréscimo ${rotulo} (${pct.toFixed(2).replace('.', ',')}%): + ${this.formatMoney(acrescimo)}</div>
-            <div>Passa na maquininha: <strong>${this.formatMoney(round(base + acrescimo, 2))}</strong></div>`;
+            ${ajustou ? `<div style="opacity:.85; margin-top:.25rem;">Ajustado de ${this.formatMoney(cobrado)} — o acréscimo de ${pct.toFixed(2).replace('.', ',')}% não fecha nesse valor exato.</div>` : ''}`;
     },
 
     // Reaplica a tabela de preço da modalidade vigente em todos os itens
@@ -2208,7 +2265,17 @@ const PDV = {
 
         document.getElementById('modalPagamentoTitle').textContent = 'Pagamento - ' + (formaLabels[forma] || forma);
         document.getElementById('modalPagamentoForma').textContent = formaLabels[forma] || forma;
-        document.getElementById('modalPagamentoTotal').textContent = this.formatMoney(temParcial ? restante : total);
+
+        // O que o caixa precisa dizer em voz alta é o valor COBRADO nesta forma
+        // (com o acréscimo do cartão, quando houver) — não o preço à vista.
+        // `baseSugerida` fica guardada para o confirmar não precisar dividir de
+        // volta quando o caixa aceita o número que já veio na tela.
+        const baseSugerida = temParcial ? restante : total;
+        const cobradoSugerido = this.valorCobradoDe(baseSugerida, forma);
+        this.pagamentoBaseSugerida = baseSugerida;
+        this.pagamentoCobradoSugerido = cobradoSugerido;
+
+        document.getElementById('modalPagamentoTotal').textContent = this.formatMoney(cobradoSugerido);
 
         const valorInput = document.getElementById('valorRecebido');
 
@@ -2219,22 +2286,45 @@ const PDV = {
             valorInput.value = '';
             document.getElementById('modalTrocoWrap').style.display = 'none';
         } else if (forma === 'vale' && this.valeAtual) {
-            // Vale: no máximo o saldo, no máximo o que falta pagar
+            // Vale: no máximo o saldo, no máximo o que falta pagar. Vale não tem
+            // acréscimo, então aqui cobrado === base.
             document.getElementById('valorRecebidoWrap').style.display = 'block';
-            valorInput.value = Math.min(this.valeAtual.saldo, temParcial ? restante : total).toFixed(2);
+            valorInput.value = Math.min(this.valeAtual.saldo, baseSugerida).toFixed(2);
             document.getElementById('modalTrocoWrap').style.display = 'none';
         } else {
             document.getElementById('valorRecebidoWrap').style.display = 'block';
-            valorInput.value = (temParcial ? restante : total).toFixed(2);
+            valorInput.value = cobradoSugerido.toFixed(2);
             document.getElementById('modalTrocoWrap').style.display = 'none';
+        }
+
+        // Rótulo do campo diz em que moeda o caixa está digitando
+        const labelValor = document.querySelector('#valorRecebidoWrap label');
+        if (labelValor) {
+            labelValor.textContent = this.acrescimoDe(baseSugerida, forma) > 0
+                ? 'Valor que passa na maquininha'
+                : 'Valor Recebido';
         }
 
         // Show/hide split checkbox
         document.getElementById('splitCheck').style.display = temParcial ? 'none' : 'block';
         document.getElementById('isSplitPayment').checked = temParcial;
 
-        // Acréscimo por parte: mostra a conta assim que a forma é escolhida
+        // Acréscimo por parte: mostra a conta assim que a forma é escolhida, e ao
+        // sair do campo o número exibido vira o que a maquininha vai receber —
+        // o caixa digita na máquina exatamente o que está na tela.
         this.renderResumoAcrescimoForma(forma);
+
+        valorInput.onblur = () => {
+            const digitadoAgora = parseFloat(valorInput.value) || 0;
+            if (digitadoAgora <= 0 || this.acrescimoDe(this.baseDoValorCobrado(digitadoAgora, forma), forma) <= 0) return;
+
+            const real = this.valorCobradoAlcancavel(digitadoAgora, forma);
+            if (Math.abs(real - digitadoAgora) >= 0.005) {
+                valorInput.value = real.toFixed(2);
+                this.renderResumoAcrescimoForma(forma);
+                this.atualizarParcelas();
+            }
+        };
 
         // Parcelas: só para cartão de crédito
         const parcelasWrap = document.getElementById('parcelasWrap');
@@ -2254,7 +2344,7 @@ const PDV = {
         valorInput.oninput = () => {
             if (forma === 'dinheiro') {
                 const recebido = parseFloat(valorInput.value) || 0;
-                const valorEsperado = temParcial ? restante : total;
+                const valorEsperado = baseSugerida;
                 const troco = recebido - valorEsperado;
                 if (troco > 0) {
                     document.getElementById('modalTrocoWrap').style.display = 'block';
@@ -2303,14 +2393,23 @@ const PDV = {
         };
     },
 
-    // Valor que está sendo parcelado: o que o caixa digitou, ou o restante da venda.
+    /**
+     * Valor que está sendo parcelado: o que o caixa digitou, ou o restante da venda.
+     *
+     * 🔑 É o valor JÁ COBRADO na forma (com o acréscimo do cartão), porque é sobre
+     * ele que a maquininha parcela — e é a mesma ordem que o servidor usa
+     * (acréscimo da forma, depois juros). Antes daqui a tela simulava sobre o
+     * preço à vista e mostrava parcela menor do que a cobrada.
+     */
     baseParcelamento() {
         const digitado = parseFloat(document.getElementById('valorRecebido')?.value) || 0;
         if (digitado > 0) return digitado;
 
         const total = this.getTotal();
         const jaAdicionado = this.pagamentos.reduce((s, p) => s + p.valor, 0);
-        return this.pagamentos.length > 0 ? round(total - jaAdicionado, 2) : total;
+        const restanteBase = this.pagamentos.length > 0 ? round(total - jaAdicionado, 2) : total;
+
+        return this.valorCobradoDe(restanteBase, this.pagamentoAtual || 'cartao_credito');
     },
 
     atualizarParcelas(forcarSelecao = null) {
@@ -2364,20 +2463,29 @@ const PDV = {
     confirmarPagamento() {
         const forma = this.pagamentoAtual;
         const valorInput = document.getElementById('valorRecebido');
-        const valor = parseFloat(valorInput.value) || 0;
+        const digitado = parseFloat(valorInput.value) || 0;
         const isSplit = document.getElementById('isSplitPayment').checked || this.pagamentos.length > 0 || this.creditoAplicado() > 0;
         const total = this.getTotal();
         const jaAdicionado = this.pagamentos.reduce((s, p) => s + p.valor, 0) + this.creditoAplicado();
         const restante = round(total - jaAdicionado, 2);
 
-        if (valor <= 0) {
+        if (digitado <= 0) {
             this.showAlert('Informe o valor do pagamento', 'warning');
             return;
         }
 
+        // O campo está em valor de MAQUININHA; o pagamento é gravado em valor à
+        // vista (o servidor refaz o acréscimo). Se o caixa aceitou o número
+        // sugerido, reaproveita a base exata — dividir de volta poderia sobrar
+        // um centavo. Se ele digitou outro, aí sim converte.
+        const aceitouSugestao = Math.abs(digitado - (this.pagamentoCobradoSugerido || 0)) < 0.005;
+        const valor = aceitouSugestao
+            ? round(this.pagamentoBaseSugerida || 0, 2)
+            : this.baseDoValorCobrado(digitado, forma);
+
         if (forma === 'vale') {
             if (!this.valeAtual) { this.showAlert('Informe o código do vale', 'warning'); return; }
-            if (valor > this.valeAtual.saldo + 0.01) {
+            if (digitado > this.valeAtual.saldo + 0.01) {
                 this.showAlert('O vale tem saldo de ' + this.formatMoney(this.valeAtual.saldo), 'warning');
                 return;
             }
@@ -2416,8 +2524,8 @@ const PDV = {
             bootstrap.Modal.getInstance(document.getElementById('modalPagamento'))?.hide();
 
             // Calculate troco for display
-            if (forma === 'dinheiro' && valor > total) {
-                const troco = round(valor - total, 2);
+            if (forma === 'dinheiro' && digitado > total) {
+                const troco = round(digitado - total, 2);
                 document.getElementById('trocoDisplay').style.display = 'block';
                 document.getElementById('trocoValue').textContent = this.formatMoney(troco);
             } else {
@@ -2454,7 +2562,7 @@ const PDV = {
                     ${formaLabels[p.forma] || p.forma}
                 </span>
                 <span>
-                    <span class="split-valor">${this.formatMoney(p.valor)}</span>
+                    <span class="split-valor">${this.formatMoney(this.valorCobradoDe(p.valor, p.forma))}</span>
                     <button class="btn-split-remove" onclick="PDV.removeSplitPayment(${idx})" title="Remover">
                         <i class="bi bi-x"></i>
                     </button>
@@ -2462,6 +2570,9 @@ const PDV = {
             </div>
         `).join('');
 
+        // "Faltam" é o que resta de MERCADORIA, em preço à vista: o acréscimo só
+        // existe depois que a próxima forma for escolhida (o modal mostra então
+        // quanto passa na maquininha).
         const total = this.getTotal();
         const pago = this.pagamentos.reduce((s, p) => s + p.valor, 0);
         const rest = round(total - pago, 2);
