@@ -66,18 +66,26 @@ class ConfiguracaoLojaController extends Controller
     }
 
     /**
-     * Quem liga/desliga o modo "vendedor só opera o PDV".
+     * Quem liga/desliga as duas chaves de "Acesso do vendedor".
      *
-     * O gerente entra nesta tela desde 02/09, mas esta opção mexe no acesso de
-     * OUTRO usuário e vale para todas as lojas — fica com o dono e com a IA365.
+     * Dono, gerente e a IA365 (04/09/2026 — pedido do Dennis: a tela inteira é
+     * do gerente, não sobra opção travada nela). O gerente já altera todo o
+     * resto desde 02/09; estas duas eram as últimas fora do alcance dele.
+     *
+     * Continuam sendo as únicas opções da tela que valem para a EMPRESA inteira
+     * — o gerente enxerga só as lojas vinculadas em Multilojas, mas aqui ele
+     * mexe em todas — e o card diz isso em voz alta antes do switch.
+     *
      * A guarda é aqui, no servidor: `@disabled` na view não impede POST forjado
-     * (mesma pegadinha do switch travado dos juros).
+     * (mesma pegadinha do switch travado dos juros). Quem não entra na tela
+     * (vendedor, caixa, financeiro, consulta — matriz `configuracoes`) nunca
+     * chega neste método; o `false` sobra para um perfil novo que ganhe a tela.
      */
     private function podeMudarAcessoVendedor(): bool
     {
         $user = auth()->user();
 
-        return (bool) ($user->is_admin || $user->isDono());
+        return (bool) ($user->is_admin || $user->isDono() || $user->isGerente());
     }
 
     public function update(Request $request)

@@ -58,6 +58,14 @@
             {{ $empresa->unidades()->where('status', 'ativa')->count() }} lojas de
             <strong>{{ $empresa->nome_fantasia ?: $empresa->razao_social }}</strong>, não só esta.
             É a única desta tela que sai do escopo da loja.
+
+            @if(auth()->user()->isGerente())
+                <div class="mt-2 pt-2 border-top border-warning border-opacity-25">
+                    <i class="bi bi-person-badge me-1"></i>
+                    Você é <strong>gerente</strong>: o que ligar aqui vale também para as lojas
+                    que não são suas — inclusive as que não aparecem em Multilojas para você.
+                </div>
+            @endif
         </div>
 
         <div class="form-check form-switch mb-1">
@@ -147,9 +155,9 @@
         @unless($podeMudarAcessoVendedor)
             <div class="alert alert-light border mt-3 mb-0 small">
                 <i class="bi bi-lock me-1"></i>
-                Só o <strong>dono da empresa</strong> (ou a IA365) altera estas duas opções — elas
-                mudam o acesso de outro usuário e valem para todas as lojas. Salvar esta tela
-                <strong>não</strong> mexe nelas.
+                Só o <strong>dono</strong>, o <strong>gerente</strong> ou a IA365 alteram estas
+                duas opções — elas mudam o acesso de outro usuário e valem para todas as lojas.
+                Salvar esta tela <strong>não</strong> mexe nelas.
             </div>
         @endunless
     </x-erp.form-section>
