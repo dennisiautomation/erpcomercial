@@ -3466,6 +3466,14 @@ Branch `feat/venda-humana-api` (sobre a `main` @bc645fc = produção + Melhor En
 
 ### O que mudou nos endpoints existentes
 
+- `POST /produtos/buscar` — `limite` sobe de 10 para **60** (o painel lista até 50/30; o agente segue
+  pedindo 8) e **quem tem foto vem primeiro** entre os matches textuais (todos valem similaridade 1.0,
+  então a ordem alfabética escondia as fotos: a DONA DOURO tem 581 "brinco" e só 24 com foto, que
+  nunca entravam nos 10 primeiros). Resposta ganha `total_textual` (quantos casam no texto) para o
+  painel avisar "mostrando 50 de 198 — refine a busca". Pedido do Dennis (05/09): "aqui tem que
+  aparecer tudo e com as fotos se tiver". Efeito no agente: passa a mostrar primeiro os produtos
+  que ele consegue enviar com foto.
+
 - `GET /pedidos` — `busca` (nome do cliente, telefone com ≥4 dígitos ou nº do pedido) e
   `pagamento=pendente|pago`. "pago" = cobrança PIX com `pago_em` OU anotação `PAGO` no pedido
   (cartão Asaas / por fora); "pendente" = rascunho sem nada disso.

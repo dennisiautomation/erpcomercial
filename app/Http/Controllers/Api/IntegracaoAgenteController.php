@@ -107,7 +107,8 @@ class IntegracaoAgenteController extends Controller
 
         $validated = $request->validate([
             'consulta' => ['required', 'string', 'min:2', 'max:200'],
-            'limite' => ['nullable', 'integer', 'min:1', 'max:10'],
+            // 05/09 (venda humana): o painel lista até 60 — o agente segue pedindo 8.
+            'limite' => ['nullable', 'integer', 'min:1', 'max:60'],
             'unidade_id' => ['nullable', 'integer'],
             'incluir_sem_estoque' => ['nullable', 'boolean'],
             'ordenar' => ['nullable', 'string', 'in:relevancia,preco_asc,preco_desc'],
@@ -145,6 +146,7 @@ class IntegracaoAgenteController extends Controller
             ->take(6);
 
         $idsTextuais = [];
+        $totalTextual = 0;
         if ($termos->isNotEmpty()) {
             $query = Produto::withoutGlobalScope(EmpresaScope::class)
                 ->where('empresa_id', $token->empresa_id)
@@ -167,7 +169,17 @@ class IntegracaoAgenteController extends Controller
                 $query->where('preco_venda', '<=', $precoMax);
             }
 
-            $idsTextuais = $query->orderBy('descricao')->limit($pool)->pluck('id')->all();
+            // Quem tem FOTO vem primeiro entre os matches textuais (todos valem
+            // 1.0): é o que o cliente quer ver no WhatsApp e o que o painel
+            // mostra na lista — a DONA DOURO tem 581 "brinco" e só 24 com foto,
+            // que nunca entravam nos 10 primeiros em ordem alfabética.
+            $totalTextual = (clone $query)->count();
+            $idsTextuais = $query
+                ->orderByRaw("(foto IS NOT NULL AND foto <> '') DESC")
+                ->orderBy('descricao')
+                ->limit($pool)
+                ->pluck('id')
+                ->all();
         }
 
         // 2) Busca semântica no pgvector
@@ -276,6 +288,8 @@ class IntegracaoAgenteController extends Controller
             'consulta' => $validated['consulta'],
             'ordenar' => $ordenar,
             'fallback_catalogo' => $fallbackCatalogo,
+            // quantos casam no texto (o painel avisa "mostrando 50 de 581 — refine a busca")
+            'total_textual' => $totalTextual,
         ]);
     }
 
