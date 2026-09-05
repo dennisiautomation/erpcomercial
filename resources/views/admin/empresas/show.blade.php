@@ -580,6 +580,116 @@
                 </div>
             </div>
         </div>
+        @php($gatewayMe = \App\Models\EmpresaGateway::where('empresa_id', $empresa->id)->where('provedor', \App\Models\EmpresaGateway::PROVEDOR_MELHOR_ENVIO)->first())
+        @php($meApp = \App\Services\Entrega\MelhorEnvioService::app())
+        @php($meConectado = filled($gatewayMe?->access_token))
+        <div class="row g-4 mb-4">
+            {{-- 05/09/2026: Melhor Envio — frete para OUTRA cidade no Vendedor IA. A empresa autoriza a PRÓPRIA conta (OAuth); o aplicativo é da IA365 (/admin/integracoes) --}}
+            <div class="col-lg-6">
+                <div class="card detail-card shadow-sm h-100">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0"><i class="bi bi-box-seam me-1"></i> Envio — Melhor Envio</h6>
+                        @if(! $meApp['configurado'])
+                            <span class="badge bg-warning bg-opacity-10 text-warning">App não configurado</span>
+                        @elseif($meConectado && $gatewayMe->ativo)
+                            <span class="badge bg-success bg-opacity-10 text-success">Conectado</span>
+                        @elseif($meConectado)
+                            <span class="badge bg-warning bg-opacity-10 text-warning">Conectado, inativo</span>
+                        @else
+                            <span class="badge bg-secondary bg-opacity-10 text-secondary">Não conectado</span>
+                        @endif
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted small mb-3">
+                            Cliente do Vendedor IA em <strong>outra cidade</strong>: o frete é cotado aqui (Correios, Jadlog,
+                            Loggi…) pelas medidas dos produtos e o cliente escolhe a opção na conversa. Na mesma cidade
+                            continua valendo o Uber Direct. A empresa autoriza a <strong>própria conta</strong> do Melhor
+                            Envio — não copia chave nenhuma.
+                        </p>
+                        @if(! $meApp['configurado'])
+                            <div class="alert alert-warning small py-2 mb-3">
+                                Cadastre o aplicativo IA365 em <a href="{{ route('admin.integracoes.index') }}">Integrações</a> antes de conectar empresas.
+                            </div>
+                        @endif
+                        <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+                            @if($meConectado)
+                                <span class="small"><i class="bi bi-person-check me-1"></i>{{ $gatewayMe->config['conta_nome'] ?? '' }}
+                                    <span class="text-muted">{{ $gatewayMe->config['conta_email'] ?? '' }}</span></span>
+                                <span class="small text-muted">· token até {{ optional($gatewayMe->token_expira_em)->format('d/m/Y') ?? '?' }} (renova sozinho)</span>
+                                <form method="POST" action="{{ route('admin.empresas.gateway-melhor-envio.testar', $empresa) }}">
+                                    @csrf
+                                    <button type="submit" class="btn btn-sm btn-outline-secondary"><i class="bi bi-activity me-1"></i> Testar conexão</button>
+                                </form>
+                                <form method="POST" action="{{ route('admin.empresas.gateway-melhor-envio.conectar', $empresa) }}">
+                                    @csrf
+                                    <button type="submit" class="btn btn-sm btn-outline-primary" @disabled(! $meApp['configurado'])>Reconectar</button>
+                                </form>
+                                <form method="POST" action="{{ route('admin.empresas.gateway-melhor-envio.desconectar', $empresa) }}"
+                                      onsubmit="return confirm('Desconectar a conta do Melhor Envio desta empresa?')">
+                                    @csrf
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">Desconectar</button>
+                                </form>
+                            @else
+                                <form method="POST" action="{{ route('admin.empresas.gateway-melhor-envio.conectar', $empresa) }}">
+                                    @csrf
+                                    <button type="submit" class="btn btn-sm btn-primary" @disabled(! $meApp['configurado'])>
+                                        <i class="bi bi-plug me-1"></i> Conectar Melhor Envio
+                                    </button>
+                                </form>
+                                <span class="small text-muted">Abre o login do Melhor Envio; a loja entra com a conta dela e autoriza.</span>
+                            @endif
+                            @if($gatewayMe?->ultima_falha)
+                                <span class="small text-danger w-100"><i class="bi bi-x-circle me-1"></i>Última falha: {{ $gatewayMe->ultima_falha }}</span>
+                            @endif
+                        </div>
+                        <form method="POST" action="{{ route('admin.empresas.gateway-melhor-envio.store', $empresa) }}" class="row g-2 align-items-end">
+                            @csrf
+                            <div class="col-12"><div class="small fw-semibold">Pacote padrão — produto sem medida cadastrada</div></div>
+                            <div class="col-md-3">
+                                <label class="form-label small mb-1">Altura (cm)</label>
+                                <input type="number" step="0.1" min="1" name="pacote_altura" class="form-control form-control-sm"
+                                       value="{{ $gatewayMe?->config['pacote_altura'] ?? \App\Services\Entrega\MelhorEnvioService::PACOTE_PADRAO['altura'] }}">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small mb-1">Largura (cm)</label>
+                                <input type="number" step="0.1" min="1" name="pacote_largura" class="form-control form-control-sm"
+                                       value="{{ $gatewayMe?->config['pacote_largura'] ?? \App\Services\Entrega\MelhorEnvioService::PACOTE_PADRAO['largura'] }}">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small mb-1">Comprimento (cm)</label>
+                                <input type="number" step="0.1" min="1" name="pacote_comprimento" class="form-control form-control-sm"
+                                       value="{{ $gatewayMe?->config['pacote_comprimento'] ?? \App\Services\Entrega\MelhorEnvioService::PACOTE_PADRAO['comprimento'] }}">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small mb-1">Peso (kg)</label>
+                                <input type="number" step="0.01" min="0.01" name="pacote_peso" class="form-control form-control-sm"
+                                       value="{{ $gatewayMe?->config['pacote_peso'] ?? \App\Services\Entrega\MelhorEnvioService::PACOTE_PADRAO['peso'] }}">
+                            </div>
+                            <div class="col-md-7">
+                                <label class="form-label small mb-1">Serviços permitidos (ids do Melhor Envio, por vírgula)</label>
+                                <input type="text" name="servicos" class="form-control form-control-sm"
+                                       value="{{ $gatewayMe?->config['servicos'] ?? '' }}" placeholder="vazio = todos · ex.: 1,2 (PAC, SEDEX)">
+                            </div>
+                            <div class="col-md-5 d-flex flex-wrap gap-3 pb-1">
+                                <div class="form-check">
+                                    <input type="hidden" name="seguro" value="0">
+                                    <input class="form-check-input" type="checkbox" name="seguro" value="1" id="meSeguro" @checked($gatewayMe?->config['seguro'] ?? true)>
+                                    <label class="form-check-label small" for="meSeguro">Declarar valor (seguro)</label>
+                                </div>
+                                <div class="form-check">
+                                    <input type="hidden" name="ativo" value="0">
+                                    <input class="form-check-input" type="checkbox" name="ativo" value="1" id="meAtivo" @checked($gatewayMe?->ativo)>
+                                    <label class="form-check-label small" for="meAtivo">Ativo</label>
+                                </div>
+                            </div>
+                            <div class="col-auto">
+                                <button type="submit" class="btn btn-sm btn-primary">Salvar</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
         @php($gatewayAsaas = \App\Models\EmpresaGateway::where('empresa_id', $empresa->id)->where('provedor', \App\Models\EmpresaGateway::PROVEDOR_ASAAS)->first())
         @php($gatewayUber = \App\Models\EmpresaGateway::where('empresa_id', $empresa->id)->where('provedor', \App\Models\EmpresaGateway::PROVEDOR_UBER_DIRECT)->first())
         <div class="row g-4 mb-1">

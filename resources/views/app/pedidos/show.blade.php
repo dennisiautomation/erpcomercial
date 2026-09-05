@@ -358,7 +358,7 @@
                         @endif
                         @if(($pedido->frete_valor ?? 0) > 0)
                             <div class="d-flex justify-content-between py-1">
-                                <span class="text-muted">Entrega (Uber):</span>
+                                <span class="text-muted">Entrega ({{ $pedido->frete_provedor === 'melhor_envio' ? (($pedido->frete_servico_nome ?: 'Melhor Envio') . ($pedido->frete_prazo_dias ? ', até ' . $pedido->frete_prazo_dias . ' dias úteis' : '')) : 'Uber' }}):</span>
                                 <strong>+ R$ {{ number_format($pedido->frete_valor, 2, ',', '.') }}</strong>
                             </div>
                         @endif

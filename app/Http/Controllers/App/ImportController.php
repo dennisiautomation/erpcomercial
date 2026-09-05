@@ -80,6 +80,10 @@ class ImportController extends Controller
                     'descricao_detalhada' => $row['descricao_detalhada'] ?? null,
                     'unidade_medida'   => strtoupper($row['unidade'] ?? $row['unidade_medida'] ?? $row['un'] ?? 'UN'),
                     'ncm'              => $row['ncm'] ?? null,
+                    // 05/09: medidas em cm para o frete (Melhor Envio); vazio = pacote padrão da loja
+                    'altura_cm'        => $this->parseNumber($row['altura'] ?? $row['altura_cm'] ?? 0) ?: null,
+                    'largura_cm'       => $this->parseNumber($row['largura'] ?? $row['largura_cm'] ?? 0) ?: null,
+                    'comprimento_cm'   => $this->parseNumber($row['comprimento'] ?? $row['comprimento_cm'] ?? 0) ?: null,
                     'cest'             => $row['cest'] ?? null,
                     'origem'           => $row['origem'] ?? 0,
                     'preco_custo'      => $this->parseNumber($row['preco_custo'] ?? $row['custo'] ?? 0),
@@ -435,10 +439,11 @@ class ImportController extends Controller
                 'descricao', 'codigo', 'codigo_barras', 'sku', 'unidade', 'ncm', 'cest', 'origem',
                 'preco_custo', 'markup', 'preco_venda', 'preco_debito', 'preco_credito',
                 'estoque_minimo', 'cfop', 'cst', 'icms', 'pis', 'cofins', 'ipi',
+                'altura', 'largura', 'comprimento',
             ],
             'exemplos' => [
-                ['Notebook Dell Inspiron 15', '', '7891234567895', '', 'UN', '84713012', '', '0', '3500,00', '42,86', '4999,90', '4999,90', '5199,90', '2', '5102', '102', '0', '0', '0', '0'],
-                ['Camiseta Algodão P', '', '', '', 'UN', '61091000', '', '0', '18,90', '100', '37,80', '', '', '5', '5102', '102', '0', '0', '0', '0'],
+                ['Notebook Dell Inspiron 15', '', '7891234567895', '', 'UN', '84713012', '', '0', '3500,00', '42,86', '4999,90', '4999,90', '5199,90', '2', '5102', '102', '0', '0', '0', '0', '5', '38', '26'],
+                ['Camiseta Algodão P', '', '', '', 'UN', '61091000', '', '0', '18,90', '100', '37,80', '', '', '5', '5102', '102', '0', '0', '0', '0', '', '', ''],
             ],
         ],
         'fornecedores' => [

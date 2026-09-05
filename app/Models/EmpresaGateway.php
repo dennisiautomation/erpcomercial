@@ -29,12 +29,21 @@ class EmpresaGateway extends Model
     // Fase 2 (13/08/2026): Asaas p/ cartão (link) — api_key no client_secret.
     public const PROVEDOR_ASAAS = 'asaas';
 
+    // 05/09/2026: Melhor Envio (frete para outra cidade no Agente IA) — a
+    // EMPRESA autoriza a própria conta via OAuth do app IA365 (credenciais
+    // do app em plataforma_configuracoes); tokens cifrados abaixo, pacote
+    // padrão/serviços/seguro no `config` JSON.
+    public const PROVEDOR_MELHOR_ENVIO = 'melhor_envio';
+
     protected $fillable = [
         'empresa_id',
         'provedor',
         'ativo',
         'client_id',
         'client_secret',
+        'access_token',
+        'refresh_token',
+        'token_expira_em',
         'chave_pix',
         'base_url',
         'cert_path',
@@ -51,6 +60,9 @@ class EmpresaGateway extends Model
             'ativo' => 'boolean',
             'client_id' => 'encrypted',
             'client_secret' => 'encrypted',
+            'access_token' => 'encrypted',
+            'refresh_token' => 'encrypted',
+            'token_expira_em' => 'datetime',
             'expiracao_segundos' => 'integer',
             'webhook_registrado_em' => 'datetime',
             'config' => 'array',

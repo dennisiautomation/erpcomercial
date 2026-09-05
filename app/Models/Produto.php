@@ -33,6 +33,9 @@ class Produto extends Model
         'foto',
         'peso_bruto',
         'peso_liquido',
+        'altura_cm',
+        'largura_cm',
+        'comprimento_cm',
         'cfop',
         'cst_csosn',
         'icms_modalidade_bc',
@@ -85,6 +88,9 @@ class Produto extends Model
             'di_valor_afrmm' => 'decimal:2',
             'peso_bruto' => 'decimal:3',
             'peso_liquido' => 'decimal:3',
+            'altura_cm' => 'decimal:2',
+            'largura_cm' => 'decimal:2',
+            'comprimento_cm' => 'decimal:2',
         ];
     }
 

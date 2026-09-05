@@ -669,6 +669,13 @@
                             <span class="nav-text">Planos</span>
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ request()->routeIs('admin.integracoes.*') ? 'active' : '' }}"
+                           href="{{ route('admin.integracoes.index') }}">
+                            <i class="bi bi-plug nav-icon"></i>
+                            <span class="nav-text">Integrações</span>
+                        </a>
+                    </li>
                     @if(auth()->user()->podeVerFinanceiro())
                     <li class="nav-item">
                         <a class="nav-link {{ request()->routeIs('admin.financeiro.*') ? 'active' : '' }}"

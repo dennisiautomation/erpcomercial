@@ -93,6 +93,15 @@ Schedule::command('fiscal:baixar-xmls-notas')
     ->withoutOverlapping();
 
 // ──────────────────────────────────────────────────────────────────
+// Melhor Envio (05/09/2026): renova os tokens OAuth das empresas que
+// vencem em ≤ 3 dias (validade 30 dias) — diário às 5h.
+// ──────────────────────────────────────────────────────────────────
+Schedule::command('melhorenvio:renovar-tokens')
+    ->dailyAt('05:00')
+    ->name('melhor-envio-renovar-tokens')
+    ->withoutOverlapping();
+
+// ──────────────────────────────────────────────────────────────────
 // PIX do Agente IA — rede de segurança do webhook Sicredi: consulta
 // cobranças ATIVAS e confirma pagamentos perdidos; expira vencidas.
 // ──────────────────────────────────────────────────────────────────

@@ -120,6 +120,19 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
         ->name('empresas.gateway-asaas.store');
     Route::post('/empresas/{empresa}/gateway-asaas/testar', [Admin\EmpresaAsaasController::class, 'testar'])
         ->name('empresas.gateway-asaas.testar');
+    // Melhor Envio por empresa (05/09/2026) — aba Integração: a empresa autoriza a própria conta (OAuth)
+    Route::post('/empresas/{empresa}/gateway-melhor-envio', [Admin\EmpresaMelhorEnvioController::class, 'store'])
+        ->name('empresas.gateway-melhor-envio.store');
+    Route::post('/empresas/{empresa}/gateway-melhor-envio/conectar', [Admin\EmpresaMelhorEnvioController::class, 'conectar'])
+        ->name('empresas.gateway-melhor-envio.conectar');
+    Route::post('/empresas/{empresa}/gateway-melhor-envio/testar', [Admin\EmpresaMelhorEnvioController::class, 'testar'])
+        ->name('empresas.gateway-melhor-envio.testar');
+    Route::post('/empresas/{empresa}/gateway-melhor-envio/desconectar', [Admin\EmpresaMelhorEnvioController::class, 'desconectar'])
+        ->name('empresas.gateway-melhor-envio.desconectar');
+    // Integrações da PLATAFORMA (credenciais da IA365, valem para todas as empresas) — 05/09/2026
+    Route::get('/integracoes', [Admin\IntegracoesPlataformaController::class, 'index'])->name('integracoes.index');
+    Route::post('/integracoes/melhor-envio', [Admin\IntegracoesPlataformaController::class, 'storeMelhorEnvio'])
+        ->name('integracoes.melhor-envio.store');
     Route::resource('empresas', Admin\EmpresaController::class);
     Route::resource('empresas.unidades', Admin\UnidadeController::class)->shallow();
     Route::resource('usuarios', Admin\UsuarioController::class);
@@ -686,6 +699,11 @@ Route::prefix('api/integracao/v1')->name('api.integracao.')
         Route::post('/pedidos/{id}/pix', [\App\Http\Controllers\Api\IntegracaoAgenteController::class, 'pixPedido'])->whereNumber('id')->name('pedidos.pix');
         Route::post('/entrega/cotar', [\App\Http\Controllers\Api\IntegracaoAgenteController::class, 'cotarEntrega'])->name('entrega.cotar');
     });
+
+// Retorno do OAuth do Melhor Envio (05/09/2026) — GET, UMA URL para todas as empresas
+// (é a URL do app IA365 cadastrada no painel do Melhor Envio); o `state` cifrado diz a empresa.
+Route::get('/integracao/melhor-envio/callback', [\App\Http\Controllers\Integracao\MelhorEnvioCallbackController::class, 'callback'])
+    ->name('integracao.melhor-envio.callback');
 
 // Webhook PIX Sicredi — SEM Bearer (o PSP chama), mas sob api/integracao/*
 // para herdar a isenção de CSRF sem tocar no bootstrap/ (armadilha 46).

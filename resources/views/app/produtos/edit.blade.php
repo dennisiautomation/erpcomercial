@@ -326,6 +326,32 @@
                             @error('peso_liquido') <div class="invalid-feedback">{{ $message }}</div> @enderror
                         </div>
                     </div>
+                    {{-- 05/09: medidas para cotar frete (Melhor Envio). Vazio = pacote padrão da loja --}}
+                    <div class="col-md-4">
+                        <label for="altura_cm" class="form-label">Altura (cm)</label>
+                        <div class="input-group">
+                            <input type="number" name="altura_cm" id="altura_cm" class="form-control @error('altura_cm') is-invalid @enderror" value="{{ old('altura_cm', $produto->altura_cm) }}" step="0.1" min="0" placeholder="pacote padrão">
+                            <span class="input-group-text">cm</span>
+                            @error('altura_cm') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="largura_cm" class="form-label">Largura (cm)</label>
+                        <div class="input-group">
+                            <input type="number" name="largura_cm" id="largura_cm" class="form-control @error('largura_cm') is-invalid @enderror" value="{{ old('largura_cm', $produto->largura_cm) }}" step="0.1" min="0" placeholder="pacote padrão">
+                            <span class="input-group-text">cm</span>
+                            @error('largura_cm') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="comprimento_cm" class="form-label">Comprimento (cm)</label>
+                        <div class="input-group">
+                            <input type="number" name="comprimento_cm" id="comprimento_cm" class="form-control @error('comprimento_cm') is-invalid @enderror" value="{{ old('comprimento_cm', $produto->comprimento_cm) }}" step="0.1" min="0" placeholder="pacote padrão">
+                            <span class="input-group-text">cm</span>
+                            @error('comprimento_cm') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                        </div>
+                        <div class="form-text"><i class="bi bi-box-seam me-1"></i>Medidas da embalagem, usadas para cotar o frete de outra cidade. Vazio = pacote padrão da loja.</div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -938,7 +964,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // ========================================
     @if($errors->any())
         const errorFields = {!! json_encode($errors->keys()) !!};
-        const step2Fields = ['codigo_barras', 'sku', 'foto', 'estoque_minimo', 'peso_bruto', 'peso_liquido'];
+        const step2Fields = ['codigo_barras', 'sku', 'foto', 'estoque_minimo', 'peso_bruto', 'peso_liquido', 'altura_cm', 'largura_cm', 'comprimento_cm'];
         const step3Fields = ['ncm', 'cest', 'origem', 'cfop', 'cst_csosn', 'icms_aliquota', 'pis_aliquota', 'cofins_aliquota', 'ipi_aliquota'];
 
         if (errorFields.some(f => step3Fields.includes(f))) {

@@ -56,6 +56,11 @@ class DespacharEntregaUberJob implements ShouldQueue
         if ($pedido->metodo_entrega === 'retirada') {
             return;
         }
+        // 05/09: frete cotado pelo Melhor Envio (outra cidade) — a postagem é
+        // pela etiqueta do Melhor Envio, nunca pela Uber.
+        if ($pedido->frete_provedor === 'melhor_envio') {
+            return;
+        }
 
         // Idempotência: já existe entrega criada (ou em criação) p/ o pedido
         if (PedidoEntrega::where('pedido_id', $pedido->id)->whereNotNull('delivery_id')->exists()) {

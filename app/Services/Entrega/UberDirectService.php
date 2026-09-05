@@ -77,6 +77,12 @@ class UberDirectService
 
     // ------------------------------------------------------------- elegibilidade
 
+    /** Há faixas de CEP cadastradas? (05/09: decide se a Uber é 'local' por faixa ou por cidade) */
+    public function temFaixas(): bool
+    {
+        return trim((string) ($this->gateway->config['ceps'] ?? '')) !== '';
+    }
+
     /** CEP dentro das faixas atendidas? (vazio = qualquer CEP é aceito) */
     public function cepAtendido(?string $cep): bool
     {

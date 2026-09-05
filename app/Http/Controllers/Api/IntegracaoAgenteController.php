@@ -15,6 +15,7 @@ use App\Models\PedidoItem;
 use App\Models\Produto;
 use App\Models\Unidade;
 use App\Services\Entrega\UberDirectService;
+use App\Services\Entrega\MelhorEnvioService;
 use App\Services\Pix\PixPedidoService;
 use App\Services\Pix\SicrediPixService;
 use App\Scopes\EmpresaScope;
@@ -581,6 +582,8 @@ class IntegracaoAgenteController extends Controller
             'entrega.bairro' => ['nullable', 'string', 'max:100'],
             'entrega.cidade' => ['nullable', 'string', 'max:100'],
             'entrega.uf' => ['nullable', 'string', 'size:2'],
+            // 05/09: serviço do Melhor Envio escolhido na conversa (id da cotação)
+            'entrega.servico_id' => ['nullable', 'string', 'max:20'],
         ]);
 
         $unidade = Unidade::withoutGlobalScope(EmpresaScope::class)
@@ -615,33 +618,37 @@ class IntegracaoAgenteController extends Controller
         // atendente combina — a trava de frete nunca derruba a venda.
         $freteValor = null;
         $fretePrazoMin = null;
+        $frete = null;
         if ($metodoEntrega === 'entrega') {
-            try {
-                $uber = UberDirectService::ativoPara($token->empresa_id);
-                $end = $validated['entrega'];
-                $cepEntrega = preg_replace('/\D/', '', (string) ($end['cep'] ?? ''));
-                if ($uber && $uber->cepAtendido($cepEntrega)) {
-                    $rua = trim(($end['logradouro'] ?? '') . ' ' . ($end['numero'] ?? ''));
-                    $dropoff = trim(sprintf(
-                        '%s, %s, %s, %s, BR',
-                        $rua !== '' ? $rua : ($end['bairro'] ?? ''),
-                        $end['cidade'] ?? $unidade->cidade,
-                        mb_strtoupper($end['uf'] ?? $unidade->uf),
-                        $cepEntrega
-                    ), ', ');
-                    $quote = $uber->cotar($unidade, $dropoff);
-                    $freteValor = round($quote['fee'] / 100, 2);
-                    $fretePrazoMin = $quote['duration'];
+            // 05/09: mesma cidade → Uber Direct; outra cidade → Melhor Envio pelas
+            // medidas dos produtos (resolverEntrega decide e nunca lança). Falha ou
+            // indisponível ⇒ pedido segue SEM frete e o atendente combina — a
+            // trava de frete nunca derruba a venda.
+            $itensCotacao = [];
+            foreach ($validated['itens'] as $i) {
+                $p = $produtos[$i['produto_id']] ?? null;
+                if ($p) {
+                    $itensCotacao[] = ['produto' => $p, 'quantidade' => (float) $i['quantidade'], 'valor_unitario' => (float) $p->preco_venda];
                 }
+            }
+            try {
+                $frete = $this->resolverEntrega($token->empresa_id, $unidade, $validated['entrega'], $itensCotacao, $validated['entrega']['servico_id'] ?? null);
             } catch (\Throwable $e) {
                 Log::channel('integracao')->warning('Agente IA: pedido segue sem frete (cotação falhou)', [
                     'empresa_id' => $token->empresa_id,
                     'erro' => $e->getMessage(),
                 ]);
+                $frete = null;
+            }
+            if ($frete && ! empty($frete['disponivel'])) {
+                $freteValor = (float) $frete['valor'];
+                $fretePrazoMin = $frete['prazo_minutos'] ?? null;
+            } else {
+                $frete = null;
             }
         }
 
-        $pedido = DB::transaction(function () use ($validated, $token, $produtos, $config, $unidade, $metodoEntrega, $freteValor) {
+        $pedido = DB::transaction(function () use ($validated, $token, $produtos, $config, $unidade, $metodoEntrega, $freteValor, $frete) {
             $cliente = $this->encontrarOuCriarCliente($token->empresa_id, $validated['cliente']);
 
             // Entrega: o endereço coletado na conversa vira o endereço do
@@ -711,6 +718,10 @@ class IntegracaoAgenteController extends Controller
                 'status' => StatusPedido::Rascunho,
                 'metodo_entrega' => $metodoEntrega,
                 'frete_valor' => $freteValor,
+                'frete_provedor' => $frete['provedor'] ?? null,
+                'frete_servico_id' => $frete['servico_id'] ?? null,
+                'frete_servico_nome' => $frete['servico_nome'] ?? null,
+                'frete_prazo_dias' => $frete['prazo_dias'] ?? null,
                 // Canal da venda (05/09): pedido do agente = conversa de WhatsApp.
                 'canal' => \App\Enums\CanalVenda::Whatsapp->value,
                 'observacoes_internas' => "Criado via {$origem} — telefone {$validated['cliente']['telefone']}."
@@ -771,13 +782,26 @@ class IntegracaoAgenteController extends Controller
             $entrega = ['metodo' => 'retirada', 'automatica' => false, 'frete_valor' => null,
                 'mensagem' => 'Retirada combinada na loja.'];
         } elseif ($metodoEntrega === 'entrega') {
-            $entrega = $freteValor !== null
-                ? ['metodo' => 'entrega', 'automatica' => true, 'frete_valor' => $freteValor,
+            if ($freteValor !== null && ($frete['provedor'] ?? null) === 'melhor_envio') {
+                // 05/09: outra cidade — postagem pela etiqueta do Melhor Envio (a
+                // loja gera no painel; automação da etiqueta é a fase 2).
+                $entrega = ['metodo' => 'entrega', 'automatica' => false, 'provedor' => 'melhor_envio',
+                    'frete_valor' => $freteValor, 'servico' => $frete['servico_nome'],
+                    'transportadora' => $frete['transportadora'], 'prazo_dias' => $frete['prazo_dias'],
+                    'mensagem' => 'Frete por ' . $frete['servico_nome']
+                        . ($frete['transportadora'] ? ' (' . $frete['transportadora'] . ')' : '')
+                        . ' de R$ ' . number_format($freteValor, 2, ',', '.')
+                        . ' já incluído no total; prazo de até ' . (int) $frete['prazo_dias']
+                        . ' dias úteis após a postagem, que acontece assim que o pagamento confirmar.'];
+            } elseif ($freteValor !== null) {
+                $entrega = ['metodo' => 'entrega', 'automatica' => true, 'provedor' => 'uber_direct', 'frete_valor' => $freteValor,
                     'prazo_minutos' => $fretePrazoMin,
                     'mensagem' => 'Entrega de R$ ' . number_format($freteValor, 2, ',', '.')
-                        . ' já incluída no total; ela é acionada automaticamente assim que o pagamento confirmar.']
-                : ['metodo' => 'entrega', 'automatica' => false, 'frete_valor' => null,
+                        . ' já incluída no total; ela é acionada automaticamente assim que o pagamento confirmar.'];
+            } else {
+                $entrega = ['metodo' => 'entrega', 'automatica' => false, 'frete_valor' => null,
                     'mensagem' => 'Um atendente vai combinar a entrega com você (o frete não está incluído no total).'];
+            }
         }
 
         $mensagem = "Pedido #{$pedido->numero} registrado! Total R$ " . number_format((float) $pedido->total, 2, ',', '.')
@@ -815,15 +839,19 @@ class IntegracaoAgenteController extends Controller
     }
 
     /**
-     * Cota a entrega Uber Direct para um endereço, ANTES de fechar o pedido.
+     * Cota a entrega para um endereço, ANTES de fechar o pedido.
      *
-     * Ferramenta do agente (intenção COTAR ENTREGA): valida que o endereço é
-     * entregável e que a credencial do gateway funciona. Sempre responde 200
-     * com `disponivel` true/false — o agente lê o resultado e se adapta
-     * (mesmo desenho response-driven do pix/cartao_link no POST /pedidos).
-     * `valor` é o PREÇO ao cliente = fee da cotação Uber / 100 (repasse 1:1,
-     * modelo China Mix — decisão do Dennis 25/08); no CRIAR PEDIDO ele entra
-     * no total e o PIX/cartão já cobram com a entrega embutida.
+     * Ferramenta do agente (intenção COTAR ENTREGA). Sempre responde 200 com
+     * `disponivel` true/false — o agente lê o resultado e se adapta (mesmo
+     * desenho response-driven do pix/cartao_link no POST /pedidos).
+     *
+     * 05/09/2026 — dois provedores, decididos em resolverEntrega():
+     *   - mesma cidade da loja → Uber Direct (`valor` + `prazo_minutos`);
+     *   - outra cidade → Melhor Envio pelas medidas dos produtos (`opcoes`
+     *     com até 3 serviços — PAC/SEDEX/Jadlog… — `valor` da mais barata ou
+     *     do `servico_id` pedido, `prazo_dias`).
+     * `valor` é o PREÇO ao cliente (repasse 1:1, decisão do Dennis 25/08); no
+     * CRIAR PEDIDO ele entra no total e o PIX/cartão já cobram com a entrega.
      */
     public function cotarEntrega(Request $request): JsonResponse
     {
@@ -841,6 +869,12 @@ class IntegracaoAgenteController extends Controller
             'bairro' => ['nullable', 'string', 'max:100'],
             'cidade' => ['nullable', 'string', 'max:100'],
             'uf' => ['nullable', 'string', 'size:2'],
+            // 05/09: itens para o Melhor Envio cotar pelas medidas (opcional —
+            // sem eles vale o pacote padrão da loja × 1)
+            'itens' => ['nullable', 'array', 'max:30'],
+            'itens.*.produto_id' => ['nullable', 'integer'],
+            'itens.*.quantidade' => ['nullable', 'numeric', 'min:0.001', 'max:9999'],
+            'servico_id' => ['nullable', 'string', 'max:20'],
         ]);
 
         $unidade = Unidade::withoutGlobalScope(EmpresaScope::class)
@@ -852,62 +886,165 @@ class IntegracaoAgenteController extends Controller
             return response()->json(['erro' => 'Loja não encontrada.'], 404);
         }
 
-        $indisponivel = fn (string $motivo, string $mensagem) => response()->json([
-            'dados' => ['disponivel' => false, 'motivo' => $motivo, 'mensagem' => $mensagem],
-        ]);
+        $itens = $this->itensParaCotacao($token->empresa_id, $validated['itens'] ?? []);
 
-        $uber = UberDirectService::ativoPara($token->empresa_id);
-        if (! $uber) {
+        return response()->json([
+            'dados' => $this->resolverEntrega($token->empresa_id, $unidade, $validated, $itens, $validated['servico_id'] ?? null),
+        ]);
+    }
+
+    /**
+     * Itens da conversa → produtos da EMPRESA do token (id de outra empresa
+     * é ignorado, não vaza medida nem preço).
+     *
+     * @return array<int, array{produto: Produto, quantidade: float, valor_unitario: float}>
+     */
+    private function itensParaCotacao(int $empresaId, array $itens): array
+    {
+        $ids = collect($itens)->pluck('produto_id')->filter()->unique()->values();
+        $produtos = $ids->isEmpty()
+            ? collect()
+            : Produto::withoutGlobalScope(EmpresaScope::class)
+                ->where('empresa_id', $empresaId)
+                ->whereIn('id', $ids)
+                ->get()
+                ->keyBy('id');
+
+        $out = [];
+        foreach ($itens as $i) {
+            $p = $produtos[$i['produto_id'] ?? 0] ?? null;
+            if ($p) {
+                $out[] = ['produto' => $p, 'quantidade' => (float) ($i['quantidade'] ?? 1), 'valor_unitario' => (float) $p->preco_venda];
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * Decide o provedor e cota. Nunca lança: devolve `disponivel` false com
+     * `motivo`/`mensagem` para o agente se adaptar.
+     *
+     * Uber é entrega LOCAL: vale quando o CEP está nas faixas cadastradas;
+     * sem faixas cadastradas, vale para a mesma cidade da loja (ViaCEP) — e
+     * só deixa de valer se o Melhor Envio estiver conectado (senão o
+     * comportamento é o de sempre). Uber que falha cai no Melhor Envio quando
+     * ele existe (Correios também entregam na cidade).
+     *
+     * @param  array<string, mixed>  $end  cep/logradouro/numero/bairro/cidade/uf
+     * @param  array<int, array{produto: ?Produto, quantidade: float, valor_unitario: float}>  $itens
+     * @return array<string, mixed>
+     */
+    private function resolverEntrega(int $empresaId, Unidade $unidade, array $end, array $itens = [], ?string $servicoId = null): array
+    {
+        $indisponivel = fn (string $motivo, string $mensagem) => ['disponivel' => false, 'motivo' => $motivo, 'mensagem' => $mensagem];
+
+        $uber = UberDirectService::ativoPara($empresaId);
+        $me = MelhorEnvioService::ativoPara($empresaId);
+        if (! $uber && ! $me) {
             return $indisponivel('entrega_desativada',
                 'Entrega automática não está habilitada nesta loja — um atendente pode combinar a entrega.');
         }
 
-        $cep = preg_replace('/\D/', '', (string) ($validated['cep'] ?? ''));
-        if (! $uber->cepAtendido($cep)) {
-            return $indisponivel('cep_fora_da_area',
-                'Este CEP está fora da área de entrega — um atendente pode combinar outra forma, ou o pedido pode ser para retirada.');
+        $cep = preg_replace('/\D/', '', (string) ($end['cep'] ?? ''));
+
+        $local = false;
+        if ($uber && $uber->cepAtendido($cep)) {
+            $local = $uber->temFaixas() || ! $me || MelhorEnvioService::mesmaCidade($cep, $unidade);
         }
 
-        // Cidade/UF caem na unidade quando não informadas (entrega local).
-        $rua = trim(($validated['logradouro'] ?? '') . ' ' . ($validated['numero'] ?? ''));
-        $dropoff = trim(sprintf(
-            '%s, %s, %s, %s, BR',
-            $rua !== '' ? $rua : ($validated['bairro'] ?? ''),
-            $validated['cidade'] ?? $unidade->cidade,
-            mb_strtoupper($validated['uf'] ?? $unidade->uf),
-            $cep
-        ), ', ');
+        if ($local) {
+            // Cidade/UF caem na unidade quando não informadas (entrega local).
+            $rua = trim(($end['logradouro'] ?? '') . ' ' . ($end['numero'] ?? ''));
+            $dropoff = trim(sprintf(
+                '%s, %s, %s, %s, BR',
+                $rua !== '' ? $rua : ($end['bairro'] ?? ''),
+                $end['cidade'] ?? $unidade->cidade,
+                mb_strtoupper($end['uf'] ?? $unidade->uf),
+                $cep
+            ), ', ');
 
-        try {
-            $quote = $uber->cotar($unidade, $dropoff);
-        } catch (\Throwable $e) {
-            Log::channel('integracao')->error('Agente IA: falha ao cotar entrega Uber', [
-                'empresa_id' => $token->empresa_id,
-                'erro' => $e->getMessage(),
-            ]);
-            // Registra no gateway p/ o card da aba Integração denunciar a
-            // credencial quebrada (mesma coluna do "Testar conexão").
-            EmpresaGateway::ativoPara($token->empresa_id, EmpresaGateway::PROVEDOR_UBER_DIRECT)
-                ?->update(['ultima_falha' => mb_substr($e->getMessage(), 0, 1000)]);
+            try {
+                $quote = $uber->cotar($unidade, $dropoff);
+                EmpresaGateway::ativoPara($empresaId, EmpresaGateway::PROVEDOR_UBER_DIRECT)?->update(['ultima_falha' => null]);
+                $valor = round($quote['fee'] / 100, 2);
 
-            return $indisponivel('erro_cotacao',
-                'Não consegui cotar a entrega agora — um atendente pode combinar a entrega.');
+                return [
+                    'disponivel' => true,
+                    'provedor' => 'uber_direct',
+                    'valor' => $valor,
+                    'prazo_minutos' => $quote['duration'],
+                    'mensagem' => 'Entrega disponível: R$ ' . number_format($valor, 2, ',', '.')
+                        . ', chega em ~' . (int) $quote['duration'] . ' min após a confirmação do pagamento. O frete é somado ao total do pedido.',
+                ];
+            } catch (\Throwable $e) {
+                Log::channel('integracao')->error('Agente IA: falha ao cotar entrega Uber', [
+                    'empresa_id' => $empresaId,
+                    'erro' => $e->getMessage(),
+                ]);
+                // Registra no gateway p/ o card da aba Integração denunciar a
+                // credencial quebrada (mesma coluna do "Testar conexão").
+                EmpresaGateway::ativoPara($empresaId, EmpresaGateway::PROVEDOR_UBER_DIRECT)
+                    ?->update(['ultima_falha' => mb_substr($e->getMessage(), 0, 1000)]);
+                if (! $me) {
+                    return $indisponivel('erro_cotacao',
+                        'Não consegui cotar a entrega agora — um atendente pode combinar a entrega.');
+                }
+                // Uber falhou, mas há Melhor Envio: segue para ele.
+            }
         }
 
-        EmpresaGateway::ativoPara($token->empresa_id, EmpresaGateway::PROVEDOR_UBER_DIRECT)
-            ?->update(['ultima_falha' => null]);
+        if ($me) {
+            try {
+                $opcoes = $me->cotar($unidade, $cep, $itens, $servicoId);
+                $me->gateway()->update(['ultima_falha' => null]);
+            } catch (\Throwable $e) {
+                Log::channel('integracao')->error('Agente IA: falha ao cotar frete Melhor Envio', [
+                    'empresa_id' => $empresaId,
+                    'erro' => $e->getMessage(),
+                ]);
+                $me->gateway()->update(['ultima_falha' => mb_substr($e->getMessage(), 0, 1000)]);
 
-        $valor = round($quote['fee'] / 100, 2);
+                return $indisponivel('erro_cotacao',
+                    'Não consegui cotar o frete agora — um atendente pode combinar a entrega.');
+            }
+            if ($opcoes === []) {
+                return $indisponivel('sem_servico',
+                    'Nenhuma transportadora atende este CEP com as medidas informadas — um atendente pode combinar a entrega, ou o pedido pode ser para retirada.');
+            }
 
-        return response()->json([
-            'dados' => [
+            $escolhida = $opcoes[0];
+            if ($servicoId !== null && $servicoId !== '') {
+                foreach ($opcoes as $op) {
+                    if ($op['servico_id'] === (string) $servicoId) {
+                        $escolhida = $op;
+                        break;
+                    }
+                }
+            }
+            $lista = array_slice($opcoes, 0, 3);
+            $partes = [];
+            foreach ($lista as $n => $op) {
+                $partes[] = ($n + 1) . ') ' . $op['nome'] . ($op['transportadora'] !== '' ? ' — ' . $op['transportadora'] : '')
+                    . ': R$ ' . number_format($op['valor'], 2, ',', '.') . ', até ' . $op['prazo_dias'] . ' dias úteis (servico_id ' . $op['servico_id'] . ')';
+            }
+
+            return [
                 'disponivel' => true,
-                'valor' => $valor,
-                'prazo_minutos' => $quote['duration'],
-                'mensagem' => 'Entrega disponível: R$ ' . number_format($valor, 2, ',', '.')
-                    . ', chega em ~' . (int) $quote['duration'] . ' min após a confirmação do pagamento. O frete é somado ao total do pedido.',
-            ],
-        ]);
+                'provedor' => 'melhor_envio',
+                'valor' => $escolhida['valor'],
+                'prazo_dias' => $escolhida['prazo_dias'],
+                'servico_id' => $escolhida['servico_id'],
+                'servico_nome' => $escolhida['nome'],
+                'transportadora' => $escolhida['transportadora'],
+                'opcoes' => $lista,
+                'mensagem' => 'Frete para o CEP ' . substr($cep, 0, 5) . '-' . substr($cep, 5) . ': ' . implode('; ', $partes)
+                    . '. O frete é somado ao total do pedido e a postagem acontece após a confirmação do pagamento.',
+            ];
+        }
+
+        return $indisponivel('cep_fora_da_area',
+            'Este CEP está fora da área de entrega — um atendente pode combinar outra forma, ou o pedido pode ser para retirada.');
     }
 
     /**
@@ -1079,6 +1216,9 @@ class IntegracaoAgenteController extends Controller
         return [
             'metodo' => $pedido->metodo_entrega,
             'frete_valor' => $pedido->frete_valor !== null ? (float) $pedido->frete_valor : null,
+            'provedor' => $pedido->frete_provedor,
+            'servico' => $pedido->frete_servico_nome,
+            'prazo_dias' => $pedido->frete_prazo_dias,
             'status' => $envio?->status,
             'rastreio_url' => $envio?->tracking_url ?: null,
             'erro' => $envio?->erro ? true : false,

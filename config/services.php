@@ -64,4 +64,11 @@ return [
         'embedding_dimensions' => 1536,
     ],
 
+    // Melhor Envio (05/09/2026): base_url só para QA com fake local; vazio em produção
+    // (produção/sandbox vêm de plataforma_configuracoes). Lido via config() porque
+    // env() não funciona com config cacheada (artisan optimize).
+    'melhor_envio' => [
+        'base_url' => env('MELHOR_ENVIO_BASE_URL'),
+    ],
+
 ];
