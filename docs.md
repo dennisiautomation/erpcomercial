@@ -3499,8 +3499,25 @@ confirmar por fora (maquininha, obs "2x") → `confirmado`, `condicao_pagamento=
 acha o pedido; cancelar → `cancelado`, `acoes` todas false; cancelar de novo / confirmar em
 cancelado / forma inválida → 422; pedido de outra empresa → 404. Cotação no teste devolve
 `erro_cotacao` porque as credenciais Uber não decriptam com a APP_KEY do teste (esperado).
-Dados de QA apagados. ✅ **Branch `feat/venda-humana-api` PUSHADA 05/09** a pedido do Dennis (main NÃO promovida — sobe junto com o
-deploy). ⚠️ **Deploy em produção só com OK do Dennis** — rito
+Dados de QA apagados. ### Deploy — FEITO em 05/09/2026 ~18:00 UTC (OK do Dennis)
+
+**EM PRODUÇÃO** a partir da branch `feat/venda-humana-api` @`5058aa3` (sobre a `main` @bc645fc; produção
+conferida **byte-idêntica à `main`** em `app` e `routes` antes do tar — armadilha 52 não se aplicava).
+Rito de sempre, **sem rebuild e sem migration**:
+
+| Passo | O quê |
+|---|---|
+| Backup | `/home/ubuntu/backups/pre-293-20260905/erp_comercial-pre293.sql.gz` (73 tabelas, 9,3MB) + `erp-code-no-ar-pre293.tgz` (código que estava no ar) |
+| Rollback | imagem `erp-com-app:pre-293-20260905` (`docker commit`, pega a camada de escrita) |
+| Código | `tar app routes` |
+| Caches | `artisan optimize` → `chown www-data bootstrap/cache` → `kill -USR2 29` no master do php-fpm (não o PID 1) |
+
+Conferido depois com o token real da DONA DOURO (só leitura): `/login` 200, `ping` OK, as 4 rotas novas no
+`route:list`, `GET /pedidos?busca=17` já devolve `pagamento_resumo` + `acoes` (gerar_pix/verificar/confirmar/
+cancelar = true na empresa com Sicredi ativo), `POST /produtos/buscar` "anel" limite 50 → 50 de 200 com **23 fotos
+na frente** (antes: 0 fotos nos 10 primeiros), `laravel.log` sem erro. `main` promovida por fast-forward e pushada.
+
+✅ **Branch `feat/venda-humana-api` PUSHADA 05/09** a pedido do Dennis. Rito
 `tar cf - app routes | docker exec -i erp-com-app tar xf - -C /var/www/` + `route:clear` +
 `optimize` (sem migration, sem rebuild; armadilha 52: worktree `erp-agente-ia` está na
 `main` = produção, esta branch nasce dela).
