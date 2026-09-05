@@ -3537,6 +3537,14 @@ com SEDEX → total R$ 180 + 39,90, `frete_*` gravados, canal `whatsapp`; `melho
 
 ### O que falta para funcionar de verdade (Dennis)
 
+> **Estado em 05/09 ~15:10 UTC (conferido no banco e no access.log):** app salvo em `/admin/integracoes`
+> (Client ID **29396** — app novo, não o 29391 da primeira tela; Secret de 40 chars; produção), card da
+> DONA DOURO salvo (pacote padrão 4×12×17 cm, 0,3 kg, seguro ligado) e **Conectar clicado às 15:06**
+> (302 para o Melhor Envio) — mas o **callback nunca voltou**: `access_token` NULL. Ou a tela do Melhor
+> Envio ficou aberta, ou a URL de redirecionamento do app 29396 ainda não bate, ou um escopo foi
+> recusado. Sync dos agentes no app.ia365 (§292) **ainda não clicado**.
+
+
 1. Em `/admin/integracoes`: colar Client ID `29391` e o Secret (gerar um novo no painel — o atual
    passou pelo chat), conferir o e-mail de suporte, Salvar.
 2. No painel do Melhor Envio, trocar a URL de redirecionamento do app IA365 (hoje
@@ -3931,39 +3939,23 @@ com SEDEX → total R$ 180 + 39,90, `frete_*` gravados, canal `whatsapp`; `melho
 > realidade divergia do que estava escrito aqui, o texto foi corrigido — vale a auditoria, não a
 > memória do que se pretendia fazer.
 
-### Estado do repositório (04/09/2026, fim do dia)
+### Estado do repositório (05/09/2026, tarde)
 
 Trabalha-se em `/home/ubuntu/apps/erp-agente-ia` (worktree da `main`); `/root/erp` está numa branch
-de agosto e **não** é a referência.
+de agosto e **não** é a referência (tem 55 linhas de docs.md não commitadas — a seção "Carga de
+vendas históricas 28/08" — que a `main` não tem; portar quando for o caso).
 
 | Ref | Onde está | O que tem |
 |---|---|---|
-| `main` = **produção** | `c113065` | tudo do dia 04/09, inclusive os 6 commits da noite: PDV em valor de maquininha (`0fa2170`), as 4 rodadas da tela de estoque (`0c9d13a` → `87f72a3` → `c113065`), a seção do estoque nunca carregado (`7722bb2`) |
-| `origin/main` | `cca0a88` | 6 commits atrás — **push pendente** |
-| `estoque-roda-do-mouse`, `feat/split-acrescimo-por-parte` (pushadas) | `36dc693`, `cca0a88` | rastro; tudo já contido na `main`, podem ser apagadas |
+| `main` = **produção** = `origin/main` | ponta de `melhor-envio` | tudo até 05/09: canal da venda (9q, `48b754b`) + Melhor Envio (9r, `81fb207`) + docs; promovida por fast-forward e **pushada** em 05/09 a pedido do Dennis |
+| `canal-venda-gersen`, `melhor-envio` | contidas na `main` | rastro das duas entregas de 05/09; podem ser apagadas |
+| `estoque-roda-do-mouse`, `feat/split-acrescimo-por-parte` | contidas | rastro de 04/09 |
 
-🔑 **`main` == produção** vale de novo: conferido arquivo a arquivo contra o container (`app`,
-`resources`, `database`, `routes`, `config` byte-idênticos a `c113065`), a tela nova de estoque no
-ar desde 15:30:58. Falta só o `origin` alcançar — `git push origin main`.
+🔑 `main == produção` conferido: o container recebeu por tar exatamente o conteúdo de `app`,
+`database`, `resources`, `routes` e `config` destes commits (migrations batch 36 e 37 rodadas).
 
-📌 Os 6 commits da noite nasceram direto na `main` local pelo mesmo motivo da tarde: o merge deixou
-o repositório nela e ninguém trocou de branch. Como cada um foi validado no `erp-test-app` e
-deployado em seguida, ficaram onde estão — criar branch retroativa só para depois mergear seria
-cerimônia sem ganho.
-
-**Primeiro uso real da tela de estoque (rodada 4)** — Michel, o dono, três minutos depois do deploy:
-`bermuda maju` de `0,001 → 1` na DIRCEU e de `0,002 → 1` na DOM SEVERINO, num salvar só.
-**Exatamente duas movimentações**, as duas células que ele tocou; as outras centenas em fração da
-mesma página ficaram intactas (272/165/152 produtos com saldo por loja, iguais a antes).
-
-📌 Os 3 commits da roda do mouse nasceram direto na `main` local por acidente (o merge anterior tinha
-deixado o repositório nela) e foram movidos para a branch depois — a `main` voltou a espelhar a
-produção sem perder nada.
-
-⚠️ **`refs/heads/fix/` no `.git` é de root** (`/root/erp/.git`, que é o repositório real desta
-worktree): `git branch fix/<nome>` falha com *permission denied*. Por isso a branch se chama
-`estoque-roda-do-mouse`, sem o prefixo. Vale para qualquer branch nova daqui — usar nome sem barra,
-ou pedir ao Dennis para criar.
+⚠️ `refs/heads/fix/` no `.git` é de root (`/root/erp/.git` é o repositório real desta worktree):
+branch nova aqui vai **sem barra** no nome, ou pedir ao Dennis para criar.
 
 **Fila de 05/09 (Melhor Envio):** os 5 passos da seção 9r ("O que falta para funcionar de verdade").
 Fase 2 = comprar/gerar/imprimir etiqueta pela API (`cart` → `checkout` → `generate` → `print`) e
