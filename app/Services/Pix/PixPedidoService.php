@@ -171,6 +171,16 @@ class PixPedidoService
 
         $pedido->save();
 
+        // 05/09: pedido CANCELADO pelo painel que ainda assim recebeu o PIX —
+        // fica a anotação para o humano estornar; não despacha entrega.
+        if ($pedido->status === StatusPedido::Cancelado) {
+            Log::channel('integracao')->warning('Sicredi PIX: pagamento em pedido CANCELADO (estornar)', [
+                'empresa_id' => $cobranca->empresa_id, 'pedido_id' => $pedido->id, 'txid' => $cobranca->txid,
+            ]);
+
+            return;
+        }
+
         // Fase 3 (13/08): pagamento caiu → despacho automático Uber Direct
         // (job em fila; falha lá NUNCA desfaz a confirmação do pedido).
         \App\Jobs\DespacharEntregaUberJob::dispatch($pedido->id, (int) $cobranca->empresa_id);

@@ -698,6 +698,12 @@ Route::prefix('api/integracao/v1')->name('api.integracao.')
         Route::post('/pedidos', [\App\Http\Controllers\Api\IntegracaoAgenteController::class, 'criarPedido'])->name('pedidos.store');
         Route::post('/pedidos/{id}/pix', [\App\Http\Controllers\Api\IntegracaoAgenteController::class, 'pixPedido'])->whereNumber('id')->name('pedidos.pix');
         Route::post('/entrega/cotar', [\App\Http\Controllers\Api\IntegracaoAgenteController::class, 'cotarEntrega'])->name('entrega.cotar');
+        // Venda humana pelo app.ia365 (05/09/2026): o atendente opera o pedido
+        // pelo painel do CRM — transições espelham PedidoController::updateStatus.
+        Route::post('/pedidos/{id}/verificar-pagamento', [\App\Http\Controllers\Api\IntegracaoAgenteController::class, 'verificarPagamento'])->whereNumber('id')->name('pedidos.verificar-pagamento');
+        Route::post('/pedidos/{id}/confirmar-pagamento', [\App\Http\Controllers\Api\IntegracaoAgenteController::class, 'confirmarPagamento'])->whereNumber('id')->name('pedidos.confirmar-pagamento');
+        Route::post('/pedidos/{id}/cancelar', [\App\Http\Controllers\Api\IntegracaoAgenteController::class, 'cancelarPedido'])->whereNumber('id')->name('pedidos.cancelar');
+        Route::post('/pedidos/{id}/entregue', [\App\Http\Controllers\Api\IntegracaoAgenteController::class, 'marcarEntregue'])->whereNumber('id')->name('pedidos.entregue');
     });
 
 // Retorno do OAuth do Melhor Envio (05/09/2026) — GET, UMA URL para todas as empresas

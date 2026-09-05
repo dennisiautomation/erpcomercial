@@ -343,6 +343,10 @@ class IntegracaoAgenteController extends Controller
         $validated = $request->validate([
             'status' => ['nullable', 'string', 'in:rascunho,confirmado,faturado,entregue,cancelado'],
             'telefone' => ['nullable', 'string', 'max:20'],
+            // 05/09 (venda humana no app.ia365): busca livre por nome/telefone do
+            // cliente ou número do pedido, e recorte por situação do pagamento.
+            'busca' => ['nullable', 'string', 'max:80'],
+            'pagamento' => ['nullable', 'string', 'in:pendente,pago'],
             'pagina' => ['nullable', 'integer', 'min:1'],
         ]);
 
@@ -351,7 +355,7 @@ class IntegracaoAgenteController extends Controller
         $query = Pedido::withoutGlobalScope(EmpresaScope::class)
             ->withoutGlobalScope(UnidadeScope::class)
             ->where('empresa_id', $token->empresa_id)
-            ->with(['cliente:id,nome_razao_social,telefone,whatsapp', 'unidade:id,nome', 'itens' => fn ($q) => $q->with('produto:id,descricao,foto')])
+            ->with(['cliente', 'unidade:id,nome', 'itens' => fn ($q) => $q->with('produto:id,descricao,foto'), 'vendedor:id,name'])
             ->when($validated['status'] ?? null, fn ($q, $s) => $q->where('status', $s))
             ->when($validated['telefone'] ?? null, function ($q, $tel) {
                 $digitos = preg_replace('/\D/', '', $tel);
@@ -359,6 +363,43 @@ class IntegracaoAgenteController extends Controller
                     $c->where('telefone', 'like', "%{$digitos}%")
                         ->orWhere('whatsapp', 'like', "%{$digitos}%");
                 });
+            })
+            ->when(trim((string) ($validated['busca'] ?? '')) !== '', function ($q) use ($validated) {
+                $termo = trim($validated['busca']);
+                $digitos = preg_replace('/\D/', '', $termo);
+                $q->where(function ($w) use ($termo, $digitos) {
+                    if ($digitos !== '' && ctype_digit($termo)) {
+                        $w->orWhere('numero', (int) $termo);
+                    }
+                    $w->orWhereHas('cliente', function ($c) use ($termo, $digitos) {
+                        $c->where('nome_razao_social', 'like', "%{$termo}%");
+                        if (strlen($digitos) >= 4) {
+                            $c->orWhere('telefone', 'like', "%{$digitos}%")
+                                ->orWhere('whatsapp', 'like', "%{$digitos}%");
+                        }
+                    });
+                });
+            })
+            ->when($validated['pagamento'] ?? null, function ($q, $pg) {
+                // "pago" = cobrança PIX concluída OU anotação de pagamento no pedido
+                // (cartão Asaas / recebido por fora) — o critério é o mesmo que a
+                // situação "pago" da resposta (pagamentoResumo).
+                $sub = PedidoCobranca::query()->selectRaw('1')
+                    ->whereColumn('pedido_cobrancas.pedido_id', 'pedidos.id')
+                    ->whereNotNull('pago_em');
+                if ($pg === 'pago') {
+                    $q->where(function ($w) use ($sub) {
+                        $w->whereExists($sub)
+                            ->orWhere('observacoes_internas', 'like', '%PAGO%');
+                    });
+                } else {
+                    $q->whereNotExists($sub)
+                        ->where(function ($w) {
+                            $w->whereNull('observacoes_internas')
+                                ->orWhere('observacoes_internas', 'not like', '%PAGO%');
+                        })
+                        ->whereIn('status', ['rascunho']);
+                }
             })
             ->orderByDesc('id');
 
@@ -536,7 +577,7 @@ class IntegracaoAgenteController extends Controller
         $pedido = Pedido::withoutGlobalScope(EmpresaScope::class)
             ->withoutGlobalScope(UnidadeScope::class)
             ->where('empresa_id', $token->empresa_id)
-            ->with(['cliente:id,nome_razao_social,telefone,whatsapp', 'unidade:id,nome', 'itens' => fn ($q) => $q->with('produto:id,descricao,foto')])
+            ->with(['cliente', 'unidade:id,nome', 'itens' => fn ($q) => $q->with('produto:id,descricao,foto'), 'vendedor:id,name'])
             ->whereKey($id)
             ->first();
 
@@ -572,6 +613,10 @@ class IntegracaoAgenteController extends Controller
             'itens.*.quantidade' => ['required', 'numeric', 'min:0.001', 'max:9999'],
             'observacoes' => ['nullable', 'string', 'max:1000'],
             'origem' => ['nullable', 'string', 'max:50'],
+            // 05/09 (venda humana): quem vendeu no painel do app.ia365. Casado
+            // pelo nome contra os usuários ATIVOS da empresa; sem match cai no
+            // vendedor padrão do agente (comportamento de sempre).
+            'vendedor_nome' => ['nullable', 'string', 'max:120'],
             // Método de entrega coletado na conversa (25/08). Tudo opcional:
             // agente antigo (sem os campos) segue criando pedido normalmente.
             'entrega.metodo' => ['nullable', 'string', 'in:retirada,entrega'],
@@ -609,6 +654,9 @@ class IntegracaoAgenteController extends Controller
         }
 
         $config = AgenteIaConfig::where('empresa_id', $token->empresa_id)->first();
+
+        $vendedorId = $this->vendedorPorNome($token->empresa_id, $validated['vendedor_nome'] ?? null)
+            ?? $config?->vendedor_padrao_id;
 
         $metodoEntrega = $validated['entrega']['metodo'] ?? null;
 
@@ -648,7 +696,7 @@ class IntegracaoAgenteController extends Controller
             }
         }
 
-        $pedido = DB::transaction(function () use ($validated, $token, $produtos, $config, $unidade, $metodoEntrega, $freteValor, $frete) {
+        $pedido = DB::transaction(function () use ($validated, $token, $produtos, $vendedorId, $unidade, $metodoEntrega, $freteValor, $frete) {
             $cliente = $this->encontrarOuCriarCliente($token->empresa_id, $validated['cliente']);
 
             // Entrega: o endereço coletado na conversa vira o endereço do
@@ -707,7 +755,7 @@ class IntegracaoAgenteController extends Controller
                 'empresa_id' => $token->empresa_id,
                 'unidade_id' => $validated['unidade_id'],
                 'cliente_id' => $cliente->id,
-                'vendedor_id' => $config?->vendedor_padrao_id,
+                'vendedor_id' => $vendedorId,
                 'numero' => $ultimoNumero ? $ultimoNumero + 1 : 1,
                 'subtotal' => round($subtotal, 2),
                 'desconto_percentual' => 0,
@@ -1180,11 +1228,17 @@ class IntegracaoAgenteController extends Controller
             'status' => $pedido->status->value,
             'status_nome' => $pedido->status->label(),
             'total' => (float) $pedido->total,
+            'subtotal' => (float) $pedido->subtotal,
+            'canal' => $pedido->canal?->value,
+            'condicao_pagamento' => $pedido->condicao_pagamento,
+            'vendedor' => $pedido->vendedor?->name,
             'loja' => $pedido->unidade?->nome,
             'cliente' => $pedido->cliente ? [
                 'id' => (string) $pedido->cliente->id,
                 'nome' => $pedido->cliente->nome_razao_social,
                 'telefone' => $pedido->cliente->whatsapp ?: $pedido->cliente->telefone,
+                'cpf_cnpj' => $pedido->cliente->cpf_cnpj,
+                'endereco' => $this->enderecoTexto($pedido->cliente),
             ] : null,
             'itens' => $pedido->itens->map(fn (PedidoItem $i) => [
                 'produto_id' => $i->produto_id ? (string) $i->produto_id : null,
@@ -1198,7 +1252,337 @@ class IntegracaoAgenteController extends Controller
             ])->values(),
             'observacoes' => $pedido->observacoes_internas,
             'pagamento' => $cobranca ? $this->cobrancaParaResposta($cobranca) : null,
+            // 05/09: situação consolidada do pagamento (PIX Sicredi, cartão Asaas
+            // ou recebido por fora) — é o que a aba Pedidos do app.ia365 mostra.
+            'pagamento_resumo' => $this->pagamentoResumo($pedido, $cobranca),
             'entrega' => $this->entregaParaResposta($pedido),
+            'acoes' => $this->acoesPermitidas($pedido),
+        ];
+    }
+
+    /* ---------------------------------------------------------------- */
+    /*  Venda humana pelo app.ia365 (05/09/2026)                          */
+    /*                                                                    */
+    /*  O atendente opera o pedido pelo painel do CRM: re-consulta o PIX, */
+    /*  registra pagamento recebido por fora, cancela e marca entregue.   */
+    /*  As transições espelham as do PedidoController::updateStatus       */
+    /*  (rascunho → confirmado/cancelado; confirmado → cancelado;         */
+    /*  faturado → entregue) — faturar continua SÓ no ERP (estoque/fiscal).*/
+    /* ---------------------------------------------------------------- */
+
+    /**
+     * POST /pedidos/{id}/verificar-pagamento — re-consulta a cobrança PIX no
+     * Sicredi agora (mesma rotina do webhook e do cron) e devolve o pedido.
+     */
+    public function verificarPagamento(Request $request, int $id): JsonResponse
+    {
+        $token = $this->token($request);
+
+        if ($erro = $this->exigirAgenteAtivo($token)) {
+            return $erro;
+        }
+
+        $pedido = $this->pedidoDaEmpresa($token->empresa_id, $id);
+        if (! $pedido) {
+            return response()->json(['erro' => 'Pedido não encontrado.'], 404);
+        }
+
+        $cobranca = PedidoCobranca::where('empresa_id', $pedido->empresa_id)
+            ->where('pedido_id', $pedido->id)
+            ->whereNot('status', 'ERRO')
+            ->orderByDesc('id')
+            ->first();
+
+        $consultou = false;
+        if ($cobranca && ! $cobranca->paga()) {
+            try {
+                app(PixPedidoService::class)->sincronizarCobranca($cobranca);
+                $consultou = true;
+            } catch (\Throwable $e) {
+                Log::channel('integracao')->warning('Venda humana: falha ao re-consultar PIX', [
+                    'pedido_id' => $pedido->id, 'erro' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        return response()->json([
+            'dados' => array_merge($this->pedidoParaResposta($pedido->fresh(['cliente', 'unidade', 'itens.produto', 'vendedor'])), [
+                'consultou_psp' => $consultou,
+            ]),
+        ]);
+    }
+
+    /**
+     * POST /pedidos/{id}/confirmar-pagamento — pagamento recebido POR FORA
+     * (dinheiro, maquininha, PIX manual, transferência): rascunho → confirmado
+     * com a anotação de quem confirmou; dispara o despacho automático igual
+     * ao PIX. NÃO cria conta a receber (já foi pago) e NÃO fatura.
+     */
+    public function confirmarPagamento(Request $request, int $id): JsonResponse
+    {
+        $token = $this->token($request);
+
+        if ($erro = $this->exigirAgenteAtivo($token)) {
+            return $erro;
+        }
+
+        $validated = $request->validate([
+            'forma' => ['required', 'string', 'in:dinheiro,cartao_maquininha,pix_manual,transferencia,outro'],
+            'observacao' => ['nullable', 'string', 'max:500'],
+            'autor' => ['nullable', 'string', 'max:120'],
+        ]);
+
+        $pedido = $this->pedidoDaEmpresa($token->empresa_id, $id);
+        if (! $pedido) {
+            return response()->json(['erro' => 'Pedido não encontrado.'], 404);
+        }
+
+        if ($pedido->status === StatusPedido::Cancelado) {
+            return response()->json(['erro' => 'Pedido cancelado não pode receber pagamento.'], 422);
+        }
+
+        $formas = [
+            'dinheiro' => ['Dinheiro', 'a_vista'],
+            'cartao_maquininha' => ['Cartão na maquininha', 'cartao'],
+            'pix_manual' => ['PIX (conferido manualmente)', 'pix'],
+            'transferencia' => ['Transferência', 'a_vista'],
+            'outro' => ['Outra forma', 'a_vista'],
+        ];
+        [$rotulo, $condicao] = $formas[$validated['forma']];
+        $autor = trim((string) ($validated['autor'] ?? '')) ?: 'painel app.ia365';
+
+        $nota = sprintf(
+            "\nPAGO POR FORA (%s) em %s — R$ %s, confirmado por %s.%s",
+            $rotulo,
+            now()->format('d/m/Y H:i'),
+            number_format((float) $pedido->total, 2, ',', '.'),
+            $autor,
+            isset($validated['observacao']) && trim($validated['observacao']) !== '' ? ' Obs.: ' . trim($validated['observacao']) : ''
+        );
+
+        DB::transaction(function () use ($pedido, $nota, $condicao) {
+            if ($pedido->status === StatusPedido::Rascunho) {
+                $pedido->status = StatusPedido::Confirmado;
+            }
+            if (! $pedido->condicao_pagamento) {
+                $pedido->condicao_pagamento = $condicao;
+            }
+            $pedido->observacoes_internas = trim(($pedido->observacoes_internas ?? '') . $nota);
+            $pedido->save();
+        });
+
+        // Mesmo gatilho do PIX/cartão: pagou → despacho automático (o job
+        // ignora retirada, Melhor Envio e pedido sem gateway; falha lá nunca
+        // desfaz a confirmação).
+        \App\Jobs\DespacharEntregaUberJob::dispatch($pedido->id, (int) $pedido->empresa_id);
+
+        Log::channel('integracao')->info('Venda humana: pagamento confirmado por fora', [
+            'empresa_id' => $pedido->empresa_id, 'pedido_id' => $pedido->id,
+            'numero' => $pedido->numero, 'forma' => $validated['forma'], 'autor' => $autor,
+        ]);
+
+        return response()->json(['dados' => $this->pedidoParaResposta($pedido->fresh(['cliente', 'unidade', 'itens.produto', 'vendedor']))]);
+    }
+
+    /**
+     * POST /pedidos/{id}/cancelar — rascunho/confirmado → cancelado com motivo.
+     * Faturado fica de fora (estoque e fiscal só se desfazem no ERP). A
+     * cobrança PIX ativa é marcada CANCELADA aqui (o Sicredi expira sozinho).
+     */
+    public function cancelarPedido(Request $request, int $id): JsonResponse
+    {
+        $token = $this->token($request);
+
+        if ($erro = $this->exigirAgenteAtivo($token)) {
+            return $erro;
+        }
+
+        $validated = $request->validate([
+            'motivo' => ['nullable', 'string', 'max:300'],
+            'autor' => ['nullable', 'string', 'max:120'],
+        ]);
+
+        $pedido = $this->pedidoDaEmpresa($token->empresa_id, $id);
+        if (! $pedido) {
+            return response()->json(['erro' => 'Pedido não encontrado.'], 404);
+        }
+
+        if (! in_array($pedido->status, [StatusPedido::Rascunho, StatusPedido::Confirmado], true)) {
+            return response()->json([
+                'erro' => "Pedido {$pedido->status->label()} só pode ser cancelado no ERP.",
+            ], 422);
+        }
+
+        $cobrancaPaga = PedidoCobranca::where('empresa_id', $pedido->empresa_id)
+            ->where('pedido_id', $pedido->id)
+            ->whereNotNull('pago_em')
+            ->exists();
+        if ($cobrancaPaga) {
+            return response()->json(['erro' => 'Este pedido já tem PIX pago — cancele pelo ERP para tratar o estorno.'], 422);
+        }
+
+        $autor = trim((string) ($validated['autor'] ?? '')) ?: 'painel app.ia365';
+        $motivo = trim((string) ($validated['motivo'] ?? ''));
+
+        DB::transaction(function () use ($pedido, $autor, $motivo) {
+            $pedido->status = StatusPedido::Cancelado;
+            $pedido->observacoes_internas = trim(($pedido->observacoes_internas ?? '')
+                . sprintf("\nCANCELADO em %s por %s%s.", now()->format('d/m/Y H:i'), $autor, $motivo !== '' ? " — motivo: {$motivo}" : ''));
+            $pedido->save();
+
+            PedidoCobranca::where('empresa_id', $pedido->empresa_id)
+                ->where('pedido_id', $pedido->id)
+                ->whereNull('pago_em')
+                ->whereNotIn('status', ['ERRO'])
+                ->update(['status' => 'CANCELADA']);
+        });
+
+        Log::channel('integracao')->info('Venda humana: pedido cancelado', [
+            'empresa_id' => $pedido->empresa_id, 'pedido_id' => $pedido->id,
+            'numero' => $pedido->numero, 'autor' => $autor, 'motivo' => $motivo,
+        ]);
+
+        return response()->json(['dados' => $this->pedidoParaResposta($pedido->fresh(['cliente', 'unidade', 'itens.produto', 'vendedor']))]);
+    }
+
+    /**
+     * POST /pedidos/{id}/entregue — faturado → entregue (mesma transição do
+     * ERP). Confirmado ainda não faturado devolve 422 explicando.
+     */
+    public function marcarEntregue(Request $request, int $id): JsonResponse
+    {
+        $token = $this->token($request);
+
+        if ($erro = $this->exigirAgenteAtivo($token)) {
+            return $erro;
+        }
+
+        $validated = $request->validate([
+            'autor' => ['nullable', 'string', 'max:120'],
+        ]);
+
+        $pedido = $this->pedidoDaEmpresa($token->empresa_id, $id);
+        if (! $pedido) {
+            return response()->json(['erro' => 'Pedido não encontrado.'], 404);
+        }
+
+        if ($pedido->status !== StatusPedido::Faturado) {
+            return response()->json([
+                'erro' => $pedido->status === StatusPedido::Confirmado
+                    ? 'Fature o pedido no ERP antes de marcar como entregue (é o faturamento que baixa o estoque).'
+                    : "Pedido {$pedido->status->label()} não pode ser marcado como entregue.",
+            ], 422);
+        }
+
+        $autor = trim((string) ($validated['autor'] ?? '')) ?: 'painel app.ia365';
+        $pedido->status = StatusPedido::Entregue;
+        $pedido->observacoes_internas = trim(($pedido->observacoes_internas ?? '')
+            . sprintf("\nENTREGUE em %s (marcado por %s).", now()->format('d/m/Y H:i'), $autor));
+        $pedido->save();
+
+        Log::channel('integracao')->info('Venda humana: pedido marcado entregue', [
+            'empresa_id' => $pedido->empresa_id, 'pedido_id' => $pedido->id, 'numero' => $pedido->numero, 'autor' => $autor,
+        ]);
+
+        return response()->json(['dados' => $this->pedidoParaResposta($pedido->fresh(['cliente', 'unidade', 'itens.produto', 'vendedor']))]);
+    }
+
+    private function pedidoDaEmpresa(int $empresaId, int $id): ?Pedido
+    {
+        return Pedido::withoutGlobalScope(EmpresaScope::class)
+            ->withoutGlobalScope(UnidadeScope::class)
+            ->where('empresa_id', $empresaId)
+            ->with(['cliente', 'unidade:id,nome', 'itens' => fn ($q) => $q->with('produto:id,descricao,foto'), 'vendedor:id,name'])
+            ->whereKey($id)
+            ->first();
+    }
+
+    private function vendedorPorNome(int $empresaId, ?string $nome): ?int
+    {
+        $nome = trim((string) $nome);
+        if ($nome === '') {
+            return null;
+        }
+
+        $user = \App\Models\User::query()
+            ->where('empresa_id', $empresaId)
+            ->where('status', 'ativo')
+            ->whereRaw('LOWER(name) = ?', [mb_strtolower($nome)])
+            ->orderBy('id')
+            ->first();
+
+        return $user?->id;
+    }
+
+    private function enderecoTexto(Cliente $cliente): ?string
+    {
+        $linha = trim(implode(', ', array_filter([
+            trim(implode(' ', array_filter([$cliente->logradouro, $cliente->numero]))),
+            $cliente->complemento,
+            $cliente->bairro,
+            trim(implode('/', array_filter([$cliente->cidade, $cliente->uf]))),
+        ])));
+        if ($cliente->cep) {
+            $cep = preg_replace('/\D/', '', (string) $cliente->cep);
+            $linha .= ($linha !== '' ? ' — ' : '') . 'CEP ' . (strlen($cep) === 8 ? substr($cep, 0, 5) . '-' . substr($cep, 5) : $cep);
+        }
+
+        return $linha !== '' ? $linha : null;
+    }
+
+    /**
+     * Situação consolidada do pagamento: 'pago' | 'aguardando' | 'sem_cobranca'.
+     * Fonte: cobrança PIX (pago_em) ou anotação de pagamento no pedido
+     * (cartão Asaas "CARTÃO PAGO" / recebido por fora "PAGO POR FORA").
+     */
+    private function pagamentoResumo(Pedido $pedido, ?PedidoCobranca $cobranca): array
+    {
+        $obs = (string) $pedido->observacoes_internas;
+        if ($cobranca?->paga()) {
+            return ['situacao' => 'pago', 'via' => 'pix', 'em' => $cobranca->pago_em?->format('Y-m-d H:i')];
+        }
+        if (preg_match('/CARTÃO PAGO via Asaas em (\d{2}\/\d{2}\/\d{4} \d{2}:\d{2})/u', $obs, $m)) {
+            return ['situacao' => 'pago', 'via' => 'cartao', 'em' => $this->dataBr($m[1])];
+        }
+        if (preg_match('/PAGO POR FORA \(([^)]+)\) em (\d{2}\/\d{2}\/\d{4} \d{2}:\d{2})/u', $obs, $m)) {
+            return ['situacao' => 'pago', 'via' => 'manual', 'forma' => $m[1], 'em' => $this->dataBr($m[2])];
+        }
+        if ($pedido->status === StatusPedido::Cancelado) {
+            return ['situacao' => 'cancelado', 'via' => null, 'em' => null];
+        }
+        if ($cobranca && in_array($cobranca->status, ['ATIVA'], true)) {
+            return ['situacao' => 'aguardando', 'via' => 'pix', 'em' => null, 'expira_em' => $cobranca->expira_em?->format('Y-m-d H:i')];
+        }
+        // Confirmado/faturado/entregue sem rastro de pagamento = fechado no ERP
+        if ($pedido->status !== StatusPedido::Rascunho) {
+            return ['situacao' => 'pago', 'via' => 'erp', 'em' => null];
+        }
+
+        return ['situacao' => 'sem_cobranca', 'via' => null, 'em' => null];
+    }
+
+    private function dataBr(string $br): ?string
+    {
+        try {
+            return \Illuminate\Support\Carbon::createFromFormat('d/m/Y H:i', $br)->format('Y-m-d H:i');
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    /** O que o painel pode fazer com este pedido (o servidor é quem manda). */
+    private function acoesPermitidas(Pedido $pedido): array
+    {
+        $temPix = SicrediPixService::paraEmpresa((int) $pedido->empresa_id) !== null;
+        $pixPago = PedidoCobranca::where('empresa_id', $pedido->empresa_id)
+            ->where('pedido_id', $pedido->id)->whereNotNull('pago_em')->exists();
+
+        return [
+            'gerar_pix' => $temPix && $pedido->status === StatusPedido::Rascunho && ! $pixPago,
+            'verificar_pagamento' => $temPix && $pedido->status === StatusPedido::Rascunho,
+            'confirmar_pagamento' => $pedido->status === StatusPedido::Rascunho,
+            'cancelar' => in_array($pedido->status, [StatusPedido::Rascunho, StatusPedido::Confirmado], true) && ! $pixPago,
+            'marcar_entregue' => $pedido->status === StatusPedido::Faturado,
         ];
     }
 
