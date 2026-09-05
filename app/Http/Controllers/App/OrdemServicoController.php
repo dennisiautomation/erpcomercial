@@ -316,6 +316,7 @@ class OrdemServicoController extends Controller
                 'vendedor_id' => $ordemServico->vendedor_id,
                 'numero' => $ultimoNumero + 1,
                 'tipo' => 'balcao',
+                'canal' => \App\Enums\CanalVenda::Presencial->value,
                 'status' => 'concluida',
                 'subtotal' => $ordemServico->valor_produtos + $ordemServico->valor_servicos,
                 // A coluna de desconto da venda e `desconto_valor` — mandar

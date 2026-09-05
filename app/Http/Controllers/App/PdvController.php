@@ -449,6 +449,7 @@ class PdvController extends Controller
                     'troco'               => $troco,
                     'status'              => StatusVenda::Concluida,
                     'tipo'                => 'pdv',
+                    'canal'               => \App\Enums\CanalVenda::Presencial->value,
                 ]);
 
                 // Create VendaItens + descarga de estoque (local OU remoto)

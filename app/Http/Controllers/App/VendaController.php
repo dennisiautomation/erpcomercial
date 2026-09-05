@@ -195,6 +195,7 @@ class VendaController extends Controller
                     'troco'               => 0,
                     'status'              => StatusVenda::Concluida,
                     'tipo'                => 'balcao',
+                    'canal'               => \App\Enums\CanalVenda::Presencial->value,
                     'observacoes'         => $request->observacoes,
                 ]);
 

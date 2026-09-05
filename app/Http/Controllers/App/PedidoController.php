@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\App;
 
+use App\Enums\CanalVenda;
 use App\Enums\StatusPedido;
 use App\Enums\StatusVenda;
 use App\Enums\TipoMovimentacaoEstoque;
@@ -84,6 +85,7 @@ class PedidoController extends Controller
             'cliente_id'              => 'required|exists:clientes,id',
             'vendedor_id'             => 'nullable|exists:users,id',
             'condicao_pagamento'      => 'nullable|string|max:255',
+            'canal'                   => 'nullable|' . CanalVenda::regraIn(),
             'desconto_percentual'     => 'nullable|numeric|min:0|max:100',
             'desconto_valor'          => 'nullable|numeric|min:0',
             'observacoes_internas'    => 'nullable|string|max:2000',
@@ -148,6 +150,8 @@ class PedidoController extends Controller
                 'vendedor_id'         => $request->vendedor_id,
                 'numero'              => $numero,
                 'condicao_pagamento'  => $request->condicao_pagamento,
+                // Canal da venda (05/09): a tela pré-seleciona Presencial; o Gersen lê
+                'canal'               => $request->canal ?: CanalVenda::Presencial->value,
                 'subtotal'            => $subtotal,
                 'desconto_percentual' => $descontoGeralPerc,
                 'desconto_valor'      => $descontoGeralValor,
@@ -239,6 +243,7 @@ class PedidoController extends Controller
             'cliente_id'              => 'required|exists:clientes,id',
             'vendedor_id'             => 'nullable|exists:users,id',
             'condicao_pagamento'      => 'nullable|string|max:255',
+            'canal'                   => 'nullable|' . CanalVenda::regraIn(),
             'desconto_percentual'     => 'nullable|numeric|min:0|max:100',
             'desconto_valor'          => 'nullable|numeric|min:0',
             'observacoes_internas'    => 'nullable|string|max:2000',
@@ -296,6 +301,8 @@ class PedidoController extends Controller
                 'cliente_id'          => $request->cliente_id,
                 'vendedor_id'         => $request->vendedor_id,
                 'condicao_pagamento'  => $request->condicao_pagamento,
+                // Canal da venda (05/09): a tela pré-seleciona Presencial; o Gersen lê
+                'canal'               => $request->canal ?: CanalVenda::Presencial->value,
                 'subtotal'            => $subtotal,
                 'desconto_percentual' => $descontoGeralPerc,
                 'desconto_valor'      => $descontoGeralValor,
@@ -424,6 +431,7 @@ class PedidoController extends Controller
                 'troco'               => 0,
                 'status'              => StatusVenda::Concluida,
                 'tipo'                => 'pedido',
+                'canal'               => $pedido->canal?->value, // herda do pedido (WhatsApp segue WhatsApp)
                 'observacoes'         => "Faturamento do Pedido #{$pedido->numero}",
             ]);
 

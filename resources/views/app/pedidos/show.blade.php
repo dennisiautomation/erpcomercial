@@ -217,6 +217,14 @@
                         <span>{{ ucfirst(str_replace('_', ' ', $pedido->condicao_pagamento ?? '-')) }}</span>
                     </div>
                     <div class="col-6">
+                        <small class="text-muted d-block">Canal da venda</small>
+                        @if($pedido->canal)
+                            <span class="badge bg-{{ $pedido->canal->color() }}"><i class="bi {{ $pedido->canal->icone() }} me-1"></i>{{ $pedido->canal->label() }}</span>
+                        @else
+                            <span class="text-muted">-</span>
+                        @endif
+                    </div>
+                    <div class="col-6">
                         <small class="text-muted d-block">Status</small>
                         <span class="badge rounded-pill bg-{{ $pedido->status->color() }}">{{ $pedido->status->label() }}</span>
                     </div>

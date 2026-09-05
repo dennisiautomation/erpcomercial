@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Enums\CanalVenda;
 use App\Enums\StatusVenda;
 use App\Http\Controllers\Controller;
 use App\Models\IntegracaoToken;
@@ -94,6 +95,36 @@ class IntegracaoGersenController extends Controller
         ]);
     }
 
+    /**
+     * Canais de venda que o ERP conhece (05/09/2026) — lista FIXA para a tela
+     * de mapeamento do Gersen nascer preenchida antes da 1ª venda.
+     */
+    public function canais(): JsonResponse
+    {
+        return response()->json([
+            'dados' => array_map(fn (CanalVenda $c) => [
+                'id' => $c->value,
+                'nome' => $c->label(),
+            ], CanalVenda::cases()),
+        ]);
+    }
+
+    /**
+     * Canal da venda para o Gersen. Gravado desde 05/09/2026; para venda
+     * anterior à coluna, deriva 'presencial' quando o tipo é pdv/balcao (a
+     * venda nasceu no balcão por definição) e devolve NULL para o resto
+     * (pedido faturado sem canal, importada) — o Gersen decide pela cascata
+     * dele (tipo do vendedor → canal padrão). Nada é gravado aqui.
+     */
+    private function canalParaGersen(Venda $v): ?string
+    {
+        if ($v->canal instanceof CanalVenda) {
+            return $v->canal->value;
+        }
+
+        return in_array($v->tipo, ['pdv', 'balcao'], true) ? CanalVenda::Presencial->value : null;
+    }
+
     public function vendas(Request $request): JsonResponse
     {
         $token = $this->token($request);
@@ -154,6 +185,8 @@ class IntegracaoGersenController extends Controller
                 'situacao' => $v->status->value,
                 'situacao_nome' => $v->status->label(),
                 'tipo' => $v->tipo,
+                // 05/09: canal presencial|whatsapp|online (NULL = desconhecido)
+                'canal' => $this->canalParaGersen($v),
             ])->values(),
             'pagina' => $pagina,
             'tem_mais' => $temMais,

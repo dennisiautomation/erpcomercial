@@ -93,6 +93,15 @@
                                 <option value="{{ $val }}" {{ $pedido->condicao_pagamento === $val ? 'selected' : '' }}>{{ $label }}</option>
                             @endforeach
                         </select>
+                        <div class="mt-2">
+                            <label class="form-label small fw-semibold">Canal da venda</label>
+                            <select name="canal" class="form-select">
+                                @foreach(\App\Enums\CanalVenda::opcoes() as $val => $label)
+                                    <option value="{{ $val }}" {{ old('canal', $pedido->canal?->value ?? 'presencial') === $val ? 'selected' : '' }}>{{ $label }}</option>
+                                @endforeach
+                            </select>
+                            <div class="form-text">Como o cliente comprou: no balcão, pelo WhatsApp ou online. Vai para o Gersen.</div>
+                        </div>
                     </div>
                 </div>
             </div>

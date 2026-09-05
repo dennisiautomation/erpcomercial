@@ -668,6 +668,7 @@ Route::prefix('api/integracao/v1')->name('api.integracao.')
         Route::get('/lojas', [\App\Http\Controllers\Api\IntegracaoGersenController::class, 'lojas'])->name('lojas');
         Route::get('/vendedores', [\App\Http\Controllers\Api\IntegracaoGersenController::class, 'vendedores'])->name('vendedores');
         Route::get('/situacoes', [\App\Http\Controllers\Api\IntegracaoGersenController::class, 'situacoes'])->name('situacoes');
+        Route::get('/canais', [\App\Http\Controllers\Api\IntegracaoGersenController::class, 'canais'])->name('canais'); // 05/09: presencial|whatsapp|online
         Route::get('/vendas', [\App\Http\Controllers\Api\IntegracaoGersenController::class, 'vendas'])->name('vendas');
 
         // Agente IA (app.ia365) — exige módulo ativo na empresa do token

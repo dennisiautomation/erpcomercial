@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\CanalVenda;
 use App\Enums\StatusPedido;
 use App\Traits\BelongsToEmpresa;
 use App\Traits\BelongsToUnidade;
@@ -31,6 +32,7 @@ class Pedido extends Model
         'status',
         'metodo_entrega',
         'frete_valor',
+        'canal',
         'observacoes_internas',
         'observacoes_externas',
     ];
@@ -39,6 +41,7 @@ class Pedido extends Model
     {
         return [
             'status' => StatusPedido::class,
+            'canal' => CanalVenda::class,
             'subtotal' => 'decimal:2',
             'desconto_valor' => 'decimal:2',
             'total' => 'decimal:2',

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\CanalVenda;
 use App\Enums\StatusVenda;
 use App\Traits\AuditableModel;
 use App\Traits\BelongsToEmpresa;
@@ -36,6 +37,7 @@ class Venda extends Model
         'troco',
         'status',
         'tipo',
+        'canal',
         'observacoes',
     ];
 
@@ -43,6 +45,7 @@ class Venda extends Model
     {
         return [
             'status' => StatusVenda::class,
+            'canal' => CanalVenda::class,
             'pagamento_detalhes' => 'array',
             'subtotal' => 'decimal:2',
             'desconto_valor' => 'decimal:2',

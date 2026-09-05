@@ -711,6 +711,8 @@ class IntegracaoAgenteController extends Controller
                 'status' => StatusPedido::Rascunho,
                 'metodo_entrega' => $metodoEntrega,
                 'frete_valor' => $freteValor,
+                // Canal da venda (05/09): pedido do agente = conversa de WhatsApp.
+                'canal' => \App\Enums\CanalVenda::Whatsapp->value,
                 'observacoes_internas' => "Criado via {$origem} — telefone {$validated['cliente']['telefone']}."
                     . (isset($validated['observacoes']) ? "\n" . $validated['observacoes'] : ''),
             ]);

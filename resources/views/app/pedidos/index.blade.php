@@ -207,6 +207,9 @@
                             <span class="badge rounded-pill bg-{{ $pedido->status->color() }}">
                                 {{ $pedido->status->label() }}
                             </span>
+                            @if($pedido->canal)
+                                <br><small class="text-muted" title="Canal da venda"><i class="bi {{ $pedido->canal->icone() }} me-1"></i>{{ $pedido->canal->label() }}</small>
+                            @endif
                         </td>
                         <td class="text-center pe-3">
                             <div class="btn-group btn-group-sm">
