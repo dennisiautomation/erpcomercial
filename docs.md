@@ -3499,7 +3499,8 @@ confirmar por fora (maquininha, obs "2x") → `confirmado`, `condicao_pagamento=
 acha o pedido; cancelar → `cancelado`, `acoes` todas false; cancelar de novo / confirmar em
 cancelado / forma inválida → 422; pedido de outra empresa → 404. Cotação no teste devolve
 `erro_cotacao` porque as credenciais Uber não decriptam com a APP_KEY do teste (esperado).
-Dados de QA apagados. ⚠️ **Deploy em produção só com OK do Dennis** — rito
+Dados de QA apagados. ✅ **Branch `feat/venda-humana-api` PUSHADA 05/09** a pedido do Dennis (main NÃO promovida — sobe junto com o
+deploy). ⚠️ **Deploy em produção só com OK do Dennis** — rito
 `tar cf - app routes | docker exec -i erp-com-app tar xf - -C /var/www/` + `route:clear` +
 `optimize` (sem migration, sem rebuild; armadilha 52: worktree `erp-agente-ia` está na
 `main` = produção, esta branch nasce dela).
