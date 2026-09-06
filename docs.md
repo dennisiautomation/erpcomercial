@@ -34,6 +34,7 @@
 9p. [Vendedor só PDV + F3 só com os vendedores da loja (04/09/2026)](#vendedor-opera-somente-o-pdv--f3-só-com-os-vendedores-da-loja-04092026)
 9q. [Canal da venda: presencial × WhatsApp × online → Gersen (05/09/2026)](#canal-da-venda-presencial--whatsapp--online--gersen-05092026)
 9r. [Melhor Envio: frete para outra cidade no Vendedor IA (05/09/2026)](#melhor-envio-frete-para-outra-cidade-no-vendedor-ia-05092026)
+9s. [Treinamento de suporte + matriz das 4 camadas (06/09/2026)](#treinamento-de-suporte-agente-de-chamado-e-a-matriz-das-4-camadas-06092026)
 10. [Armadilhas conhecidas](#armadilhas-conhecidas)
 11. [Próximos passos](#próximos-passos)
 
@@ -3631,6 +3632,81 @@ com SEDEX → total R$ 180 + 39,90, `frete_*` gravados, canal `whatsapp`; `melho
 
 ---
 
+## Treinamento de suporte, agente de chamado e a matriz das 4 camadas (06/09/2026)
+
+**Pedido do Dennis:** "treinamento completo para suporte com abertura de chamado perguntando o nome
+do cliente, e este chamado ir para o app.ia365". O lado do agente vive no docs.md da plataforma
+(§294); aqui fica o que a apuração descobriu **sobre o ERP**.
+
+### A matriz das 4 camadas — o levantamento
+
+Extrator que cruza o que a **armadilha 60** manda conferir — coluna do banco, `validate()` do
+controller, HTML renderizado e exibição — sobre os 68 controllers e as 183 views. Scripts e saídas
+ficaram fora do repo (`scratchpad/treinamento/`: `extrai_validacoes.py`, `extrai_html.py`,
+`consolida.py`, `matriz_campos.csv`, `divergencias.csv`); o que importa está aqui.
+
+**751 campos, 53 módulos, 284 obrigatórios / 444 opcionais.** Achados que valem para quem for mexer:
+
+- **Onboarding é o inverso do resto**: 28 de 37 campos obrigatórios. É onde a empresa nasce e é
+  onde o cliente trava.
+- **Produto tem só 4 obrigatórios** (descrição, unidade de medida, preço de venda, status). Todo o
+  bloco fiscal é opcional no cadastro — só vira obrigatório na emissão.
+- **Fornecedor tem 8**, e o **endereço inteiro** está entre eles (cep, logradouro, numero, bairro,
+  cidade, uf, telefone) — colunas NOT NULL **e** `required` no `validate()`. Contraste direto com
+  Cliente, onde o endereço é todo `nullable`. Nenhum tem marca na tela (ver armadilha 70).
+- **`categorias.nome` é único por empresa**, e `clientes.cpf_cnpj` também — este último
+  **condicionalmente obrigatório** (`ClienteController::regrasDocumento()` lê
+  `Empresa::exigeDocumentoCadastro()`).
+
+### 🔴 Seis divergências de TAMANHO — validação aceita mais do que a coluna comporta
+
+| Campo | `validate()` | Coluna |
+|---|---|---|
+| `produtos.codigo_barras` | `max:50` | `varchar(20)` |
+| `servicos.codigo_lc116` | `max:20` | `varchar(10)` |
+| `empresas.logo` e `produtos.foto` | `max:2048` | `varchar(255)` |
+| `empresas.cep` | `max:10` | `varchar(9)` |
+| `produtos.cest` | `max:10` | `varchar(9)` |
+
+Com `sql_mode` STRICT o MySQL **não trunca**: é erro 1406 e **500 na cara do cliente**, depois de
+ele preencher o formulário inteiro. O de `logo`/`foto` é o mais fácil de disparar — qualquer URL de
+imagem um pouco longa passa da validação e estoura no banco. **Nada foi corrigido**: alinhar o
+`max:` à coluna (ou alargar a coluna) é decisão do Dennis.
+
+### O caixa é do OPERADOR e da SESSÃO — a regra que mais gera chamado
+
+`PdvController::index` lê `session('caixa_id')`; `CaixaController::abrir` reconecta quando o **mesmo
+usuário** já tem caixa aberto **naquela loja** (`where unidade_id + user_id + status=aberto`).
+Consequências que parecem bug e não são: o **dono não vê** o caixa que o vendedor abriu (PDV diz
+"Caixa Fechado" com a loja vendendo); **todo login novo passa pelo "Abrir Caixa"** — que reconecta,
+não duplica; e o número do caixa é único entre os abertos da loja ("já está em uso por outro
+operador"). Flagrado ao vivo montando os prints, com o dono e com o vendedor.
+
+### Ambiente de demonstração (para prints e QA de tela)
+
+Empresa **id 8 "Demo Store"** no `erp_test` (`erp-test-app`, 127.0.0.1:8099): `EmpresaDemoSeeder`
+mais `popular_demo.php` / `popular_vendas.php` — 6 categorias, 2 fornecedores, 28 produtos com
+estoque, 12 clientes, **73 vendas espalhadas em 28 dias**, contas a pagar/receber e caixa aberto.
+Isolada das 6 empresas reais pelo `EmpresaScope`, então **print tirado nela não vazia dado de
+cliente**. Captura por chromium headless via CDP (`capturar.mjs`): 107 telas, zero falhas.
+Duas armadilhas pegas ao popular: `created_at` **não está no `$fillable`** de `Venda` (foi descartado
+em silêncio — armadilha 53 na prática, as 73 vendas nasceram todas no mesmo minuto e foi preciso
+`UPDATE` direto); e `contas_pagar.status`/`contas_receber.status` são **femininos** (`paga`, não
+`pago`) — mesma família da armadilha 42, `Data truncated for column 'status'`.
+
+### O material
+
+Treinamento de suporte publicado em
+https://claude.ai/code/artifact/7b12a11c-a521-492a-ba11-ddba6836e57c — 15 seções com prints:
+mapa multiempresa, os 7 perfis, cadastros (o que é obrigatório de verdade), PDV e caixa,
+Configurações da Loja chave a chave, configuração fiscal, estoque, financeiro, etiquetas, trocas e
+vale, orçamento/pedido/OS, notas fiscais no dia a dia, importação de planilhas, comissões e
+adquirentes, e 23 chamados prováveis com a resposta. **A mesma fonte alimenta a base de
+conhecimento do agente de suporte** (27 pedaços). As 11 últimas seções nasceram do primeiro teste
+real: o agente não soube responder sobre **etiquetas** e abriu chamado em vez de inventar.
+
+---
+
 ## Armadilhas conhecidas
 
 1. **EmpresaScope recursão**: `auth()->user()` dentro do scope chama User model que tem o scope → loop infinito. Scopes têm flag `static $applying`. Não remover.
@@ -3996,6 +4072,21 @@ com SEDEX → total R$ 180 + 39,90, `frete_*` gravados, canal `whatsapp`; `melho
     no `erp-core.js` (`wheel` → `blur` em campo numérico focado); lembrar que `public/` **não vai no
     tar** (armadilha 46). Vale para qualquer campo numérico em tabela larga.
 
+70. **Campo obrigatório sem marca na tela é chamado esperando acontecer — e são 44.** A varredura
+    das 4 camadas (06/09/2026) achou 44 campos com `required` no `validate()` e **nenhuma** marca no
+    formulário. Os piores: **Adquirentes, 6 de 6**; **Configuração Fiscal** (ambiente, certificado,
+    senha do certificado, regime tributário); e o **endereço inteiro do Fornecedor**, que ainda por
+    cima é NOT NULL no banco enquanto o do Cliente é todo `nullable` — o usuário aprende num
+    cadastro e leva erro no outro. Ao criar tela nova, a marca de obrigatório é parte da validação,
+    não enfeite: sem ela o servidor recusa um campo que a pessoa não tinha como saber que existia.
+
+71. **`max:` maior que a coluna não trunca — dá 500.** Com `sql_mode` STRICT o MySQL responde
+    erro 1406 e o Laravel devolve 500 depois que a pessoa preencheu o formulário inteiro. Existem 6
+    casos vivos (ver a seção do treinamento de 06/09): `produtos.codigo_barras` valida 50 numa
+    `varchar(20)`, `servicos.codigo_lc116` 20 numa `varchar(10)`, `empresas.logo`/`produtos.foto`
+    2048 numa `varchar(255)`, `empresas.cep` e `produtos.cest` 10 numa `varchar(9)`. Ao escrever
+    `max:`, copie o número da coluna — não o que parece razoável.
+
 67. **Acréscimo que muda o preço do ITEM não sabe dividir a conta.** Enquanto o acréscimo de cartão
     viveu em `produto.preco_venda × (1 + %)`, todo split cobrava a porcentagem sobre a venda inteira
     — não havia onde pendurar "10% só sobre os R$ 200 do cartão". Quando o acréscimo depende de
@@ -4031,6 +4122,18 @@ vendas históricas 28/08" — que a `main` não tem; portar quando for o caso).
 
 ⚠️ `refs/heads/fix/` no `.git` é de root (`/root/erp/.git` é o repositório real desta worktree):
 branch nova aqui vai **sem barra** no nome, ou pedir ao Dennis para criar.
+
+**Fila de 06/09 (achados do treinamento de suporte):**
+
+1. 🔴 **Alinhar os 6 `max:` maiores que a coluna** (armadilha 71) — hoje viram 500 na cara do
+   cliente. O de `empresas.logo`/`produtos.foto` (2048 × 255) é o mais fácil de alguém disparar.
+2. **Marcar os 44 campos obrigatórios sem marca na tela** (armadilha 70) — começar por Adquirentes
+   (6 de 6) e pelo endereço do Fornecedor, que é o contraste mais confuso com o Cliente.
+3. 🔴 **Decidir o recorte dos relatórios por perfil.** `relatorios` dá `ver` a TODOS os 7 perfis e
+   não há recorte por relatório: o **vendedor abre `/app/relatorios/financeiro` inteiro** — DRE,
+   resultado líquido, contas a receber e a pagar. Confirmado com print em 06/09. É a armadilha 65
+   pelo outro lado, e mexer nisso muda tela de quem não pediu.
+4. Apagar a empresa demo (id 8) do `erp_test` quando o ambiente for reciclado.
 
 **Fila de 05/09 (Melhor Envio):** os 5 passos da seção 9r ("O que falta para funcionar de verdade").
 Fase 2 = comprar/gerar/imprimir etiqueta pela API (`cart` → `checkout` → `generate` → `print`) e
