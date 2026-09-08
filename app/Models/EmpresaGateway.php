@@ -35,6 +35,14 @@ class EmpresaGateway extends Model
     // padrão/serviços/seguro no `config` JSON.
     public const PROVEDOR_MELHOR_ENVIO = 'melhor_envio';
 
+    /** Todos os provedores que o agente do app.ia365 conhece (ordem estável). */
+    public const PROVEDORES = [
+        self::PROVEDOR_UBER_DIRECT,
+        self::PROVEDOR_MELHOR_ENVIO,
+        self::PROVEDOR_SICREDI_PIX,
+        self::PROVEDOR_ASAAS,
+    ];
+
     protected $fillable = [
         'empresa_id',
         'provedor',
@@ -95,5 +103,40 @@ class EmpresaGateway extends Model
             && filled($this->chave_pix)
             && filled($this->cert_path)
             && filled($this->key_path);
+    }
+
+    /**
+     * "Capacidade" = o provedor está ligado E tem o que precisa para operar.
+     * É o que o agente do app.ia365 lê em GET /capacidades para decidir quais
+     * ferramentas/treinamentos ativar (08/09/2026). Ligar o checkbox sem a
+     * credencial NÃO conta — senão o agente prometeria o que o ERP não faz.
+     */
+    public function capacidadeAtiva(): bool
+    {
+        if (! $this->ativo) {
+            return false;
+        }
+
+        return match ($this->provedor) {
+            self::PROVEDOR_MELHOR_ENVIO => filled($this->access_token),
+            self::PROVEDOR_SICREDI_PIX => $this->utilizavel(),
+            self::PROVEDOR_UBER_DIRECT => filled($this->client_id) && filled($this->client_secret),
+            self::PROVEDOR_ASAAS => filled($this->client_secret),
+            default => true,
+        };
+    }
+
+    /** Mapa provedor → capacidade ativa, com TODOS os provedores conhecidos (false quando não há linha). */
+    public static function capacidadesPara(int $empresaId): array
+    {
+        $porProvedor = static::where('empresa_id', $empresaId)->get()->keyBy('provedor');
+
+        $out = [];
+        foreach (self::PROVEDORES as $provedor) {
+            $gateway = $porProvedor->get($provedor);
+            $out[$provedor] = $gateway ? $gateway->capacidadeAtiva() : false;
+        }
+
+        return $out;
     }
 }

@@ -11,6 +11,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * SEM BelongsToEmpresa de propósito (mesma razão do IntegracaoToken):
  * é consultada por jobs de fila e pela API máquina-a-máquina, fora de
  * sessão web. Todo acesso filtra empresa_id explicitamente.
+ *
+ * 08/09/2026: guarda também ONDE a plataforma (app.ia365) recebe avisos de
+ * integração ligada/desligada (`plataforma_url` + token que registrou).
  */
 class AgenteIaConfig extends Model
 {
@@ -23,6 +26,10 @@ class AgenteIaConfig extends Model
         'indexado_em',
         'produtos_indexados',
         'ultima_falha',
+        'plataforma_url',
+        'plataforma_token_id',
+        'plataforma_notificado_em',
+        'plataforma_ultima_falha',
     ];
 
     protected function casts(): array
@@ -30,6 +37,7 @@ class AgenteIaConfig extends Model
         return [
             'ativo' => 'boolean',
             'indexado_em' => 'datetime',
+            'plataforma_notificado_em' => 'datetime',
         ];
     }
 
@@ -43,8 +51,19 @@ class AgenteIaConfig extends Model
         return $this->belongsTo(User::class, 'vendedor_padrao_id');
     }
 
+    public function plataformaToken(): BelongsTo
+    {
+        return $this->belongsTo(IntegracaoToken::class, 'plataforma_token_id');
+    }
+
     public static function ativaPara(int $empresaId): bool
     {
         return static::where('empresa_id', $empresaId)->where('ativo', true)->exists();
+    }
+
+    /** A plataforma registrou onde quer receber avisos desta empresa? */
+    public function plataformaRegistrada(): bool
+    {
+        return filled($this->plataforma_url) && filled($this->plataforma_token_id);
     }
 }

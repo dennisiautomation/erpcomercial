@@ -3632,6 +3632,39 @@ com SEDEX → total R$ 180 + 39,90, `frete_*` gravados, canal `whatsapp`; `melho
 
 ---
 
+## Sincronização automática ERP → agente do app.ia365 (08/09/2026)
+
+**Caso:** a DONA DOURO conectou o Melhor Envio (08/09 10:31 UTC) e o agente do app.ia365 continuou sem as opções
+de frete e sem treinamento — o callback OAuth só gravava o token e o ERP **nunca chamou a plataforma para nada**.
+Regra do Dennis: corrigir a DONA DOURO (feito na plataforma, por SQL) **e deixar o próximo pronto**: ligar/desligar
+qualquer integração, em qualquer empresa, atualiza o agente dela sozinho. Branch `feat/sync-agente-capacidades`.
+
+### O que o ERP passou a fazer
+
+| Peça | O quê |
+|---|---|
+| `GET /api/integracao/v1/capacidades` | Leitura pura (Bearer, **sem** gate de módulo ativo — a resposta diz se está): `{agente_ativo, gateways:{uber_direct, melhor_envio, sicredi_pix, asaas}, plataforma_registrada, unidades[{id,nome,cidade,uf,endereco}]}`. **Capacidade = `ativo` E utilizável** (`EmpresaGateway::capacidadeAtiva()`: Melhor Envio exige `access_token`; Sicredi `utilizavel()`; Uber client_id+secret; Asaas client_secret) — checkbox ligado sem credencial NÃO conta, senão o agente prometeria o que o ERP não faz. `unidades` alimenta o treinamento (cidade da loja, endereço de retirada). |
+| `POST /agente/ativar` + `callback_url` | A plataforma diz ONDE recebe avisos. Grava `agente_ia_configs.plataforma_url` + `plataforma_token_id` (o token que chamou — o mesmo `gsn_` serve ao Gersen e à plataforma, o registro é do TOKEN). Idempotente; resposta ganha `plataforma_registrada`. Migration `2026_09_08_150000` (4 colunas). |
+| `EmpresaGatewayObserver` + `AgenteIaConfigObserver` | `saved` só quando `ativo`/`access_token` mudaram (ou criado já ativo) e `deleted` → `NotificarPlataformaIntegracaoJob`. Cobre os 8 pontos de escrita de uma vez: cards Uber/Asaas/PIX/Melhor Envio, callback OAuth, Desconectar, liga/desliga do Agente IA. Sem `plataforma_url` registrada ⇒ não despacha nada. |
+| `NotificarPlataformaIntegracaoJob` | **Primeiro push do ERP para fora.** `POST {plataforma_url}/api/integracao/erp/sync` com `{empresa_id, provedor, ativo, evento_em}`, assinado HMAC-SHA256 com o **`token_hash` do token registrado** (a plataforma tem o `gsn_` em claro e calcula o mesmo sha256): headers `X-Sync-Timestamp` (ms) + `X-Sync-Signature` = hmac(hash, `ts.body`), protocolo do `sync-hmac.ts` da plataforma. 5 tentativas (30 s, 2, 10, 30 min); sucesso grava `plataforma_notificado_em` (`saveQuietly`, não passa pelo observer); falha final vira `plataforma_ultima_falha` + `ultima_falha` do gateway (card denuncia). O aviso é só GATILHO: a plataforma re-lê `/capacidades` com o próprio token. |
+| Card Agente IA (`/admin/empresas/{id}`) | "Avisos ao app.ia365: registrados (último aviso …)" / "não registrados" / última falha. |
+
+**Endereço da plataforma:** de dentro do `erp-com-app`, `https://app.ia365.com.br` **dá timeout** (resolve para o IP
+público — hairpin); `http://172.17.0.1:3023` responde. A plataforma registra esse endereço interno (env
+`ERP_SYNC_CALLBACK_URL` lá). Não cadastrar o domínio à mão.
+
+**Ordem de subida:** ERP primeiro (tar → migrate → optimize → chown → USR2). Enquanto a plataforma não tiver a rota, o
+job falha em silêncio e registra `plataforma_ultima_falha`; nada quebra. Depois a plataforma, e por fim "Registrar avisos
+do ERP" na DONA DOURO em `/admin/erp-agent` do app.ia365.
+
+**QA (erp-test-app, empresa 5 do `erp_test`):** ver o QA da plataforma no docs.md dela (§297.1) — liga/desliga Melhor
+Envio, Uber e Agente IA pelo model e confere o agente do outro lado. ⚠️ No erp-test-app a fila estava `sync` (o
+`IndexarEmpresaAgenteJob` do ativar estourava 500 por falta de `OPENAI_API_KEY`): passou a `database` (`.env.bak-pre-297`)
+com o worker do supervisord reiniciado — `pkill -f` com o texto do comando mata o próprio `sh -c`; usar
+`pgrep -f "^php /var/www/artisan queue:work"`.
+
+---
+
 ## Treinamento de suporte, agente de chamado e a matriz das 4 camadas (06/09/2026)
 
 **Pedido do Dennis:** "treinamento completo para suporte com abertura de chamado perguntando o nome
@@ -4087,6 +4120,11 @@ real: o agente não soube responder sobre **etiquetas** e abriu chamado em vez d
     2048 numa `varchar(255)`, `empresas.cep` e `produtos.cest` 10 numa `varchar(9)`. Ao escrever
     `max:`, copie o número da coluna — não o que parece razoável.
 
+
+72. **`Model::where()->update()` não dispara observer.** É query builder: `EmpresaGatewayObserver` e
+    `AgenteIaConfigObserver` (08/09/2026) só veem `save()`/`update()` NO MODEL. O Desconectar do Melhor Envio foi
+    trocado por `first()` + `forceFill()->save()` por isso. Quem escrever em `empresa_gateways` por builder (jobs de
+    renovação de token, por exemplo) não avisa a plataforma — de propósito no `failed()` do job de aviso.
 67. **Acréscimo que muda o preço do ITEM não sabe dividir a conta.** Enquanto o acréscimo de cartão
     viveu em `produto.preco_venda × (1 + %)`, todo split cobrava a porcentagem sobre a venda inteira
     — não havia onde pendurar "10% só sobre os R$ 200 do cartão". Quando o acréscimo depende de

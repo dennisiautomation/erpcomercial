@@ -472,6 +472,26 @@
                                     <i class="bi bi-x-circle me-1"></i> Última falha: {{ $agenteIa->ultima_falha }}
                                 </p>
                             @endif
+                            {{-- 08/09/2026: avisos de integração ligada/desligada para o app.ia365 --}}
+                            @if($agenteIa?->plataformaRegistrada())
+                                <p class="small mb-0 text-muted">
+                                    <i class="bi bi-broadcast me-1"></i> Avisos ao app.ia365: registrados
+                                    @if($agenteIa->plataforma_notificado_em)
+                                        (último aviso {{ $agenteIa->plataforma_notificado_em->format('d/m/Y H:i') }})
+                                    @else
+                                        (nenhum aviso enviado ainda)
+                                    @endif
+                                </p>
+                            @elseif($agenteIa?->ativo)
+                                <p class="small mb-0 text-muted">
+                                    <i class="bi bi-broadcast me-1"></i> Avisos ao app.ia365: não registrados — no app.ia365, use "Registrar avisos do ERP" em Agente ERP.
+                                </p>
+                            @endif
+                            @if($agenteIa?->plataforma_ultima_falha)
+                                <p class="small mb-0 text-danger">
+                                    <i class="bi bi-x-circle me-1"></i> {{ $agenteIa->plataforma_ultima_falha }}
+                                </p>
+                            @endif
                         </div>
                         <div class="d-flex gap-2">
                             @if($agenteIa?->ativo)

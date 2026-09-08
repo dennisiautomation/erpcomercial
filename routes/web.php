@@ -688,6 +688,9 @@ Route::prefix('api/integracao/v1')->name('api.integracao.')
         // (exceto /agente/ativar, que é quem liga o módulo).
         // POST /pedidos é a única escrita de negócio: pedido RASCUNHO, humano confirma.
         Route::post('/agente/ativar', [\App\Http\Controllers\Api\IntegracaoAgenteController::class, 'ativarAgente'])->name('agente.ativar');
+        // 08/09/2026: o que a empresa tem ligado (gateways utilizáveis + agente ativo + lojas) —
+        // a plataforma lê isto para ativar ferramentas/treinamento do agente. Leitura pura, sem gate.
+        Route::get('/capacidades', [\App\Http\Controllers\Api\IntegracaoAgenteController::class, 'capacidades'])->name('capacidades');
         Route::post('/produtos/buscar', [\App\Http\Controllers\Api\IntegracaoAgenteController::class, 'buscarProdutos'])->name('produtos.buscar');
         Route::get('/produtos/{id}', [\App\Http\Controllers\Api\IntegracaoAgenteController::class, 'produto'])->whereNumber('id')->name('produtos.show');
         Route::get('/produtos/{id}/estoque', [\App\Http\Controllers\Api\IntegracaoAgenteController::class, 'estoqueProduto'])->whereNumber('id')->name('produtos.estoque');

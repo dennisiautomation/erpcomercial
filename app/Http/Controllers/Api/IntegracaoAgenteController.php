@@ -69,11 +69,27 @@ class IntegracaoAgenteController extends Controller
     {
         $token = $this->token($request);
 
+        // 08/09/2026: a plataforma diz ONDE quer receber avisos de integração
+        // ligada/desligada. Fica preso ao token que chamou (o mesmo gsn_ serve
+        // ao Gersen e à plataforma — o registro é do token, não da empresa).
+        $validated = $request->validate([
+            'callback_url' => ['nullable', 'string', 'max:255', 'regex:#^https?://#i'],
+        ]);
+
         $config = AgenteIaConfig::firstOrCreate(['empresa_id' => $token->empresa_id]);
         $jaEstavaAtivo = (bool) $config->ativo;
 
+        $dados = [];
         if (! $jaEstavaAtivo) {
-            $config->update(['ativo' => true]);
+            $dados['ativo'] = true;
+        }
+        if (filled($validated['callback_url'] ?? null)) {
+            $dados['plataforma_url'] = rtrim(trim($validated['callback_url']), '/');
+            $dados['plataforma_token_id'] = $token->id;
+            $dados['plataforma_ultima_falha'] = null;
+        }
+        if ($dados !== []) {
+            $config->update($dados);
         }
 
         \App\Jobs\IndexarEmpresaAgenteJob::dispatch($token->empresa_id);
@@ -81,6 +97,7 @@ class IntegracaoAgenteController extends Controller
         Log::channel('integracao')->info('Agente IA: ativado via API de integração', [
             'empresa_id' => $token->empresa_id,
             'ja_estava_ativo' => $jaEstavaAtivo,
+            'plataforma_registrada' => $config->plataformaRegistrada(),
         ]);
 
         return response()->json([
@@ -89,6 +106,46 @@ class IntegracaoAgenteController extends Controller
                 'ja_estava_ativo' => $jaEstavaAtivo,
                 'produtos_indexados' => (int) $config->produtos_indexados,
                 'indexado_em' => $config->indexado_em?->toIso8601String(),
+                'plataforma_registrada' => $config->plataformaRegistrada(),
+            ],
+        ]);
+    }
+
+    /**
+     * O que esta empresa tem LIGADO — lido pela plataforma antes de
+     * sincronizar o agente (08/09/2026). Leitura pura; não exige o módulo
+     * ativo de propósito (a resposta diz se está).
+     */
+    public function capacidades(Request $request): JsonResponse
+    {
+        $token = $this->token($request);
+        $config = AgenteIaConfig::where('empresa_id', $token->empresa_id)->first();
+
+        $unidades = Unidade::withoutGlobalScope(EmpresaScope::class)
+            ->where('empresa_id', $token->empresa_id)
+            ->where('status', 'ativa')
+            ->orderBy('id')
+            ->get(['id', 'nome', 'logradouro', 'numero', 'complemento', 'bairro', 'cidade', 'uf', 'cep'])
+            ->map(fn (Unidade $u) => [
+                'id' => (string) $u->id,
+                'nome' => $u->nome,
+                'cidade' => $u->cidade,
+                'uf' => $u->uf,
+                'endereco' => trim(collect([
+                    trim(($u->logradouro ?? '') . (filled($u->numero) ? ', ' . $u->numero : '')),
+                    $u->complemento,
+                    $u->bairro,
+                    trim(($u->cidade ?? '') . (filled($u->uf) ? '/' . $u->uf : '')),
+                ])->filter()->implode(' - ')),
+            ])
+            ->values();
+
+        return response()->json([
+            'dados' => [
+                'agente_ativo' => (bool) ($config?->ativo),
+                'gateways' => EmpresaGateway::capacidadesPara($token->empresa_id),
+                'plataforma_registrada' => (bool) ($config?->plataformaRegistrada()),
+                'unidades' => $unidades,
             ],
         ]);
     }

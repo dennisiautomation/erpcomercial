@@ -110,9 +110,15 @@ class EmpresaMelhorEnvioController extends Controller
     {
         abort_unless($request->user()->is_admin, 403);
 
-        EmpresaGateway::where('empresa_id', $empresa->id)
+        // Pelo MODEL (não query builder): o EmpresaGatewayObserver precisa ver
+        // `ativo` mudar para avisar o app.ia365 que a entrega por transportadora
+        // saiu do ar (08/09/2026).
+        $gateway = EmpresaGateway::where('empresa_id', $empresa->id)
             ->where('provedor', EmpresaGateway::PROVEDOR_MELHOR_ENVIO)
-            ->update(['access_token' => null, 'refresh_token' => null, 'token_expira_em' => null, 'ativo' => false]);
+            ->first();
+        if ($gateway) {
+            $gateway->forceFill(['access_token' => null, 'refresh_token' => null, 'token_expira_em' => null, 'ativo' => false])->save();
+        }
 
         return redirect()->route('admin.empresas.show', $empresa)
             ->with('success', 'Melhor Envio desconectado desta empresa. Para voltar, clique em Conectar de novo.')

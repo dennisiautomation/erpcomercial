@@ -2,8 +2,12 @@
 
 namespace App\Providers;
 
+use App\Models\AgenteIaConfig;
+use App\Models\EmpresaGateway;
 use App\Models\Produto;
 use App\Models\VendaItem;
+use App\Observers\AgenteIaConfigObserver;
+use App\Observers\EmpresaGatewayObserver;
 use App\Observers\ProdutoObserver;
 use App\Observers\VendaItemObserver;
 use Illuminate\Pagination\Paginator;
@@ -31,6 +35,12 @@ class AppServiceProvider extends ServiceProvider
         // Agente IA: produto alterado → re-indexa no banco vetorial (só
         // dispara job para empresas com o módulo ativo — ver o Observer)
         Produto::observe(ProdutoObserver::class);
+
+        // Integração ligada/desligada (Uber, Melhor Envio, PIX, Asaas) ou Agente
+        // IA ativado/desativado → aviso assinado ao app.ia365, que re-lê
+        // /capacidades e atualiza o agente sozinho (08/09/2026).
+        EmpresaGateway::observe(EmpresaGatewayObserver::class);
+        AgenteIaConfig::observe(AgenteIaConfigObserver::class);
 
         // Enriquecer toda Activity com empresa_id do subject (multi-tenant)
         Activity::creating(function (Activity $activity) {
