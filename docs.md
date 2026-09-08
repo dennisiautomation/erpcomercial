@@ -3653,7 +3653,13 @@ qualquer integração, em qualquer empresa, atualiza o agente dela sozinho. Bran
 público — hairpin); `http://172.17.0.1:3023` responde. A plataforma registra esse endereço interno (env
 `ERP_SYNC_CALLBACK_URL` lá). Não cadastrar o domínio à mão.
 
-**Ordem de subida:** ERP primeiro (tar → migrate → optimize → chown → USR2). Enquanto a plataforma não tiver a rota, o
+✅ **EM PRODUÇÃO 08/09/2026 ~15:45 UTC** (OK do Dennis; backup `~/backups/erp_pre-297_20260908_1537.sql.gz` + imagem
+`erp-com-app:pre-297-20260908`; rito: tar dos 11 arquivos com `.bak-297` de cada um → `migrate --force` (batch novo,
+4 colunas) → `optimize` → chown 1000 → `opcache_reset()` por script temporário em `public/` → `queue:restart`).
+`GET /capacidades` da DONA DOURO em produção: uber_direct, melhor_envio e sicredi_pix **true**, asaas false, unidade 12
+TERESINA/PI. Branch `feat/sync-agente-capacidades` pushada.
+
+**Ordem de subida:** ERP primeiro (tar → migrate → optimize → chown → opcache_reset). Enquanto a plataforma não tiver a rota, o
 job falha em silêncio e registra `plataforma_ultima_falha`; nada quebra. Depois a plataforma, e por fim "Registrar avisos
 do ERP" na DONA DOURO em `/admin/erp-agent` do app.ia365.
 
