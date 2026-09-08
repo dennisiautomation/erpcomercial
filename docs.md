@@ -3657,8 +3657,11 @@ público — hairpin); `http://172.17.0.1:3023` responde. A plataforma registra 
 job falha em silêncio e registra `plataforma_ultima_falha`; nada quebra. Depois a plataforma, e por fim "Registrar avisos
 do ERP" na DONA DOURO em `/admin/erp-agent` do app.ia365.
 
-**QA (erp-test-app, empresa 5 do `erp_test`):** ver o QA da plataforma no docs.md dela (§297.1) — liga/desliga Melhor
-Envio, Uber e Agente IA pelo model e confere o agente do outro lado. ⚠️ No erp-test-app a fila estava `sync` (o
+**QA (erp-test-app, empresa 5 do `erp_test`) — 08/09, 47/47 ✅ no roteiro da plataforma (§297.1 lá):** liga/desliga
+Melhor Envio, Uber e Agente IA pelo model (`~/qa-297/erp-gw.sh`) ⇒ 16 avisos "plataforma avisada" no
+`integracao-2026-09-08.log`, `plataforma_notificado_em` gravado, `plataforma_ultima_falha` nulo, fila zerada (os únicos
+`failed_jobs` são `IndexarEmpresaAgenteJob` por falta de `OPENAI_API_KEY` no teste — esperado). Aviso com assinatura
+inválida ⇒ 401 do outro lado; corpo mentiroso ⇒ ignorado (a plataforma re-lê `/capacidades`). ⚠️ No erp-test-app a fila estava `sync` (o
 `IndexarEmpresaAgenteJob` do ativar estourava 500 por falta de `OPENAI_API_KEY`): passou a `database` (`.env.bak-pre-297`)
 com o worker do supervisord reiniciado — `pkill -f` com o texto do comando mata o próprio `sh -c`; usar
 `pgrep -f "^php /var/www/artisan queue:work"`.
