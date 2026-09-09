@@ -4156,12 +4156,15 @@ web `/app/trocas/nova` ficou como estava (só o PDV bipa).
 
 `laravel.log` do teste sem erro novo.
 
-### Deploy — PENDENTE (rito pronto, 09/09/2026 noite)
+### Deploy — FEITO em 09/09/2026 ~14:05 (UTC-3), pelo Dennis
 
-Branch `troca-item-sem-cupom` @`f3b75ea`, validada no `erp-test-app`. O que **já foi feito**: backup do
-banco `/home/ubuntu/erp-backups/pre-troca-sem-cupom-20260909-1657.sql.gz` (73 tabelas) e imagem de
-rollback `erp-com-app:pre-troca-sem-cupom-20260909` (`docker commit`). O que **falta** (o classificador
-do modo automático barrou a cópia de código para o container; o Dennis roda):
+**EM PRODUÇÃO** a partir de `troca-item-sem-cupom` @`269140f`. Backup do banco
+`/home/ubuntu/erp-backups/pre-troca-sem-cupom-20260909-1657.sql.gz` (73 tabelas) e imagem de rollback
+`erp-com-app:pre-troca-sem-cupom-20260909` (`docker commit`). O classificador do modo automático barrou
+a cópia de código para o container, então o rito foi rodado à mão pelo Dennis — **a 1ª tentativa
+correu na pasta errada** (a branch só existe na worktree `/home/ubuntu/apps/erp-agente-ia`; em `/root/erp`
+o checkout falha e o tar copia código de agosto, sem quebrar nada — conferir hash no container antes
+de dizer que subiu). Rito:
 
 ```bash
 git checkout troca-item-sem-cupom
@@ -4172,7 +4175,9 @@ docker exec erp-com-app chown -R www-data:www-data /var/www/bootstrap/cache /var
 docker exec erp-com-app kill -USR2 29                         # master do php-fpm, NÃO o PID 1
 ```
 
-Conferir depois: `migrate:status | grep 2026_09_09_180000` = Ran; `/app/pdv` em 302 para o login;
+Conferido depois: migration `[39] Ran`; os 5 arquivos da entrega **byte-idênticos** à branch no
+container; `devolucao_itens.venda_item_id` nula; caches de rota/config recacheados como www-data;
+`/`, `/login` em 200 e `/app/pdv`, `/app/trocas`, `/app/pdv/troca/vendas` em 302 para o login;
 `laravel.log` sem linha nova. Rollback: `migrate:rollback --step=1` + recreate da imagem acima.
 
 ⚠️ **Só vale depois que a aba do PDV recarregar** (o JS vive na página). O vale `VT-K68T-BAQU` da
@@ -4651,7 +4656,7 @@ vendas históricas 28/08" — que a `main` não tem; portar quando for o caso).
 | Ref | Onde está | O que tem |
 |---|---|---|
 | `main` = **produção** = `origin/main` | ponta de `pdv-sessao-expirada` | tudo até 09/09 tarde: comprovante de fechamento + número de caixa automático + botão Fechar (9u) e o aviso/keep-alive de sessão do PDV (9v); promovida por fast-forward e **pushada** em 09/09 a pedido do Dennis |
-| `troca-item-sem-cupom` | **DEPLOY PENDENTE** (rito na seção 9w), à frente da `main` | crédito da troca no split + peça sem cupom no F6 (9w), migration `2026_09_09_180000` |
+| `troca-item-sem-cupom` | **EM PRODUÇÃO 09/09 ~14:05**, à frente da `main` até o Dennis mandar mergear | crédito da troca no split + peça sem cupom no F6 (9w), migration `2026_09_09_180000` |
 | `caixa-comprovante-numero` | contida na `main` | rastro da entrega do caixa de 09/09 |
 | `feat/sync-agente-capacidades` | contida na `main` | rastro do sync automático de 08/09 |
 | `canal-venda-gersen`, `melhor-envio` | contidas | rastro das duas entregas de 05/09; podem ser apagadas |
