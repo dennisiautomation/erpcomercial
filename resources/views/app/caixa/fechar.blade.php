@@ -343,6 +343,17 @@
         </div>
     @endif
 
+    @unless($ehDaSessao ?? true)
+        {{-- Fechando pela tela de Caixas o caixa de outro operador (ou um
+             esquecido de dias atrás): quem confere a gaveta hoje não é quem
+             vendeu, então o aviso precisa estar na cara. --}}
+        <div class="error-msg" style="background:rgba(245,158,11,0.12); border-color:rgba(245,158,11,0.35); color:#f59e0b;">
+            <i class="bi bi-exclamation-triangle me-1"></i>
+            Você está fechando o caixa de <strong>{{ $operadorNome ?? 'outro operador' }}</strong>,
+            aberto em {{ $caixa->aberto_em?->format('d/m/Y H:i') }}. Isso não mexe no seu caixa.
+        </div>
+    @endunless
+
     <div class="fechar-grid">
     <div class="fechar-col">
     {{-- Resumo de movimentacoes --}}
@@ -399,7 +410,11 @@
 
     <div class="fechar-col">
     {{-- Formulario --}}
-    <form method="POST" action="{{ route('app.caixa.fechar') }}" enctype="multipart/form-data" data-confirm="Confirmar fechamento do caixa?">
+    {{-- O caixa da sessão fecha pela rota do PDV; o escolhido na tela de
+         Caixas fecha pela rota com id, senão o POST fecharia o caixa errado. --}}
+    <form method="POST"
+          action="{{ ($ehDaSessao ?? true) ? route('app.caixa.fechar') : route('app.caixa.fechar-caixa', $caixa) }}"
+          enctype="multipart/form-data" data-confirm="Confirmar fechamento do caixa?">
         @csrf
 
         <div class="form-group">
@@ -470,9 +485,15 @@
             <i class="bi bi-lock"></i> Fechar Caixa
         </button>
 
-        <a href="{{ route('app.pdv.index') }}" class="btn-voltar">
-            <i class="bi bi-arrow-left"></i> Voltar ao PDV
-        </a>
+        @if($ehDaSessao ?? true)
+            <a href="{{ route('app.pdv.index') }}" class="btn-voltar">
+                <i class="bi bi-arrow-left"></i> Voltar ao PDV
+            </a>
+        @else
+            <a href="{{ route('app.caixa.index') }}" class="btn-voltar">
+                <i class="bi bi-arrow-left"></i> Voltar aos Caixas
+            </a>
+        @endif
     </form>
     </div>
     </div>

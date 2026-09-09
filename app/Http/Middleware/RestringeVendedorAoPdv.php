@@ -27,11 +27,18 @@ class RestringeVendedorAoPdv
      * abrir o caixa quando não há um aberto, e sangria/suprimento são operação
      * de balcão. Histórico de caixas (`app.caixa.index`/`show`) fica de fora —
      * abrir o caixa é operação, ler o extrato é relatório.
+     *
+     * `app.caixa.comprovante` (09/09/2026) entra porque o fechamento cai nele:
+     * sem essa linha o vendedor fecharia o caixa e seria jogado de volta ao PDV
+     * sem ver o papel que precisa entregar com a gaveta. Não abre nada de
+     * ninguém — o controller já recusa caixa de outro operador para quem não é
+     * gestão.
      */
     private const ROTAS_LIBERADAS = [
         'app.pdv.*',
         'app.caixa.abrir',
         'app.caixa.fechar',
+        'app.caixa.comprovante',
         'app.caixa.sangria',
         'app.caixa.suprimento',
     ];

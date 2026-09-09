@@ -102,6 +102,22 @@
                     <a href="{{ route('app.caixa.show', $cx) }}" class="btn btn-sm btn-erp-outline" title="Extrato">
                         <i class="bi bi-eye"></i>
                     </a>
+                    @if($cx->status->value === 'aberto')
+                        {{-- Até 09/09/2026 não havia como fechar um caixa por aqui:
+                             só o da própria sessão, pelo PDV. Era por isso que os
+                             caixas esquecidos ficavam abertos por semanas. --}}
+                        @if($cx->user_id === auth()->id() || $podeFecharOutros)
+                            <a href="{{ route('app.caixa.fechar-caixa', $cx) }}"
+                               class="btn btn-sm btn-outline-danger" title="Fechar caixa">
+                                <i class="bi bi-lock"></i>
+                            </a>
+                        @endif
+                    @else
+                        <a href="{{ route('app.caixa.comprovante', $cx) }}" target="_blank"
+                           class="btn btn-sm btn-erp-outline" title="Comprovante de fechamento">
+                            <i class="bi bi-printer"></i>
+                        </a>
+                    @endif
                 </div>
             </td>
         </tr>

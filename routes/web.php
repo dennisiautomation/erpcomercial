@@ -339,6 +339,16 @@ Route::middleware(['auth', 'suspensao', 'unidade', \App\Http\Middleware\Restring
         ->middleware('permission:vendas,criar');
     Route::get('/caixa/anexo/{anexo}', [App\CaixaController::class, 'anexo'])->name('caixa.anexo')
         ->middleware('permission:vendas');
+    // Comprovante de fechamento na bobina 80mm (2ª via; ?print=1 imprime sozinho)
+    Route::get('/caixa/{caixa}/comprovante', [App\CaixaController::class, 'comprovante'])
+        ->name('caixa.comprovante')
+        ->middleware('permission:vendas');
+    // Fechar um caixa ESCOLHIDO na tela de Caixas (o da sessão continua em
+    // /caixa/fechar, que é o caminho do PDV). Guarda de quem pode fechar o
+    // caixa de outro operador fica no controller (podeFechar).
+    Route::match(['get', 'post'], '/caixa/{caixa}/fechar', [App\CaixaController::class, 'fechar'])
+        ->name('caixa.fechar-caixa')
+        ->middleware('permission:vendas,criar');
     // Wildcard por último para não capturar /caixa/abrir|fechar
     Route::get('/caixa/{caixa}', [App\CaixaController::class, 'show'])->name('caixa.show')
         ->middleware('permission:vendas');

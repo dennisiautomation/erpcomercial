@@ -130,6 +130,22 @@
         .info-row .label { color: var(--text-muted); }
         .info-row .value { color: var(--text-primary); font-weight: 600; }
 
+        .info-box.abertos { margin-top: -12px; }
+        .abertos-titulo {
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 6px;
+        }
+        .abertos-nota {
+            font-size: 0.74rem;
+            color: var(--text-muted);
+            margin-top: 8px;
+            line-height: 1.35;
+        }
+
         .btn-abrir {
             width: 100%;
             padding: 16px;
@@ -194,8 +210,11 @@
 
         <div class="form-group">
             <label>Numero do Caixa</label>
-            <input type="number" name="numero_caixa" value="{{ old('numero_caixa', 1) }}"
+            {{-- Vem preenchido com um número LIVRE: o último desta pessoa nesta
+                 loja, ou o menor disponível. Ninguém precisa lembrar nem chutar. --}}
+            <input type="number" name="numero_caixa" value="{{ old('numero_caixa', $numeroSugerido ?? 1) }}"
                 min="1" required autofocus>
+            <div class="hint">Sugerido automaticamente — está livre nesta loja. Pode trocar se quiser.</div>
             @error('numero_caixa')
                 <div class="error-msg" style="margin-top:6px; margin-bottom:0;">{{ $message }}</div>
             @enderror
@@ -224,6 +243,26 @@
                 <span class="value">{{ now()->format('d/m/Y H:i') }}</span>
             </div>
         </div>
+
+        @if(($caixasAbertos ?? collect())->isNotEmpty())
+            {{-- Número de caixa aberto fica ocupado enquanto ninguém fechar.
+                 Mostrar quem está com cada um é o que permite achar o caixa
+                 esquecido em vez de ir tentando 2, 3, 4... --}}
+            <div class="info-box abertos">
+                <div class="abertos-titulo">
+                    <i class="bi bi-people me-1"></i> Já abertos nesta loja
+                </div>
+                @foreach($caixasAbertos as $cx)
+                    <div class="info-row">
+                        <span class="label">
+                            Caixa {{ $cx->numero_caixa }} · {{ \Illuminate\Support\Str::limit($cx->operador->name ?? '—', 18) }}
+                        </span>
+                        <span class="value">desde {{ $cx->aberto_em?->format('d/m H:i') }}</span>
+                    </div>
+                @endforeach
+                <div class="abertos-nota">Esses números estão em uso e não podem ser reutilizados até serem fechados.</div>
+            </div>
+        @endif
 
         <button type="submit" class="btn-abrir">
             <i class="bi bi-unlock"></i> Abrir Caixa

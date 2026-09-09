@@ -17,6 +17,17 @@
     <span class="badge bg-{{ $caixa->status->color() }} rounded-pill px-3 me-2 align-self-center">
         {{ $caixa->status->label() }}
     </span>
+    @if($caixa->status->value === 'aberto')
+        @if($podeFechar ?? false)
+            <a href="{{ route('app.caixa.fechar-caixa', $caixa) }}" class="btn btn-danger">
+                <i class="bi bi-lock me-1"></i> Fechar Caixa
+            </a>
+        @endif
+    @else
+        <a href="{{ route('app.caixa.comprovante', $caixa) }}" target="_blank" class="btn btn-erp-outline">
+            <i class="bi bi-printer me-1"></i> Comprovante
+        </a>
+    @endif
     <a href="{{ route('app.caixa.index') }}" class="btn btn-erp-outline">
         <i class="bi bi-arrow-left me-1"></i> Voltar
     </a>
@@ -83,6 +94,26 @@
                 <span class="text-muted">Devoluções em dinheiro (trocas)</span>
                 <span class="text-danger">- R$ {{ number_format($resumo['devolucoes'], 2, ',', '.') }}</span>
             </div>
+            @endif
+
+            {{-- Desconto e acréscimo não são movimentação de caixa: vêm da venda.
+                 Sem eles não dá para explicar a diferença entre a etiqueta do
+                 produto e o que entrou na forma de pagamento. --}}
+            @if(($resumo['descontos'] ?? 0) > 0 || ($resumo['acrescimos'] ?? 0) > 0)
+            <hr class="my-2">
+            @if(($resumo['descontos'] ?? 0) > 0)
+            <div class="d-flex justify-content-between">
+                <span class="text-muted">Descontos concedidos</span>
+                <span class="text-warning">- R$ {{ number_format($resumo['descontos'], 2, ',', '.') }}</span>
+            </div>
+            @endif
+            @if(($resumo['acrescimos'] ?? 0) > 0)
+            <div class="d-flex justify-content-between">
+                <span class="text-muted">Acréscimos (cartão / juros)</span>
+                <span class="text-info">+ R$ {{ number_format($resumo['acrescimos'], 2, ',', '.') }}</span>
+            </div>
+            @endif
+            <small class="text-muted d-block mt-1">Já embutidos nos valores acima.</small>
             @endif
         </x-erp.card>
 
