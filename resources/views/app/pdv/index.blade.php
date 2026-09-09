@@ -785,7 +785,31 @@
         <div class="topbar-fiscal fiscal-off"><span class="dot"></span> Nao Fiscal</div>
     @endif
 
+    <button type="button" class="topbar-fiscal" style="background:rgba(99,102,241,.18); color:var(--text-primary); border:0; cursor:pointer;" onclick="PDV.abrirReimprimir()" title="Reimprimir recibo ou cupom de uma venda">
+        <i class="bi bi-printer"></i> Reimprimir
+    </button>
+
     <div class="topbar-clock" id="clock">--:--:--</div>
+</div>
+
+{{-- ===== MODAL REIMPRIMIR (09/09/2026) — recibo/cupom de qualquer venda do dia, para quando a impressora falha ===== --}}
+<div class="modal fade" id="modalReimprimir" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-printer me-2"></i>Reimprimir recibo / cupom</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="d-flex align-items-center gap-2 mb-2 flex-wrap">
+                    <label class="form-label mb-0">Dia</label>
+                    <input type="date" class="form-control" id="reimprimirData" style="max-width:190px;" onchange="PDV.carregarReimprimir()">
+                    <small style="color:var(--text-muted);">vendas desta loja no dia escolhido</small>
+                </div>
+                <div class="client-search-results" id="reimprimirLista" style="max-height:60vh; overflow:auto;"></div>
+            </div>
+        </div>
+    </div>
 </div>
 
 {{-- ===== NO CAIXA OVERLAY ===== --}}
@@ -2821,9 +2845,57 @@ const PDV = {
         }
     },
 
+    // ===== REIMPRESSÃO (09/09/2026) =====
+    abrirReimprimir() {
+        const inp = document.getElementById('reimprimirData');
+        if (!inp.value) {
+            const d = new Date();
+            inp.value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        }
+        new bootstrap.Modal(document.getElementById('modalReimprimir')).show();
+        this.carregarReimprimir();
+    },
+
+    async carregarReimprimir() {
+        const box = document.getElementById('reimprimirLista');
+        const data = document.getElementById('reimprimirData').value;
+        box.innerHTML = '<div style="padding:12px; color:var(--text-muted);">Carregando…</div>';
+        try {
+            const resp = await fetch(`{{ route("app.pdv.reimprimir.vendas") }}?data=${encodeURIComponent(data)}`, {
+                headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
+            });
+            const lista = await resp.json();
+            if (!resp.ok || !Array.isArray(lista)) { box.innerHTML = '<div style="padding:12px; color:var(--accent-red);">Não foi possível listar as vendas</div>'; return; }
+            if (!lista.length) { box.innerHTML = '<div style="padding:12px; color:var(--text-muted);">Nenhuma venda nesta loja neste dia.</div>'; return; }
+            const esc = (t) => String(t ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+            box.innerHTML = lista.map(v => `
+                <div class="d-flex justify-content-between align-items-center gap-2" style="padding:10px 12px; border-bottom:1px solid var(--border-color, #3a3a48);">
+                    <div>
+                        <div><strong>Venda #${v.numero}</strong> <small style="color:var(--text-muted);">${v.hora}</small>${v.status === 'devolvida' ? ' <small style="color:var(--accent-yellow);">(devolvida)</small>' : ''}</div>
+                        <div style="font-size:.82rem; color:var(--text-secondary);">${esc(v.cliente || 'Consumidor')}${v.vendedor ? ' · ' + esc(v.vendedor) : ''}</div>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <strong>${this.formatMoney(v.total)}</strong>
+                        <button type="button" class="modal-btn-secondary" onclick="PDV.reimprimir(${v.id}, 'recibo')"><i class="bi bi-receipt"></i> Recibo</button>
+                        ${v.tem_fiscal ? `<button type="button" class="modal-btn-primary" onclick="PDV.reimprimir(${v.id}, 'fiscal')"><i class="bi bi-file-earmark-check"></i> Cupom fiscal</button>` : ''}
+                    </div>
+                </div>`).join('');
+        } catch (err) {
+            box.innerHTML = '<div style="padding:12px; color:var(--accent-red);">Erro de conexão</div>';
+        }
+    },
+
+    reimprimir(vendaId, tipo) {
+        const frame = document.getElementById('printFrame');
+        frame.removeAttribute('srcdoc');
+        frame.onload = () => { try { frame.contentWindow.print(); } catch (e) { this.showAlert('Não foi possível abrir a impressão', 'error'); } };
+        frame.src = `/app/pdv/venda/${vendaId}/recibo?tipo=${tipo}&_=${Date.now()}`;
+    },
+
     imprimirCupom() {
         if (!this.lastCupomHtml) return;
         const frame = document.getElementById('printFrame');
+        frame.removeAttribute('src');
         frame.srcdoc = this.lastCupomHtml;
         frame.onload = () => {
             frame.contentWindow.print();

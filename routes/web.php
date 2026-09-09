@@ -294,6 +294,14 @@ Route::middleware(['auth', 'suspensao', 'unidade', \App\Http\Middleware\Restring
         ->name('pdv.ping')
         ->middleware('permission:vendas,criar');
 
+    // Reimpressão de recibo/cupom de vendas do dia (09/09/2026) — só leitura, loja da sessão
+    Route::get('/pdv/reimprimir/vendas', [App\PdvController::class, 'reimprimirVendas'])
+        ->name('pdv.reimprimir.vendas')
+        ->middleware('permission:vendas,criar');
+    Route::get('/pdv/venda/{venda}/recibo', [App\PdvController::class, 'reimprimirRecibo'])
+        ->name('pdv.venda.recibo')
+        ->middleware('permission:vendas,criar');
+
     Route::get('/pdv/produto/{codigo}', [App\PdvController::class, 'buscarProduto'])
         ->name('pdv.buscar-produto')
         ->middleware('permission:vendas,criar');

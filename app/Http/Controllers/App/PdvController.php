@@ -868,6 +868,63 @@ class PdvController extends Controller
         ]);
     }
 
+    /**
+     * Reimpressão (09/09/2026): vendas da loja da sessão num dia, para o caixa
+     * reimprimir recibo ou cupom fiscal quando a impressora falhou. Só leitura.
+     */
+    public function reimprimirVendas(Request $request)
+    {
+        $data = $request->query('data');
+        try {
+            $dia = $data ? \Carbon\Carbon::createFromFormat('Y-m-d', $data)->startOfDay() : today();
+        } catch (\Throwable $e) {
+            $dia = today();
+        }
+
+        $vendas = Venda::withoutGlobalScope(UnidadeScope::class)
+            ->where('empresa_id', session('empresa_id'))
+            ->where('unidade_id', session('unidade_id'))
+            ->whereBetween('created_at', [$dia, $dia->copy()->endOfDay()])
+            ->whereIn('status', ['concluida', 'devolvida'])
+            ->with(['cliente:id,nome_razao_social', 'vendedor:id,name'])
+            ->withCount(['notasFiscais as nfce_autorizadas' => fn ($q) => $q->where('tipo', 'nfce')->where('status', 'autorizada')])
+            ->orderByDesc('id')
+            ->limit(200)
+            ->get();
+
+        return response()->json($vendas->map(fn ($v) => [
+            'id'         => $v->id,
+            'numero'     => $v->numero,
+            'hora'       => $v->created_at->format('H:i'),
+            'total'      => (float) $v->total,
+            'cliente'    => $v->cliente->nome_razao_social ?? null,
+            'vendedor'   => $v->vendedor->name ?? null,
+            'status'     => $v->status->value,
+            'tem_fiscal' => $v->nfce_autorizadas > 0,
+        ]));
+    }
+
+    /** Recibo (tipo=recibo) ou cupom fiscal (tipo=fiscal) de uma venda da loja da sessão, para o iframe de impressão do PDV. */
+    public function reimprimirRecibo(Request $request, int $venda)
+    {
+        $venda = Venda::withoutGlobalScope(UnidadeScope::class)
+            ->where('empresa_id', session('empresa_id'))
+            ->where('unidade_id', session('unidade_id'))
+            ->findOrFail($venda);
+        $venda->load(['itens.produto', 'cliente', 'vendedor', 'empresa']);
+
+        $notaFiscal = null;
+        if ($request->query('tipo') === 'fiscal') {
+            $notaFiscal = $venda->notasFiscais()
+                ->where('tipo', 'nfce')
+                ->where('status', 'autorizada')
+                ->latest()
+                ->first();
+        }
+
+        return view('app.pdv.cupom-nao-fiscal', compact('venda', 'notaFiscal'));
+    }
+
     /** Consulta de vale pelo código digitado/bipado no botão Vale do PDV. */
     public function valeConsultar(string $codigo)
     {
