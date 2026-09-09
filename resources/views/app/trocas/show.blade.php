@@ -21,7 +21,7 @@
                     <tbody>
                     @foreach($devolucao->itens as $item)
                         <tr>
-                            <td>{{ $item->produto->descricao ?? 'Item' }}</td>
+                            <td>{{ $item->produto->descricao ?? 'Item' }}@if($item->venda_item_id === null) <span class="badge bg-warning text-dark ms-1" title="Peça bipada no F6 sem estar nesta venda — entrou pelo preço de venda atual">sem cupom desta venda</span>@endif</td>
                             <td class="text-end">{{ rtrim(rtrim(number_format($item->quantidade, 3, ',', '.'), '0'), ',') }}</td>
                             <td class="text-end">R$ {{ number_format($item->valor_unitario, 2, ',', '.') }}</td>
                             <td class="text-end fw-semibold">R$ {{ number_format($item->total, 2, ',', '.') }}</td>

@@ -48,7 +48,7 @@
     <tbody>
     @foreach($devolucao->itens as $item)
         <tr>
-            <td>{{ \Illuminate\Support\Str::limit($item->produto->descricao ?? 'Item', 24) }}@if(! $item->retorna_estoque) *@endif</td>
+            <td>{{ \Illuminate\Support\Str::limit($item->produto->descricao ?? 'Item', 24) }}@if(! $item->retorna_estoque) *@endif @if($item->venda_item_id === null)**@endif</td>
             <td class="num">{{ rtrim(rtrim(number_format($item->quantidade, 3, ',', '.'), '0'), ',') }}</td>
             <td class="num">{{ number_format($item->total, 2, ',', '.') }}</td>
         </tr>
@@ -56,6 +56,7 @@
     </tbody>
 </table>
 @if($devolucao->itens->contains(fn ($i) => ! $i->retorna_estoque))<div class="sub" style="text-align:left;">* avariado — não volta ao estoque</div>@endif
+@if($devolucao->itens->contains(fn ($i) => $i->venda_item_id === null))<div class="sub" style="text-align:left;">** sem cupom desta venda — preço de venda atual</div>@endif
 <hr class="line">
 <div class="row total"><span>VALOR DEVOLVIDO:</span><span>R$ {{ number_format($devolucao->valor_estornado, 2, ',', '.') }}</span></div>
 @if($devolucao->valor_abatido_parcelas > 0)

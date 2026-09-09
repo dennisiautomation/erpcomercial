@@ -1219,6 +1219,13 @@
                         <tbody id="trocaItens"></tbody>
                     </table>
 
+                    {{-- Peça que NÃO está nesta venda (09/09/2026): entra pelo preço de venda atual --}}
+                    <div class="d-flex align-items-center gap-2 flex-wrap mb-2" id="trocaSemCupomWrap">
+                        <input type="text" class="form-control form-control-sm" id="trocaBipar" placeholder="Bipar peça que NÃO está nesta venda (código de barras ou código)" autocomplete="off" style="max-width:400px;">
+                        <button type="button" class="modal-btn-secondary" onclick="PDV.trocaBiparItem()" title="Adicionar peça sem cupom desta venda"><i class="bi bi-upc-scan"></i> Adicionar</button>
+                        <small style="color:var(--text-muted);">peça sem cupom entra pelo preço de venda de hoje</small>
+                    </div>
+
                     <div class="row g-2 mb-2">
                         <div class="col-md-5">
                             <label class="form-label">Motivo</label>
@@ -2535,7 +2542,9 @@ const PDV = {
             this.pagamentos.push({ forma, valor: Math.min(valor, restante), parcelas, ...extra });
             this.renderSplitPayments();
 
-            const novoRestante = round(total - this.pagamentos.reduce((s, p) => s + p.valor, 0), 2);
+            // O crédito da troca conta como pago — sem ele, PIX 75 + crédito 105 numa
+            // venda de 180 fechava o modal com "Restam R$ 105" e não finalizava (09/09/2026)
+            const novoRestante = round(total - this.pagamentos.reduce((s, p) => s + p.valor, 0) - this.creditoAplicado(), 2);
             if (novoRestante <= 0.01) {
                 // All paid, proceed to finalize
                 bootstrap.Modal.getInstance(document.getElementById('modalPagamento'))?.hide();
@@ -2596,11 +2605,26 @@ const PDV = {
             </div>
         `).join('');
 
+        // Crédito da troca (F6) entra como a primeira linha do split — é dinheiro
+        // que já abateu a venda, e sem essa linha o "Faltam" abaixo mentia
+        // (09/09/2026: "Faltam R$ 105" numa venda já toda paga).
+        const credito = this.creditoAplicado();
+        if (credito > 0) {
+            list.insertAdjacentHTML('afterbegin', `
+            <div class="split-item">
+                <span class="split-forma">
+                    <i class="bi bi-arrow-repeat" style="color:var(--accent-teal, #20c997)"></i>
+                    Crédito da troca
+                </span>
+                <span><span class="split-valor">${this.formatMoney(credito)}</span></span>
+            </div>`);
+        }
+
         // "Faltam" é o que resta de MERCADORIA, em preço à vista: o acréscimo só
         // existe depois que a próxima forma for escolhida (o modal mostra então
         // quanto passa na maquininha).
         const total = this.getTotal();
-        const pago = this.pagamentos.reduce((s, p) => s + p.valor, 0);
+        const pago = this.pagamentos.reduce((s, p) => s + p.valor, 0) + credito;
         const rest = round(total - pago, 2);
 
         if (rest > 0.01) {
@@ -3044,6 +3068,11 @@ const PDV = {
                 <td class="text-center"><input type="checkbox" class="form-check-input troca-estoque" ${i.e_servico ? 'disabled' : 'checked'} title="${i.e_servico ? 'Serviço não volta ao estoque' : 'Desmarque se a peça está avariada e não volta à prateleira'}"></td>
             </tr>`).join('');
 
+        // Peça sem cupom: Enter no campo bipa (o leitor manda Enter)
+        const bipar = document.getElementById('trocaBipar');
+        bipar.value = '';
+        bipar.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); this.trocaBiparItem(); } };
+
         // Motivos
         document.getElementById('trocaMotivo').innerHTML = Object.entries(s.motivos).map(([k, v]) => `<option value="${k}">${v}</option>`).join('');
         document.getElementById('trocaMotivoTexto').value = '';
@@ -3114,6 +3143,59 @@ const PDV = {
         document.getElementById('trocaGerenteMotivo').textContent = motivos.length ? motivos.join(' + ') : '';
     },
 
+    /* Peça que NÃO está na venda encontrada (09/09/2026): bipada no F6, entra na
+       mesma lista pelo preço de venda atual, marcada "sem cupom desta venda".
+       Regras de prazo/gerente são as da troca normal (decisão do Dennis). */
+    async trocaBiparItem() {
+        const inp = document.getElementById('trocaBipar');
+        const code = (inp.value || '').trim();
+        if (!code || !this._trocaSituacao) return;
+        try {
+            const resp = await fetch(`/app/pdv/produto/${encodeURIComponent(code)}`, {
+                headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
+            });
+            const lista = await resp.json();
+            if (!resp.ok || !Array.isArray(lista)) { this.showAlert('Não foi possível buscar o produto', 'error'); return; }
+            // Código de barras / código interno exato primeiro; texto só serve quando acha UM produto
+            const exato = lista.filter(p => p.codigo_barras === code || p.codigo_interno === code);
+            const p = exato.length === 1 ? exato[0] : (exato.length === 0 && lista.length === 1 ? lista[0] : null);
+            if (!p) {
+                this.showAlert(lista.length === 0 ? 'Nenhum produto com esse código' : 'Mais de um produto encontrado — bipe o código de barras da peça', 'warning');
+                return;
+            }
+            this.trocaAdicionarSemCupom(p);
+            inp.value = '';
+            inp.focus();
+        } catch (err) {
+            this.showAlert('Não foi possível buscar o produto', 'error');
+        }
+    },
+
+    trocaAdicionarSemCupom(p) {
+        const tbody = document.getElementById('trocaItens');
+        const existente = tbody.querySelector(`tr[data-produto="${p.id}"]`);
+        if (existente) {
+            const q = existente.querySelector('.troca-qtd');
+            q.value = (parseFloat(q.value) || 0) + 1;
+            this.recalcularTroca();
+            return;
+        }
+        const preco = round(parseFloat(p.preco_venda) || 0, 2);
+        const esc = (t) => String(t ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        const tr = document.createElement('tr');
+        tr.dataset.produto = p.id;
+        tr.dataset.unit = preco;
+        tr.dataset.max = 9999;
+        tr.innerHTML = `
+            <td>${esc(p.descricao)} <span style="display:inline-block; padding:1px 7px; border-radius:10px; font-size:.7rem; font-weight:700; background:rgba(255,193,7,.18); color:var(--accent-yellow);" title="Peça bipada sem estar nesta venda — entra pelo preço de venda de hoje">sem cupom desta venda</span></td>
+            <td class="text-end" style="color:var(--text-muted);">—</td>
+            <td class="text-end"><input type="number" class="form-control form-control-sm text-end troca-qtd" min="0" max="9999" step="1" value="1" oninput="PDV.recalcularTroca()" style="width:90px; display:inline-block;"></td>
+            <td class="text-end">${this.formatMoney(preco)}</td>
+            <td class="text-center"><input type="checkbox" class="form-check-input troca-estoque" checked title="Desmarque se a peça está avariada e não volta à prateleira"></td>`;
+        tbody.appendChild(tr);
+        this.recalcularTroca();
+    },
+
     recalcularTroca() {
         let total = 0;
         document.querySelectorAll('#trocaItens tr').forEach(tr => {
@@ -3144,8 +3226,10 @@ const PDV = {
             const inp = tr.querySelector('.troca-qtd'); if (!inp) return;
             const q = parseFloat(inp.value) || 0;
             if (q <= 0) return;
+            const semCupom = tr.dataset.produto ? parseInt(tr.dataset.produto, 10) : null;
             itens.push({
-                venda_item_id: parseInt(tr.dataset.item, 10),
+                venda_item_id: semCupom ? null : parseInt(tr.dataset.item, 10),
+                produto_id: semCupom,
                 quantidade: q,
                 retorna_estoque: tr.querySelector('.troca-estoque')?.checked ? 1 : 0,
                 estoque_id: document.getElementById('trocaEstoqueWrap').style.display !== 'none' ? (parseInt(document.getElementById('trocaEstoque').value, 10) || null) : null,

@@ -798,7 +798,8 @@ class PdvController extends Controller
             'venda_id'                 => 'required|integer',
             'tipo'                     => 'required|in:troca,devolucao',
             'itens'                    => 'required|array|min:1',
-            'itens.*.venda_item_id'    => 'required|integer',
+            'itens.*.venda_item_id'    => 'nullable|integer',
+            'itens.*.produto_id'       => 'nullable|integer',   // peça sem cupom desta venda (09/09/2026)
             'itens.*.quantidade'       => 'required|numeric|min:0.001',
             'itens.*.retorna_estoque'  => 'nullable|boolean',
             'itens.*.estoque_id'       => 'nullable|integer',

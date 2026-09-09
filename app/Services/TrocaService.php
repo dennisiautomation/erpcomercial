@@ -11,6 +11,7 @@ use App\Models\ContaReceber;
 use App\Models\Devolucao;
 use App\Models\Estoque;
 use App\Models\MovimentacaoCaixa;
+use App\Models\Produto;
 use App\Models\User;
 use App\Models\Vale;
 use App\Models\Venda;
@@ -52,6 +53,9 @@ class TrocaService
         $devolvidoPorItem = [];
         foreach ($venda->devolucoes->where('status', '!=', 'cancelada') as $dev) {
             foreach ($dev->itens as $di) {
+                if ($di->venda_item_id === null) {
+                    continue; // peça sem cupom desta venda (09/09/2026) — não é item do cupom
+                }
                 $devolvidoPorItem[$di->venda_item_id] = ($devolvidoPorItem[$di->venda_item_id] ?? 0) + (float) $di->quantidade;
             }
         }
@@ -129,7 +133,10 @@ class TrocaService
      *
      * @param array{
      *   tipo: 'troca'|'devolucao',
-     *   itens: array<int, array{venda_item_id:int, quantidade:float, retorna_estoque?:bool, estoque_id?:int|null}>,
+     *   itens: array<int, array{venda_item_id?:int|null, produto_id?:int|null, quantidade:float, retorna_estoque?:bool, estoque_id?:int|null}>,
+     *     — linha com `venda_item_id` = item do cupom; linha só com `produto_id` = peça que NÃO
+     *       está nesta venda (bipada no F6, 09/09/2026): entra pelo preço de venda atual, sem
+     *       limite de quantidade e com as MESMAS regras da troca normal (decisão do Dennis).
      *   motivo: string, motivo_texto?: string|null,
      *   sobra_destino?: 'vale'|'dinheiro',
      *   gerente_email?: string|null, gerente_senha?: string|null,
@@ -154,15 +161,27 @@ class TrocaService
 
         // Itens: quantidade dentro do que ainda não voltou
         $linhas = [];
+        $semCupom = [];
         foreach ($dados['itens'] as $linha) {
-            $info = $porItem->get((int) ($linha['venda_item_id'] ?? 0));
             $qtd = round((float) ($linha['quantidade'] ?? 0), 3);
-            if (! $info || $qtd <= 0) {
+            if ($qtd <= 0) {
                 continue;
             }
-            if ($qtd > $info['disponivel'] + 0.0005) {
-                throw new \DomainException("Quantidade maior que a disponível para \"{$info['descricao']}\" (restam {$info['disponivel']}).");
+
+            if (empty($linha['venda_item_id']) && ! empty($linha['produto_id'])) {
+                // Peça que não está nesta venda: identifica pelo produto, vale o preço de hoje
+                $info = $this->infoSemCupom((int) $venda->empresa_id, (int) $linha['produto_id']);
+                $semCupom[] = $info['descricao'] . ' × ' . rtrim(rtrim(number_format($qtd, 3, ',', ''), '0'), ',');
+            } else {
+                $info = $porItem->get((int) ($linha['venda_item_id'] ?? 0));
+                if (! $info) {
+                    continue;
+                }
+                if ($qtd > $info['disponivel'] + 0.0005) {
+                    throw new \DomainException("Quantidade maior que a disponível para \"{$info['descricao']}\" (restam {$info['disponivel']}).");
+                }
             }
+
             $retorna = $info['e_servico'] ? false : (bool) ($linha['retorna_estoque'] ?? true);
             $linhas[] = [
                 'info'            => $info,
@@ -207,7 +226,7 @@ class TrocaService
         $motivoLabel = Devolucao::MOTIVOS[$dados['motivo'] ?? ''] ?? ($dados['motivo'] ?? 'Não informado');
         $motivo = trim($motivoLabel . (! empty($dados['motivo_texto']) ? ' — ' . $dados['motivo_texto'] : ''));
 
-        return DB::transaction(function () use ($venda, $linhas, $valorDevolvido, $tipo, $sobraDestino, $foraPrazo, $motivosFora, $aprovador, $caixa, $motivo, $dados, $user, $config, $unidadeSessao, $situacao) {
+        return DB::transaction(function () use ($venda, $linhas, $valorDevolvido, $tipo, $sobraDestino, $foraPrazo, $motivosFora, $aprovador, $caixa, $motivo, $dados, $user, $config, $unidadeSessao, $situacao, $semCupom) {
             $devolucao = Devolucao::create([
                 'empresa_id'           => $venda->empresa_id,
                 'unidade_id'           => $unidadeSessao,
@@ -221,7 +240,9 @@ class TrocaService
                 'motivo_fora_politica' => $motivosFora ? implode('; ', $motivosFora) : null,
                 'aprovado_por'         => $aprovador?->id,
                 'status'               => 'concluida',
-                'observacoes'          => $dados['observacoes'] ?? null,
+                'observacoes'          => trim(($dados['observacoes'] ?? '') . ($semCupom
+                    ? "\nPeça(s) sem cupom desta venda, pelo preço de venda atual: " . implode('; ', $semCupom)
+                    : '')) ?: null,
             ]);
 
             foreach ($linhas as $l) {
@@ -306,7 +327,7 @@ class TrocaService
             // Tudo voltou? A venda vira "devolvida". Parcial continua concluída —
             // o histórico de trocas fica na tela da venda.
             $restante = collect($situacao['itens'])->sum('disponivel')
-                - array_sum(array_column($linhas, 'quantidade'));
+                - collect($linhas)->filter(fn ($l) => $l['info']['venda_item_id'] !== null)->sum('quantidade');
             if ($restante <= 0.0005) {
                 $venda->update(['status' => StatusVenda::Devolvida]);
             }
@@ -401,6 +422,38 @@ class TrocaService
         }
 
         return $abatido;
+    }
+
+    /**
+     * Peça bipada no F6 que NÃO está na venda encontrada (09/09/2026).
+     *
+     * Vale o preço de venda atual (tabela à vista) — não há cupom para dizer
+     * quanto o cliente pagou. Sem teto de quantidade. Regras de prazo/gerente
+     * são as da troca normal (decisão do Dennis: "as regras podem ser as normais").
+     */
+    private function infoSemCupom(int $empresaId, int $produtoId): array
+    {
+        $produto = Produto::withoutGlobalScopes()
+            ->where('empresa_id', $empresaId)
+            ->where('status', 'ativo')
+            ->whereNull('deleted_at')
+            ->find($produtoId);
+        if (! $produto) {
+            throw new \DomainException('Produto não encontrado no cadastro desta empresa.');
+        }
+
+        return [
+            'venda_item_id'  => null,
+            'produto_id'     => $produto->id,
+            'descricao'      => $produto->descricao,
+            'codigo'         => $produto->codigo_interno,
+            'quantidade'     => 0.0,
+            'devolvida'      => 0.0,
+            'disponivel'     => INF,
+            'valor_unitario' => round((float) $produto->preco_venda, 2),
+            'e_servico'      => false,
+            'sem_cupom'      => true,
+        ];
     }
 
     public function ehGerente(User $user): bool
