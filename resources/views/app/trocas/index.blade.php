@@ -81,7 +81,7 @@
             <td class="text-nowrap"><small>{{ $dev->created_at->format('d/m/Y H:i') }}</small></td>
             <td><span class="badge {{ $dev->tipo === 'troca' ? 'bg-info text-dark' : 'bg-warning text-dark' }}">{{ $dev->tipoLabel() }}</span>
                 @if($dev->fora_politica)<i class="bi bi-shield-lock text-warning ms-1" title="Fora da política — {{ $dev->motivo_fora_politica }}"></i>@endif</td>
-            <td>@if($dev->venda)<a href="{{ route('app.vendas.show', $dev->venda) }}">#{{ $dev->venda->numero }}</a>@else -@endif</td>
+            <td>@if($dev->venda)<a href="{{ route('app.vendas.show', $dev->venda) }}">#{{ $dev->venda->numero }}</a>@else <small class="text-muted">sem venda</small>@endif</td>
             <td>{{ $dev->venda->cliente->nome_razao_social ?? 'Consumidor' }}</td>
             @if($lojas->count() > 1)<td><small>{{ $dev->unidade->nome ?? '-' }}</small></td>@endif
             <td class="text-center">{{ $dev->itens_count }}</td>

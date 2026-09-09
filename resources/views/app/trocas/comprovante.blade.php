@@ -37,7 +37,7 @@
 <div class="titulo">COMPROVANTE DE {{ strtoupper($devolucao->tipoLabel()) }}</div>
 <div class="sub">Nº {{ $devolucao->id }} · {{ $devolucao->created_at->format('d/m/Y H:i') }}</div>
 <hr class="line">
-<div class="row"><span>Venda de origem:</span><span>#{{ $devolucao->venda->numero ?? '?' }} ({{ $devolucao->venda?->created_at?->format('d/m/Y') }})</span></div>
+@if($devolucao->venda)<div class="row"><span>Venda de origem:</span><span>#{{ $devolucao->venda->numero }} ({{ $devolucao->venda->created_at?->format('d/m/Y') }})</span></div>@else<div class="row"><span>Origem:</span><span>peça sem venda no sistema</span></div>@endif
 @if($devolucao->venda?->cliente)
 <div class="row"><span>Cliente:</span><span>{{ \Illuminate\Support\Str::limit($devolucao->venda->cliente->nome_razao_social, 28) }}</span></div>
 @endif
@@ -56,7 +56,7 @@
     </tbody>
 </table>
 @if($devolucao->itens->contains(fn ($i) => ! $i->retorna_estoque))<div class="sub" style="text-align:left;">* avariado — não volta ao estoque</div>@endif
-@if($devolucao->itens->contains(fn ($i) => $i->venda_item_id === null))<div class="sub" style="text-align:left;">** sem cupom desta venda — preço de venda atual</div>@endif
+@if($devolucao->itens->contains(fn ($i) => $i->venda_item_id === null))<div class="sub" style="text-align:left;">** {{ $devolucao->venda ? 'sem cupom desta venda' : 'sem venda no sistema' }} — preço de venda atual</div>@endif
 <hr class="line">
 <div class="row total"><span>VALOR DEVOLVIDO:</span><span>R$ {{ number_format($devolucao->valor_estornado, 2, ',', '.') }}</span></div>
 @if($devolucao->valor_abatido_parcelas > 0)

@@ -43,7 +43,7 @@
             <td><code class="fs-6">{{ $vale->codigo }}</code></td>
             <td class="text-nowrap"><small>{{ $vale->created_at->format('d/m/Y') }} · {{ $vale->unidade->nome ?? '' }}</small></td>
             <td>{{ $vale->cliente->nome_razao_social ?? 'Consumidor' }}</td>
-            <td><small>@if($vale->devolucao){{ $vale->devolucao->tipoLabel() }} da venda #{{ $vale->devolucao->venda->numero ?? '?' }}@else -@endif</small></td>
+            <td><small>@if($vale->devolucao){{ $vale->devolucao->tipoLabel() }} {{ $vale->devolucao->venda ? 'da venda #' . $vale->devolucao->venda->numero : '— peça sem venda' }}@else -@endif</small></td>
             <td class="text-end">R$ {{ number_format($vale->valor, 2, ',', '.') }}</td>
             <td class="text-end fw-semibold">R$ {{ number_format($vale->saldo, 2, ',', '.') }}</td>
             <td><small>{{ $vale->validade?->format('d/m/Y') ?? 'sem validade' }}</small></td>

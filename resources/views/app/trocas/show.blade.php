@@ -4,7 +4,7 @@
 
 @section('content')
 <x-erp.page-header :title="$devolucao->tipoLabel() . ' #' . $devolucao->id" icon="arrow-repeat"
-    :subtitle="'Venda #' . ($devolucao->venda->numero ?? '?') . ' · ' . $devolucao->created_at->format('d/m/Y H:i') . ' · ' . ($devolucao->unidade->nome ?? '')">
+    :subtitle="($devolucao->venda ? 'Venda #' . $devolucao->venda->numero : 'Sem venda de origem') . ' · ' . $devolucao->created_at->format('d/m/Y H:i') . ' · ' . ($devolucao->unidade->nome ?? '')">
     <a href="{{ route('app.trocas.comprovante', $devolucao) }}?print=1" target="_blank" class="btn btn-erp-outline"><i class="bi bi-printer me-1"></i> Comprovante</a>
     @if($devolucao->vale)
     <a href="{{ route('app.trocas.vales.imprimir', $devolucao->vale) }}?print=1" target="_blank" class="btn btn-erp-outline"><i class="bi bi-ticket-perforated me-1"></i> Imprimir vale</a>
@@ -21,7 +21,7 @@
                     <tbody>
                     @foreach($devolucao->itens as $item)
                         <tr>
-                            <td>{{ $item->produto->descricao ?? 'Item' }}@if($item->venda_item_id === null) <span class="badge bg-warning text-dark ms-1" title="Peça bipada no F6 sem estar nesta venda — entrou pelo preço de venda atual">sem cupom desta venda</span>@endif</td>
+                            <td>{{ $item->produto->descricao ?? 'Item' }}@if($item->venda_item_id === null) <span class="badge bg-warning text-dark ms-1" title="Peça bipada no F6 — entrou pelo preço de venda atual">{{ $devolucao->venda ? 'sem cupom desta venda' : 'sem venda no sistema' }}</span>@endif</td>
                             <td class="text-end">{{ rtrim(rtrim(number_format($item->quantidade, 3, ',', '.'), '0'), ',') }}</td>
                             <td class="text-end">R$ {{ number_format($item->valor_unitario, 2, ',', '.') }}</td>
                             <td class="text-end fw-semibold">R$ {{ number_format($item->total, 2, ',', '.') }}</td>
@@ -72,7 +72,7 @@
         <x-erp.card title="Dados" icon="info-circle">
             <dl class="mb-0">
                 <dt>Venda de origem</dt>
-                <dd>@if($devolucao->venda)<a href="{{ route('app.vendas.show', $devolucao->venda) }}">#{{ $devolucao->venda->numero }}</a> · {{ $devolucao->venda->created_at->format('d/m/Y') }} · {{ $devolucao->venda->unidade->nome ?? '' }}@else -@endif</dd>
+                <dd>@if($devolucao->venda)<a href="{{ route('app.vendas.show', $devolucao->venda) }}">#{{ $devolucao->venda->numero }}</a> · {{ $devolucao->venda->created_at->format('d/m/Y') }} · {{ $devolucao->venda->unidade->nome ?? '' }}@else <span class="text-muted">peça sem venda no sistema</span>@endif</dd>
                 <dt>Cliente</dt><dd>{{ $devolucao->venda->cliente->nome_razao_social ?? 'Consumidor' }}</dd>
                 <dt>Motivo</dt><dd>{{ $devolucao->motivo }}</dd>
                 <dt>Registrado por</dt><dd>{{ $devolucao->user->name ?? '-' }}</dd>

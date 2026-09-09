@@ -32,7 +32,7 @@
 </div>
 @if($vale->cliente)<div class="row"><span>Cliente:</span><span>{{ \Illuminate\Support\Str::limit($vale->cliente->nome_razao_social, 28) }}</span></div>@endif
 <div class="row"><span>Emitido:</span><span>{{ $vale->created_at->format('d/m/Y H:i') }}</span></div>
-@if($vale->devolucao)<div class="row"><span>Origem:</span><span>{{ $vale->devolucao->tipoLabel() }} da venda #{{ $vale->devolucao->venda->numero ?? '?' }}</span></div>@endif
+@if($vale->devolucao)<div class="row"><span>Origem:</span><span>{{ $vale->devolucao->tipoLabel() }} {{ $vale->devolucao->venda ? 'da venda #' . $vale->devolucao->venda->numero : '(peça sem venda)' }}</span></div>@endif
 @if($vale->usos->count())
 <hr class="line">
 <div class="sub" style="text-align:left;">Utilizações:</div>

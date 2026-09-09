@@ -124,6 +124,37 @@ class TrocaService
         ];
     }
 
+    /**
+     * Situação para troca SEM venda no sistema (09/09/2026): mesmo formato do
+     * `situacao()`, com `venda` nula e lista vazia — o caixa só bipa a peça.
+     * Não há prazo a vencer nem parcela a abater; as demais regras (sobra em
+     * vale ou dinheiro, gerente para dinheiro) são as da loja.
+     */
+    public function situacaoSemVenda(ConfiguracaoLoja $config, User $user): array
+    {
+        $usuarioGerente = $this->ehGerente($user);
+
+        return [
+            'venda' => null,
+            'itens' => [],
+            'politica' => [
+                'dias_desde_venda'   => 0,
+                'prazo_dias'         => (int) $config->troca_prazo_dias,
+                'fora_prazo'         => false,
+                'sobra'              => $config->troca_sobra ?: 'vale',
+                'permite_dinheiro'   => $config->troca_sobra === 'dinheiro',
+                'vale_validade_dias' => (int) $config->troca_vale_validade_dias,
+                'senha_gerente'      => (bool) $config->troca_senha_gerente,
+                'usuario_e_gerente'  => $usuarioGerente,
+                'exige_gerente_fora_prazo' => false,
+                'exige_gerente_dinheiro'   => (bool) $config->troca_senha_gerente && ! $usuarioGerente,
+            ],
+            'parcelas_abertas' => 0.0,
+            'pode_trocar'      => true,
+            'motivos'          => Devolucao::MOTIVOS,
+        ];
+    }
+
     /* ------------------------------------------------------------------ */
     /*  Gravação                                                           */
     /* ------------------------------------------------------------------ */
@@ -143,13 +174,19 @@ class TrocaService
      *   observacoes?: string|null
      * } $dados
      */
-    public function registrar(Venda $venda, array $dados, User $user, ConfiguracaoLoja $config, int $unidadeSessao, ?int $caixaId): Devolucao
+    public function registrar(?Venda $venda, array $dados, User $user, ConfiguracaoLoja $config, int $unidadeSessao, ?int $caixaId, ?int $empresaIdSessao = null): Devolucao
     {
-        if ($venda->status !== StatusVenda::Concluida) {
+        // Sem venda (09/09/2026): peça que o sistema não vendeu — só linhas por produto
+        $empresaId = $venda ? (int) $venda->empresa_id : (int) $empresaIdSessao;
+        if (! $empresaId) {
+            throw new \DomainException('Empresa da sessão não identificada.');
+        }
+
+        if ($venda && $venda->status !== StatusVenda::Concluida) {
             throw new \DomainException('Só é possível trocar itens de uma venda concluída. Esta venda está ' . $venda->status->label() . '.');
         }
 
-        $situacao = $this->situacao($venda, $config, $user);
+        $situacao = $venda ? $this->situacao($venda, $config, $user) : $this->situacaoSemVenda($config, $user);
         $porItem = collect($situacao['itens'])->keyBy('venda_item_id');
 
         $tipo = $dados['tipo'] === 'troca' ? 'troca' : 'devolucao';
@@ -170,7 +207,7 @@ class TrocaService
 
             if (empty($linha['venda_item_id']) && ! empty($linha['produto_id'])) {
                 // Peça que não está nesta venda: identifica pelo produto, vale o preço de hoje
-                $info = $this->infoSemCupom((int) $venda->empresa_id, (int) $linha['produto_id']);
+                $info = $this->infoSemCupom($empresaId, (int) $linha['produto_id']);
                 $semCupom[] = $info['descricao'] . ' × ' . rtrim(rtrim(number_format($qtd, 3, ',', ''), '0'), ',');
             } else {
                 $info = $porItem->get((int) ($linha['venda_item_id'] ?? 0));
@@ -211,7 +248,7 @@ class TrocaService
         if ($motivosFora && $config->troca_senha_gerente) {
             $aprovador = $this->ehGerente($user)
                 ? $user
-                : $this->autenticarGerente($venda->empresa_id, $dados['gerente_email'] ?? null, $dados['gerente_senha'] ?? null);
+                : $this->autenticarGerente($empresaId, $dados['gerente_email'] ?? null, $dados['gerente_senha'] ?? null);
         }
 
         // Dinheiro só sai de um caixa aberto desta loja
@@ -226,11 +263,13 @@ class TrocaService
         $motivoLabel = Devolucao::MOTIVOS[$dados['motivo'] ?? ''] ?? ($dados['motivo'] ?? 'Não informado');
         $motivo = trim($motivoLabel . (! empty($dados['motivo_texto']) ? ' — ' . $dados['motivo_texto'] : ''));
 
-        return DB::transaction(function () use ($venda, $linhas, $valorDevolvido, $tipo, $sobraDestino, $foraPrazo, $motivosFora, $aprovador, $caixa, $motivo, $dados, $user, $config, $unidadeSessao, $situacao, $semCupom) {
+        $rotuloVenda = $venda ? "venda #{$venda->numero}" : 'peça sem venda no sistema';
+
+        return DB::transaction(function () use ($venda, $empresaId, $rotuloVenda, $linhas, $valorDevolvido, $tipo, $sobraDestino, $foraPrazo, $motivosFora, $aprovador, $caixa, $motivo, $dados, $user, $config, $unidadeSessao, $situacao, $semCupom) {
             $devolucao = Devolucao::create([
-                'empresa_id'           => $venda->empresa_id,
+                'empresa_id'           => $empresaId,
                 'unidade_id'           => $unidadeSessao,
-                'venda_id'             => $venda->id,
+                'venda_id'             => $venda?->id,
                 'tipo'                 => $tipo,
                 'caixa_id'             => $caixa?->id,
                 'user_id'              => $user->id,
@@ -241,7 +280,7 @@ class TrocaService
                 'aprovado_por'         => $aprovador?->id,
                 'status'               => 'concluida',
                 'observacoes'          => trim(($dados['observacoes'] ?? '') . ($semCupom
-                    ? "\nPeça(s) sem cupom desta venda, pelo preço de venda atual: " . implode('; ', $semCupom)
+                    ? "\n" . ($venda ? 'Peça(s) sem cupom desta venda' : 'Peça(s) sem venda neste sistema') . ", pelo preço de venda atual: " . implode('; ', $semCupom)
                     : '')) ?: null,
             ]);
 
@@ -261,7 +300,7 @@ class TrocaService
                 // a loja da venda: é onde ela fisicamente vai parar na prateleira.
                 if ($l['retorna_estoque'] && $l['info']['produto_id']) {
                     SaldoEstoque::registrar(
-                        (int) $venda->empresa_id,
+                        $empresaId,
                         $unidadeSessao,
                         (int) $l['estoque_id'],
                         (int) $l['info']['produto_id'],
@@ -271,7 +310,7 @@ class TrocaService
                             'custo_unitario' => $l['info']['valor_unitario'],
                             'origem_tipo'    => Devolucao::class,
                             'origem_id'      => $devolucao->id,
-                            'observacoes'    => ucfirst($tipo) . " — venda #{$venda->numero}",
+                            'observacoes'    => ucfirst($tipo) . " — {$rotuloVenda}",
                             'user_id'        => $user->id,
                         ]
                     );
@@ -280,7 +319,7 @@ class TrocaService
 
             // Parcelas em aberto (crediário/boleto) são abatidas antes de
             // qualquer crédito: o cliente não leva vale enquanto ainda deve a venda.
-            $abatido = $this->abaterParcelas($venda, $valorDevolvido, $devolucao);
+            $abatido = $venda ? $this->abaterParcelas($venda, $valorDevolvido, $devolucao) : 0.0;
             $sobra = round($valorDevolvido - $abatido, 2);
 
             $formaSobra = 'nenhuma';
@@ -290,22 +329,22 @@ class TrocaService
             } elseif ($sobraDestino === 'dinheiro') {
                 $formaSobra = 'dinheiro';
                 MovimentacaoCaixa::create([
-                    'empresa_id'      => $venda->empresa_id,
+                    'empresa_id'      => $empresaId,
                     'unidade_id'      => $unidadeSessao,
                     'caixa_id'        => $caixa->id,
                     'tipo'            => TipoMovimentacaoCaixa::Devolucao,
                     'valor'           => $sobra,
                     'forma_pagamento' => 'dinheiro',
-                    'descricao'       => "Devolução venda #{$venda->numero}",
+                    'descricao'       => "Devolução {$rotuloVenda}",
                     'user_id'         => $user->id,
                 ]);
             } else {
                 $formaSobra = 'vale';
                 $validadeDias = (int) $config->troca_vale_validade_dias;
                 $vale = Vale::create([
-                    'empresa_id'   => $venda->empresa_id,
+                    'empresa_id'   => $empresaId,
                     'unidade_id'   => $unidadeSessao,
-                    'cliente_id'   => $venda->cliente_id,
+                    'cliente_id'   => $venda?->cliente_id,
                     'devolucao_id' => $devolucao->id,
                     'user_id'      => $user->id,
                     'codigo'       => Vale::gerarCodigo(),
@@ -313,7 +352,7 @@ class TrocaService
                     'saldo'        => $sobra,
                     'validade'     => $validadeDias > 0 ? today()->addDays($validadeDias) : null,
                     'status'       => 'ativo',
-                    'observacoes'  => ucfirst($tipo) . " da venda #{$venda->numero}",
+                    'observacoes'  => ucfirst($tipo) . ($venda ? " da venda #{$venda->numero}" : ' — peça sem venda no sistema'),
                 ]);
             }
 
@@ -328,7 +367,7 @@ class TrocaService
             // o histórico de trocas fica na tela da venda.
             $restante = collect($situacao['itens'])->sum('disponivel')
                 - collect($linhas)->filter(fn ($l) => $l['info']['venda_item_id'] !== null)->sum('quantidade');
-            if ($restante <= 0.0005) {
+            if ($venda && $restante <= 0.0005) {
                 $venda->update(['status' => StatusVenda::Devolvida]);
             }
 

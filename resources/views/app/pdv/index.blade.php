@@ -1198,6 +1198,10 @@
                         <input type="text" class="form-control" id="trocaBusca" placeholder="Ex.: 158, V158 ou Maria" autocomplete="off">
                         <button type="button" class="modal-btn-primary" onclick="PDV.buscarVendasTroca()"><i class="bi bi-search"></i></button>
                     </div>
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2" style="margin-top:8px;">
+                        <small style="color:var(--text-muted);">A peça não foi vendida por este sistema?</small>
+                        <button type="button" class="modal-btn-secondary" onclick="PDV.trocaSemVenda()"><i class="bi bi-upc-scan"></i> Peça sem venda — bipar o código</button>
+                    </div>
                     <div class="client-search-results" id="trocaResultados" style="margin-top:10px;"></div>
                 </div>
 
@@ -1205,7 +1209,7 @@
                 <div id="trocaPasso2" style="display:none;">
                     <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-2">
                         <div>
-                            <div style="font-weight:700; font-size:1.05rem;">Venda #<span id="trocaVendaNumero"></span> <small id="trocaVendaInfo" style="color:var(--text-muted); font-weight:400;"></small></div>
+                            <div style="font-weight:700; font-size:1.05rem;"><span id="trocaVendaTitulo">Venda</span> <small id="trocaVendaInfo" style="color:var(--text-muted); font-weight:400;"></small></div>
                             <div id="trocaVendaCliente" style="font-size:.85rem; color:var(--text-secondary);"></div>
                         </div>
                         <button type="button" class="modal-btn-secondary" onclick="PDV.trocaVoltar()"><i class="bi bi-arrow-left"></i> Outra venda</button>
@@ -3044,6 +3048,21 @@ const PDV = {
         }
     },
 
+    /* Peça sem venda nenhuma no sistema (09/09/2026): abre o passo 2 vazio, só com o
+       campo de bipar. Regras da loja (sobra, gerente para dinheiro) valem igual. */
+    async trocaSemVenda() {
+        try {
+            const resp = await fetch('{{ route("app.pdv.troca.sem-venda") }}', { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' } });
+            const s = await resp.json();
+            if (!resp.ok) { this.showAlert(s.error || 'Erro ao abrir a troca', 'error'); return; }
+            this._trocaSituacao = s;
+            this.renderTrocaVenda();
+            setTimeout(() => document.getElementById('trocaBipar').focus(), 150);
+        } catch (err) {
+            this.showAlert('Erro de conexão: ' + err.message, 'error');
+        }
+    },
+
     trocaVoltar() {
         document.getElementById('trocaPasso1').style.display = 'block';
         document.getElementById('trocaPasso2').style.display = 'none';
@@ -3054,9 +3073,15 @@ const PDV = {
         const s = this._trocaSituacao;
         document.getElementById('trocaPasso1').style.display = 'none';
         document.getElementById('trocaPasso2').style.display = 'block';
-        document.getElementById('trocaVendaNumero').textContent = s.venda.numero;
-        document.getElementById('trocaVendaInfo').textContent = `${s.venda.data} · ${this.formatMoney(s.venda.total)}${s.venda.loja ? ' · ' + s.venda.loja : ''}`;
-        document.getElementById('trocaVendaCliente').textContent = s.venda.cliente ? 'Cliente: ' + s.venda.cliente : 'Consumidor (sem cadastro)';
+        if (s.venda) {
+            document.getElementById('trocaVendaTitulo').textContent = 'Venda #' + s.venda.numero;
+            document.getElementById('trocaVendaInfo').textContent = `${s.venda.data} · ${this.formatMoney(s.venda.total)}${s.venda.loja ? ' · ' + s.venda.loja : ''}`;
+            document.getElementById('trocaVendaCliente').textContent = s.venda.cliente ? 'Cliente: ' + s.venda.cliente : 'Consumidor (sem cadastro)';
+        } else {
+            document.getElementById('trocaVendaTitulo').textContent = 'Peça sem venda neste sistema';
+            document.getElementById('trocaVendaInfo').textContent = 'bipe o código de cada peça que volta';
+            document.getElementById('trocaVendaCliente').textContent = 'Entra pelo preço de venda de hoje';
+        }
 
         // Itens
         document.getElementById('trocaItens').innerHTML = s.itens.map(i => `
@@ -3089,7 +3114,11 @@ const PDV = {
 
         // Política
         const pol = document.getElementById('trocaPolitica');
-        if (!s.pode_trocar) {
+        if (!s.venda) {
+            pol.style.display = 'block';
+            pol.style.background = 'rgba(34,197,94,.12)'; pol.style.color = 'var(--accent-green)';
+            pol.innerHTML = '<i class="bi bi-upc-scan me-1"></i> Sem venda de origem: a peça entra pelo preço de venda atual e as regras da loja valem como em qualquer troca.';
+        } else if (!s.pode_trocar) {
             pol.style.display = 'block';
             pol.style.background = 'rgba(239,68,68,.15)'; pol.style.color = 'var(--accent-red)';
             pol.innerHTML = '<i class="bi bi-x-circle me-1"></i> Esta venda não tem itens disponíveis para troca.';
@@ -3238,7 +3267,7 @@ const PDV = {
         if (!itens.length) { this.showAlert('Marque a quantidade de pelo menos um item para devolver', 'warning'); return; }
 
         const payload = {
-            venda_id: s.venda.id,
+            venda_id: s.venda ? s.venda.id : null,
             tipo,
             itens,
             motivo: document.getElementById('trocaMotivo').value,
@@ -3271,7 +3300,7 @@ const PDV = {
                     this.creditoTroca = { codigo: data.vale.codigo, saldo: data.vale.saldo, devolucaoId: data.devolucao.id, validade: data.vale.validade };
                     bootstrap.Modal.getInstance(document.getElementById('modalTroca'))?.hide();
                     this.updateSummary();
-                    this.showAlert(`Troca da venda #${data.devolucao.venda_numero}: crédito de ${this.formatMoney(data.vale.saldo)}. Bipe o que o cliente leva.`, 'success');
+                    this.showAlert(`${data.devolucao.venda_numero ? 'Troca da venda #' + data.devolucao.venda_numero : 'Troca de peça sem venda'}: crédito de ${this.formatMoney(data.vale.saldo)}. Bipe o que o cliente leva.`, 'success');
                     document.getElementById('searchInput').focus();
                 } else {
                     // Tudo abatido em parcelas abertas: não há crédito para a venda nova
@@ -3282,7 +3311,7 @@ const PDV = {
             } else {
                 document.getElementById('trocaPasso2').style.display = 'none';
                 document.getElementById('trocaPasso3').style.display = 'block';
-                let r = `Devolvido <strong>${this.formatMoney(data.devolucao.valor_estornado)}</strong> da venda #${data.devolucao.venda_numero}.`;
+                let r = `Devolvido <strong>${this.formatMoney(data.devolucao.valor_estornado)}</strong>${data.devolucao.venda_numero ? ' da venda #' + data.devolucao.venda_numero : ' (peça sem venda no sistema)'}.`;
                 if (data.devolucao.valor_abatido_parcelas > 0) r += `<br>${this.formatMoney(data.devolucao.valor_abatido_parcelas)} abatidos das parcelas em aberto.`;
                 if (data.vale) r += `<br><div style="margin-top:8px; font-size:1.2rem;">Vale <strong>${data.vale.codigo}</strong> — ${this.formatMoney(data.vale.saldo)}${data.vale.validade ? ' · válido até ' + data.vale.validade : ''}</div>`;
                 else if (data.devolucao.forma_sobra === 'dinheiro') r += `<br><div style="margin-top:8px; font-size:1.2rem;"><strong>${this.formatMoney(data.devolucao.valor_sobra)} devolvidos em dinheiro</strong> — saída registrada no caixa.</div>`;

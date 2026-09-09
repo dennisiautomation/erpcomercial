@@ -307,6 +307,9 @@ Route::middleware(['auth', 'suspensao', 'unidade', \App\Http\Middleware\Restring
     Route::get('/pdv/troca/vendas', [App\PdvController::class, 'trocaBuscarVendas'])
         ->name('pdv.troca.vendas')
         ->middleware('permission:trocas,criar');
+    Route::get('/pdv/troca/sem-venda', [App\PdvController::class, 'trocaSemVenda'])
+        ->name('pdv.troca.sem-venda')
+        ->middleware('permission:trocas,criar');
     Route::get('/pdv/troca/venda/{venda}', [App\PdvController::class, 'trocaVenda'])
         ->name('pdv.troca.venda')
         ->middleware('permission:trocas,criar');

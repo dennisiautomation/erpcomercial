@@ -792,10 +792,16 @@ class PdvController extends Controller
         return response()->json($trocas->situacao($v, ConfiguracaoLoja::daUnidade(), auth()->user()));
     }
 
+    /** Troca de peça SEM venda no sistema (09/09/2026): situação vazia para o F6 só bipar. */
+    public function trocaSemVenda(TrocaService $trocas)
+    {
+        return response()->json($trocas->situacaoSemVenda(ConfiguracaoLoja::daUnidade(), auth()->user()));
+    }
+
     public function trocaRegistrar(Request $request, TrocaService $trocas)
     {
         $request->validate([
-            'venda_id'                 => 'required|integer',
+            'venda_id'                 => 'nullable|integer',
             'tipo'                     => 'required|in:troca,devolucao',
             'itens'                    => 'required|array|min:1',
             'itens.*.venda_item_id'    => 'nullable|integer',
@@ -811,9 +817,15 @@ class PdvController extends Controller
             'observacoes'              => 'nullable|string|max:1000',
         ]);
 
-        $venda = Venda::withoutGlobalScope(UnidadeScope::class)
-            ->where('empresa_id', session('empresa_id'))
-            ->findOrFail((int) $request->venda_id);
+        // Sem venda_id = peça que o sistema não vendeu: toda linha vem por produto
+        $venda = null;
+        if ($request->filled('venda_id')) {
+            $venda = Venda::withoutGlobalScope(UnidadeScope::class)
+                ->where('empresa_id', session('empresa_id'))
+                ->findOrFail((int) $request->venda_id);
+        } elseif (collect($request->input('itens', []))->contains(fn ($i) => empty($i['produto_id']))) {
+            return response()->json(['error' => 'Sem venda de origem, toda peça precisa ser bipada pelo código.'], 422);
+        }
 
         try {
             $devolucao = $trocas->registrar(
@@ -822,7 +834,8 @@ class PdvController extends Controller
                 auth()->user(),
                 ConfiguracaoLoja::daUnidade(),
                 (int) session('unidade_id'),
-                session('caixa_id') ? (int) session('caixa_id') : null
+                session('caixa_id') ? (int) session('caixa_id') : null,
+                (int) session('empresa_id')
             );
         } catch (\DomainException $e) {
             return response()->json(['error' => $e->getMessage()], 422);
@@ -839,7 +852,7 @@ class PdvController extends Controller
             'devolucao' => [
                 'id'                     => $devolucao->id,
                 'tipo'                   => $devolucao->tipo,
-                'venda_numero'           => $venda->numero,
+                'venda_numero'           => $venda?->numero,
                 'valor_estornado'        => (float) $devolucao->valor_estornado,
                 'valor_abatido_parcelas' => (float) $devolucao->valor_abatido_parcelas,
                 'forma_sobra'            => $devolucao->forma_sobra,
