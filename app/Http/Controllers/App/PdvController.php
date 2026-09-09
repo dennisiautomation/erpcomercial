@@ -37,6 +37,23 @@ use Illuminate\Support\Facades\Log;
 
 class PdvController extends Controller
 {
+    /**
+     * Mantém a sessão viva enquanto o PDV está aberto na tela (09/09/2026).
+     *
+     * `SESSION_LIFETIME` é 120 min e o PDV fica aberto no balcão o dia inteiro:
+     * em 08/09 a loja Timon ficou 2h03 sem vender, a sessão morreu e as buscas
+     * seguintes voltaram 401 — 192 delas num único dia, em 2 máquinas. Qualquer
+     * request autenticado renova a sessão; este só existe para ser barato e ter
+     * intenção óbvia no log. Não muda nada no banco.
+     */
+    public function ping()
+    {
+        return response()->json([
+            'ok' => true,
+            'em' => now()->toIso8601String(),
+        ]);
+    }
+
     public function index()
     {
         $caixaId = session('caixa_id');

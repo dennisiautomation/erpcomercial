@@ -288,6 +288,12 @@ Route::middleware(['auth', 'suspensao', 'unidade', \App\Http\Middleware\Restring
     Route::post('/pdv/venda', [App\PdvController::class, 'registrarVenda'])
         ->name('pdv.venda')
         ->middleware('permission:vendas,criar');
+    // Mantém a sessão viva enquanto o PDV está aberto no balcão (armadilha 74).
+    // Entra no grupo `app.pdv.*`, então já está liberada no modo "vendedor só PDV".
+    Route::get('/pdv/ping', [App\PdvController::class, 'ping'])
+        ->name('pdv.ping')
+        ->middleware('permission:vendas,criar');
+
     Route::get('/pdv/produto/{codigo}', [App\PdvController::class, 'buscarProduto'])
         ->name('pdv.buscar-produto')
         ->middleware('permission:vendas,criar');

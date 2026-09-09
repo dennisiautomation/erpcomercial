@@ -1392,6 +1392,25 @@
     </div>
 </div>
 
+{{-- ===== SESSÃO EXPIRADA (09/09/2026) =====
+     Até aqui a sessão caía e o PDV não dizia nada: a busca voltava 401, o erro
+     morria num console.error e a tela seguia com cara de logada. Em 08/09 foram
+     192 buscas assim num dia só — a operadora digitou "taxa de entrega" mais de
+     20 vezes achando que o produto tinha sumido. Ver armadilha 74. --}}
+<div class="no-caixa-overlay" id="sessaoExpiradaOverlay" style="display:none;">
+    <div class="no-caixa-box">
+        <i class="bi bi-shield-exclamation" style="color:var(--accent-red, #ef4444);"></i>
+        <h3>Sua sessão expirou</h3>
+        <p>
+            Por segurança o sistema desconectou depois de um tempo parado.
+            <strong>Nada do que está na tela foi gravado</strong> — entre de novo e refaça esta venda.
+        </p>
+        <a href="{{ route('login') }}" class="btn-open-caixa">
+            <i class="bi bi-box-arrow-in-right"></i> Entrar de novo
+        </a>
+    </div>
+</div>
+
 {{-- Print frame --}}
 <iframe id="printFrame"></iframe>
 
@@ -1699,13 +1718,20 @@ const PDV = {
     },
 
     cachePrecos(produtos) {
-        (produtos || []).forEach(p => {
+        // Qualquer resposta que não seja lista de produtos (401 devolve
+        // `{message:"Unauthenticated."}`) parava aqui com TypeError, e o erro
+        // morria no catch da busca — tela muda. Ver armadilha 74.
+        if (! Array.isArray(produtos)) return;
+        produtos.forEach(p => {
             if (p && p.precos) this.precosCache[p.id] = p.precos;
         });
     },
 
     showSearchResults(produtos) {
         const dropdown = document.getElementById('searchDropdown');
+        // Resposta que não é lista (401/erro) não vira "nenhum produto": o
+        // aviso de sessão é quem fala nesse caso — armadilha 74.
+        if (! Array.isArray(produtos)) { this.closeDropdown(); return; }
         if (produtos.length === 0) {
             dropdown.innerHTML = '<div style="padding:16px; text-align:center; color:var(--text-muted);">Nenhum produto encontrado</div>';
             dropdown.classList.add('show');
@@ -3345,8 +3371,61 @@ document.getElementById('clienteClear')?.addEventListener('click', () => {
     document.getElementById('clienteClear').style.display = 'none';
 });
 
+// ===== SESSÃO: avisar quando cair, e não deixar cair com o PDV aberto =====
+// (09/09/2026 — armadilha 74)
+const Sessao = {
+    // Renova a sessão a cada 10 min. SESSION_LIFETIME é 120, e qualquer request
+    // autenticado zera a contagem: 6 pings por hora resolvem o dia inteiro.
+    INTERVALO_MS: 10 * 60 * 1000,
+    caiu: false,
+
+    iniciar() {
+        setInterval(() => this.ping(), this.INTERVALO_MS);
+        // Voltar para a aba depois de um tempo fora: renova na hora, sem
+        // esperar o próximo ciclo — é quando a sessão está mais perto de vencer.
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') this.ping();
+        });
+    },
+
+    async ping() {
+        // Só enquanto a tela está à vista: máquina de balcão com o navegador
+        // minimizado a noite inteira não deve ficar logada para sempre.
+        if (document.visibilityState !== 'visible' || this.caiu) return;
+        try {
+            await fetch('{{ route("app.pdv.ping") }}', {
+                headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+                cache: 'no-store',
+            });
+        } catch (e) { /* sem rede: o próximo ciclo tenta de novo */ }
+    },
+
+    expirou() {
+        if (this.caiu) return;   // um 401 basta; não empilhar aviso
+        this.caiu = true;
+        const ov = document.getElementById('sessaoExpiradaOverlay');
+        if (ov) ov.style.display = 'flex';
+    },
+};
+
+// Uma trava só, no lugar por onde TUDO passa: busca, código de barras, estoque,
+// F6, vale, sangria, suprimento e o POST da venda. Sem isto, cada chamada
+// engolia o 401 no próprio catch e a tela ficava muda.
+(function () {
+    const fetchOriginal = window.fetch;
+    window.fetch = async function (...args) {
+        const resp = await fetchOriginal.apply(this, args);
+        // 419 = token CSRF morto junto com a sessão; para o operador é o mesmo caso.
+        if (resp.status === 401 || resp.status === 419) Sessao.expirou();
+        return resp;
+    };
+})();
+
 // Init
-document.addEventListener('DOMContentLoaded', () => PDV.init());
+document.addEventListener('DOMContentLoaded', () => {
+    PDV.init();
+    Sessao.iniciar();
+});
 </script>
 
 {{-- Aviso de número de caixa trocado na abertura (09/09/2026).
