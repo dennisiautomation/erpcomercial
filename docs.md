@@ -3871,6 +3871,60 @@ Loja 20 da empresa 4, com os caixas 1, 7, 8, 9 e 10 abertos (mesmo desenho da pr
 
 Sem migration: tudo o que o comprovante mostra é derivado do que já existe.
 
+### Deploy — FEITO em 09/09/2026
+
+**EM PRODUÇÃO** desde 09/09 ~10:20 (UTC-3), a partir de `caixa-comprovante-numero` @`f6221ef`.
+Rito de sempre, **sem rebuild e sem migration** (não toca `bootstrap/`, `public/` nem `composer.json`).
+
+| Passo | O quê |
+|---|---|
+| Backup | `/home/ubuntu/erp-backups/pre-caixa-comprovante-20260909-1300.sql.gz` (73 tabelas) + `erp-code-no-ar-pre-caixa-20260909.tgz` (código que estava no ar) |
+| Rollback | imagem `erp-com-app:pre-caixa-comprovante-20260909` (`docker commit` — pega a camada de escrita, onde vivem trocas, PWA e as entregas por tar desde 02/09) |
+| Código | `tar app database resources routes config` |
+| Caches | `artisan optimize` (recacheia ROTAS — **antes** do reload, armadilha 26b) → `chown www-data` → `kill -USR2 29` no master do php-fpm (**não** o PID 1, que é o supervisord) |
+
+Pré-voo: produção conferida **byte a byte** contra a base do commit em `app`, `routes`, `config` e
+`database` — idêntica (só os `.bak-297` do deploy de 08/09 sobrando), então o tar não estava atrás de
+nada (armadilhas 50 e 52).
+
+Conferido depois: as 3 rotas no `route:list` (`caixa.comprovante`, `caixa.fechar-caixa` e a
+`caixa.fechar` de sempre); `app`, `routes`, `config`, `database` e `resources` do container
+**byte-idênticos** ao commit; `/` e `/login` em 200, `/app/caixa`, `/app/caixa/abrir`, `/app/pdv` e
+as duas rotas novas em **302 para o login** — 302 e não 500 é a prova de que resolveram na cadeia do
+grupo `/app`; `laravel.log` sem linha nova depois do deploy.
+
+🔑 **Prova com dado real de produção**, renderizando o comprovante do caixa que a MISS MERLINDA
+fechou às 09:16 do mesmo dia: Cartão de Crédito R$ 489,50 + PIX R$ 446,00 = **R$ 935,50**, com
+**R$ 44,50 de acréscimo de cartão** — o número que existia no banco desde 04/09 e não aparecia em
+tela nenhuma até este comprovante.
+
+⚠️ **Nenhum caixa foi fechado**: os 25 abertos antes do deploy continuam 25 depois.
+
+### Os 25 caixas abertos em 09/09/2026 (levantamento, não mexido)
+
+Entregue ao Dennis na mesma sessão. Os de 0–1 dia são turno em andamento; os 12 marcados são os que
+prendem número há uma semana ou mais:
+
+| Empresa · Loja | Cx | Operador | Aberto em | Dias | Gaveta |
+|---|---|---|---|---|---|
+| IA365 · Dennis Canteli | 1 | Dennis Canteli | 14/07 03:49 | **57** | — |
+| IA365 · Matriz | 1 | Dennis Canteli | 24/07 06:33 | **47** | R$ 150,00 |
+| STILO VINTE · 04 PRIME MATRIZ | 1 | Pedro | 25/07 16:11 | **46** | R$ 24,00 |
+| STILO VINTE · Matriz | 1 | Pedro | 25/07 14:33 | **46** | R$ 77,00 |
+| STILO VINTE · 05 PRIME FILIAL | 1 | Pedro | 05/08 06:09 | **35** | R$ 60,00 |
+| MISS MERLINDA · Matriz | 1 | Michel | 05/08 06:25 | **35** | — |
+| DONA DOURO · Matriz | 1 | Marcus Vinicius | 11/08 14:26 | **29** | — |
+| MISS MERLINDA · Timon | 1 | Michel | 20/08 10:28 | **20** | R$ 55,00 |
+| N S BORBA · Realiza Phone | 1 | Metheus | 28/08 08:47 | **12** | — |
+| MISS MERLINDA · Riverside | 1 | Maria Giovana | 02/09 14:25 | **7** | R$ 240,00 |
+| MISS MERLINDA · Timon | 2 | Maria Giovana | 02/09 13:58 | **7** | R$ 90,00 |
+| N S BORBA · CellMaster Assistência | 1 | Metheus | 02/09 22:28 | **7** | R$ 30,00 |
+| MISS MERLINDA · Caxias 1, Dirceu 1 e 2, Dom Severino 2, Matriz 2 | | Michel / Marcelo / Maria Giovana | 03/09 | 6 | — |
+| Operação do dia (Caxias 2, Dirceu 3, Dom Severino 4, Riverside 4, Matriz 4, Timon 5, Dona Douro 2, CellMaster Person. 1) | | — | 08–09/09 | 0–1 | — |
+
+📌 Riverside cx 1 (R$ 240) e Timon cx 2 (R$ 90) têm dinheiro na gaveta: quando forem fechados vai
+aparecer diferença, porque ninguém contou nada há uma semana. Os demais antigos estão zerados.
+
 ### O que ficou de fora
 
 - **Os 25 caixas abertos não foram fechados** — decisão do Dennis (09/09): o número sugerido já
@@ -4306,7 +4360,7 @@ Sem migration: tudo o que o comprovante mostra é derivado do que já existe.
 > realidade divergia do que estava escrito aqui, o texto foi corrigido — vale a auditoria, não a
 > memória do que se pretendia fazer.
 
-### Estado do repositório (05/09/2026, tarde)
+### Estado do repositório (09/09/2026)
 
 Trabalha-se em `/home/ubuntu/apps/erp-agente-ia` (worktree da `main`); `/root/erp` está numa branch
 de agosto e **não** é a referência (tem 55 linhas de docs.md não commitadas — a seção "Carga de
@@ -4314,22 +4368,30 @@ vendas históricas 28/08" — que a `main` não tem; portar quando for o caso).
 
 | Ref | Onde está | O que tem |
 |---|---|---|
-| `main` = **produção** = `origin/main` | ponta de `melhor-envio` | tudo até 05/09: canal da venda (9q, `48b754b`) + Melhor Envio (9r, `81fb207`) + docs; promovida por fast-forward e **pushada** em 05/09 a pedido do Dennis |
-| `canal-venda-gersen`, `melhor-envio` | contidas na `main` | rastro das duas entregas de 05/09; podem ser apagadas |
+| `main` = **produção** = `origin/main` | ponta de `caixa-comprovante-numero` | tudo até 09/09: comprovante de fechamento + número de caixa automático + botão Fechar (9u); promovida por fast-forward e **pushada** em 09/09 a pedido do Dennis |
+| `feat/sync-agente-capacidades` | contida na `main` | rastro do sync automático de 08/09 |
+| `canal-venda-gersen`, `melhor-envio` | contidas | rastro das duas entregas de 05/09; podem ser apagadas |
 | `estoque-roda-do-mouse`, `feat/split-acrescimo-por-parte` | contidas | rastro de 04/09 |
 
 🔑 `main == produção` conferido: o container recebeu por tar exatamente o conteúdo de `app`,
-`database`, `resources`, `routes` e `config` destes commits (migrations batch 36 e 37 rodadas).
+`database`, `resources`, `routes` e `config` destes commits (última migration rodada: a do sync de
+08/09; a entrega de 09/09 não tem migration).
+
+📌 Resíduo conhecido no container: os `*.bak-297` do deploy de 08/09 (`EmpresaMelhorEnvioController`,
+`IntegracaoAgenteController`, `AgenteIaConfig`, `EmpresaGateway`, `AppServiceProvider`, `routes/web`).
+São cópias inertes (o PHP não carrega `.php.bak-297`) e aparecem em todo `diff -rq` produção × `main`
+— não confundir com divergência de código.
 
 ⚠️ `refs/heads/fix/` no `.git` é de root (`/root/erp/.git` é o repositório real desta worktree):
 branch nova aqui vai **sem barra** no nome, ou pedir ao Dennis para criar.
 
 **Fila de 09/09 (caixa):**
 
-1. ⚠️ **25 caixas seguem abertos, 9 há mais de 7 dias** — Dennis decidiu em 09/09 **não** fechá-los
-   junto com a entrega. O número sugerido na abertura já desvia deles, mas esses números só voltam a
-   ser reaproveitados quando alguém fechar, agora que a tela de Caixas tem o botão. A lista com loja,
-   número, operador e data de abertura foi entregue a ele na mesma sessão.
+1. ⚠️ **25 caixas seguem abertos, 12 parados há 7 dias ou mais** — Dennis decidiu em 09/09 **não**
+   fechá-los junto com a entrega. O número sugerido na abertura já desvia deles, mas esses números só
+   voltam a ser reaproveitados quando alguém fechar, agora que a tela de Caixas tem o botão. A lista
+   completa está na seção 9u ("Os 25 caixas abertos em 09/09/2026"). Os dois com dinheiro na gaveta
+   — Riverside cx 1 (R$ 240) e Timon cx 2 (R$ 90) — vão acusar diferença no fechamento.
 2. **Fechamento automático de caixa esquecido** (por tempo, ou no fechamento da loja) não existe —
    depende de alguém fechar pela tela. Só vale decidir depois de ver se a fila acima drena sozinha.
 3. O comprovante abre a caixa de diálogo do navegador; impressão direta na térmica sem diálogo
