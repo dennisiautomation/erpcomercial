@@ -4043,6 +4043,36 @@ FINALIZAR. Guardar e restaurar o carrinho depois do login é entrega separada.
 | Busca normal + clique no resultado | item entra na venda, total R$ 1,00, zero erro |
 | 7 telas × 2 perfis | **zero 5xx** |
 
+### Deploy — FEITO em 09/09/2026 ~11:05
+
+**EM PRODUÇÃO** a partir de `pdv-sessao-expirada` @`4d32142`. Rito de sempre, **sem rebuild e sem
+migration** (não toca `bootstrap/`, `public/` nem `composer.json`).
+
+| Passo | O quê |
+|---|---|
+| Backup | `/home/ubuntu/erp-backups/pre-pdv-sessao-20260909-1105.sql.gz` (73 tabelas) |
+| Rollback | imagem `erp-com-app:pre-pdv-sessao-20260909` (`docker commit`) |
+| Código | `tar app database resources routes config` |
+| Caches | `artisan optimize` (rota nova — **antes** do reload, armadilha 26b) → `chown www-data` → `kill -USR2 29` no master do php-fpm (**não** o PID 1) |
+
+Pré-voo: produção conferida byte a byte contra a base do commit — idêntica (só os `.bak-297` de
+08/09). Conferido depois: `app.pdv.ping` no `route:list`; `app`, `routes`, `config`, `database` e
+`resources` do container **byte-idênticos** ao commit; `/` e `/login` em 200, `/app/pdv`,
+`/app/pdv/ping` e `/app/caixa` em 302 para o login (302 e não 500 é a prova de que a rota resolveu
+na cadeia do grupo `/app`); `laravel.log` sem linha nova.
+
+⚠️ **Só vale depois que a aba do PDV recarregar.** Quem está com o PDV aberto segue com o JS antigo
+até dar F5 ou entrar de novo — o keep-alive e o aviso vivem na página, não no servidor. É por isso
+que o primeiro `/app/pdv/ping` de loja só aparece no access log quando alguém reabre a tela.
+
+### O que ficou de fora
+
+- **Guardar o carrinho** quando a sessão cai: os itens vivem só na memória do JS e somem junto. O
+  aviso passou a dizer isso com todas as letras, mas restaurar depois do login é entrega separada.
+- **As outras telas** (`layouts/app`) mostram o redirect ao navegar, mas o AJAX delas (autocomplete,
+  notificações, import) cai no mesmo silêncio. Só o PDV foi coberto.
+- `SESSION_LIFETIME=120` continua valendo para o resto do sistema.
+
 ---
 
 ## Armadilhas conhecidas
@@ -4499,7 +4529,8 @@ vendas históricas 28/08" — que a `main` não tem; portar quando for o caso).
 
 | Ref | Onde está | O que tem |
 |---|---|---|
-| `main` = **produção** = `origin/main` | ponta de `caixa-comprovante-numero` | tudo até 09/09: comprovante de fechamento + número de caixa automático + botão Fechar (9u); promovida por fast-forward e **pushada** em 09/09 a pedido do Dennis |
+| `main` = **produção** = `origin/main` | ponta de `pdv-sessao-expirada` | tudo até 09/09 tarde: comprovante de fechamento + número de caixa automático + botão Fechar (9u) e o aviso/keep-alive de sessão do PDV (9v); promovida por fast-forward e **pushada** em 09/09 a pedido do Dennis |
+| `caixa-comprovante-numero` | contida na `main` | rastro da entrega do caixa de 09/09 |
 | `feat/sync-agente-capacidades` | contida na `main` | rastro do sync automático de 08/09 |
 | `canal-venda-gersen`, `melhor-envio` | contidas | rastro das duas entregas de 05/09; podem ser apagadas |
 | `estoque-roda-do-mouse`, `feat/split-acrescimo-por-parte` | contidas | rastro de 04/09 |
