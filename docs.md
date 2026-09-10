@@ -4250,6 +4250,70 @@ bloco de deploy acima).
 
 ---
 
+## A descrição do produto nunca chegava ao agente (10/09/2026)
+
+Relato do Dennis: "entregamos o JSON dos produtos pesquisados, ele responde certo, foto tudo mais,
+mas não vem para o agente do app.ia365 a descrição que está lá no cadastro do produto — no corpo
+não vem a descrição".
+
+**Não vinha mesmo, e a causa era daqui.** O `produtoParaResposta()`
+(`Api\IntegracaoAgenteController`) montava o corpo de `POST /api/integracao/v1/produtos/buscar` com
+9 campos — `id, nome, codigo, categoria, preco, precos_modalidade, unidade_medida, estoque,
+foto_url` — e **`descricao_detalhada` não era um deles**. O campo só existia no
+`GET /api/integracao/v1/produtos/{id}`, anexado à parte, e **nenhuma das 6 intenções do agente chama
+esse endpoint** (BUSCAR PRODUTOS, ESTOQUE POR LOJA, CRIAR PEDIDO, MEUS PEDIDOS, PIX DO PEDIDO,
+COTAR ENTREGA). Ou seja: o texto que o lojista escreve em "Descricao detalhada" não tinha caminho
+nenhum até o agente.
+
+Prova antes do fix, rodando o próprio método no container de produção (produto 2484 da DONA DOURO,
+`descricao_detalhada = "SEMIJOIA"`):
+
+```
+{"id":"2484","nome":"COLAR DOURADO LETRA","codigo":"005304","categoria":null,
+ "preco":0,"precos_modalidade":{"debito":249,"credito":249},
+ "unidade_medida":"UN","estoque":5,"foto_url":null}
+```
+
+⚠️ **O que já funcionava e confundia o diagnóstico:** a `descricao_detalhada` **sempre** entrou no
+índice vetorial — `EmbeddingService::montarTexto()` monta
+`descricao | categoria | descricao_detalhada | codigo_interno | sku` e o `ProdutoObserver` reindexa
+a cada salvar/excluir/restaurar (só nas empresas com o módulo ativo). O agente já **achava** o
+produto pela descrição; ele só não **recebia** o texto de volta. Buscar e responder são dois
+caminhos diferentes — o índice estar certo não diz nada sobre o corpo da resposta.
+
+### O fix
+
+`descricao_detalhada` entrou no `produtoParaResposta()`, que é o ponto único das **três** saídas de
+produto (busca textual, busca semântica e fallback de catálogo) e também do detalhe. Vazia vira
+`null` (e não string vazia) para o agente distinguir "não tem" de "tem e está em branco"; a
+duplicata que o `GET /produtos/{id}` anexava saiu, porque agora vem da base. As duas queries já
+faziam `->get()` sem lista de colunas, então nenhuma mudou.
+
+Do outro lado (app.ia365, §302): a intenção BUSCAR PRODUTOS dizia ao LLM para mostrar "APENAS nome
+e preço" — com o campo chegando e a instrução assim, ele continuaria ignorando. A frase passou a
+mandar usar a `descricao_detalhada` **como veio**, sem inventar nem resumir, e a não descrever item
+que vier com o campo vazio.
+
+**Não precisou mexer em agente nenhum à mão:** o sync do §297 (`erp-agent-sync.ts`) casa as
+intenções do template **por nome** e dá `prisma.intention.update()` sobrescrevendo
+`triggerCondition`, `apiUrl`, `apiBodyTemplate` e variáveis. Mudar o template corrige os agentes que
+existem (DONA DOURO e ia365) no cron das 06:30 UTC ou num disparo à mão, e faz todo agente novo
+nascer certo. A contrapartida do desenho: ajuste manual na tela numa intenção do template é desfeito
+no próximo sync — o template é o único lugar certo para mexer.
+
+### O que ficou de fora (de propósito)
+
+- **A busca textual continua sem olhar a `descricao_detalhada`.** O `LIKE` varre `descricao`,
+  `codigo_interno`, `sku` e `codigo_barras`. Só a semântica cobre a descrição. Incluir o campo no
+  `LIKE` muda o que o cliente vê na lista e não foi pedido.
+- **O painel (aba Produtos / Novo pedido do app.ia365) não mostra a descrição.** O campo entrou no
+  tipo `ErpProduto`, mas nenhuma tela mudou — tela operacional não muda junto com entrega de agente.
+- 🔴 **É dado, não código:** a "Descricao detalhada" é opcional e quase ninguém preenche —
+  **DONA DOURO 71 de 1.987**, N S BORBA 67 de 103, ia365 6 de 19, MISS MERLINDA 1 de 603, STILO
+  VINTE 0 de 515, DK HOSPITALAR 0 de 749. Depois do fix a maioria dos produtos segue saindo sem
+  descrição, por falta de cadastro. As que existem são curtas (máx. 36 caracteres, média 17), então
+  não há custo relevante de token.
+
 ## Armadilhas conhecidas
 
 1. **EmpresaScope recursão**: `auth()->user()` dentro do scope chama User model que tem o scope → loop infinito. Scopes têm flag `static $applying`. Não remover.
@@ -4732,6 +4796,15 @@ São cópias inertes (o PHP não carrega `.php.bak-297`) e aparecem em todo `dif
 
 ⚠️ `refs/heads/fix/` no `.git` é de root (`/root/erp/.git` é o repositório real desta worktree):
 branch nova aqui vai **sem barra** no nome, ou pedir ao Dennis para criar.
+
+**Fila de 10/09 (descrição do produto no agente):**
+
+1. **Cadastrar a "Descricao detalhada"** nos produtos que importam — sem isso o fix não aparece.
+   Hoje é 71 de 1.987 na DONA DOURO e 0 de 515 na STILO VINTE (ver a seção do dia).
+2. Decidir se a **busca textual** passa a olhar a `descricao_detalhada` no `LIKE` — muda o que o
+   cliente vê na lista, precisa de OK.
+3. Decidir se o **painel** (aba Produtos / Novo pedido) passa a mostrar a descrição — hoje só o
+   agente usa.
 
 **Fila de 09/09 (troca):**
 

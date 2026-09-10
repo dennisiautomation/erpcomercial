@@ -371,11 +371,10 @@ class IntegracaoAgenteController extends Controller
         $saldos = SaldoEstoque::porProdutoDaEmpresa($token->empresa_id);
 
         return response()->json([
+            // descricao_detalhada saiu daqui: vem do produtoParaResposta(), que
+            // agora a entrega em toda resposta de produto.
             'dados' => $this->produtoParaResposta($produto, (float) ($saldos[$produto->id] ?? 0.0))
-                + [
-                    'descricao_detalhada' => $produto->descricao_detalhada,
-                    'estoque_por_loja' => $this->estoquePorLoja($token->empresa_id, $produto->id),
-                ],
+                + ['estoque_por_loja' => $this->estoquePorLoja($token->empresa_id, $produto->id)],
         ]);
     }
 
@@ -1238,9 +1237,17 @@ class IntegracaoAgenteController extends Controller
         $precosModalidade = $produto->precos
             ->mapWithKeys(fn ($p) => [$p->modalidade => (float) $p->valor]);
 
+        // A "Descricao detalhada" do cadastro do produto viaja em TODA resposta
+        // de produto — a busca inclusive. Antes só existia no GET /produtos/{id},
+        // que nenhuma intencao do agente chama: o texto que o lojista escreve no
+        // cadastro nunca chegava ao agente (10/09/2026). Vazia vira null em vez
+        // de string vazia, para o agente distinguir "nao tem" de "tem e e vazio".
+        $detalhada = trim((string) $produto->descricao_detalhada);
+
         return [
             'id' => (string) $produto->id,
             'nome' => $produto->descricao,
+            'descricao_detalhada' => $detalhada !== '' ? $detalhada : null,
             'codigo' => $produto->codigo_interno,
             'categoria' => $produto->categoria?->nome,
             'preco' => (float) $produto->preco_venda,
