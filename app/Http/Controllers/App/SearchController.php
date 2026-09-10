@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Cliente;
 use App\Models\Fornecedor;
 use App\Models\Produto;
+use App\Models\Servico;
 use App\Models\User;
 use App\Models\Venda;
 use Illuminate\Http\JsonResponse;
@@ -59,6 +60,23 @@ class SearchController extends Controller
             ->get();
 
         return response()->json($produtos);
+    }
+
+    public function servicos(Request $request): JsonResponse
+    {
+        $q = $request->input('q', '');
+
+        $servicos = Servico::where('empresa_id', $this->empresaId())
+            ->where(function ($query) use ($q) {
+                $query->where('descricao', 'like', "%{$q}%")
+                      ->orWhere('codigo_lc116', 'like', "%{$q}%");
+            })
+            ->where('status', 'ativo')
+            ->select('id', 'descricao', 'codigo_lc116', 'valor_padrao')
+            ->limit(10)
+            ->get();
+
+        return response()->json($servicos);
     }
 
     public function fornecedores(Request $request): JsonResponse
