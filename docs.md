@@ -4211,11 +4211,14 @@ Validado no `erp-test-app` (perfil caixa): situação sem venda; troca de 1 peç
 dinheiro numa loja que só dá vale → 422 da regra normal; linha com `venda_item_id` sem venda → 422;
 as 4 telas de troca em 200 com o texto "sem venda"; objeto `PDV` real parseado em node; log limpo.
 
-**Deploy da rodada 2 — PENDENTE** (o classificador do modo automático barra o tar para o container;
-Dennis roda, **na worktree `/home/ubuntu/apps/erp-agente-ia`**): backup
-`/home/ubuntu/erp-backups/pre-troca-sem-venda-<hora>.sql.gz` e imagem `erp-com-app:pre-troca-sem-venda-20260909`
-já feitos; rito = tar → `migrate --force` (`2026_09_09_200000`) → `optimize` (**rota nova**, antes do
-reload — armadilha 26b) → chown → USR2 29. Conferir: `route:list --path=pdv/troca` = 4 rotas.
+**Deploy das rodadas 2 e 3 — FEITO em 09/09/2026 (tarde), pelo Dennis**, a partir de `f52e8cc`, pelo
+rito à mão na worktree `/home/ubuntu/apps/erp-agente-ia` (tar → `migrate --force` → `optimize` → chown →
+USR2 29). Backup `/home/ubuntu/erp-backups/pre-troca-sem-venda-20260909-1712.sql.gz` (73 tabelas) e imagem
+de rollback `erp-com-app:pre-troca-sem-venda-20260909`. Conferido no container: migration
+`2026_09_09_200000` Ran, `devolucoes.venda_id` nula, as 3 rotas novas (`pdv.troca.sem-venda`,
+`pdv.reimprimir.vendas`, `pdv.venda.recibo`) no cache de rotas, os 8 arquivos da entrega
+byte-idênticos à branch, `/app/pdv` e as rotas novas em 302 para o login, `laravel.log` limpo; o
+Reimprimir já foi usado em produção às 14:31.
 
 ### Rodada 3 (09/09, tarde): botão "Reimprimir" no PDV
 
@@ -4237,8 +4240,8 @@ dia, não quero mexer no fluxo"*. O PDV só reimprimia dentro do modal "Venda Fi
 
 Validado no `erp-test-app` (perfil caixa): PDV renderiza o botão e o modal; lista de 04/09 = 14 vendas
 (igual ao banco), dia sem venda/inválido = lista vazia; recibo 200 com a view de cupom; venda de outra
-empresa e inexistente = 404; objeto `PDV` parseado em node. ⚠️ **Deploy PENDENTE** junto com a rodada 2
-— tem **rota nova**: `optimize` antes do USR2 (armadilha 26b).
+empresa e inexistente = 404; objeto `PDV` parseado em node. **EM PRODUÇÃO** junto com a rodada 2 (ver o
+bloco de deploy acima).
 
 ### O que ficou de fora
 
@@ -4711,8 +4714,8 @@ vendas históricas 28/08" — que a `main` não tem; portar quando for o caso).
 
 | Ref | Onde está | O que tem |
 |---|---|---|
-| `main` = **produção** = `origin/main` | ponta de `pdv-sessao-expirada` | tudo até 09/09 tarde: comprovante de fechamento + número de caixa automático + botão Fechar (9u) e o aviso/keep-alive de sessão do PDV (9v); promovida por fast-forward e **pushada** em 09/09 a pedido do Dennis |
-| `troca-item-sem-cupom` | rodada 1 **EM PRODUÇÃO 09/09 ~14:05**; rodadas 2 (peça sem venda) e 3 (Reimprimir) **DEPLOY PENDENTE** — seção 9w | crédito da troca no split + peça sem cupom no F6 (9w), migration `2026_09_09_180000` |
+| `main` = `origin/main` = `f747426` | ponta de `pdv-sessao-expirada` | comprovante de fechamento + número de caixa automático + botão Fechar (9u) e o aviso/keep-alive de sessão do PDV (9v); promovida por fast-forward e **pushada** em 09/09 a pedido do Dennis. ⚠️ **NÃO é a produção**: a entrega da troca de 09/09 (tarde) ficou de fora — ver a linha abaixo |
+| `troca-item-sem-cupom` = **produção** = `f52e8cc` | as 3 rodadas de 09/09 (crédito no split + peça sem cupom; peça sem venda; Reimprimir) **EM PRODUÇÃO** | crédito da troca no split + peça sem cupom no F6 (9w), migration `2026_09_09_180000`. 🔴 **4 commits à frente da `main` e do GitHub** — conferido em 10/09 por `reflog` (`main@{0}` = reset para `pdv-sessao-expirada`) e `ls-remote` (`origin/main` = `f747426`). É fast-forward puro; enquanto não promover, **rebuild a partir da `main` reverte a entrega de 09/09** |
 | `caixa-comprovante-numero` | contida na `main` | rastro da entrega do caixa de 09/09 |
 | `feat/sync-agente-capacidades` | contida na `main` | rastro do sync automático de 08/09 |
 | `canal-venda-gersen`, `melhor-envio` | contidas | rastro das duas entregas de 05/09; podem ser apagadas |
