@@ -641,6 +641,7 @@ Route::middleware(['auth', 'suspensao', 'unidade', \App\Http\Middleware\Restring
     Route::prefix('search')->name('search.')->group(function () {
         Route::get('/clientes', [App\SearchController::class, 'clientes'])->name('clientes');
         Route::get('/produtos', [App\SearchController::class, 'produtos'])->name('produtos');
+        Route::get('/servicos', [App\SearchController::class, 'servicos'])->name('servicos');
         Route::get('/fornecedores', [App\SearchController::class, 'fornecedores'])->name('fornecedores');
         Route::get('/vendedores', [App\SearchController::class, 'vendedores'])->name('vendedores');
         Route::get('/global', [App\SearchController::class, 'global'])->name('global');
