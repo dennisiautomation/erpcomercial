@@ -4301,6 +4301,28 @@ existem (DONA DOURO e ia365) no cron das 06:30 UTC ou num disparo à mão, e faz
 nascer certo. A contrapartida do desenho: ajuste manual na tela numa intenção do template é desfeito
 no próximo sync — o template é o único lugar certo para mexer.
 
+### Deploy — EM PRODUÇÃO 10/09/2026 ~20:2x
+
+Rito à mão do Dennis na worktree `/home/ubuntu/apps/erp-agente-ia` (o classificador da sessão barra o
+`tar`/`docker cp` para o container), a partir de `04ffdc7`. **1 arquivo, sem migration, sem rota
+nova:** `docker cp` do `IntegracaoAgenteController.php` → `artisan optimize` → `chown www-data` →
+`kill -USR2 29`.
+
+Conferido depois: o controller no container é **byte-idêntico** à branch
+(`md5 72f29d52887e02b5b4e758d2ad61773c` nos dois) e o método rodando no container de produção devolve
+o campo que faltava —
+
+```
+{"id":"2484","nome":"COLAR DOURADO LETRA","descricao_detalhada":"SEMIJOIA","codigo":"005304",…}
+```
+
+**Prova de ponta a ponta** (agente de teste `Vendedor IA — ia365` chamando o ERP de produção pela
+intenção BUSCAR PRODUTOS, conversa de teste apagada depois): o corpo chegou com
+`descricao_detalhada` e o agente **usou** — item com descrição saiu com o texto na linha de baixo,
+itens com `null` saíram só com nome e preço, como manda a regra nova.
+
+Rollback: `git checkout` do arquivo anterior + `optimize` + USR2 (sem banco envolvido).
+
 ### O que ficou de fora (de propósito)
 
 - **A busca textual continua sem olhar a `descricao_detalhada`.** O `LIKE` varre `descricao`,
