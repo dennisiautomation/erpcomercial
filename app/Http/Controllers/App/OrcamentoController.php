@@ -79,12 +79,15 @@ class OrcamentoController extends Controller
             'observacoes_internas'    => 'nullable|string|max:2000',
             'observacoes_externas'    => 'nullable|string|max:2000',
             'itens'                   => 'required|array|min:1',
-            'itens.*.produto_id'      => 'nullable|exists:produtos,id',
-            'itens.*.servico_id'      => 'nullable|exists:servicos,id',
+            'itens.*.produto_id'      => 'required_without:itens.*.servico_id|nullable|exists:produtos,id',
+            'itens.*.servico_id'      => 'required_without:itens.*.produto_id|nullable|exists:servicos,id',
             'itens.*.descricao'       => 'nullable|string|max:500',
             'itens.*.quantidade'      => 'required|numeric|min:0.001',
             'itens.*.preco_unitario'  => 'required|numeric|min:0',
             'itens.*.desconto_percentual' => 'nullable|numeric|min:0|max:100',
+        ], [
+            'itens.*.produto_id.required_without' => 'Escolha um produto ou servico da lista em todos os itens do orcamento.',
+            'itens.*.servico_id.required_without' => 'Escolha um produto ou servico da lista em todos os itens do orcamento.',
         ]);
 
         DB::transaction(function () use ($request) {
@@ -193,12 +196,15 @@ class OrcamentoController extends Controller
             'observacoes_internas'    => 'nullable|string|max:2000',
             'observacoes_externas'    => 'nullable|string|max:2000',
             'itens'                   => 'required|array|min:1',
-            'itens.*.produto_id'      => 'nullable|exists:produtos,id',
-            'itens.*.servico_id'      => 'nullable|exists:servicos,id',
+            'itens.*.produto_id'      => 'required_without:itens.*.servico_id|nullable|exists:produtos,id',
+            'itens.*.servico_id'      => 'required_without:itens.*.produto_id|nullable|exists:servicos,id',
             'itens.*.descricao'       => 'nullable|string|max:500',
             'itens.*.quantidade'      => 'required|numeric|min:0.001',
             'itens.*.preco_unitario'  => 'required|numeric|min:0',
             'itens.*.desconto_percentual' => 'nullable|numeric|min:0|max:100',
+        ], [
+            'itens.*.produto_id.required_without' => 'Escolha um produto ou servico da lista em todos os itens do orcamento.',
+            'itens.*.servico_id.required_without' => 'Escolha um produto ou servico da lista em todos os itens do orcamento.',
         ]);
 
         DB::transaction(function () use ($request, $orcamento) {
