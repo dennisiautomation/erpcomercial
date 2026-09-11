@@ -4921,7 +4921,7 @@ promovida** — produção está 1 commit à frente da `main` (`ddee60a`). Enqua
 > realidade divergia do que estava escrito aqui, o texto foi corrigido — vale a auditoria, não a
 > memória do que se pretendia fazer.
 
-### Estado do repositório (09/09/2026)
+### Estado do repositório (11/09/2026)
 
 Trabalha-se em `/home/ubuntu/apps/erp-agente-ia` (worktree da `main`); `/root/erp` está numa branch
 de agosto e **não** é a referência (tem 55 linhas de docs.md não commitadas — a seção "Carga de
@@ -4929,17 +4929,18 @@ vendas históricas 28/08" — que a `main` não tem; portar quando for o caso).
 
 | Ref | Onde está | O que tem |
 |---|---|---|
-| `pdv-sessao-expirada` = `f747426` | contida na `main` | onde a `main` ficou parada entre 09/09 e 10/09, quando a sessão registrou por engano que ela tinha sido promovida junto com a troca |
-| `main` = `origin/main` = **produção** = `4713afb` | ponta de `produto-descricao-agente`: troca de 09/09 + a descrição do produto no agente (10/09) | ✅ promovida por fast-forward e pushada em 10/09; conferido por `ls-remote` |
-| `troca-item-sem-cupom` (contida na de cima) = `f52e8cc` | as 3 rodadas de 09/09 (crédito no split + peça sem cupom; peça sem venda; Reimprimir) **EM PRODUÇÃO** | crédito da troca no split + peça sem cupom no F6 (9w), migration `2026_09_09_180000`. 🔴 **4 commits à frente da `main` e do GitHub** — conferido em 10/09 por `reflog` (`main@{0}` = reset para `pdv-sessao-expirada`) e `ls-remote` (`origin/main` = `f747426`). É fast-forward puro; enquanto não promover, **rebuild a partir da `main` reverte a entrega de 09/09** |
-| `caixa-comprovante-numero` | contida na `main` | rastro da entrega do caixa de 09/09 |
-| `feat/sync-agente-capacidades` | contida na `main` | rastro do sync automático de 08/09 |
-| `canal-venda-gersen`, `melhor-envio` | contidas | rastro das duas entregas de 05/09; podem ser apagadas |
-| `estoque-roda-do-mouse`, `feat/split-acrescimo-por-parte` | contidas | rastro de 04/09 |
+| `main` = `origin/main` = **produção** = `85845f1` | ponta de `caixa-numero-automatico-sem-campo` | ✅ **promovida por fast-forward e pushada em 11/09**, conferido por `ls-remote` (`refs/heads/main` e a branch apontam para o mesmo SHA). Traz o campo do número fora da tela de abertura (9y) por cima de tudo que já estava |
+| `caixa-numero-automatico-sem-campo` = `85845f1` | `39c0e97` (código) + `85845f1` (docs do deploy) | entrega de 11/09 **EM PRODUÇÃO**; sem migration; pushada |
+| `produto-descricao-agente` = `ddee60a` | contida na `main` | descrição do produto no agente (10/09) + as 3 rodadas da troca de 09/09 |
+| `troca-item-sem-cupom` = `f52e8cc`, `pdv-sessao-expirada` = `f747426` | contidas | rastro de 09/09; podem ser apagadas |
+| `caixa-comprovante-numero` | contida | rastro da entrega do caixa de 09/09 (comprovante + número automático + botão Fechar) |
+| `feat/sync-agente-capacidades` | contida | rastro do sync automático de 08/09 |
+| `canal-venda-gersen`, `melhor-envio`, `estoque-roda-do-mouse`, `feat/split-acrescimo-por-parte` | contidas | rastro de 04–05/09; podem ser apagadas |
 
-🔑 `main == produção` conferido: o container recebeu por tar exatamente o conteúdo de `app`,
-`database`, `resources`, `routes` e `config` destes commits (última migration rodada: a do sync de
-08/09; a entrega de 09/09 não tem migration).
+🔑 `main == produção` conferido em 11/09 **antes** do deploy, do jeito que vale: `diff -rq` do
+container × worktree em `app resources routes config database` acusou só os 3 arquivos da entrega
+(fora os `.bak-297`). Última migration rodada: a do sync de 08/09 — nem a entrega de 09/09 nem a de
+11/09 têm migration.
 
 📌 Resíduo conhecido no container: os `*.bak-297` do deploy de 08/09 (`EmpresaMelhorEnvioController`,
 `IntegracaoAgenteController`, `AgenteIaConfig`, `EmpresaGateway`, `AppServiceProvider`, `routes/web`).
@@ -4948,6 +4949,15 @@ São cópias inertes (o PHP não carrega `.php.bak-297`) e aparecem em todo `dif
 
 ⚠️ `refs/heads/fix/` no `.git` é de root (`/root/erp/.git` é o repositório real desta worktree):
 branch nova aqui vai **sem barra** no nome, ou pedir ao Dennis para criar.
+
+**Fila de 11/09 (número do caixa fora da tela):**
+
+1. **Dennis abrir um caixa numa loja e confirmar** — a tela agora pede só o troco inicial. Entrega
+   só vira entregue quando ele vê na tela.
+2. Se algum dia aparecer **número de caixa repetido na mesma loja**, a correção é coluna gerada
+   (`numero_aberto` = `numero_caixa` quando `status='aberto'`, senão NULL) + único em
+   `(unidade_id, numero_aberto)` — ver a seção 9y. Nada a fazer enquanto não acontecer.
+3. Os **25 caixas abertos de 09/09** seguem presos (item da fila de 09/09, decisão dele).
 
 **Fila de 10/09 (descrição do produto no agente):**
 
