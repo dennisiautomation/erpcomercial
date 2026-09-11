@@ -211,4 +211,25 @@ class OrcamentoTest extends TestCase
         $orcamentos = $response->viewData('orcamentos');
         $this->assertEquals(1, $orcamentos->total());
     }
+
+    public function test_item_sem_produto_e_sem_servico_e_rejeitado(): void
+    {
+        $vendedor = $this->createUser($this->empresa, $this->unidade, 'vendedor');
+        $cliente  = $this->createCliente($this->empresa);
+
+        $response = $this->actingAsUser($vendedor, $this->unidade)
+            ->post(route('app.orcamentos.store'), [
+                'cliente_id'   => $cliente->id,
+                'vendedor_id'  => $vendedor->id,
+                'validade_ate' => now()->addDays(30)->format('Y-m-d'),
+                'itens' => [
+                    // O que o usuario digita na caixa de busca nao tem name e nao
+                    // vai no POST: sem clicar num resultado, o item chega assim.
+                    ['produto_id' => '', 'servico_id' => '', 'descricao' => '', 'quantidade' => 1, 'preco_unitario' => 0],
+                ],
+            ]);
+
+        $response->assertSessionHasErrors('itens.0.produto_id');
+        $this->assertDatabaseCount('orcamentos', 0);
+    }
 }

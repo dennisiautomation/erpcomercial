@@ -4363,6 +4363,34 @@ desnecessário.
   descrição, por falta de cadastro. As que existem são curtas (máx. 36 caracteres, média 17), então
   não há custo relevante de token.
 
+## Orçamentos: a busca de produto e serviço voltou a aparecer (10/09/2026, na `main` em 11/09)
+
+Commit do Dennis (`c1dd256`, 10/09, `origin/orcamento-busca-produto`) trazido por cherry-pick sobre a
+`main` de 11/09 na branch `orcamento-busca-produto-main` — só esta correção, sem arrastar o que veio
+depois. O que ele corrige em `/app/orcamentos/create` e `edit`:
+
+- A caixa de busca do item apontava para `app/pdv/buscar-produto`, que **não existe** (é só o NOME da
+  rota; o caminho é `app/pdv/produto`). O fetch tomava 404 engolido e a tela não mostrava nem resultado
+  nem "nenhum encontrado". Mesmo bug já corrigido em Pedidos em 24/07; Orçamentos ficou para trás.
+- Serviço nunca teve busca. Entra `SearchController::servicos()` + rota `app/search/servicos`
+  (LIKE em descrição e `codigo_lc116`, só ativos). As views usam `app/search/produtos` (acha por parte
+  do código, coisa que o `pdv/produto` exato não fazia) e juntam produto + serviço numa lista só, com
+  badge de tipo; clicar preenche `produto_id` XOR `servico_id`.
+- 🔴 **Item fantasma**: a caixa de busca não tem `name`, então o que se digitava sem clicar não ia no
+  POST — dava para salvar item com `produto_id` e `servico_id` nulos e descrição vazia, e o
+  `converter()` levava isso para dentro do Pedido. Agora `required_without` cruzado no `store()`/
+  `update()` + trava no JS antes do submit (Ctrl+Enter passou a `requestSubmit`, senão pulava a trava).
+- Dropdown em `position:fixed` (o `overflow` da tabela cortava a lista); digitar de novo limpa a escolha.
+
+**Validação no `erp-test` (11/09):** `create`/`edit` renderizam com as duas rotas de busca; `search/servicos`
+devolve o serviço por nome e por código LC 116; item sem produto e sem serviço → volta com "Escolha um
+produto ou servico da lista…" e nada grava; orçamento com 1 produto + 1 serviço grava os dois itens
+(`produto_id`/`servico_id` certos), `show` e `edit` em 200. Dados de QA (serviço, cliente, orçamento)
+apagados; `laravel.log` sem linha nova. Sem migration; **rota nova** ⇒ no deploy o `optimize` vem antes
+do USR2 (armadilha 26b). NÃO deployada, NÃO pushada.
+
+---
+
 ## O número do caixa sumiu da tela de abertura (11/09/2026)
 
 **Pedido do Dennis:** *"quando vou abrir o caixa mudamos para deixar o número automático — tem como
