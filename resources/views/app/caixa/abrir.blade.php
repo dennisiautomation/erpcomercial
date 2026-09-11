@@ -197,7 +197,7 @@
     </div>
 
     <h2>Abrir Caixa</h2>
-    <p class="subtitle">Informe os dados para iniciar as vendas</p>
+    <p class="subtitle">Informe o troco inicial para iniciar as vendas</p>
 
     @if(session('error'))
         <div class="error-msg">
@@ -208,24 +208,16 @@
     <form method="POST" action="{{ route('app.caixa.abrir') }}">
         @csrf
 
-        <div class="form-group">
-            <label>Numero do Caixa</label>
-            {{-- Vem preenchido com um número LIVRE: o último desta pessoa nesta
-                 loja, ou o menor disponível. Ninguém precisa lembrar nem chutar. --}}
-            <input type="number" name="numero_caixa" value="{{ old('numero_caixa', $numeroSugerido ?? 1) }}"
-                min="1" required autofocus>
-            <div class="hint">Sugerido automaticamente — está livre nesta loja. Pode trocar se quiser.</div>
-            @error('numero_caixa')
-                <div class="error-msg" style="margin-top:6px; margin-bottom:0;">{{ $message }}</div>
-            @enderror
-        </div>
-
+        {{-- O número do caixa NÃO é mais campo de tela: quem escolhe é o servidor,
+             no menor número livre desta loja (CaixaController::proximoNumeroLivre).
+             Enquanto foi campo, a pessoa chutava 2, 3, 4 e cada tentativa
+             abandonada queimava mais um número — ver a seção de 09/09 no docs.md. --}}
         <div class="form-group">
             <label>Valor de Abertura (Troco Inicial)</label>
             <div class="input-prefix">
                 <span>R$</span>
                 <input type="number" name="valor_abertura" value="{{ old('valor_abertura', '0.00') }}"
-                    step="0.01" min="0" required>
+                    step="0.01" min="0" required autofocus>
             </div>
             <div class="hint">Valor em dinheiro disponivel no caixa</div>
             @error('valor_abertura')

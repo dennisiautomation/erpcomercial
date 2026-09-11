@@ -3613,19 +3613,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 </script>
 
-{{-- Aviso de número de caixa trocado na abertura (09/09/2026).
-     Só existe quando o número pedido foi ocupado entre a tela e o POST — em
-     toda outra abertura o PDV é exatamente o de sempre. Trocar o número do
-     caixa em silêncio seria pior do que a tela travada que isto substitui. --}}
-@if(session('caixa_numero_trocado'))
-<div id="avisoCaixaTrocado" style="position:fixed; top:14px; left:50%; transform:translateX(-50%);
-     z-index:9999; background:#f59e0b; color:#000; font-weight:700; font-size:15px;
-     padding:12px 18px; border-radius:12px; box-shadow:0 8px 24px rgba(0,0,0,.45); max-width:90vw;">
-    {{ session('caixa_numero_trocado') }}
-    <span style="cursor:pointer; margin-left:12px; opacity:.7;"
-          onclick="document.getElementById('avisoCaixaTrocado').remove()">&times;</span>
-</div>
-<script>setTimeout(() => document.getElementById('avisoCaixaTrocado')?.remove(), 8000);</script>
-@endif
+{{-- O aviso de "número trocado" morreu com o campo de número (11/09/2026): não
+     existe mais número pedido pela tela para ser ocupado no meio do caminho. --}}
 </body>
 </html>

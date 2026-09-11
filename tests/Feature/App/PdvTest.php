@@ -36,8 +36,9 @@ class PdvTest extends TestCase
         $operador = $this->createUser($this->empresa, $this->unidade, 'caixa');
 
         $response = $this->actingAsUser($operador, $this->unidade)
+            // Sem `numero_caixa`: o campo saiu da tela em 11/09/2026 e quem
+            // escolhe o número é o servidor (menor livre da loja).
             ->post(route('app.caixa.abrir'), [
-                'numero_caixa'   => 1,
                 'valor_abertura' => 200.00,
             ]);
 

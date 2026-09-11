@@ -199,17 +199,11 @@ class CaixaController extends Controller
 
             $unidadeId = (int) session('unidade_id');
 
-            // Último número que esta pessoa usou NESTA loja — se estiver livre,
-            // é o que aparece preenchido.
-            $ultimoDela = Caixa::where('unidade_id', $unidadeId)
-                ->where('user_id', auth()->id())
-                ->orderByDesc('aberto_em')
-                ->value('numero_caixa');
-
+            // O número não é mais escolhido na tela (nem exibido): quem decide é
+            // o servidor, no POST. A tela só mostra quem está com cada número e
+            // desde quando — é o que permite ao gerente enxergar o caixa
+            // esquecido em vez de adivinhar.
             return view('app.caixa.abrir', [
-                'numeroSugerido' => $this->proximoNumeroLivre($unidadeId, $ultimoDela ? (int) $ultimoDela : null),
-                // A tela mostra quem está com cada número e desde quando: é o que
-                // permite ao gerente enxergar o caixa esquecido em vez de adivinhar.
                 'caixasAbertos'  => Caixa::with('operador')
                     ->where('unidade_id', $unidadeId)
                     ->where('status', StatusCaixa::Aberto)
@@ -219,7 +213,6 @@ class CaixaController extends Controller
         }
 
         $request->validate([
-            'numero_caixa'   => 'required|integer|min:1',
             'valor_abertura' => 'required|numeric|min:0',
         ]);
 
@@ -237,21 +230,24 @@ class CaixaController extends Controller
             return back()->with('error', 'Voce ja possui um caixa aberto.');
         }
 
-        // Número ocupado não trava mais a abertura: a tela já veio preenchida
-        // com um número livre, e se alguém ocupou esse número no meio do
-        // caminho (duas pessoas abrindo no mesmo minuto), abrimos no próximo e
-        // avisamos. Travar aqui era o que mandava a pessoa chutar 2, 3, 4...
+        // O número é do SERVIDOR, decidido aqui e não na tela: menor livre desta
+        // loja, com preferência pelo último que esta pessoa usou aqui (quem senta
+        // sempre na mesma gaveta continua com o mesmo número). Como a decisão é
+        // no instante da gravação, duas pessoas abrindo no mesmo minuto não
+        // disputam número nenhum — e ninguém mais chuta 2, 3, 4 queimando
+        // números que ficam presos até alguém fechar.
         $unidadeId = (int) session('unidade_id');
-        $numeroPedido = (int) $request->numero_caixa;
-        $numeroCaixa = $numeroPedido;
-        $numeroTrocado = false;
 
-        if ($this->numerosEmUso($unidadeId)->contains($numeroPedido)) {
-            $numeroCaixa = $this->proximoNumeroLivre($unidadeId);
-            $numeroTrocado = true;
-        }
+        $caixa = DB::transaction(function () use ($request, $unidadeId) {
+            // Dentro da transação, imediatamente antes do INSERT: é a janela mais
+            // curta possível entre "escolher" e "gravar" o número.
+            $ultimoDela = Caixa::where('unidade_id', $unidadeId)
+                ->where('user_id', auth()->id())
+                ->orderByDesc('aberto_em')
+                ->value('numero_caixa');
 
-        $caixa = DB::transaction(function () use ($request, $numeroCaixa) {
+            $numeroCaixa = $this->proximoNumeroLivre($unidadeId, $ultimoDela ? (int) $ultimoDela : null);
+
             $caixa = Caixa::create([
                 'empresa_id'     => session('empresa_id'),
                 'unidade_id'     => session('unidade_id'),
@@ -277,9 +273,7 @@ class CaixaController extends Controller
 
         session(['caixa_id' => $caixa->id]);
 
-        $mensagem = $numeroTrocado
-            ? "Aberto no caixa {$numeroCaixa} — o {$numeroPedido} foi ocupado agora há pouco."
-            : 'Caixa aberto com sucesso!';
+        $mensagem = 'Caixa aberto com sucesso!';
 
         if ($request->expectsJson()) {
             return response()->json([
@@ -289,11 +283,8 @@ class CaixaController extends Controller
             ]);
         }
 
-        // Chave própria, não `info`: o PDV só renderiza aviso para ESTE caso.
-        // `info` já é usado pela reconexão ("você já possui um caixa aberto"),
-        // que acontece em toda abertura e não pode virar toast na tela de venda.
         return redirect()->route('app.pdv.index')
-            ->with($numeroTrocado ? 'caixa_numero_trocado' : 'success', $mensagem);
+            ->with('success', $mensagem);
     }
 
     /**
