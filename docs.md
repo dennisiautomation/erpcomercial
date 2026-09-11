@@ -4387,7 +4387,10 @@ devolve o serviço por nome e por código LC 116; item sem produto e sem serviç
 produto ou servico da lista…" e nada grava; orçamento com 1 produto + 1 serviço grava os dois itens
 (`produto_id`/`servico_id` certos), `show` e `edit` em 200. Dados de QA (serviço, cliente, orçamento)
 apagados; `laravel.log` sem linha nova. Sem migration; **rota nova** ⇒ no deploy o `optimize` vem antes
-do USR2 (armadilha 26b). NÃO deployada, NÃO pushada.
+do USR2 (armadilha 26b). ✅ **EM PRODUÇÃO desde 11/09/2026 13:37 UTC**, junto com o relatório de vendas
+(9z) — o deploy é um só, pela branch `entrega-11set-relatorio-orcamentos` (merge das duas); ver o bloco
+de deploy na seção 9z. Rota `app.search.servicos` no cache de rotas de produção; `/app/orcamentos/create`
+e `/app/search/servicos` respondem 302 para o login (não 500).
 
 ---
 
@@ -4570,6 +4573,41 @@ troco R$ 19,50. É o caso previsto na seção do acréscimo por parte: **aba do 
 itens já na tabela do cartão e o servidor somou o acréscimo por cima. Cliente pagou R$ 37,00 a mais
 nas 3 (19,50 + 10,00 + 7,50). Não se repetiu depois do reload. **Nada foi corrigido** — decisão do
 Dennis (estorno/vale).
+
+### Deploy — FEITO em 11/09/2026 13:37 UTC (OK do Dennis: "pode fazer o deploy")
+
+**EM PRODUÇÃO**, junto com a correção de Orçamentos, a partir da branch
+`entrega-11set-relatorio-orcamentos` = `main` + merge de `relatorio-vendas-impresso` (`ced2476`) + merge
+de `orcamento-busca-produto-main` (`8d06714`). 🔑 **Uma branch só para o tar**: as duas mexem em arquivos
+diferentes, mas o tar de `app resources routes config` de UMA delas levaria a versão da `main` dos
+arquivos da OUTRA e a reverteria em silêncio. Rito de sempre, **sem rebuild e sem migration**.
+
+| Passo | O quê |
+|---|---|
+| Pré-voo | `diff -rq` do container × `git archive main` em `app resources routes config database`: **nenhuma diferença** fora os `.bak-297` (armadilhas 50 e 52) |
+| Backup do banco | `/home/ubuntu/erp-backups/pre-relatorio-orcamentos-20260911-1337.sql.gz` (73 tabelas) |
+| Backup do código no ar | `/home/ubuntu/erp-backups/erp-code-no-ar-pre-relatorio-orcamentos-20260911-1337.tgz` (os 7 arquivos) |
+| Rollback | imagem `erp-com-app:pre-relatorio-orcamentos-20260911` (`docker commit`) |
+| Código | `tar app database resources routes config` |
+| Caches | `artisan optimize` (**antes** do reload — rota nova, armadilha 26b) → `chown www-data` → `kill -USR2 29` (master do php-fpm, não o PID 1) |
+
+Conferido depois: os **7 arquivos byte-idênticos** à branch (md5); `app.search.servicos` no cache de rotas
+(gravado como `www-data`); `/` e `/login` 200; `/app/relatorios/vendas`, `/app/orcamentos/create`,
+`/app/search/servicos` e `/app/pdv` em **302 para o login** (302 e não 500 = a rota resolveu na cadeia
+do grupo `/app`); `laravel.log` sem linha nova. ⚠️ `curl https://erp.ia365.com.br` de dentro do
+servidor **trava** (hairpin) — conferir por `http://127.0.0.1:8091` com `Host: erp.ia365.com.br`.
+
+🔑 **Prova com dado real**, renderizando o controller em tinker (`Auth::login` sem sessão, nada gravado)
+para um gerente da MISS MERLINDA na **LOJA RIVERSIDE (25), setembro** — a tela que o Dennis mandou:
+**109 vendas · 292 peças · R$ 14.257,00 · ticket R$ 130,80 · bruto R$ 14.046,00 · descontos R$ 195,00
+· acréscimos R$ 406,00 · trocas R$ 580,00**, 5 formas de pagamento no quadro.
+
+Rollback: `git archive main <7 arquivos> | docker exec -i erp-com-app tar -x -C /var/www` + `optimize` +
+USR2 (sem banco envolvido), ou recreate da imagem acima.
+
+⚠️ **`main` NÃO promovida e nada pushado** — produção está 4 commits à frente da `main` (`2d82e74`).
+Enquanto isso não mudar, **rebuild da imagem reverte as duas entregas** (armadilhas 46 e 52). Promover =
+fast-forward da `main` para `entrega-11set-relatorio-orcamentos`.
 
 ### O que ficou de fora
 
@@ -5061,8 +5099,9 @@ vendas históricas 28/08" — que a `main` não tem; portar quando for o caso).
 | Ref | Onde está | O que tem |
 |---|---|---|
 | `main` = `origin/main` = **produção** = `85845f1` | ponta de `caixa-numero-automatico-sem-campo` | ✅ **promovida por fast-forward e pushada em 11/09**, conferido por `ls-remote` (`refs/heads/main` e a branch apontam para o mesmo SHA). Traz o campo do número fora da tela de abertura (9y) por cima de tudo que já estava |
-| `relatorio-vendas-impresso` | sobre a `main` `2d82e74` | relatório de vendas (9z), 11/09 tarde — **validada no `erp-test`, NÃO deployada, NÃO pushada**; sem migration; 2 arquivos + docs |
-| `orcamento-busca-produto-main` | sobre a `main` `2d82e74` | cherry-pick do `c1dd256` (commit do Dennis de 10/09 em `origin/orcamento-busca-produto`: busca de produto/serviço em Orçamentos + rota `search/servicos` + item fantasma barrado) — **validada no `erp-test`, NÃO deployada, NÃO pushada**; as duas branches não conflitam entre si (anchors diferentes no docs.md) |
+| **`entrega-11set-relatorio-orcamentos` = produção** | `main` + merge das duas abaixo (+ docs do deploy) | ✅ **EM PRODUÇÃO 11/09 13:37 UTC**; **NÃO pushada, `main` NÃO promovida** — produção está à frente da `main`; rebuild reverte (armadilha 52). Promover = fast-forward da `main` para esta |
+| `relatorio-vendas-impresso` = `ced2476` | contida na de entrega | relatório de vendas (9z), 11/09 tarde; sem migration; 2 arquivos + docs |
+| `orcamento-busca-produto-main` = `8d06714` | contida na de entrega | cherry-pick do `c1dd256` (commit do Dennis de 10/09 em `origin/orcamento-busca-produto`: busca de produto/serviço em Orçamentos + rota `search/servicos` + item fantasma barrado) + docs |
 | `caixa-numero-automatico-sem-campo` = `85845f1` | `39c0e97` (código) + `85845f1` (docs do deploy) | entrega de 11/09 **EM PRODUÇÃO**; sem migration; pushada |
 | `produto-descricao-agente` = `ddee60a` | contida na `main` | descrição do produto no agente (10/09) + as 3 rodadas da troca de 09/09 |
 | `troca-item-sem-cupom` = `f52e8cc`, `pdv-sessao-expirada` = `f747426` | contidas | rastro de 09/09; podem ser apagadas |
@@ -5085,9 +5124,9 @@ branch nova aqui vai **sem barra** no nome, ou pedir ao Dennis para criar.
 
 **Fila de 11/09 tarde (relatório de vendas + orçamentos):**
 
-1. **Deploy das duas branches** (`relatorio-vendas-impresso` e `orcamento-busca-produto-main`) — rito
-   de sempre, sem rebuild e sem migration; `optimize` ANTES do USR2 porque a de orçamentos tem rota
-   nova (`app.search.servicos`, armadilha 26b). Aguarda OK do Dennis.
+1. ✅ **Deploy das duas — FEITO 11/09 13:37 UTC** pela branch `entrega-11set-relatorio-orcamentos`. Falta:
+   **Dennis abrir `/app/relatorios/vendas?loja=25` e imprimir** (entrega só é entregue quando ele vê),
+   e decidir a **promoção da `main` + push** (produção está 4 commits à frente; rebuild reverte).
 2. **As 3 vendas da RIVERSIDE de 04/09 com acréscimo em dobro** (199, 201, 209 — R$ 37,00 a mais no
    total): decidir estorno/vale. Ver o achado na seção 9z.
 3. Exportar o relatório em .xlsx e a curva por dia ficaram de fora.
