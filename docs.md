@@ -4423,6 +4423,32 @@ Os dois caixas de teste (42 e 43) e suas movimentações foram apagados do `erp_
 a senha do `qa.novato@teste.local` ficou trocada para o teste (o usuário já estava na lista de
 limpeza do ambiente).
 
+### Deploy (11/09/2026, 08:39–08:45 UTC)
+
+**EM PRODUÇÃO.** Rito à mão, sem rebuild e **sem migration** — só 3 arquivos mudaram, e a
+conferência antes de subir mostrou que produção era **exatamente** a `main` (`diff -rq` do container
+× worktree em `app resources routes config database` acusou só esses 3, fora os `.bak-297` de
+sempre).
+
+| Passo | O que foi feito |
+|---|---|
+| Backup do banco | `erp-backups/pre-caixa-sem-campo-20260911-0839.sql.gz` (1,1 MB) |
+| Backup do código no ar | `erp-backups/erp-code-no-ar-pre-caixa-sem-campo-20260911-0839.tgz` (os 3 arquivos como estavam) |
+| Backup da imagem | tag `erp-com-app:pre-caixa-sem-campo-20260911` |
+| Código | `docker cp` dos 3 arquivos + `chown www-data` |
+| Cache | `view:clear` → `optimize` (como `www-data`) → `chown` de `bootstrap/cache` e `storage/framework/views` |
+| Reload | `kill -USR2 29` (master do php-fpm, **nunca o PID 1**) — workers novos confirmados no `ps` |
+
+Conferência depois de subir: os 3 `md5sum` do container batem com a worktree; a view compilada nova
+não tem nenhum `name="numero_caixa"`; e o `CaixaController::abrir` renderizado em produção para uma
+vendedora real da LOJA RIVERSIDE devolveu **0 inputs `numero_caixa`, 1 input `valor_abertura`** e a
+caixinha com o "Caixa 1 · Maria Giovana" que está preso lá desde 02/09. Nada foi gravado nessa
+conferência (`Auth::login` em tinker não cria sessão nem registro).
+
+🔴 **Branch `caixa-numero-automatico-sem-campo` @`39c0e97` NÃO foi pushada e a `main` NÃO foi
+promovida** — produção está 1 commit à frente da `main` (`ddee60a`). Enquanto isso não mudar,
+**rebuild da imagem reverte esta entrega** (armadilhas 46 e 52).
+
 ### O que ficou de fora
 
 - **Os 25 caixas abertos de 09/09 continuam presos** — a decisão de não fechá-los em massa é de
