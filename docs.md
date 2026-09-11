@@ -4323,6 +4323,25 @@ itens com `null` saíram só com nome e preço, como manda a regra nova.
 
 Rollback: `git checkout` do arquivo anterior + `optimize` + USR2 (sem banco envolvido).
 
+### Git (10/09/2026, a pedido do Dennis — "alimente o docs.md e suba para o git")
+
+**Conferido por `git ls-remote`, não pela intenção da sessão** (é a lição do registro errado de
+09/09, que deu a `main` como promovida sem ter sido):
+
+| Ref | Remoto agora | Situação |
+|---|---|---|
+| `produto-descricao-agente` | `5d4c2cbfb56849cc77922785c8fcbe0507834b91` | ✅ **pushada** |
+| `main` | `f7474263d426297e7a935de85f0aea977536a76d` | ❌ **NÃO promovida** — o push para `main` foi barrado pela permissão da sessão (mesmo caso do §300 do app.ia365) |
+
+⚠️ **A `main` segue 6 commits atrás da produção** (`f747426` × `5d4c2cb`), e o container roda a
+imagem de 02/09 com tudo depois disso entrando por tar. Enquanto não promover, **rebuild a partir da
+`main` reverte a troca de 09/09 e a descrição de 10/09**. É fast-forward puro. Comando para o
+Dennis, de dentro de `/home/ubuntu/apps/erp-agente-ia`:
+
+```bash
+git push origin produto-descricao-agente:main
+```
+
 ### O que ficou de fora (de propósito)
 
 - **A busca textual continua sem olhar a `descricao_detalhada`.** O `LIKE` varre `descricao`,
@@ -4801,7 +4820,8 @@ vendas históricas 28/08" — que a `main` não tem; portar quando for o caso).
 | Ref | Onde está | O que tem |
 |---|---|---|
 | `main` = `origin/main` = `f747426` | ponta de `pdv-sessao-expirada` | comprovante de fechamento + número de caixa automático + botão Fechar (9u) e o aviso/keep-alive de sessão do PDV (9v); promovida por fast-forward e **pushada** em 09/09 a pedido do Dennis. ⚠️ **NÃO é a produção**: a entrega da troca de 09/09 (tarde) ficou de fora — ver a linha abaixo |
-| `troca-item-sem-cupom` = **produção** = `f52e8cc` | as 3 rodadas de 09/09 (crédito no split + peça sem cupom; peça sem venda; Reimprimir) **EM PRODUÇÃO** | crédito da troca no split + peça sem cupom no F6 (9w), migration `2026_09_09_180000`. 🔴 **4 commits à frente da `main` e do GitHub** — conferido em 10/09 por `reflog` (`main@{0}` = reset para `pdv-sessao-expirada`) e `ls-remote` (`origin/main` = `f747426`). É fast-forward puro; enquanto não promover, **rebuild a partir da `main` reverte a entrega de 09/09** |
+| `produto-descricao-agente` = **produção** = `5d4c2cb` | ponta de `troca-item-sem-cupom` + a descrição do produto no agente (10/09) | ✅ **pushada** em 10/09; a `main` continua em `f747426`, 6 commits atrás — ver a seção da descrição do produto |
+| `troca-item-sem-cupom` (contida na de cima) = `f52e8cc` | as 3 rodadas de 09/09 (crédito no split + peça sem cupom; peça sem venda; Reimprimir) **EM PRODUÇÃO** | crédito da troca no split + peça sem cupom no F6 (9w), migration `2026_09_09_180000`. 🔴 **4 commits à frente da `main` e do GitHub** — conferido em 10/09 por `reflog` (`main@{0}` = reset para `pdv-sessao-expirada`) e `ls-remote` (`origin/main` = `f747426`). É fast-forward puro; enquanto não promover, **rebuild a partir da `main` reverte a entrega de 09/09** |
 | `caixa-comprovante-numero` | contida na `main` | rastro da entrega do caixa de 09/09 |
 | `feat/sync-agente-capacidades` | contida na `main` | rastro do sync automático de 08/09 |
 | `canal-venda-gersen`, `melhor-envio` | contidas | rastro das duas entregas de 05/09; podem ser apagadas |
