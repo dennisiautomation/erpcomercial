@@ -18,6 +18,10 @@
 
     if ($ehTexto) {
         $justify = ['left' => 'flex-start', 'center' => 'center', 'right' => 'flex-end'][$el['alinhamento'] ?? 'center'];
+        $peso     = \App\Models\EtiquetaFormato::pesoDoItem($el);
+        $tamanho  = (float) ($el['tamanho'] ?? 8);
+        $contorno = \App\Models\EtiquetaFormato::contornoMm($peso, $tamanho);
+        $cor      = $el['cor'] ?? '#000000';
         $caixa .= sprintf(
             'display:flex;align-items:center;justify-content:%s;text-align:%s;'
             . 'font-family:%s,Arial,sans-serif;font-size:%spt;font-weight:%s;font-style:%s;'
@@ -25,11 +29,17 @@
             $justify,
             $el['alinhamento'] ?? 'center',
             $el['fonte'] ?? 'Arial',
-            $el['tamanho'] ?? 8,
-            ($el['negrito'] ?? false) ? '700' : '400',
+            $tamanho,
+            $peso === 'normal' ? '400' : '700',
             ($el['italico'] ?? false) ? 'italic' : 'normal',
-            $el['cor'] ?? '#000000'
+            $cor
         );
+        // Extra grosso / Máximo: contorno da MESMA cor por cima do negrito. A
+        // térmica não tem meio-tom — engrossar o traço é o único jeito de a
+        // letra sair preta em vez de cinza falhado.
+        if ($contorno > 0) {
+            $caixa .= sprintf('-webkit-text-stroke:%smm %s;', $contorno, $cor);
+        }
     }
 
     // Preço no cartão/PIX só existe quando a loja tem tabela de crédito diferente.

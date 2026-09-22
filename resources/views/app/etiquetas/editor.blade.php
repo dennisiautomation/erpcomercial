@@ -190,6 +190,17 @@
                 <div class="card-footer bg-white small text-muted">
                     Desmarque para tirar o item da etiqueta. O conteúdo vem sempre do
                     cadastro do produto e da loja.
+                    {{-- Atalho para engrossar tudo de uma vez: quem imprime na térmica
+                         quer a etiqueta inteira mais preta, não um item por vez. --}}
+                    <div class="d-flex align-items-center gap-2 mt-2">
+                        <label class="form-label small mb-0 text-nowrap" for="pesoTodos">Grossura de todos os textos</label>
+                        <select class="form-select form-select-sm" id="pesoTodos">
+                            <option value="">— escolher —</option>
+                            @foreach(\App\Models\EtiquetaFormato::PESOS_LABELS as $valor => $rotulo)
+                                <option value="{{ $valor }}">{{ $rotulo }}</option>
+                            @endforeach
+                        </select>
+                    </div>
                 </div>
             </div>
 
@@ -257,6 +268,28 @@
     const TEXTOS   = @json(\App\Models\EtiquetaFormato::TIPOS_TEXTO);
     const EXEMPLO  = @json($exemplo);
     const MM_POR_PT = {{ \App\Models\EtiquetaFormato::MM_POR_PT }};
+    const PESOS = @json(\App\Models\EtiquetaFormato::PESOS_LABELS);
+    const CONTORNO_POR_PT = @json(\App\Models\EtiquetaFormato::PESOS);
+    const CONTORNO_MIN_MM = {{ \App\Models\EtiquetaFormato::CONTORNO_MIN_MM }};
+
+    // Peso efetivo: `peso` novo, ou o `negrito` dos layouts salvos antes dele.
+    function pesoDe(el) {
+        return (el.peso && PESOS[el.peso]) ? el.peso : (el.negrito ? 'negrito' : 'normal');
+    }
+
+    // Mesma conta do servidor (EtiquetaFormato::contornoMm): contorno em mm
+    // proporcional ao corpo, com piso para a térmica enxergar.
+    function contornoMm(peso, tamanhoPt) {
+        const porPt = CONTORNO_POR_PT[peso];
+        if (!porPt) return 0;
+        const base = CONTORNO_MIN_MM * (porPt / CONTORNO_POR_PT.extra);
+        return Math.max(base, tamanhoPt * porPt);
+    }
+
+    function aplicarPeso(el, peso) {
+        el.peso = peso;
+        el.negrito = peso !== 'normal';
+    }
     const ROTA_UPLOAD = '{{ route('app.etiquetas.imagens.store') }}';
     const ROTA_IMAGEM = '{{ url('app/etiquetas/imagens') }}';
     const CSRF = '{{ csrf_token() }}';
@@ -328,7 +361,12 @@
                 // pt -> px na escala do palco: 1pt = 25,4/72 mm.
                 div.style.fontFamily = el.fonte || 'Arial';
                 div.style.fontSize   = (el.tamanho * MM_POR_PT * zoom) + 'px';
-                div.style.fontWeight = el.negrito ? '700' : '400';
+                const peso = pesoDe(el);
+                div.style.fontWeight = peso === 'normal' ? '400' : '700';
+                // Extra grosso / Máximo: o mesmo contorno que vai para o papel,
+                // na escala do palco — a tela promete o que a térmica entrega.
+                const contorno = contornoMm(peso, el.tamanho);
+                div.style.webkitTextStroke = contorno > 0 ? (contorno * zoom) + 'px #000' : '';
                 div.style.fontStyle  = el.italico ? 'italic' : 'normal';
                 div.style.alignItems = 'center';
                 div.style.justifyContent = el.alinhamento === 'left' ? 'flex-start'
@@ -482,11 +520,14 @@
                         </select>
                     </div>
                 </div>
+                <div class="mb-2">
+                    <label class="form-label small mb-1">Grossura da letra</label>
+                    <select class="form-select form-select-sm" data-prop="peso">
+                        ${Object.keys(PESOS).map(p => `<option value="${p}" ${p === pesoDe(el) ? 'selected' : ''}>${PESOS[p]}</option>`).join('')}
+                    </select>
+                    <div class="form-text">Negrito é o máximo da fonte. Se na térmica ainda sair fraco, suba para Extra grosso ou Máximo.</div>
+                </div>
                 <div class="d-flex gap-3 mb-3">
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" id="propNegrito" data-prop="negrito" ${el.negrito ? 'checked' : ''}>
-                        <label class="form-check-label small" for="propNegrito"><strong>Negrito</strong></label>
-                    </div>
                     <div class="form-check">
                         <input class="form-check-input" type="checkbox" id="propItalico" data-prop="italico" ${el.italico ? 'checked' : ''}>
                         <label class="form-check-label small" for="propItalico"><em>Itálico</em></label>
@@ -559,6 +600,8 @@
                     if (['x', 'y', 'w', 'h'].indexOf(prop) !== -1) encaixar(alvo);
                 } else if (prop === 'imagem_id') {
                     alvo[prop] = parseInt(campo.value, 10);
+                } else if (prop === 'peso') {
+                    aplicarPeso(alvo, campo.value);
                 } else {
                     alvo[prop] = campo.value;
                 }
@@ -728,7 +771,7 @@
 
         if (ehTexto(tipo)) {
             Object.assign(novo, {
-                fonte: 'Arial', tamanho: 7, negrito: false,
+                fonte: 'Arial', tamanho: 7, negrito: false, peso: 'normal',
                 italico: false, alinhamento: 'center'
             });
             novo.h = arred(7 * MM_POR_PT * 1.35);
@@ -866,6 +909,21 @@
     document.getElementById('chkMalha').addEventListener('change', function () {
         $etiqueta.classList.toggle('com-malha', this.checked);
     });
+
+    document.getElementById('pesoTodos').addEventListener('change', function () {
+
+        const peso = this.value;
+
+        if (!peso) return;
+
+        elementos.forEach(function (el) { if (ehTexto(el.tipo)) aplicarPeso(el, peso); });
+
+        this.value = '';
+
+        render();
+
+    });
+
 
     document.getElementById('btnAddRetangulo').addEventListener('click', function () {
         adicionarForma('retangulo');
