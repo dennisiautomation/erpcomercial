@@ -3756,6 +3756,12 @@ A produção tem hoje o estorno do caixa (outra sessão, ainda sem commit) — o
 dele (conferido por md5 em 25/09: os 12 arquivos alterados aqui são idênticos em produção, HEAD e teste). Depois, a
 plataforma (§311 de lá). Ligar para um cliente: aba Integração → InfiniteTag → Ativo → Salvar → Testar.
 
+✅ **EM PRODUÇÃO 25/09/2026 12:34 UTC** (Dennis rodou `deploy-311-v2.sh` da branch da plataforma): backup
+`~/backups/deploy-311-20260925_1234` + imagem `erp-com-app:pre-311-20260925_1234`; migration batch 42; `route:list --path=infinitepay`
+= 3 rotas, `/login` 200, webhook responde pelo site após `opcache_reset()`. A v1 do script voltou sozinha 2× em "rota do webhook
+ausente" (causa não identificada — a v1 escondia a saída; a tabela nova ficou vazia no banco, inofensiva). Plataforma subiu em
+seguida (§311 lá). Branch NÃO pushada.
+
 ---
 
 ## Treinamento de suporte, agente de chamado e a matriz das 4 camadas (06/09/2026)
