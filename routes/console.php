@@ -109,3 +109,10 @@ Schedule::command('agente:pix-sincronizar')
     ->everyFifteenMinutes()
     ->name('agente-pix-sincronizar')
     ->withoutOverlapping();
+
+// Cartão/PIX por link da InfinitePay (25/09/2026) — o webhook dela não é
+// assinado e pode se perder: confere os links abertos dos últimos 3 dias.
+Schedule::command('agente:cartao-sincronizar')
+    ->everyFifteenMinutes()
+    ->name('agente-cartao-sincronizar')
+    ->withoutOverlapping();

@@ -71,4 +71,11 @@ return [
         'base_url' => env('MELHOR_ENVIO_BASE_URL'),
     ],
 
+    // InfinitePay (25/09/2026): checkout por link, identificado pela InfiniteTag
+    // (handle) de cada empresa — não há chave de API. base_url só muda em QA
+    // (fake local); o padrão é a API pública da documentação.
+    'infinitepay' => [
+        'base_url' => env('INFINITEPAY_BASE_URL', 'https://api.checkout.infinitepay.io'),
+    ],
+
 ];

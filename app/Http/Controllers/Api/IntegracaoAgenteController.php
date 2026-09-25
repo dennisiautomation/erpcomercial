@@ -12,10 +12,12 @@ use App\Models\Pedido;
 use App\Models\PedidoCobranca;
 use App\Models\PedidoEntrega;
 use App\Models\PedidoItem;
+use App\Models\PedidoLinkCartao;
 use App\Models\Produto;
 use App\Models\Unidade;
 use App\Services\Entrega\UberDirectService;
 use App\Services\Entrega\MelhorEnvioService;
+use App\Services\Pagamento\CartaoPedidoService;
 use App\Services\Pix\PixPedidoService;
 use App\Services\Pix\SicrediPixService;
 use App\Scopes\EmpresaScope;
@@ -144,6 +146,9 @@ class IntegracaoAgenteController extends Controller
             'dados' => [
                 'agente_ativo' => (bool) ($config?->ativo),
                 'gateways' => EmpresaGateway::capacidadesPara($token->empresa_id),
+                // 25/09/2026: com Asaas E InfinitePay ligados, o agente usa UM —
+                // é este que manda o link (null = nenhum cartão utilizável).
+                'cartao' => CartaoPedidoService::provedorEmUso($token->empresa_id),
                 'plataforma_registrada' => (bool) ($config?->plataformaRegistrada()),
                 'unidades' => $unidades,
             ],
@@ -878,17 +883,16 @@ class IntegracaoAgenteController extends Controller
             }
         }
 
-        // Fase 2 (13/08): empresa com Asaas ativo → link de CARTÃO junto do
-        // pedido (best-effort, mesmo contrato do PIX: falha não derruba nada).
+        // Fase 2 (13/08) + 25/09: link de CARTÃO junto do pedido, no provedor
+        // em uso (Asaas ou InfinitePay — CartaoPedidoService decide). Best-effort,
+        // mesmo contrato do PIX: falha não derruba o pedido.
         $cartaoLink = null;
-        if ($asaas = \App\Services\Pagamento\AsaasService::ativoPara($token->empresa_id)) {
-            try {
-                $cartaoLink = $asaas->linkCartaoParaPedido($pedido->fresh(['cliente']))['link'] ?: null;
-            } catch (\Throwable $e) {
-                Log::channel('integracao')->error('Agente IA: falha ao gerar link de cartão Asaas', [
-                    'pedido_id' => $pedido->id,
-                    'erro' => $e->getMessage(),
-                ]);
+        $cartaoProvedor = null;
+        if (CartaoPedidoService::provedorEmUso($token->empresa_id)) {
+            $resultadoCartao = app(CartaoPedidoService::class)->linkParaPedido($pedido->fresh(['cliente', 'itens']));
+            if ($resultadoCartao['success'] && $resultadoCartao['link']) {
+                $cartaoLink = $resultadoCartao['link']->link;
+                $cartaoProvedor = $resultadoCartao['link']->provedor;
             }
         }
 
@@ -932,7 +936,9 @@ class IntegracaoAgenteController extends Controller
         } elseif ($pix) {
             $mensagem .= ' Para pagar agora, use o PIX copia-e-cola enviado. Assim que o pagamento cair, o pedido é confirmado automaticamente.';
         } elseif ($cartaoLink) {
-            $mensagem .= ' Para pagar no cartão, use o link enviado. Assim que o pagamento cair, o pedido é confirmado automaticamente.';
+            $mensagem .= $cartaoProvedor === EmpresaGateway::PROVEDOR_INFINITEPAY
+                ? ' Para pagar, use o link enviado — ele aceita cartão de crédito ou PIX. Assim que o pagamento cair, o pedido é confirmado automaticamente.'
+                : ' Para pagar no cartão, use o link enviado. Assim que o pagamento cair, o pedido é confirmado automaticamente.';
         } elseif ($entrega) {
             $mensagem .= ' Um atendente vai confirmar com você a forma de pagamento.';
         } else {
@@ -950,6 +956,8 @@ class IntegracaoAgenteController extends Controller
                 'status' => $pedido->status->value,
                 'pix' => $pix,
                 'cartao_link' => $cartaoLink,
+                // 25/09: quem gerou o link. InfinitePay aceita cartão E PIX na mesma página.
+                'cartao_provedor' => $cartaoProvedor,
                 'entrega' => $entrega,
                 'mensagem' => $mensagem,
             ],
@@ -1213,9 +1221,78 @@ class IntegracaoAgenteController extends Controller
         ]);
     }
 
+    /**
+     * POST /pedidos/{id}/cartao — link de pagamento no cartão do pedido (2ª
+     * via), no provedor em uso da empresa (Asaas ou InfinitePay, 25/09/2026).
+     * Reaproveita o link aberto do mesmo valor; pedido já pago devolve pago=true.
+     */
+    public function cartaoPedido(Request $request, int $id): JsonResponse
+    {
+        $token = $this->token($request);
+
+        if ($erro = $this->exigirAgenteAtivo($token)) {
+            return $erro;
+        }
+
+        $pedido = $this->pedidoDaEmpresa($token->empresa_id, $id);
+        if (! $pedido) {
+            return response()->json(['erro' => 'Pedido não encontrado.'], 404);
+        }
+
+        if ($pedido->status === StatusPedido::Cancelado) {
+            return response()->json(['erro' => "O pedido #{$pedido->numero} está cancelado."], 422);
+        }
+
+        $pedido->loadMissing(['cliente', 'itens']);
+        $jaPago = CartaoPedidoService::pedidoPagoNoLink($pedido);
+        // Pago de verdade por outro caminho (PIX, cartão, por fora) — 'erp' é só
+        // "fechado no ERP" e não prova pagamento, então não bloqueia o link.
+        $resumo = $this->pagamentoResumo($pedido, $this->ultimaCobranca($pedido));
+        if (! $jaPago && $resumo['situacao'] === 'pago' && $resumo['via'] !== 'erp') {
+            return response()->json(['dados' => [
+                'pedido_numero' => (int) $pedido->numero, 'pago' => true, 'link' => null, 'provedor' => null,
+                'mensagem' => "O pedido #{$pedido->numero} já está pago — não é preciso outro link.",
+            ]]);
+        }
+
+        if (! CartaoPedidoService::provedorEmUso($token->empresa_id) && ! $jaPago) {
+            return response()->json(['erro' => 'Cartão não está configurado para esta empresa.'], 409);
+        }
+
+        $resultado = app(CartaoPedidoService::class)->linkParaPedido($pedido);
+        if (! $resultado['success']) {
+            return response()->json(['erro' => $resultado['error']], 422);
+        }
+
+        $link = $resultado['link'];
+        $aceitaPix = $link->provedor === EmpresaGateway::PROVEDOR_INFINITEPAY;
+
+        return response()->json(['dados' => [
+            'pedido_numero' => (int) $pedido->numero,
+            'provedor' => $link->provedor,
+            'valor' => (float) $link->valor,
+            'pago' => $resultado['pago'],
+            'link' => $resultado['pago'] ? null : $link->link,
+            'aceita_pix' => $aceitaPix,
+            'mensagem' => $resultado['pago']
+                ? "O pedido #{$pedido->numero} já está PAGO" . ($link->pago_em ? ' (em ' . $link->pago_em->format('d/m/Y H:i') . ')' : '') . '.'
+                : "Link de pagamento do pedido #{$pedido->numero}: R$ " . number_format((float) $link->valor, 2, ',', '.')
+                    . ($aceitaPix ? ' — aceita cartão de crédito ou PIX.' : ' no cartão de crédito.'),
+        ]]);
+    }
+
     /* ---------------------------------------------------------------- */
     /*  Internos                                                         */
     /* ---------------------------------------------------------------- */
+
+    private function ultimaCobranca(Pedido $pedido): ?PedidoCobranca
+    {
+        return PedidoCobranca::where('empresa_id', $pedido->empresa_id)
+            ->where('pedido_id', $pedido->id)
+            ->whereNot('status', 'ERRO')
+            ->orderByDesc('id')
+            ->first();
+    }
 
     private function token(Request $request): IntegracaoToken
     {
@@ -1293,9 +1370,10 @@ class IntegracaoAgenteController extends Controller
     /** @return array<string, mixed> */
     private function pedidoParaResposta(Pedido $pedido): array
     {
-        $cobranca = PedidoCobranca::where('empresa_id', $pedido->empresa_id)
+        $cobranca = $this->ultimaCobranca($pedido);
+        $linkCartao = PedidoLinkCartao::where('empresa_id', $pedido->empresa_id)
             ->where('pedido_id', $pedido->id)
-            ->whereNot('status', 'ERRO')
+            ->orderByRaw("status = 'pago' desc")
             ->orderByDesc('id')
             ->first();
 
@@ -1333,6 +1411,18 @@ class IntegracaoAgenteController extends Controller
             // 05/09: situação consolidada do pagamento (PIX Sicredi, cartão Asaas
             // ou recebido por fora) — é o que a aba Pedidos do app.ia365 mostra.
             'pagamento_resumo' => $this->pagamentoResumo($pedido, $cobranca),
+            // 25/09: link de cartão (Asaas/InfinitePay) — o pago primeiro, senão o mais novo.
+            'cartao' => $linkCartao ? [
+                'provedor' => $linkCartao->provedor,
+                'status' => $linkCartao->status,
+                'link' => $linkCartao->status === PedidoLinkCartao::STATUS_ATIVO ? $linkCartao->link : null,
+                'valor' => (float) $linkCartao->valor,
+                'valor_pago' => $linkCartao->valor_pago !== null ? (float) $linkCartao->valor_pago : null,
+                'parcelas' => $linkCartao->parcelas,
+                'forma' => $linkCartao->capture_method,
+                'comprovante_url' => $linkCartao->receipt_url,
+                'pago_em' => $linkCartao->pago_em?->format('Y-m-d H:i'),
+            ] : null,
             'entrega' => $this->entregaParaResposta($pedido),
             'acoes' => $this->acoesPermitidas($pedido),
         ];
@@ -1498,6 +1588,9 @@ class IntegracaoAgenteController extends Controller
         if ($cobrancaPaga) {
             return response()->json(['erro' => 'Este pedido já tem PIX pago — cancele pelo ERP para tratar o estorno.'], 422);
         }
+        if (CartaoPedidoService::pedidoPagoNoLink($pedido)) {
+            return response()->json(['erro' => 'Este pedido já foi pago pelo link — cancele pelo ERP para tratar o estorno.'], 422);
+        }
 
         $autor = trim((string) ($validated['autor'] ?? '')) ?: 'painel app.ia365';
         $motivo = trim((string) ($validated['motivo'] ?? ''));
@@ -1513,6 +1606,8 @@ class IntegracaoAgenteController extends Controller
                 ->whereNull('pago_em')
                 ->whereNotIn('status', ['ERRO'])
                 ->update(['status' => 'CANCELADA']);
+
+            CartaoPedidoService::cancelarLinks($pedido);
         });
 
         Log::channel('integracao')->info('Venda humana: pedido cancelado', [
@@ -1619,8 +1714,10 @@ class IntegracaoAgenteController extends Controller
         if ($cobranca?->paga()) {
             return ['situacao' => 'pago', 'via' => 'pix', 'em' => $cobranca->pago_em?->format('Y-m-d H:i')];
         }
-        if (preg_match('/CARTÃO PAGO via Asaas em (\d{2}\/\d{2}\/\d{4} \d{2}:\d{2})/u', $obs, $m)) {
-            return ['situacao' => 'pago', 'via' => 'cartao', 'em' => $this->dataBr($m[1])];
+        // Asaas: "CARTÃO PAGO via Asaas em …"; InfinitePay (25/09): "CARTÃO PAGO via
+        // InfinitePay em …" ou "PIX PAGO via InfinitePay em …" (o link aceita os dois).
+        if (preg_match('/(CARTÃO|PIX) PAGO via (Asaas|InfinitePay) em (\d{2}\/\d{2}\/\d{4} \d{2}:\d{2})/u', $obs, $m)) {
+            return ['situacao' => 'pago', 'via' => $m[1] === 'PIX' ? 'pix' : 'cartao', 'provedor' => mb_strtolower($m[2]), 'em' => $this->dataBr($m[3])];
         }
         if (preg_match('/PAGO POR FORA \(([^)]+)\) em (\d{2}\/\d{2}\/\d{4} \d{2}:\d{2})/u', $obs, $m)) {
             return ['situacao' => 'pago', 'via' => 'manual', 'forma' => $m[1], 'em' => $this->dataBr($m[2])];
@@ -1655,11 +1752,16 @@ class IntegracaoAgenteController extends Controller
         $pixPago = PedidoCobranca::where('empresa_id', $pedido->empresa_id)
             ->where('pedido_id', $pedido->id)->whereNotNull('pago_em')->exists();
 
+        $temCartao = CartaoPedidoService::provedorEmUso((int) $pedido->empresa_id) !== null;
+        $cartaoPago = CartaoPedidoService::pedidoPagoNoLink($pedido) !== null;
+
         return [
             'gerar_pix' => $temPix && $pedido->status === StatusPedido::Rascunho && ! $pixPago,
+            // 25/09: link de cartão (Asaas/InfinitePay) — mesma regra do PIX.
+            'gerar_link_cartao' => $temCartao && $pedido->status === StatusPedido::Rascunho && ! $pixPago && ! $cartaoPago,
             'verificar_pagamento' => $temPix && $pedido->status === StatusPedido::Rascunho,
             'confirmar_pagamento' => $pedido->status === StatusPedido::Rascunho,
-            'cancelar' => in_array($pedido->status, [StatusPedido::Rascunho, StatusPedido::Confirmado], true) && ! $pixPago,
+            'cancelar' => in_array($pedido->status, [StatusPedido::Rascunho, StatusPedido::Confirmado], true) && ! $pixPago && ! $cartaoPago,
             'marcar_entregue' => $pedido->status === StatusPedido::Faturado,
         ];
     }
