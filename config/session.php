@@ -32,7 +32,10 @@ return [
     |
     */
 
-    'lifetime' => (int) env('SESSION_LIFETIME', 120),
+    // SESSION_LIFETIME_MIN existe porque SESSION_LIFETIME vive no ambiente do processo
+    // (env_file do compose, fixado quando o container nasce) e ganha do .env copiado por
+    // docker cp. Uma chave nova o processo não tem, então o .env vale. Ver armadilha 80.
+    'lifetime' => (int) env('SESSION_LIFETIME_MIN', env('SESSION_LIFETIME', 120)),
 
     'expire_on_close' => env('SESSION_EXPIRE_ON_CLOSE', false),
 
