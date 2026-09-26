@@ -35,10 +35,20 @@ class InfinitePayService
         return ($gw && $gw->capacidadeAtiva()) ? new self($gw) : null;
     }
 
-    /** InfiniteTag como a API espera: sem '$', sem espaços. */
+    /**
+     * InfiniteTag como a API espera: sem '$', sem espaços. Copiar/colar do app da
+     * InfinitePay traz lixo invisível (NBSP, zero-width) e traço tipográfico no
+     * lugar do hífen — pego na Dona Douro em 26/09: "$marcus-vinicius-mue" era
+     * recusado. Limpa antes de validar.
+     */
     public static function normalizarHandle(?string $handle): string
     {
-        return ltrim(preg_replace('/\s+/', '', (string) $handle), '$');
+        $h = (string) $handle;
+        $h = preg_replace('/[\x{200B}-\x{200F}\x{FEFF}\x{00A0}\x{2060}]/u', '', $h);   // invisíveis
+        $h = preg_replace('/[\x{2010}-\x{2015}\x{2212}]/u', '-', $h);                 // traços tipográficos → hífen
+        $h = preg_replace('/\s+/u', '', $h);
+
+        return ltrim($h, '$');
     }
 
     public function handle(): string

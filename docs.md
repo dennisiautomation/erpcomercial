@@ -3760,7 +3760,12 @@ plataforma (§311 de lá). Ligar para um cliente: aba Integração → InfiniteT
 `~/backups/deploy-311-20260925_1234` + imagem `erp-com-app:pre-311-20260925_1234`; migration batch 42; `route:list --path=infinitepay`
 = 3 rotas, `/login` 200, webhook responde pelo site após `opcache_reset()`. A v1 do script voltou sozinha 2× em "rota do webhook
 ausente" (causa não identificada — a v1 escondia a saída; a tabela nova ficou vazia no banco, inofensiva). Plataforma subiu em
-seguida (§311 lá). Branch NÃO pushada.
+seguida (§311 lá). Branch pushada.
+
+**26/09 — InfiniteTag colada era recusada.** A DONA DOURO colou `$marcus-vinicius-mue` do app da InfinitePay e a validação
+recusou: o copiar/colar traz caractere invisível (NBSP/zero-width) ou traço tipográfico no lugar do hífen — na tela é igual.
+`InfinitePayService::normalizarHandle()` agora remove os invisíveis e troca `– — −` por `-`, e o controller limpa ANTES de
+validar. Deploy pontual: `scripts/deploy-311-handle.sh` da branch da plataforma (2 arquivos + optimize + opcache_reset).
 
 ---
 

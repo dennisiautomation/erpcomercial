@@ -24,6 +24,11 @@ class EmpresaInfinitePayController extends Controller
     {
         abort_unless($request->user()->is_admin, 403);
 
+        // Limpa o que o copiar/colar traz (invisíveis, traço tipográfico) ANTES de validar.
+        if ($request->filled('handle')) {
+            $request->merge(['handle' => InfinitePayService::normalizarHandle($request->input('handle'))]);
+        }
+
         $validated = $request->validate([
             'handle' => ['nullable', 'string', 'max:80', 'regex:/^\\s*\\$?[A-Za-z0-9._-]+\\s*$/'],
             'ativo' => ['nullable', 'boolean'],
