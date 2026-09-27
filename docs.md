@@ -4818,7 +4818,7 @@ e o COMPLEMENTO" (ou, em CEP geral de cidade, "peça RUA, NÚMERO, BAIRRO e COMP
 Branch `frete-servico-cep` (sobre `feat/cartao-infinitepay` @7efb9d1 = produção desses 2 arquivos), worktree
 `/home/ubuntu/apps/erp-frete-cep`. Arquivos: `app/Services/Entrega/MelhorEnvioService.php`,
 `app/Http/Controllers/Api/IntegracaoAgenteController.php`. Sem migration, sem env. Deploy = `docker cp` dos 2 arquivos
-+ `opcache_reset()` (validate_timestamps=Off, armadilha do §311). **Dados NÃO corrigidos** (aguardam OK): cliente 333
++ `opcache_reset()` (validate_timestamps=Off, armadilha do §311). ✅ **EM PRODUÇÃO 27/09/2026 13:08 UTC** (Dennis rodou `scripts/deploy-frete-cep.sh`; backup dos originais em `~/backups/deploy-frete-cep-20260927_1308`; `/login` 200, 0 erros novos no log). **Dados NÃO corrigidos** (aguardam OK): cliente 333
 (Dennis) com TERESINA/PI e os 3 pedidos de entrega sem frete.
 
 ## Armadilhas conhecidas
