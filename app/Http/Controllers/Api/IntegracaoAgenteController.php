@@ -767,6 +767,13 @@ class IntegracaoAgenteController extends Controller
                 $freteValor = (float) $frete['valor'];
                 $fretePrazoMin = $frete['prazo_minutos'] ?? null;
             } else {
+                if ($frete) {
+                    Log::channel('integracao')->warning('Agente IA: pedido de entrega segue SEM frete', [
+                        'empresa_id' => $token->empresa_id,
+                        'motivo' => $frete['motivo'] ?? null,
+                        'servico_id' => $validated['entrega']['servico_id'] ?? null,
+                    ]);
+                }
                 $frete = null;
             }
         }
@@ -792,8 +799,24 @@ class IntegracaoAgenteController extends Controller
                 ], fn ($v) => $v !== null && $v !== '');
 
                 if ($novo !== []) {
-                    $novo['cidade'] ??= $cliente->cidade ?: $unidade->cidade;
-                    $novo['uf'] ??= $cliente->uf ?: $unidade->uf;
+                    // 27/09: cidade/UF (e rua/bairro que faltarem) vêm do CEP — antes
+                    // caíam na cidade da LOJA e um CEP de São Vicente/SP virava
+                    // "TERESINA/PI". Sem ViaCEP: cidade antiga do cliente só se o CEP
+                    // é o mesmo; senão a da loja (comportamento antigo).
+                    $cepEnd = isset($novo['cep']) ? MelhorEnvioService::consultarCep($novo['cep']) : null;
+                    if ($cepEnd) {
+                        $novo['cidade'] ??= $cepEnd['cidade'];
+                        $novo['uf'] ??= $cepEnd['uf'];
+                        if (! isset($novo['logradouro']) && $cepEnd['logradouro'] !== '') {
+                            $novo['logradouro'] = $cepEnd['logradouro'];
+                        }
+                        if (! isset($novo['bairro']) && $cepEnd['bairro'] !== '') {
+                            $novo['bairro'] = $cepEnd['bairro'];
+                        }
+                    }
+                    $mesmoCep = isset($novo['cep']) && preg_replace('/\D/', '', (string) $cliente->cep) === $novo['cep'];
+                    $novo['cidade'] ??= ($mesmoCep ? $cliente->cidade : null) ?: $unidade->cidade;
+                    $novo['uf'] ??= ($mesmoCep ? $cliente->uf : null) ?: $unidade->uf;
                     $cliente->fill($novo)->save();
                 }
             }
@@ -1013,10 +1036,20 @@ class IntegracaoAgenteController extends Controller
         }
 
         $itens = $this->itensParaCotacao($token->empresa_id, $validated['itens'] ?? []);
+        $dados = $this->resolverEntrega($token->empresa_id, $unidade, $validated, $itens, $validated['servico_id'] ?? null);
 
-        return response()->json([
-            'dados' => $this->resolverEntrega($token->empresa_id, $unidade, $validated, $itens, $validated['servico_id'] ?? null),
-        ]);
+        // 27/09: endereço do CEP (ViaCEP) para o agente CONFIRMAR com o cliente
+        // em vez de pedir a rua de novo — e perguntar só número e complemento.
+        $cepEnd = MelhorEnvioService::consultarCep((string) ($validated['cep'] ?? ''));
+        if ($cepEnd) {
+            $dados['endereco_cep'] = $cepEnd + ['cep_geral' => $cepEnd['logradouro'] === ''];
+            $dados['mensagem'] = trim(($dados['mensagem'] ?? '') . ' ' . ($cepEnd['logradouro'] !== ''
+                ? 'Endereço do CEP: ' . $cepEnd['logradouro'] . ($cepEnd['bairro'] !== '' ? ', bairro ' . $cepEnd['bairro'] : '')
+                    . ', ' . $cepEnd['cidade'] . '/' . $cepEnd['uf'] . ' — confirme com o cliente e peça o NÚMERO e o COMPLEMENTO (apto, bloco, casa).'
+                : 'CEP geral de ' . $cepEnd['cidade'] . '/' . $cepEnd['uf'] . ' (sem rua) — peça RUA, NÚMERO, BAIRRO e COMPLEMENTO.'));
+        }
+
+        return response()->json(['dados' => $dados]);
     }
 
     /**
@@ -1123,6 +1156,11 @@ class IntegracaoAgenteController extends Controller
         if ($me) {
             try {
                 $opcoes = $me->cotar($unidade, $cep, $itens, $servicoId);
+                if ($opcoes === [] && $servicoId !== null && $servicoId !== '') {
+                    // 27/09: o serviço escolhido não voltou (id errado ou saiu do ar)
+                    // — recota tudo e fica com a mais barata em vez de zerar o frete.
+                    $opcoes = $me->cotar($unidade, $cep, $itens);
+                }
                 $me->gateway()->update(['ultima_falha' => null]);
             } catch (\Throwable $e) {
                 Log::channel('integracao')->error('Agente IA: falha ao cotar frete Melhor Envio', [
