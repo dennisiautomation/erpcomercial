@@ -4818,8 +4818,14 @@ e o COMPLEMENTO" (ou, em CEP geral de cidade, "peça RUA, NÚMERO, BAIRRO e COMP
 Branch `frete-servico-cep` (sobre `feat/cartao-infinitepay` @7efb9d1 = produção desses 2 arquivos), worktree
 `/home/ubuntu/apps/erp-frete-cep`. Arquivos: `app/Services/Entrega/MelhorEnvioService.php`,
 `app/Http/Controllers/Api/IntegracaoAgenteController.php`. Sem migration, sem env. Deploy = `docker cp` dos 2 arquivos
-+ `opcache_reset()` (validate_timestamps=Off, armadilha do §311). ✅ **EM PRODUÇÃO 27/09/2026 13:08 UTC** (Dennis rodou `scripts/deploy-frete-cep.sh`; backup dos originais em `~/backups/deploy-frete-cep-20260927_1308`; `/login` 200, 0 erros novos no log). **Dados NÃO corrigidos** (aguardam OK): cliente 333
-(Dennis) com TERESINA/PI e os 3 pedidos de entrega sem frete.
++ `opcache_reset()` (validate_timestamps=Off, armadilha do §311). ✅ **EM PRODUÇÃO 27/09/2026 13:08 UTC** (Dennis rodou `scripts/deploy-frete-cep.sh`; backup dos originais em `~/backups/deploy-frete-cep-20260927_1308`; `/login` 200, 0 erros novos no log). **Teste de ponta a ponta (27/09, depois do deploy — a mesma conversa do Dennis pelo agente, telefone dele):** CEP
+11320000 ⇒ a IA confirmou "Avenida Presidente Wilson, Centro — São Vicente/SP" e pediu número e complemento; escolheu
+.Package ⇒ `CRIAR PEDIDO` com `servico_id=3` ⇒ **pedido #23 (id 31) `frete_valor=35.13`, `total=145.13`**, .Package 12
+dias, cobrança PIX de R$ 145,13; cliente 333 regravado como Av. Presidente Wilson, 1016, AP 12, Centro, **São Vicente/SP**.
+O prompt do agente da Dona Douro também foi ajustado nesse dia (ramo, "PIX ou cartão?", endereço pelo CEP) — docs.md
+do app.ia365 §315.
+**Pendentes (aguardam OK):** cancelar os pedidos de TESTE #20, #21, #22 (sem frete) e #23 (teste) — nenhum pago;
+cliente 337 (Joao Teste) ainda TERESINA/PI com CEP 65200-000 (= Pinheiro/MA).
 
 ## Armadilhas conhecidas
 
