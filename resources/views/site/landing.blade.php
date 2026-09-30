@@ -435,12 +435,12 @@
       </ul>
       <div class="cta__map reveal">
         <iframe
-          title="Localização IA365 — Alameda Santos, 200, Bela Vista, São Paulo/SP"
-          src="https://www.google.com/maps?q=Alameda+Santos+200,+Bela+Vista,+S%C3%A3o+Paulo+-+SP,+01418-000&output=embed"
+          title="Localização IA365 — Av. Paulista, 1337, Bela Vista, São Paulo/SP"
+          src="https://www.google.com/maps?q=Av.+Paulista,+1337,+Bela+Vista,+S%C3%A3o+Paulo+-+SP,+01311-200&output=embed"
           loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
         <div class="cta__map-bar">
-          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg> <strong>IA365</strong> · Alameda Santos, 200 — 9º andar, Bela Vista, São Paulo/SP</span>
-          <a href="https://www.google.com/maps/search/?api=1&query=Alameda+Santos+200+9%C2%BA+andar+Bela+Vista+S%C3%A3o+Paulo+SP+01418-000" target="_blank" rel="noopener">Como chegar →</a>
+          <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg> <strong>IA365</strong> · Av. Paulista, 1337 — Cj. 72, 7º andar, Bela Vista, São Paulo/SP</span>
+          <a href="https://www.google.com/maps/search/?api=1&query=Av.+Paulista+1337+Bela+Vista+S%C3%A3o+Paulo+SP+01311-200" target="_blank" rel="noopener">Como chegar →</a>
         </div>
       </div>
     </div>
@@ -525,7 +525,7 @@
           <li><a href="#demo">Agendar demonstração</a></li>
           <li><a href="https://wa.me/5511917120940" target="_blank" rel="noopener">WhatsApp</a></li>
           <li><a href="mailto:contato@ia365.com.br">contato@ia365.com.br</a></li>
-          <li><a href="https://www.google.com/maps/search/?api=1&query=Alameda+Santos+200+9%C2%BA+andar+Bela+Vista+S%C3%A3o+Paulo+SP+01418-000" target="_blank" rel="noopener">Alameda Santos, 200 — 9º andar<br>Bela Vista, São Paulo/SP · 01418-000</a></li>
+          <li><a href="https://www.google.com/maps/search/?api=1&query=Av.+Paulista+1337+Bela+Vista+S%C3%A3o+Paulo+SP+01311-200" target="_blank" rel="noopener">Av. Paulista, 1337 — Cj. 72, 7º andar<br>Bela Vista, São Paulo/SP · CEP 01311-200</a></li>
         </ul>
       </div>
     </div>

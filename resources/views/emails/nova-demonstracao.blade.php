@@ -82,7 +82,7 @@
             <td style="padding:22px 32px 28px;">
               <p style="margin:0;font-size:12px;line-height:1.6;color:#9a9eb0;text-align:center;border-top:1px solid #ececf2;padding-top:18px;">
                 Recebido em {{ $lead->created_at?->format('d/m/Y H:i') }} · origem: {{ $lead->origem }}<br>
-                ERP Comercial IA365 — Alameda Santos, 200, 9º andar, Bela Vista, São Paulo/SP
+                ERP Comercial IA365 — Av. Paulista, 1337, Cj. 72, 7º andar, Bela Vista, São Paulo/SP · CEP 01311-200
               </p>
             </td>
           </tr>
