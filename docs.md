@@ -43,6 +43,7 @@
 9y. [O número do caixa sumiu da tela de abertura (11/09/2026)](#o-número-do-caixa-sumiu-da-tela-de-abertura-11092026)
 9z. [Relatório de vendas: impresso limpo, peças, formas, vendedor e loja (11/09/2026)](#relatório-de-vendas-impresso-limpo-peças-formas-de-pagamento-vendedor-e-loja-11092026)
 9aa. [Sessão: de 2 horas para 7 dias (25/09/2026)](#sessão-de-2-horas-para-7-dias-25092026--em-produção-2509-1540-utc)
+9ab. [Dinheiro a menos no PDV: aviso + trava no servidor (07/10/2026)](#dinheiro-a-menos-no-pdv-o-caixa-aceitava-menos-que-o-total-sem-avisar-07102026)
 10. [Armadilhas conhecidas](#armadilhas-conhecidas)
 11. [Próximos passos](#próximos-passos)
 
@@ -4788,6 +4789,75 @@ acima.
 
 ---
 
+## Dinheiro a menos no PDV: o caixa aceitava menos que o total sem avisar (07/10/2026)
+
+**Chamado:** MISS MERLINDA — "quando clica em receber e coloca um valor em dinheiro menor que o devido, o
+sistema não avisa e não pergunta se tem outra forma para completar". Confirmado em produção: **5 vendas
+(23/09–03/10) somam R$ 1.015 e só R$ 475 recebidos — R$ 540 sem rastro**:
+
+| Venda | Loja | Data | Total | Recebido | Faltou |
+|---|---|---|---|---|---|
+| #3717 (id 7034) | Dirceu | 03/10 | 85 | 70 | 15 |
+| #3680 (id 6997) | Dirceu | 03/10 | 65 | 50 | 15 |
+| #3630 (id 6947) | Timon | 03/10 | 320 | 200 | 120 |
+| #3199 (id 6513) | Timon | 01/10 | 390 | 5 | 385 |
+| #2116 (id 5424) | Riverside | 23/09 | 155 | 150 | 5 |
+
+(+ 1 venda de teste da ia365 em 29/05, R$ 200 a menos.) Nas outras empresas, nenhuma.
+
+**O defeito (duas camadas, `resources/views/app/pdv/index.blade.php` + `PdvController::registrarVenda`):**
+- `confirmarPagamento()`: só bloqueava "valor excede o restante" para forma ≠ dinheiro; com dinheiro e a
+  caixa "Pagamento dividido" desmarcada, gravava `pagamentos = [{dinheiro, digitado}]` e chamava finalizar.
+- `finalizarVenda()`: a checagem "Pagamento insuficiente. Faltam R$ X" era **pulada quando havia dinheiro**
+  (`if (!hasDinheiro && ...)`) — a intenção era permitir troco (a MAIS), mas isentou também a MENOS.
+- Servidor: `$troco = max(0, totalPago − total)` e nenhuma recusa. A venda nascia com o **total cheio**,
+  a movimentação de caixa só com o recebido, a conta a receber "paga" no valor menor e a comissão sobre o
+  total. O fechamento do caixa "batia" com a gaveta, então a loja nunca via a diferença.
+- O caminho do split (caixa marcada) sempre funcionou: dinheiro menor virava parcial e pedia o resto.
+
+**O que entrou (sem migration):**
+- **Modal "Dinheiro a menos"** (`#modalDinheiroMenor`, estático): "Recebido R$ X de R$ Y — Faltam R$ Z" com
+  dois botões. **Corrigir valor** reabre o modal de dinheiro com o número digitado (ajusta e confirma).
+  **Completar com outra forma** lança o dinheiro como primeira parte do split e mostra "Faltam R$ Z"; a
+  próxima forma (F-teclas/botões) já abre com o restante, como num split normal.
+- `finalizarVenda()`: a MENOS nunca passa, em nenhuma forma (a MAIS em dinheiro continua = troco).
+- `PdvController`: `totalPago < total − 0,01` → `DomainException` 422 "Pagamento insuficiente: recebido R$ X
+  de R$ Y. Faltam R$ Z — corrija o valor ou complete com outra forma". Tolerância de 1 centavo (conferido:
+  em ~7.000 vendas de produção, só as 6 acima ficam abaixo dela).
+- Métodos novos: `mostrarDinheiroMenor`, `corrigirDinheiroMenor`, `completarDinheiroMenor` e o utilitário
+  `_aposFechar(modalId, fn)` (abre o próximo modal só depois do `hidden.bs.modal` do anterior — abrir em
+  cima de um que ainda está sumindo deixa o body sem `modal-open`).
+
+**Validação (`erp-test-app`, `127.0.0.1:8099`, banco `erp_test`, `qa.caixa@teste.local`, caixa 41, produto
+2560 "taxa de entrega" R$ 1,00 — produção intocada), antes → depois:**
+
+| Caso | Antes | Depois |
+|---|---|---|
+| HTTP dinheiro 0,50 em 1,00 | ❌ 200, venda gravada total 1,00 / pago 0,50 | ✅ 422, nada gravado |
+| HTTP PIX 0,50 em 1,00 | ❌ 200 | ✅ 422 |
+| HTTP split dinheiro 0,50 + PIX 0,30 | ❌ 200 | ✅ 422 |
+| HTTP dinheiro 1,00 / 2,00 (troco 1,00) / PIX 1,00 / split 0,40+0,60 / 0,995 | ✅ 200 | ✅ 200 (5/5, caixa confere) |
+| Tela: dinheiro 0,50 → aviso "Faltam R$ 0,50", não finaliza | ❌ finalizou venda de teste #36 | ✅ |
+| Tela: "Corrigir valor" reabre com 0,50 → 1,00 → finaliza | — | ✅ |
+| Tela: "Completar" → split Dinheiro 0,40 + "Faltam 0,60" → PIX já vem 0,60 → finaliza | — | ✅ |
+| Tela: dinheiro 2,00 (troco), split marcado 0,30 + PIX 0,70, dinheiro exato | ✅ | ✅ sem regressão, zero erro de JS |
+
+Scripts: `valida-http.sh` (curl com login/CSRF, 8 casos, limpa o que criou pelo id) e `valida-ui.js`
+(Puppeteer + chrome-headless-shell do `~/.cache/puppeteer`, `NODE_PATH=~/.npm/_npx/7d92d9a2d2ccc630/node_modules`).
+⚠️ No teste de tela, clicar num botão do modal durante o fade de entrada (a caixa desliza 50 px) perde o
+clique — esperar ~450 ms depois da classe `show`.
+
+**Ambiente de teste (07/10):** depois do reboot do host os containers de teste subiram com IP novo e o
+`erp-test-app` ficou preso em "aguardando MySQL em 172.17.0.3" (IP chumbado no `-e DB_HOST`). Recriado
+com `DB_HOST=172.17.0.9` (`erp-test-mysql` atual); o antigo ficou parado como `erp-test-app-old`. A imagem
+tem `opcache.validate_timestamps = 0` — **arquivo novo só vale depois de `kill -USR2` no master do php-fpm**
+(BusyBox: `ps -o pid,args | grep "php-fpm: master"`; `ps -C` não existe) — valeu também para o teste.
+
+**Pendente (decisão do Dennis):** as 5 vendas acima — cobrar da loja, lançar como desconto ou deixar como
+está. Não foram tocadas.
+
+---
+
 ## Armadilhas conhecidas
 
 1. **EmpresaScope recursão**: `auth()->user()` dentro do scope chama User model que tem o scope → loop infinito. Scopes têm flag `static $applying`. Não remover.
@@ -5267,6 +5337,7 @@ acima.
     precisa lembrar do `TrocaService` — o que não está no item não volta na devolução, a menos que
     o rateio some `outras_despesas` (04/09/2026).
 
+81. **Dinheiro é isento de "excede" (troco), não de "falta"** (07/10/2026). Toda checagem de pagamento no PDV tem de valer para TODAS as formas; só a MAIS em dinheiro é exceção. E o servidor é a autoridade: `PdvController` recusa `totalPago < total` (422). Antes disso, 5 vendas da MISS MERLINDA nasceram com R$ 540 a menos sem rastro — ver seção 9ab.
 
 ---
 

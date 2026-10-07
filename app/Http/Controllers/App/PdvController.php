@@ -449,6 +449,17 @@ class PdvController extends Controller
                 $totalPago = collect($pagamentos)->sum('valor');
                 $troco = max(0, round($totalPago - $total, 2));
 
+                // Pagamento a MENOS (07/10/2026): o front avisa, mas o servidor é a
+                // autoridade — antes a venda nascia com o total cheio e o caixa só
+                // com o que foi digitado (MISS MERLINDA: 5 vendas, R$ 540 sem rastro).
+                if ($totalPago < $total - 0.01) {
+                    $fmt = fn ($v) => number_format((float) $v, 2, ',', '.');
+                    throw new \DomainException(
+                        "Pagamento insuficiente: recebido R$ {$fmt($totalPago)} de R$ {$fmt($total)}. "
+                        . "Faltam R$ {$fmt($total - $totalPago)} — corrija o valor ou complete com outra forma."
+                    );
+                }
+
                 $venda = Venda::create([
                     'empresa_id'          => $empresaId,
                     'unidade_id'          => $unidadeId,
@@ -558,6 +569,7 @@ class PdvController extends Controller
                         'empresa_id'      => $empresaId,
                         'unidade_id'      => $unidadeId,
                         'caixa_id'        => $caixa->id,
+                        'venda_id'        => $venda->id,
                         'tipo'            => TipoMovimentacaoCaixa::Venda,
                         'valor'           => $valorMov,
                         'forma_pagamento' => $pgto['forma'],
