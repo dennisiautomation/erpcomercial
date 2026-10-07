@@ -27,7 +27,7 @@
         @endif
         @if($venda->status->value === 'concluida')
             <form method="POST" action="{{ route('app.vendas.destroy', $venda) }}"
-                  data-confirm="Cancelar esta venda? O estoque sera revertido e as contas a receber serao canceladas.">
+                  data-confirm="Cancelar esta venda? O estoque sera revertido, as contas a receber serao canceladas e o valor sai do caixa na mesma forma de pagamento (vale volta ao saldo). Devolva o dinheiro ao cliente; PIX e cartao, estorne no banco ou na maquininha.">
                 @csrf
                 @method('DELETE')
                 <button type="submit" class="btn btn-danger">

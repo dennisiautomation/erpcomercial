@@ -121,6 +121,27 @@ class Vale extends Model
         ]);
     }
 
+    /**
+     * Devolve ao saldo o que uma venda cancelada abateu. Chamar dentro de
+     * transação, com lock. Vale vencido volta a ter saldo mas segue vencido.
+     */
+    public function estornar(float $valor, ?int $vendaId, ?int $userId = null): ValeUso
+    {
+        $valor = round($valor, 2);
+        $this->saldo = round((float) $this->saldo + $valor, 2);
+        if ($this->status === 'utilizado' && $this->saldo > 0) {
+            $this->status = 'ativo';
+        }
+        $this->save();
+
+        return $this->usos()->create([
+            'venda_id' => $vendaId,
+            'user_id'  => $userId ?? auth()->id(),
+            'tipo'     => 'estorno',
+            'valor'    => $valor,
+        ]);
+    }
+
     public function statusLabel(): string
     {
         if ($this->status === 'ativo' && $this->expirado()) {

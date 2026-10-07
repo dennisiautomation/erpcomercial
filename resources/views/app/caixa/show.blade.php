@@ -95,6 +95,12 @@
                 <span class="text-danger">- R$ {{ number_format($resumo['devolucoes'], 2, ',', '.') }}</span>
             </div>
             @endif
+            @if(($resumo['estornos'] ?? 0) > 0)
+            <div class="d-flex justify-content-between">
+                <span class="text-muted">Vendas canceladas (já abatidas das vendas)</span>
+                <span class="text-muted">R$ {{ number_format($resumo['estornos'], 2, ',', '.') }}</span>
+            </div>
+            @endif
 
             {{-- Desconto e acréscimo não são movimentação de caixa: vêm da venda.
                  Sem eles não dá para explicar a diferença entre a etiqueta do
@@ -225,6 +231,7 @@
                                 'suprimento' => 'bg-info text-dark',
                                 'sangria' => 'bg-danger',
                                 'devolucao' => 'bg-warning text-dark',
+                                'estorno' => 'bg-danger-subtle text-danger',
                                 'fechamento' => 'bg-dark',
                                 default => 'bg-light text-dark',
                             };

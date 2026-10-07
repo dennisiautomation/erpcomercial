@@ -29,9 +29,22 @@ class CaixaController extends Controller
 
         $vendas = $movs->where('tipo', TipoMovimentacaoCaixa::Venda);
 
-        $porForma = $vendas
+        // Venda cancelada devolve pelo estorno, na mesma forma: a conferência
+        // de cada forma (e o dinheiro da gaveta) enxerga só o líquido.
+        $estornos = $movs->where('tipo', TipoMovimentacaoCaixa::Estorno);
+        $estornosPorForma = $estornos
             ->groupBy(fn ($mov) => $mov->forma_pagamento ?? 'dinheiro')
-            ->map(fn ($grupo) => (float) $grupo->sum('valor'))
+            ->map(fn ($grupo) => (float) $grupo->sum('valor'));
+
+        // Estorno de venda de outro caixa (já fechado) pode cair numa forma
+        // que este caixa nem vendeu — a forma entra mesmo assim, negativa.
+        $vendasPorForma = $vendas
+            ->groupBy(fn ($mov) => $mov->forma_pagamento ?? 'dinheiro')
+            ->map(fn ($grupo) => (float) $grupo->sum('valor'));
+
+        $porForma = $vendasPorForma->keys()->merge($estornosPorForma->keys())->unique()
+            ->mapWithKeys(fn ($forma) => [$forma => round((float) ($vendasPorForma[$forma] ?? 0) - (float) ($estornosPorForma[$forma] ?? 0), 2)])
+            ->filter(fn ($valor) => abs($valor) >= 0.005)
             ->sortDesc();
 
         $vendasDinheiro = (float) ($porForma['dinheiro'] ?? 0);
@@ -54,7 +67,8 @@ class CaixaController extends Controller
 
         return [
             'abertura'          => $abertura,
-            'vendas'            => (float) $vendas->sum('valor'),
+            'vendas'            => round((float) $vendas->sum('valor') - (float) $estornos->sum('valor'), 2),
+            'estornos'          => round((float) $estornos->sum('valor'), 2),
             'vendas_dinheiro'   => $vendasDinheiro,
             'vendas_por_forma'  => $porForma,
             'suprimentos'       => $suprimentos,
