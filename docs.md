@@ -4856,6 +4856,17 @@ tem `opcache.validate_timestamps = 0` — **arquivo novo só vale depois de `kil
 **Pendente (decisão do Dennis):** as 5 vendas acima — cobrar da loja, lançar como desconto ou deixar como
 está. Não foram tocadas.
 
+**Deploy — FEITO em 07/10/2026 13:52 UTC (Dennis: "faça o fluxo de testes… antes de por em produção"):**
+`docker commit` → `erp-com-app:pre-pdv-dinheiro-menor-20261007` (rollback); `tar` só dos 2 arquivos
+(`PdvController.php`, `pdv/index.blade.php`) para o container; `view:clear` + `view:cache` + `chown`;
+`kill -USR2 30` (master do php-fpm — "Reloading in progress… ready to handle connections");
+`/login` 200 em `127.0.0.1:8091` com `Host: erp.ia365.com.br`; `laravel.log` sem linha nova
+(47.545 antes e depois); arquivos no container idênticos ao HEAD. Sem migration, ninguém derrubado.
+**Rollback:** `tar` dos 2 arquivos de `526667f` + `view:cache` + USR2, ou a imagem acima.
+Git: branch `pdv-dinheiro-menor-07out` (não pushada, não mergeada). `526667f` commitou os arquivos do
+estorno de 24/09 que estavam soltos — exceto o trecho do `PdvController` (`venda_id` na movimentação),
+que foi junto no `425421f` porque o arquivo já carregava o conserto.
+
 ---
 
 ## Armadilhas conhecidas
