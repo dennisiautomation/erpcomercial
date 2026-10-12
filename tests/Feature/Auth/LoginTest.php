@@ -171,4 +171,38 @@ class LoginTest extends TestCase
         $response->assertRedirect(route('login'));
         $this->assertGuest();
     }
+
+    /** §343 — 8 senhas erradas em 15 min travam o e-mail; login certo depois do prazo volta a valer. */
+    public function test_oito_senhas_erradas_travam_o_email(): void
+    {
+        $user = User::create([
+            'empresa_id' => $this->empresa->id,
+            'name'       => 'Trava',
+            'email'      => 'trava@teste.com',
+            'password'   => bcrypt('senha-certa'),
+            'perfil'     => Perfil::GERENTE,
+            'is_admin'   => false,
+            'ativo'      => true,
+        ]);
+
+        for ($i = 0; $i < 8; $i++) {
+            $this->post('/login', ['email' => 'trava@teste.com', 'password' => 'errada'])
+                ->assertSessionHasErrors(['email' => 'E-mail ou senha incorretos.']);
+        }
+
+        // 9ª tentativa: nem com a senha certa (está travado)
+        $this->post('/login', ['email' => 'trava@teste.com', 'password' => 'senha-certa'])
+            ->assertSessionHasErrors('email');
+        $this->assertGuest();
+        $this->assertStringContainsString('Muitas tentativas', session('errors')->first('email'));
+
+        // outro e-mail do mesmo IP continua livre (8 < 30)
+        $this->post('/login', ['email' => 'outro@teste.com', 'password' => 'x'])
+            ->assertSessionHasErrors(['email' => 'E-mail ou senha incorretos.']);
+
+        // passado o prazo, libera e o login certo zera o contador
+        \Illuminate\Support\Facades\RateLimiter::clear('login:email:trava@teste.com');
+        $this->post('/login', ['email' => 'trava@teste.com', 'password' => 'senha-certa']);
+        $this->assertAuthenticatedAs($user);
+    }
 }

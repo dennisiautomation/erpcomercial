@@ -4869,6 +4869,32 @@ que foi junto no `425421f` porque o arquivo já carregava o conserto.
 
 ---
 
+## Trava de força bruta no login: 8 senhas erradas travam o e-mail, 30 travam o IP (12/10/2026)
+
+**Pedido do Dennis (12/10):** "mecanismo de tentar login e senha bloqueia o IP, já colocamos em alguns sistemas (app.ia365 §325,
+JL), precisamos no restante". O ERP não tinha nada no `POST /login` (só o formulário de demonstração tinha `throttle`).
+
+**O que mudou (branch `login-trava-343`, sobre a `main` @75e95d9 = produção):**
+- `AuthController::login`: antes de `Auth::attempt`, consulta o `RateLimiter` em duas chaves — `login:email:<e-mail>` (máx. 8)
+  e `login:ip:<ip>` (máx. 30), janela de 15 min. Bloqueado → volta ao formulário com "Muitas tentativas de login. Aguarde N
+  minuto(s)…". Senha errada → `hit` nas duas chaves; login certo → `clear` do e-mail (o IP continua contando). Contador no cache
+  (`CACHE_STORE=redis` em produção: vale entre workers e restarts).
+- `routes/web.php`: `POST /login` ganhou `throttle:30,1` (30 req/min por IP → 429).
+- `tests/Feature/Auth/LoginTest::test_oito_senhas_erradas_travam_o_email` (não roda na imagem de produção — sem dev deps).
+
+**Validação no `erp-test-app` (hot-patch dos 2 arquivos + `route:cache` + USR2):** 9 POSTs com senha errada → 9º volta com
+"Muitas tentativas de login. Aguarde 15 minuto(s)…"; outro e-mail do mesmo IP → "E-mail ou senha incorretos" (livre); 35 POSTs
+rápidos → `429` a partir do 31º (throttle); `GET /login` 200. `php -l` nos 3 arquivos.
+
+**Deploy (rito do 07/10, armadilha 52 — a imagem NÃO é rebuildada):** backup dos 2 arquivos do container em
+`/home/ubuntu/erp-backups/login-343-<ts>/`, `docker cp` dos 2 arquivos, `php artisan route:cache`, `kill -USR2 30` (master do
+php-fpm), conferir `/login` 200 e a mensagem de trava com e-mail inexistente. **Rollback:** copiar os 2 arquivos do backup de
+volta + `route:cache` + USR2.
+**nginx (Dennis, sudo):** `/home/ubuntu/seguranca-343/aplicar.sh` acrescenta `limit_req` 10/min em `erp.ia365.com.br /login`.
+**Pendente:** `LOG_STACK=daily,stderr` no `.env` (root) para o `laravel.log` (8,5 MB, 2 mil ERROR) rotacionar e os erros irem
+ao stdout do container (o coletor do Monitor ao vivo §341 do app.ia365 lê os dois) — exige recriar o container, e recriar
+reverte os hot-patches (armadilha 52): fica para quando a imagem for rebuildada de um checkout alinhado.
+
 ## Armadilhas conhecidas
 
 1. **EmpresaScope recursão**: `auth()->user()` dentro do scope chama User model que tem o scope → loop infinito. Scopes têm flag `static $applying`. Não remover.
