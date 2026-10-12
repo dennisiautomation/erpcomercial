@@ -4886,6 +4886,8 @@ JL), precisamos no restante". O ERP não tinha nada no `POST /login` (só o form
 "Muitas tentativas de login. Aguarde 15 minuto(s)…"; outro e-mail do mesmo IP → "E-mail ou senha incorretos" (livre); 35 POSTs
 rápidos → `429` a partir do 31º (throttle); `GET /login` 200. `php -l` nos 3 arquivos.
 
+**EM PRODUÇÃO desde 12/10/2026 15:54 UTC** (hot-patch; backup em `/home/ubuntu/erp-backups/login-343-20261012-1554/`; conferido: `/login` 200, e-mail inexistente travado na 9ª com "Muitas tentativas…", outro e-mail do mesmo IP livre, log sem erro novo). Branch `login-trava-343` @404a127; `main` NÃO avançada (merge só quando o Dennis pedir).
+
 **Deploy (rito do 07/10, armadilha 52 — a imagem NÃO é rebuildada):** backup dos 2 arquivos do container em
 `/home/ubuntu/erp-backups/login-343-<ts>/`, `docker cp` dos 2 arquivos, `php artisan route:cache`, `kill -USR2 30` (master do
 php-fpm), conferir `/login` 200 e a mensagem de trava com e-mail inexistente. **Rollback:** copiar os 2 arquivos do backup de
