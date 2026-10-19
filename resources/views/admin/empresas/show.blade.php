@@ -149,6 +149,12 @@
             <i class="bi bi-plug me-1"></i> Integração
         </button>
     </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="treinamento-tab" data-bs-toggle="tab" data-bs-target="#treinamento"
+                type="button" role="tab">
+            <i class="bi bi-play-btn me-1"></i> Treinamento
+        </button>
+    </li>
 </ul>
 
 <div class="tab-content" id="empresaTabContent">
@@ -966,6 +972,81 @@
                         </p>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    {{-- Tab Treinamento (19/10/2026) — quem da empresa assistiu cada vídeo --}}
+    <div class="tab-pane fade" id="treinamento" role="tabpanel">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+            <h5 class="fw-semibold mb-0">Acompanhamento do treinamento</h5>
+            <a href="{{ route('admin.treinamentos.index') }}" class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-play-btn me-1"></i> Gerenciar vídeos
+            </a>
+        </div>
+
+        <div class="card detail-card shadow-sm">
+            <div class="card-body p-0">
+                @if($treinamentos->isEmpty())
+                    <div class="text-center py-5">
+                        <i class="bi bi-play-btn fs-1 d-block mb-2 opacity-25"></i>
+                        <p class="text-muted mb-0">Nenhum vídeo de treinamento ativo.</p>
+                    </div>
+                @else
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0 table-details">
+                            <thead>
+                                <tr>
+                                    <th class="ps-3">Usuário</th>
+                                    <th class="text-center">Concluídos</th>
+                                    @foreach($treinamentos as $treinamento)
+                                        <th class="text-center small" style="min-width: 120px;">
+                                            {{ $treinamento->titulo }}
+                                        </th>
+                                    @endforeach
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse($empresa->users as $user)
+                                    {{-- Diretiva php de uma linha de propósito: um bloco php/endphp aqui casa
+                                         com a diretiva de uma linha da aba Integração e quebra a view inteira --}}
+                                    @php($assistidos = $user->treinamentosConcluidos->keyBy('id'))
+                                    @php($doPerfil = $treinamentos->filter->aplicaA($user))
+                                    @php($feitos = $assistidos->keys()->intersect($doPerfil->pluck('id'))->count())
+                                    <tr>
+                                        <td class="ps-3">
+                                            <div class="fw-semibold">{{ $user->name }}</div>
+                                            <div class="small text-muted">{{ ucfirst($user->perfil->value ?? $user->perfil ?? '-') }}</div>
+                                        </td>
+                                        <td class="text-center">
+                                            <span class="badge {{ $feitos === $doPerfil->count() ? 'bg-success' : ($feitos ? 'bg-warning text-dark' : 'bg-secondary') }}">
+                                                {{ $feitos }}/{{ $doPerfil->count() }}
+                                            </span>
+                                        </td>
+                                        @foreach($treinamentos as $treinamento)
+                                            <td class="text-center">
+                                                @if($assistidos->has($treinamento->id))
+                                                    <i class="bi bi-check-circle-fill text-success"></i>
+                                                    <div class="small text-muted">{{ \Illuminate\Support\Carbon::parse($assistidos[$treinamento->id]->pivot->concluido_em)->format('d/m/Y H:i') }}</div>
+                                                @elseif(! $treinamento->aplicaA($user))
+                                                    <span class="text-muted" title="Este vídeo não é do perfil deste usuário">—</span>
+                                                @else
+                                                    <i class="bi bi-x-circle text-danger opacity-50"></i>
+                                                @endif
+                                            </td>
+                                        @endforeach
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="{{ $treinamentos->count() + 2 }}" class="text-center text-muted py-4">
+                                            Nenhum usuario vinculado a esta empresa.
+                                        </td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                @endif
             </div>
         </div>
     </div>

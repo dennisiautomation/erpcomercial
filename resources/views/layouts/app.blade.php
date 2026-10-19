@@ -692,6 +692,13 @@
                             <span class="nav-text">Demonstracoes</span>
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ request()->routeIs('admin.treinamentos.*') ? 'active' : '' }}"
+                           href="{{ route('admin.treinamentos.index') }}">
+                            <i class="bi bi-play-btn nav-icon"></i>
+                            <span class="nav-text">Treinamentos</span>
+                        </a>
+                    </li>
                 </ul>
             @else
                 {{-- ======================================================
@@ -710,6 +717,13 @@
                                href="{{ route('app.pdv.index') }}">
                                 <i class="bi bi-upc-scan nav-icon"></i>
                                 <span class="nav-text">PDV</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('app.treinamento.*') ? 'active' : '' }}"
+                               href="{{ route('app.treinamento.index') }}">
+                                <i class="bi bi-play-btn nav-icon"></i>
+                                <span class="nav-text">Treinamento</span>
                             </a>
                         </li>
                     </ul>
@@ -1069,6 +1083,15 @@
                             </div>
                         </li>
                     @endif
+
+                    {{-- Treinamento — vídeos do ERP, para todos os perfis --}}
+                    <li class="nav-item" style="margin-top: 0.25rem;">
+                        <a class="nav-link {{ request()->routeIs('app.treinamento.*') ? 'active' : '' }}"
+                           href="{{ route('app.treinamento.index') }}">
+                            <i class="bi bi-play-btn nav-icon"></i>
+                            <span class="nav-text">Treinamento</span>
+                        </a>
+                    </li>
 
                     {{-- Meu Plano — assunto do dono; funcionários não veem --}}
                     @if(auth()->user()->isDono())

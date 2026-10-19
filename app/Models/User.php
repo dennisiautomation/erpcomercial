@@ -70,6 +70,12 @@ class User extends Authenticatable
                      ->withTimestamps();
     }
 
+    public function treinamentosConcluidos(): BelongsToMany
+    {
+        return $this->belongsToMany(Treinamento::class, 'treinamento_user')
+                     ->withPivot('concluido_em');
+    }
+
     public function vendas(): HasMany
     {
         return $this->hasMany(Venda::class, 'vendedor_id');

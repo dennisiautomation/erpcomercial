@@ -789,6 +789,11 @@
         <i class="bi bi-printer"></i> Reimprimir
     </button>
 
+    {{-- Os vídeos tocam só na aba Treinamento; aqui é só o caminho até ela (19/10/2026) --}}
+    <a href="{{ route('app.treinamento.index') }}" class="topbar-fiscal" style="background:rgba(99,102,241,.18); color:var(--text-primary); text-decoration:none;" title="Vídeos de como usar o ERP">
+        <i class="bi bi-play-btn"></i> Treinamento
+    </a>
+
     <div class="topbar-clock" id="clock">--:--:--</div>
 </div>
 

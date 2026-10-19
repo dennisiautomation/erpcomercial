@@ -10,6 +10,7 @@ use App\Jobs\ProvisionarEmpresaFocusJob;
 use App\Mail\BoasVindasUsuario;
 use App\Models\Empresa;
 use App\Models\Plano;
+use App\Models\Treinamento;
 use App\Models\User;
 use App\Services\FocusNFe\FocusNFeClient;
 use Illuminate\Http\RedirectResponse;
@@ -130,9 +131,13 @@ class EmpresaController extends Controller
     {
         abort_unless($request->user()->is_admin, 403);
 
-        $empresa->load('unidades', 'users', 'integracaoTokens');
+        $empresa->load('unidades', 'users.treinamentosConcluidos', 'integracaoTokens');
 
-        return view('admin.empresas.show', compact('empresa'));
+        // Aba Treinamento: quem da empresa assistiu cada vídeo ativo
+        $treinamentos = Treinamento::where('ativo', true)
+            ->whereNotNull('arquivo')->orderBy('ordem')->orderBy('id')->get();
+
+        return view('admin.empresas.show', compact('empresa', 'treinamentos'));
     }
 
     public function edit(Request $request, Empresa $empresa): View

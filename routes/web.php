@@ -137,6 +137,10 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
     Route::resource('empresas.unidades', Admin\UnidadeController::class)->shallow();
     Route::resource('usuarios', Admin\UsuarioController::class);
     Route::resource('planos', Admin\PlanoController::class)->except(['show']);
+    // Treinamento (19/10/2026): vídeo chega em pedaços pelo `upload`
+    Route::post('/treinamentos/upload', [Admin\TreinamentoController::class, 'upload'])->name('treinamentos.upload');
+    Route::get('/treinamentos/{treinamento}/video', [Admin\TreinamentoController::class, 'video'])->name('treinamentos.video');
+    Route::resource('treinamentos', Admin\TreinamentoController::class)->except(['show']);
 
     // Financeiro da plataforma (cobrança direta — só admins com pode_ver_financeiro)
     Route::prefix('financeiro')->name('financeiro.')->group(function () {
@@ -199,6 +203,11 @@ Route::middleware(['auth', 'suspensao', 'unidade', \App\Http\Middleware\Restring
     Route::get('/plano', [App\PlanoController::class, 'index'])->name('plano.index');
     Route::get('/plano/expirado', [App\PlanoController::class, 'expirado'])->name('plano-expirado');
     Route::get('/plano/comparar', [App\PlanoController::class, 'comparar'])->name('plano.comparar');
+
+    /* ------ Treinamento (vídeos do ERP) — sem `permission:`: o filtro é por perfil, no model ------ */
+    Route::get('/treinamento', [App\TreinamentoController::class, 'index'])->name('treinamento.index');
+    Route::get('/treinamento/{treinamento}/video', [App\TreinamentoController::class, 'video'])->name('treinamento.video');
+    Route::post('/treinamento/{treinamento}/concluir', [App\TreinamentoController::class, 'concluir'])->name('treinamento.concluir');
 
     /* ------ Importação CSV ------ */
     Route::prefix('import')->name('import.')->group(function () {

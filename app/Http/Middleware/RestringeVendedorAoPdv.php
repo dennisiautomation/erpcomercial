@@ -33,6 +33,9 @@ class RestringeVendedorAoPdv
      * sem ver o papel que precisa entregar com a gaveta. Não abre nada de
      * ninguém — o controller já recusa caixa de outro operador para quem não é
      * gestão.
+     *
+     * `app.treinamento.*` (19/10/2026): a aba Treinamento, aberta pelo link no
+     * topo do PDV. Mostra só os vídeos marcados para o perfil Vendedor.
      */
     private const ROTAS_LIBERADAS = [
         'app.pdv.*',
@@ -41,6 +44,7 @@ class RestringeVendedorAoPdv
         'app.caixa.comprovante',
         'app.caixa.sangria',
         'app.caixa.suprimento',
+        'app.treinamento.*',
     ];
 
     public function handle(Request $request, Closure $next): Response
