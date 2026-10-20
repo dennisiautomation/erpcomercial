@@ -15,15 +15,21 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
 /**
  * Vídeos de treinamento (19/10/2026). O vídeo inteiro fica no servidor e
  * chega EM PEDAÇOS: o navegador fatia o arquivo e manda um por vez para
- * `upload`, que vai juntando. Assim nenhum request passa do limite de 16 MB
- * do php.ini de produção nem dos 20/50 MB dos dois nginx, e nada disso
- * precisou mudar.
+ * `upload`, que vai juntando. O tamanho do pedaço vem de `tamanhoDoPedaco()`
+ * (lido do php.ini em uso), por isso nenhum request passa do que o PHP e os
+ * nginx aceitam — e o vídeo em si não tem limite além do disco.
  */
 class TreinamentoController extends Controller
 {
     private const PASTA = 'treinamentos';
 
     private const EXTENSOES = ['mp4', 'webm', 'm4v', 'mov'];
+
+    /** Teto do pedaço: o nginx do host (fora da imagem) aceita 50M por request. */
+    private const PEDACO_MAX = 40 * 1024 * 1024;
+
+    /** Menor pedaço que ainda vale a pena; abaixo disso o php.ini está errado. */
+    private const PEDACO_MIN = 1024 * 1024;
 
     public function index(Request $request): View
     {
@@ -39,7 +45,7 @@ class TreinamentoController extends Controller
     {
         abort_unless($request->user()->is_admin, 403);
 
-        return view('admin.treinamentos.create');
+        return view('admin.treinamentos.create', ['pedaco' => self::tamanhoDoPedaco()]);
     }
 
     public function store(Request $request): RedirectResponse
@@ -58,7 +64,7 @@ class TreinamentoController extends Controller
     {
         abort_unless($request->user()->is_admin, 403);
 
-        return view('admin.treinamentos.edit', compact('treinamento'));
+        return view('admin.treinamentos.edit', ['treinamento' => $treinamento, 'pedaco' => self::tamanhoDoPedaco()]);
     }
 
     public function update(Request $request, Treinamento $treinamento): RedirectResponse
@@ -141,6 +147,36 @@ class TreinamentoController extends Controller
         return response()->json(['arquivo' => basename($arquivo)]);
     }
 
+    /**
+     * Tamanho de cada pedaço, em bytes, calculado do php.ini que está rodando
+     * (upload_max_filesize e post_max_size) com 1 MB de folga para os outros
+     * campos do form. Assim o JS nunca manda mais do que o servidor aceita:
+     * com a imagem antiga (16M/20M) sai 15 MB; com a atual (40M/48M), 39 MB —
+     * e o teto é o nginx do host (50M). Ver docs.md, "Treinamento".
+     */
+    public static function tamanhoDoPedaco(): int
+    {
+        $folga = 1024 * 1024;
+        $limite = min(self::bytesDoIni('upload_max_filesize'), self::bytesDoIni('post_max_size') - $folga);
+        $pedaco = min(self::PEDACO_MAX, $limite - $folga);
+
+        return max(self::PEDACO_MIN, (int) floor($pedaco / 1048576) * 1048576);
+    }
+
+    /** "16M" / "2G" / "524288" → bytes. */
+    private static function bytesDoIni(string $chave): int
+    {
+        $valor = trim((string) ini_get($chave));
+        $num = (int) $valor;
+
+        return match (strtoupper(substr($valor, -1))) {
+            'G' => $num * 1024 ** 3,
+            'M' => $num * 1024 ** 2,
+            'K' => $num * 1024,
+            default => $num,
+        };
+    }
+
     public function video(Request $request, Treinamento $treinamento): BinaryFileResponse
     {
         abort_unless($request->user()->is_admin, 403);
@@ -209,7 +245,10 @@ class TreinamentoController extends Controller
             'perfis'    => ['required', 'array', 'min:1'],
             'perfis.*'  => ['in:' . implode(',', array_map(fn ($p) => $p->value, Treinamento::PERFIS))],
             // Só o nome que o `upload` devolveu — nunca um caminho vindo do navegador.
+            // `bail`: a closure só roda se o regex passou (com "../x" o Storage lançaria
+            // PathTraversalDetected = 500 em vez de erro de validação).
             'arquivo'   => [
+                'bail',
                 $criando ? 'required' : 'nullable',
                 'regex:/^[0-9a-f-]{36}\.(' . implode('|', self::EXTENSOES) . ')$/',
                 function ($attribute, $value, $fail) {

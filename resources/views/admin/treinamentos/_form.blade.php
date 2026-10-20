@@ -65,7 +65,7 @@
         <input type="file" class="form-control @error('arquivo') is-invalid @enderror" id="videoArquivo"
                accept=".mp4,.webm,.m4v,.mov,video/mp4,video/webm,video/quicktime">
         @error('arquivo') <div class="invalid-feedback">{{ $message }}</div> @enderror
-        <div class="form-text">MP4, WEBM, M4V ou MOV. O video é enviado em partes, sem limite de tamanho.</div>
+        <div class="form-text">MP4, WEBM, M4V ou MOV. O video é enviado em partes de {{ (int) ($pedaco / 1048576) }} MB, sem limite de tamanho do arquivo — pode ser um vídeo de 1 GB ou mais.</div>
         <input type="hidden" name="arquivo" id="videoNome" value="{{ old('arquivo') }}">
 
         <div class="mt-3 d-none" id="videoProgresso">
@@ -90,13 +90,18 @@
 @push('scripts')
 <script>
 /*
- * Envio em pedaços: o vídeo é fatiado em partes de 8 MB e cada parte vai num
- * request próprio para admin.treinamentos.upload (o php.ini de produção aceita
- * 16 MB por request). Só depois da última parte o formulário é enviado, com o
+ * Envio em pedaços: o vídeo é fatiado em partes e cada parte vai num request
+ * próprio para admin.treinamentos.upload. O tamanho da parte vem do servidor
+ * (TreinamentoController::tamanhoDoPedaco, lido do php.ini em uso), então
+ * nunca passa do que o PHP/nginx aceitam. Cada parte tem até 3 tentativas —
+ * um vídeo de 1 GB são dezenas de requests, e uma oscilação de rede não pode
+ * jogar tudo fora. Só depois da última parte o formulário é enviado, com o
  * nome do arquivo que o servidor devolveu.
  */
 (function () {
-    const PEDACO = 8 * 1024 * 1024;
+    const PEDACO = {{ (int) $pedaco }};
+    const TENTATIVAS = 3;
+    const mb = (b) => (b / 1048576).toFixed(b >= 100 * 1048576 ? 0 : 1) + ' MB';
     const form = document.getElementById('formTreinamento');
     const input = document.getElementById('videoArquivo');
     const btn = document.getElementById('btnSalvarTreinamento');
@@ -127,21 +132,35 @@
                 dados.append('nome', arquivo.name);
                 dados.append('pedaco', arquivo.slice(i * PEDACO, (i + 1) * PEDACO), 'pedaco');
 
-                const resp = await fetch(@json(route('admin.treinamentos.upload')), {
-                    method: 'POST',
-                    headers: {
-                        'Accept': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                    },
-                    body: dados,
-                });
-                const json = await resp.json().catch(() => ({}));
-                if (!resp.ok) throw new Error(json.message || 'Falha ao enviar o vídeo.');
+                let json = null;
+                for (let tentativa = 1; tentativa <= TENTATIVAS; tentativa++) {
+                    try {
+                        const resp = await fetch(@json(route('admin.treinamentos.upload')), {
+                            method: 'POST',
+                            headers: {
+                                'Accept': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                            },
+                            body: dados,
+                        });
+                        json = await resp.json().catch(() => ({}));
+                        // 4xx é erro de validação (formato, sessão): não adianta repetir
+                        if (resp.status >= 400 && resp.status < 500) throw new Error(json.message || 'Falha ao enviar o vídeo.');
+                        if (!resp.ok) throw Object.assign(new Error(json.message || `Servidor respondeu ${resp.status}.`), { repetir: true });
+                        break;
+                    } catch (err) {
+                        const deRede = err instanceof TypeError; // fetch caiu: rede, proxy, timeout
+                        if (!(deRede || err.repetir) || tentativa === TENTATIVAS) throw err;
+                        texto.textContent = `Parte ${i + 1} falhou, tentando de novo (${tentativa + 1}/${TENTATIVAS})…`;
+                        await new Promise(r => setTimeout(r, 1500 * tentativa));
+                    }
+                }
 
-                const feito = Math.round(((i + 1) / total) * 100);
+                const enviado = Math.min(arquivo.size, (i + 1) * PEDACO);
+                const feito = Math.round((enviado / arquivo.size) * 100);
                 barra.style.width = feito + '%';
                 pct.textContent = feito + '%';
-                texto.textContent = `Enviando parte ${i + 1} de ${total}…`;
+                texto.textContent = `Enviando parte ${i + 1} de ${total} — ${mb(enviado)} de ${mb(arquivo.size)}`;
 
                 if (json.arquivo) document.getElementById('videoNome').value = json.arquivo;
             }
