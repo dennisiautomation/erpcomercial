@@ -860,6 +860,119 @@
                 </div>
             </div>
         </div>
+        {{-- ⚠️ Aqui só a forma inline de php do Blade: a palavra de FIM de bloco php em qualquer lugar abaixo (até em comentário) casa com o php inline acima e quebra a view inteira --}}
+        @php($gatewayInfinite = \App\Models\EmpresaGateway::where('empresa_id', $empresa->id)->where('provedor', \App\Models\EmpresaGateway::PROVEDOR_INFINITEPAY)->first())
+        @php($infiniteHandle = $gatewayInfinite?->config['handle'] ?? null)
+        @php($cartaoEmUso = \App\Services\Pagamento\CartaoPedidoService::provedorEmUso($empresa->id))
+        @php($cartoesAtivos = collect([$gatewayAsaas, $gatewayInfinite])->filter(fn ($g) => $g?->capacidadeAtiva())->pluck('provedor')->all())
+        <div class="row g-4 mb-4">
+            {{-- 25/09/2026: InfinitePay — link de pagamento (cartão ou PIX) no pedido do agente. A InfiniteTag é DA EMPRESA: o campo nasce vazio --}}
+            <div class="col-lg-6">
+                <div class="card detail-card shadow-sm h-100">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0"><i class="bi bi-credit-card-2-front me-1"></i> Cartão do Vendedor IA (InfinitePay)</h6>
+                        @if($gatewayInfinite?->capacidadeAtiva())
+                            <span class="badge bg-success bg-opacity-10 text-success">Ativo</span>
+                        @elseif($gatewayInfinite?->ativo)
+                            <span class="badge bg-warning bg-opacity-10 text-warning">Incompleto</span>
+                        @else
+                            <span class="badge bg-secondary bg-opacity-10 text-secondary">Inativo</span>
+                        @endif
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted small mb-3">
+                            Com a InfinitePay ativa, o pedido do agente sai com um <strong>link de pagamento</strong>
+                            em que o cliente escolhe <strong>cartão de crédito ou PIX</strong>. O pagamento aprovado
+                            confirma o pedido sozinho (a InfinitePay avisa e o ERP confere na API dela).
+                            Não há nada a cadastrar no painel da InfinitePay: basta a InfiniteTag da conta desta empresa.
+                        </p>
+                        <form method="POST" action="{{ route('admin.empresas.gateway-infinitepay.store', $empresa) }}" class="row g-2 align-items-end">
+                            @csrf
+                            <div class="col-12">
+                                <label class="form-label small mb-1">InfiniteTag da empresa</label>
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text">$</span>
+                                    <input type="text" name="handle" class="form-control" autocomplete="off"
+                                           value="{{ old('handle') }}"
+                                           placeholder="{{ filled($infiniteHandle) ? 'salva: ' . $infiniteHandle . ' — preencha p/ trocar' : 'nome de usuário no app InfinitePay desta empresa' }}">
+                                </div>
+                                <div class="form-text">É o nome de usuário no app InfinitePay (aparece como <code>$nome</code>). Cada empresa usa a sua.</div>
+                            </div>
+                            <div class="col-auto form-check ms-2 mt-3">
+                                <input type="hidden" name="ativo" value="0">
+                                <input class="form-check-input" type="checkbox" name="ativo" value="1" id="infiniteAtivo" @checked($gatewayInfinite?->ativo)>
+                                <label class="form-check-label small" for="infiniteAtivo">Ativo</label>
+                            </div>
+                            <div class="col-auto">
+                                <button type="submit" class="btn btn-sm btn-primary">Salvar</button>
+                            </div>
+                        </form>
+                        <div class="d-flex flex-wrap align-items-center gap-2 mt-3">
+                            <form method="POST" action="{{ route('admin.empresas.gateway-infinitepay.testar', $empresa) }}">
+                                @csrf
+                                <button type="submit" class="btn btn-sm btn-outline-secondary" @disabled(blank($infiniteHandle))>
+                                    <i class="bi bi-activity me-1"></i> Testar (gera link de R$ 1,00)
+                                </button>
+                            </form>
+                            @if($gatewayInfinite?->ultima_falha)
+                                <span class="small text-danger"><i class="bi bi-x-circle me-1"></i>{{ $gatewayInfinite->ultima_falha }}</span>
+                            @endif
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {{-- 25/09/2026: com Asaas E InfinitePay ligados, o agente usa UM — o escolhido aqui --}}
+            <div class="col-lg-6">
+                <div class="card detail-card shadow-sm h-100">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0"><i class="bi bi-toggles me-1"></i> Cartão usado pelo agente</h6>
+                        @if($cartaoEmUso)
+                            <span class="badge bg-success bg-opacity-10 text-success">{{ \App\Services\Pagamento\CartaoPedidoService::rotulo($cartaoEmUso) }}</span>
+                        @else
+                            <span class="badge bg-secondary bg-opacity-10 text-secondary">Nenhum</span>
+                        @endif
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted small mb-3">
+                            As duas integrações podem ficar ativas, mas o agente manda o link de <strong>um</strong> provedor só.
+                            Se o escolhido for desligado, o outro ativo assume. Trocar aqui atualiza o treinamento do agente
+                            no app.ia365 sozinho.
+                        </p>
+                        @if(count($cartoesAtivos) === 0)
+                            <p class="small mb-0 text-muted"><i class="bi bi-info-circle me-1"></i> Nenhum cartão ativo — ligue o Asaas ou a InfinitePay.</p>
+                        @else
+                            <form method="POST" action="{{ route('admin.empresas.agente-ia.cartao', $empresa) }}" class="d-flex flex-column gap-2">
+                                @csrf
+                                @foreach(\App\Models\EmpresaGateway::PROVEDORES_CARTAO as $provedorCartao)
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="provedor_cartao" value="{{ $provedorCartao }}"
+                                               id="cartao-{{ $provedorCartao }}"
+                                               @checked($cartaoEmUso === $provedorCartao)
+                                               @disabled(! in_array($provedorCartao, $cartoesAtivos, true))>
+                                        <label class="form-check-label small" for="cartao-{{ $provedorCartao }}">
+                                            {{ \App\Services\Pagamento\CartaoPedidoService::rotulo($provedorCartao) }}
+                                            @if(! in_array($provedorCartao, $cartoesAtivos, true))
+                                                <span class="text-muted">(inativo)</span>
+                                            @elseif($provedorCartao === \App\Models\EmpresaGateway::PROVEDOR_INFINITEPAY)
+                                                <span class="text-muted">— link aceita cartão e PIX</span>
+                                            @else
+                                                <span class="text-muted">— link só de cartão</span>
+                                            @endif
+                                        </label>
+                                    </div>
+                                @endforeach
+                                <div>
+                                    <button type="submit" class="btn btn-sm btn-primary" @disabled(count($cartoesAtivos) < 2)>Usar este</button>
+                                    @if(count($cartoesAtivos) < 2)
+                                        <span class="small text-muted ms-2">Só um ativo — ele é usado automaticamente.</span>
+                                    @endif
+                                </div>
+                            </form>
+                        @endif
+                    </div>
+                </div>
+            </div>
+        </div>
         <div class="row g-4">
             <div class="col-lg-8">
                 <div class="card detail-card shadow-sm">

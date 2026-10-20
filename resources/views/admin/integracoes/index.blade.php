@@ -1,15 +1,103 @@
 @extends('layouts.app')
 
-@section('title', 'Integrações da plataforma')
+@section('title', 'Integrações')
 
 @section('content')
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h4 class="mb-0"><i class="bi bi-plug me-2"></i>Integrações da plataforma</h4>
+    <h4 class="mb-0"><i class="bi bi-plug me-2"></i>Integrações</h4>
 </div>
 
-<p class="text-muted">
-    Credenciais que são da <strong>IA365</strong> e valem para todas as empresas-clientes. O que é de cada
-    empresa (PIX Sicredi, Uber, Asaas, a conta do Melhor Envio) fica na aba <em>Integração</em> da empresa.
+{{-- 25/09/2026: painel geral. As integrações de pagamento e entrega são DE CADA EMPRESA
+     (a conta dela) e se configuram na aba Integração da empresa; aqui é só a visão de todas. --}}
+<div class="card detail-card shadow-sm mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h6 class="mb-0"><i class="bi bi-buildings me-1"></i> Integrações por empresa</h6>
+        <span class="small text-muted">{{ $empresas->count() }} {{ $empresas->count() === 1 ? 'empresa' : 'empresas' }}</span>
+    </div>
+    <div class="card-body p-0">
+        @if($empresas->isEmpty())
+            <p class="text-muted small p-3 mb-0">Nenhuma empresa ligou o Agente IA ou uma integração ainda. Isso se faz na aba <em>Integração</em> de cada empresa.</p>
+        @else
+            <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-3">Empresa</th>
+                            <th class="text-center">Agente IA</th>
+                            @foreach($colunas as $rotulo)
+                                <th class="text-center">{{ $rotulo }}</th>
+                            @endforeach
+                            <th class="text-center">Cartão em uso</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    @foreach($empresas as $linha)
+                        <tr>
+                            <td class="ps-3">
+                                <a href="{{ route('admin.empresas.show', $linha['empresa']->id) }}">{{ $linha['empresa']->nome_fantasia ?: $linha['empresa']->razao_social }}</a>
+                                @foreach($linha['falhas'] as $provedorFalha => $falha)
+                                    <div class="small text-danger text-truncate" style="max-width: 22rem" title="{{ $falha }}">
+                                        <i class="bi bi-x-circle me-1"></i>{{ $colunas[$provedorFalha] ?? $provedorFalha }}: {{ $falha }}
+                                    </div>
+                                @endforeach
+                            </td>
+                            <td class="text-center">
+                                @if($linha['agente']?->ativo)
+                                    <span class="badge bg-success bg-opacity-10 text-success">Ativo</span>
+                                    @if(! $linha['agente']->plataformaRegistrada())
+                                        <div class="small text-muted" title="O app.ia365 ainda não registrou onde recebe os avisos">sem avisos</div>
+                                    @endif
+                                @elseif($linha['agente'])
+                                    <span class="badge bg-secondary bg-opacity-10 text-secondary">Inativo</span>
+                                @else
+                                    <span class="text-muted">—</span>
+                                @endif
+                            </td>
+                            @foreach($colunas as $provedor => $rotulo)
+                                @php
+                                    $gw = $linha['gateways']->get($provedor);
+                                @endphp
+                                <td class="text-center">
+                                    @if(! $gw)
+                                        <span class="text-muted">—</span>
+                                    @elseif($gw->capacidadeAtiva())
+                                        <span class="badge bg-success bg-opacity-10 text-success">Ativo</span>
+                                        @if($provedor === \App\Models\EmpresaGateway::PROVEDOR_MELHOR_ENVIO && $gw->token_expira_em)
+                                            <div class="small text-muted">token até {{ $gw->token_expira_em->format('d/m') }}</div>
+                                        @endif
+                                    @elseif($gw->ativo)
+                                        <span class="badge bg-warning bg-opacity-10 text-warning" title="Ligado, mas falta credencial — o agente não oferece">Incompleto</span>
+                                    @else
+                                        <span class="badge bg-secondary bg-opacity-10 text-secondary">Inativo</span>
+                                    @endif
+                                </td>
+                            @endforeach
+                            <td class="text-center small">
+                                {{ $linha['cartao'] ? \App\Services\Pagamento\CartaoPedidoService::rotulo($linha['cartao']) : '—' }}
+                            </td>
+                            <td class="text-end pe-3">
+                                <a href="{{ route('admin.empresas.show', $linha['empresa']->id) }}" class="btn btn-sm btn-outline-secondary"
+                                   title="Abrir a aba Integração da empresa"><i class="bi bi-gear"></i></a>
+                            </td>
+                        </tr>
+                    @endforeach
+                    </tbody>
+                </table>
+            </div>
+        @endif
+    </div>
+    <div class="card-footer small text-muted">
+        <strong>Ativo</strong> = ligado e com credencial (o agente oferece) · <strong>Incompleto</strong> = ligado sem credencial ·
+        <strong>Inativo</strong> = desligado · <strong>—</strong> = nunca configurado. Para mudar, abra a empresa → aba <em>Integração</em>.
+    </div>
+</div>
+
+<h6 class="text-muted text-uppercase small fw-semibold mb-2">Configuração da plataforma</h6>
+<p class="text-muted small">
+    Só o que é da <strong>IA365</strong> e vale para todas as empresas. Hoje apenas o <strong>Melhor Envio</strong> precisa disso
+    (exige um aplicativo IA365 cadastrado uma vez). PIX Sicredi, Asaas, InfinitePay e Uber usam só a conta de cada empresa —
+    não têm nada aqui.
 </p>
 
 <div class="row g-4">
@@ -75,40 +163,5 @@
         </div>
     </div>
 
-    <div class="col-lg-5">
-        <div class="card detail-card shadow-sm h-100">
-            <div class="card-header"><h6 class="mb-0"><i class="bi bi-buildings me-1"></i> Empresas conectadas ao Melhor Envio</h6></div>
-            <div class="card-body p-0">
-                @if($conectadas->isEmpty())
-                    <p class="text-muted small p-3 mb-0">Nenhuma empresa conectou a conta ainda. O botão fica na aba Integração de cada empresa.</p>
-                @else
-                    <table class="table table-sm align-middle mb-0">
-                        <thead class="table-light"><tr><th class="ps-3">Empresa</th><th>Conta</th><th>Token até</th><th class="text-center">Status</th></tr></thead>
-                        <tbody>
-                        @foreach($conectadas as $gw)
-                            <tr>
-                                <td class="ps-3"><a href="{{ route('admin.empresas.show', $gw->empresa_id) }}#integracao">{{ $gw->empresa?->nome_fantasia ?? ('#' . $gw->empresa_id) }}</a></td>
-                                <td class="small">{{ $gw->config['conta_email'] ?? $gw->config['conta_nome'] ?? '—' }}</td>
-                                <td class="small">{{ optional($gw->token_expira_em)->format('d/m/Y') ?? '—' }}</td>
-                                <td class="text-center">
-                                    @if(filled($gw->access_token) && $gw->ativo)
-                                        <span class="badge bg-success bg-opacity-10 text-success">Conectado</span>
-                                    @elseif(filled($gw->access_token))
-                                        <span class="badge bg-warning bg-opacity-10 text-warning">Inativo</span>
-                                    @else
-                                        <span class="badge bg-secondary bg-opacity-10 text-secondary">Sem token</span>
-                                    @endif
-                                    @if($gw->ultima_falha)
-                                        <div class="small text-danger" title="{{ $gw->ultima_falha }}">falha</div>
-                                    @endif
-                                </td>
-                            </tr>
-                        @endforeach
-                        </tbody>
-                    </table>
-                @endif
-            </div>
-        </div>
-    </div>
 </div>
 @endsection

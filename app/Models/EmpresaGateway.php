@@ -35,12 +35,24 @@ class EmpresaGateway extends Model
     // padrão/serviços/seguro no `config` JSON.
     public const PROVEDOR_MELHOR_ENVIO = 'melhor_envio';
 
+    // 25/09/2026: InfinitePay — cartão (e PIX) por link de checkout. Não tem
+    // chave de API: a conta é a InfiniteTag da EMPRESA (config.handle, sem o
+    // '$'); config.webhook_token vai no caminho do webhook de cada link.
+    public const PROVEDOR_INFINITEPAY = 'infinitepay';
+
+    /** Provedores de cartão por link — o agente usa UM (AgenteIaConfig::provedor_cartao). */
+    public const PROVEDORES_CARTAO = [
+        self::PROVEDOR_ASAAS,
+        self::PROVEDOR_INFINITEPAY,
+    ];
+
     /** Todos os provedores que o agente do app.ia365 conhece (ordem estável). */
     public const PROVEDORES = [
         self::PROVEDOR_UBER_DIRECT,
         self::PROVEDOR_MELHOR_ENVIO,
         self::PROVEDOR_SICREDI_PIX,
         self::PROVEDOR_ASAAS,
+        self::PROVEDOR_INFINITEPAY,
     ];
 
     protected $fillable = [
@@ -122,6 +134,7 @@ class EmpresaGateway extends Model
             self::PROVEDOR_SICREDI_PIX => $this->utilizavel(),
             self::PROVEDOR_UBER_DIRECT => filled($this->client_id) && filled($this->client_secret),
             self::PROVEDOR_ASAAS => filled($this->client_secret),
+            self::PROVEDOR_INFINITEPAY => filled($this->config['handle'] ?? null),
             default => true,
         };
     }
