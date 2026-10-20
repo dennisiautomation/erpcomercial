@@ -19,6 +19,7 @@ class MovimentacaoCaixa extends Model
         'empresa_id',
         'unidade_id',
         'caixa_id',
+        'venda_id',
         'tipo',
         'valor',
         'forma_pagamento',
@@ -53,6 +54,11 @@ class MovimentacaoCaixa extends Model
             'tipo' => TipoMovimentacaoCaixa::class,
             'valor' => 'decimal:2',
         ];
+    }
+
+    public function venda(): BelongsTo
+    {
+        return $this->belongsTo(Venda::class);
     }
 
     public function caixa(): BelongsTo

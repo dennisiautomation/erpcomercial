@@ -128,6 +128,9 @@
 @if($resumo['devolucoes'] > 0)
     <div class="row"><span>Devoluções (trocas)</span><span class="v">- {{ $brl($resumo['devolucoes']) }}</span></div>
 @endif
+@if(($resumo['estornos'] ?? 0) > 0)
+    <div class="row"><span>Vendas canceladas (já abatidas)</span><span class="v">{{ $brl($resumo['estornos']) }}</span></div>
+@endif
 
 <hr class="double">
 <div class="destaque">

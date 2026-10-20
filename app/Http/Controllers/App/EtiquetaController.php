@@ -377,7 +377,10 @@ class EtiquetaController extends Controller
                 $fonte = $el['fonte'] ?? null;
                 $item['fonte'] = in_array($fonte, EtiquetaFormato::FONTES, true) ? $fonte : 'Arial';
                 $item['tamanho'] = $num($el['tamanho'] ?? null, 3, 72, 8);
-                $item['negrito'] = (bool) ($el['negrito'] ?? false);
+                // `peso` é o campo novo (4 níveis); `negrito` continua gravado
+                // para o JSON antigo e para quem só lê o booleano.
+                $item['peso'] = EtiquetaFormato::pesoDoItem($el);
+                $item['negrito'] = $item['peso'] !== 'normal';
                 $item['italico'] = (bool) ($el['italico'] ?? false);
                 $alinhamento = $el['alinhamento'] ?? null;
                 $item['alinhamento'] = in_array($alinhamento, EtiquetaFormato::ALINHAMENTOS, true)

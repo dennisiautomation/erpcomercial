@@ -65,6 +65,10 @@ class AsaasWebhookController extends Controller
         }
         $pedido->save();
 
+        // 25/09/2026: o link guardado em pedido_links_cartao também fica pago.
+        app(\App\Services\Pagamento\CartaoPedidoService::class)
+            ->marcarAsaasPago((int) $pedido->empresa_id, $paymentId, $valor);
+
         DespacharEntregaUberJob::dispatch($pedido->id, (int) $pedido->empresa_id);
 
         Log::channel('integracao')->info('Asaas: pedido confirmado por pagamento no cartão', [

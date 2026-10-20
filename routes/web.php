@@ -37,7 +37,7 @@ Route::get('/offline', [\App\Http\Controllers\PwaController::class, 'offline'])
 Route::redirect('/app', '/app/dashboard');
 
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
-Route::post('/login', [AuthController::class, 'login']);
+Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:30,1'); // §343: 30 req/min por IP
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
 /* ------ Password Reset ------ */
@@ -120,6 +120,14 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
         ->name('empresas.gateway-asaas.store');
     Route::post('/empresas/{empresa}/gateway-asaas/testar', [Admin\EmpresaAsaasController::class, 'testar'])
         ->name('empresas.gateway-asaas.testar');
+    // InfinitePay (cartão/PIX por link) por empresa (25/09/2026) — aba Integração
+    Route::post('/empresas/{empresa}/gateway-infinitepay', [Admin\EmpresaInfinitePayController::class, 'store'])
+        ->name('empresas.gateway-infinitepay.store');
+    Route::post('/empresas/{empresa}/gateway-infinitepay/testar', [Admin\EmpresaInfinitePayController::class, 'testar'])
+        ->name('empresas.gateway-infinitepay.testar');
+    // Qual cartão o agente usa quando a empresa tem mais de um ligado (25/09/2026)
+    Route::post('/empresas/{empresa}/agente-ia/cartao', [Admin\AgenteIaController::class, 'cartao'])
+        ->name('empresas.agente-ia.cartao');
     // Melhor Envio por empresa (05/09/2026) — aba Integração: a empresa autoriza a própria conta (OAuth)
     Route::post('/empresas/{empresa}/gateway-melhor-envio', [Admin\EmpresaMelhorEnvioController::class, 'store'])
         ->name('empresas.gateway-melhor-envio.store');
@@ -661,6 +669,7 @@ Route::middleware(['auth', 'suspensao', 'unidade', \App\Http\Middleware\Restring
     Route::prefix('search')->name('search.')->group(function () {
         Route::get('/clientes', [App\SearchController::class, 'clientes'])->name('clientes');
         Route::get('/produtos', [App\SearchController::class, 'produtos'])->name('produtos');
+        Route::get('/servicos', [App\SearchController::class, 'servicos'])->name('servicos');
         Route::get('/fornecedores', [App\SearchController::class, 'fornecedores'])->name('fornecedores');
         Route::get('/vendedores', [App\SearchController::class, 'vendedores'])->name('vendedores');
         Route::get('/global', [App\SearchController::class, 'global'])->name('global');
@@ -736,6 +745,8 @@ Route::prefix('api/integracao/v1')->name('api.integracao.')
         Route::get('/pedidos/{id}', [\App\Http\Controllers\Api\IntegracaoAgenteController::class, 'pedido'])->whereNumber('id')->name('pedidos.show');
         Route::post('/pedidos', [\App\Http\Controllers\Api\IntegracaoAgenteController::class, 'criarPedido'])->name('pedidos.store');
         Route::post('/pedidos/{id}/pix', [\App\Http\Controllers\Api\IntegracaoAgenteController::class, 'pixPedido'])->whereNumber('id')->name('pedidos.pix');
+        // 25/09/2026: link de cartão do pedido (2ª via) no provedor em uso — Asaas ou InfinitePay.
+        Route::post('/pedidos/{id}/cartao', [\App\Http\Controllers\Api\IntegracaoAgenteController::class, 'cartaoPedido'])->whereNumber('id')->name('pedidos.cartao');
         Route::post('/entrega/cotar', [\App\Http\Controllers\Api\IntegracaoAgenteController::class, 'cotarEntrega'])->name('entrega.cotar');
         // Venda humana pelo app.ia365 (05/09/2026): o atendente opera o pedido
         // pelo painel do CRM — transições espelham PedidoController::updateStatus.
@@ -763,6 +774,12 @@ Route::post('/api/integracao/v1/webhooks/sicredi/pix', [\App\Http\Controllers\We
 // herdar a isenção de CSRF (mesma razão do Sicredi acima).
 Route::post('/api/integracao/v1/webhooks/asaas', [\App\Http\Controllers\Webhook\AsaasWebhookController::class, 'handle'])
     ->name('webhooks.asaas');
+
+// Webhook InfinitePay (25/09/2026) — SEM Bearer; o token da empresa vai no
+// caminho e todo aviso é reconfirmado em payment_check (o aviso não é assinado).
+Route::post('/api/integracao/v1/webhooks/infinitepay/{token}', [\App\Http\Controllers\Webhook\InfinitePayWebhookController::class, 'handle'])
+    ->where('token', '[A-Za-z0-9]{20,80}')
+    ->name('webhooks.infinitepay');
 
 /* ------------------------------------------------------------------ */
 /*  Webhooks (sem autenticação)                                        */

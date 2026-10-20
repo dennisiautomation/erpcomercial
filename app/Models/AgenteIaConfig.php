@@ -23,6 +23,7 @@ class AgenteIaConfig extends Model
         'empresa_id',
         'ativo',
         'vendedor_padrao_id',
+        'provedor_cartao',
         'indexado_em',
         'produtos_indexados',
         'ultima_falha',

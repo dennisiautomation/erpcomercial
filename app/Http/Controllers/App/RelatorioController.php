@@ -26,8 +26,12 @@ class RelatorioController extends Controller
 {
     public function vendas(Request $request)
     {
-        // Admin da plataforma não tem empresa (armadilha 25): a empresa vem da sessão
-        $empresaId = auth()->user()->empresa_id ?? session('empresa_id');
+        // Admin da plataforma não tem empresa (armadilha 25): a empresa vem da sessão —
+        // e a sessão dele também nasce com empresa_id NULL, então o último recurso é a LOJA
+        // escolhida (11/09/2026: antes o admin via o relatório zerado, sem erro nenhum).
+        $empresaId = auth()->user()->empresa_id
+            ?? session('empresa_id')
+            ?? Unidade::withoutGlobalScopes()->whereKey(session('unidade_id'))->value('empresa_id');
 
         $dataInicio = $request->filled('data_inicio')
             ? Carbon::parse($request->data_inicio)
@@ -88,11 +92,73 @@ class RelatorioController extends Controller
             $query->where('cliente_id', $clienteFiltro->id);
         }
 
-        $vendas = $query->orderByDesc('created_at')->get();
+        // Itens vêm junto: é deles que sai a quantidade de PEÇAS (11/09/2026)
+        $vendas = $query->with('itens:id,venda_id,produto_id,servico_id,quantidade')
+            ->orderByDesc('created_at')
+            ->get();
+
+        // Peça = item de produto. Serviço não é peça e conta à parte.
+        $pecasDaVenda = fn (Venda $v) => (float) $v->itens->whereNull('servico_id')->sum('quantidade');
 
         $totalVendas = $vendas->count();
-        $faturamento = $vendas->sum('total');
+        $faturamento = (float) $vendas->sum('total');
         $ticketMedio = $totalVendas > 0 ? $faturamento / $totalVendas : 0;
+        $pecas = (float) $vendas->sum($pecasDaVenda);
+        $servicosQtd = (float) $vendas->sum(fn ($v) => $v->itens->whereNotNull('servico_id')->sum('quantidade'));
+        $pecasPorVenda = $totalVendas > 0 ? $pecas / $totalVendas : 0;
+        $precoMedioPeca = $pecas > 0 ? $faturamento / $pecas : 0;
+        $subtotalBruto = (float) $vendas->sum('subtotal');
+        $descontos = (float) $vendas->sum('desconto_valor');
+        // Juros de parcelamento + acréscimo do cartão (acessor lê o JSON de pagamento)
+        $acrescimos = (float) $vendas->sum(fn ($v) => $v->outras_despesas);
+
+        // Por forma de pagamento: o split mora em `pagamento_detalhes`; venda sem
+        // o JSON (importada/antiga) cai na `forma_pagamento` com o total. O troco
+        // abate só o dinheiro — é a mesma regra do caixa (PdvController).
+        $porForma = [];
+        foreach ($vendas as $v) {
+            $dets = is_array($v->pagamento_detalhes) && count($v->pagamento_detalhes) > 0
+                ? $v->pagamento_detalhes
+                : [['forma' => $v->forma_pagamento ?: 'outros', 'valor' => (float) $v->total]];
+            $trocoRestante = (float) ($v->troco ?? 0);
+            $contadas = [];
+            foreach ($dets as $pg) {
+                $forma = (string) ($pg['forma'] ?? 'outros');
+                $valor = (float) ($pg['valor'] ?? 0);
+                if ($forma === 'dinheiro' && $trocoRestante > 0) {
+                    $abate = min($valor, $trocoRestante);
+                    $valor -= $abate;
+                    $trocoRestante -= $abate;
+                }
+                $porForma[$forma] ??= ['forma' => $forma, 'label' => \App\Models\MovimentacaoCaixa::FORMAS_LABELS[$forma] ?? ucfirst(str_replace('_', ' ', $forma)), 'vendas' => 0, 'valor' => 0.0];
+                $porForma[$forma]['valor'] += $valor;
+                if (! isset($contadas[$forma])) {
+                    $porForma[$forma]['vendas']++;
+                    $contadas[$forma] = true;
+                }
+            }
+        }
+        $porForma = collect($porForma)->sortByDesc('valor')->values();
+        $totalPorForma = (float) $porForma->sum('valor');
+
+        // Por vendedor e por loja: mesmo agrupamento, chave diferente
+        $agrupar = function (string $chave, callable $nome) use ($vendas, $pecasDaVenda) {
+            return $vendas->groupBy($chave)->map(function ($grupo) use ($nome, $pecasDaVenda) {
+                $n = $grupo->count();
+                $fat = (float) $grupo->sum('total');
+                return [
+                    'nome' => $nome($grupo->first()),
+                    'vendas' => $n,
+                    'pecas' => (float) $grupo->sum($pecasDaVenda),
+                    'faturamento' => $fat,
+                    'ticket' => $n > 0 ? $fat / $n : 0,
+                ];
+            })->sortByDesc('faturamento')->values();
+        };
+        $porVendedor = $agrupar('vendedor_id', fn ($v) => $v->vendedor->name ?? 'Sem vendedor');
+        $porLoja = ($lojas->count() > 1 && ! $lojaFiltro)
+            ? $agrupar('unidade_id', fn ($v) => $v->unidade->nome ?? '-')
+            : collect();
 
         // Trocas/devoluções do período (03/09/2026): o que saiu do faturamento
         $devolucoesQuery = \App\Models\Devolucao::withoutGlobalScope(\App\Scopes\UnidadeScope::class)
@@ -102,44 +168,55 @@ class RelatorioController extends Controller
             ->whereBetween('created_at', [$dataInicio, $dataFim->endOfDay()]);
         $devolucoesQtd = (clone $devolucoesQuery)->count();
         $devolucoesValor = (float) (clone $devolucoesQuery)->sum('valor_estornado');
+        $devolucoesPecas = (float) DB::table('devolucao_itens')
+            ->whereIn('devolucao_id', (clone $devolucoesQuery)->pluck('id'))
+            ->whereNull('deleted_at')
+            ->sum('quantidade');
         $faturamentoLiquido = round($faturamento - $devolucoesValor, 2);
 
-        // Top 10 produtos
+        // Top 10 produtos e clientes SÓ das vendas filtradas (11/09/2026): antes
+        // somavam a empresa inteira, canceladas inclusas, com o topo dizendo o nome
+        // da loja e do vendedor filtrados.
+        $vendaIds = $vendas->pluck('id');
         $topProdutos = VendaItem::select(
                 'produto_id',
                 DB::raw('SUM(quantidade) as qtd_vendida'),
                 DB::raw('SUM(total) as faturamento')
             )
-            ->whereHas('venda', function ($q) use ($empresaId, $dataInicio, $dataFim) {
-                $q->where('empresa_id', $empresaId)
-                  ->whereBetween('created_at', [$dataInicio, $dataFim->endOfDay()]);
-            })
+            ->whereIn('venda_id', $vendaIds)
+            ->whereNotNull('produto_id')
             ->groupBy('produto_id')
-            ->with('produto:id,descricao')
+            ->with('produto:id,descricao,codigo_interno')
             ->orderByDesc('faturamento')
             ->limit(10)
             ->get();
 
-        // Top 10 clientes
-        $topClientes = Venda::select(
-                'cliente_id',
-                DB::raw('COUNT(*) as total_vendas'),
-                DB::raw('SUM(total) as faturamento')
-            )
-            ->where('empresa_id', $empresaId)
-            ->whereBetween('created_at', [$dataInicio, $dataFim->endOfDay()])
-            ->whereNotNull('cliente_id')
+        $topClientes = $vendas->whereNotNull('cliente_id')
             ->groupBy('cliente_id')
-            ->with('cliente:id,nome_razao_social')
-            ->orderByDesc('faturamento')
-            ->limit(10)
-            ->get();
+            ->map(fn ($grupo) => (object) [
+                'cliente' => $grupo->first()->cliente,
+                'total_vendas' => $grupo->count(),
+                'faturamento' => (float) $grupo->sum('total'),
+            ])
+            ->sortByDesc('faturamento')
+            ->take(10)
+            ->values();
+
+        // Cabeçalho do impresso: empresa, loja e quem gerou
+        $empresa = \App\Models\Empresa::find($empresaId);
+        $lojaNome = $lojaFiltro
+            ? (\App\Models\Unidade::withoutGlobalScopes()->find($lojaFiltro)?->nome ?? '-')
+            : 'Todas as lojas';
 
         return view('app.relatorios.vendas', compact(
             'vendas', 'totalVendas', 'faturamento', 'ticketMedio',
+            'pecas', 'servicosQtd', 'pecasPorVenda', 'precoMedioPeca',
+            'subtotalBruto', 'descontos', 'acrescimos',
+            'porForma', 'totalPorForma', 'porVendedor', 'porLoja',
             'topProdutos', 'topClientes', 'dataInicio', 'dataFim',
             'lojas', 'lojaFiltro', 'vendedores', 'vendedorId', 'clienteFiltro',
-            'devolucoesQtd', 'devolucoesValor', 'faturamentoLiquido'
+            'devolucoesQtd', 'devolucoesValor', 'devolucoesPecas', 'faturamentoLiquido',
+            'empresa', 'lojaNome'
         ));
     }
 
@@ -152,8 +229,10 @@ class RelatorioController extends Controller
             return collect();
         }
 
+        $empresaId = session('empresa_id')
+            ?? \App\Models\Unidade::withoutGlobalScopes()->whereKey(session('unidade_id'))->value('empresa_id');
         $query = \App\Models\Unidade::withoutGlobalScopes()
-            ->where('empresa_id', session('empresa_id'))
+            ->where('empresa_id', $empresaId)
             ->where('status', 'ativa');
 
         // Gerente: só as lojas vinculadas (mesmo recorte do MultilojaController)

@@ -2,15 +2,23 @@
 
 namespace App\Http\Controllers\App;
 
+use App\Enums\StatusCaixa;
 use App\Enums\StatusVenda;
+use App\Enums\TipoMovimentacaoCaixa;
 use App\Enums\TipoMovimentacaoEstoque;
 use App\Http\Controllers\Controller;
+use App\Models\Caixa;
 use App\Models\Comissao;
 use App\Models\ContaReceber;
 use App\Models\EstoqueMovimentacao;
+use App\Models\Devolucao;
+use App\Models\MovimentacaoCaixa;
 use App\Models\Produto;
+use App\Scopes\UnidadeScope;
 use App\Services\SaldoEstoque;
 use App\Models\User;
+use App\Models\Vale;
+use App\Models\ValeUso;
 use App\Models\Venda;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -319,7 +327,49 @@ class VendaController extends Controller
                     'Atenção: NFC-e tem prazo curto de cancelamento na SEFAZ (em geral 30 minutos).');
         }
 
-        DB::transaction(function () use ($venda) {
+        // Troca/devolução já mexeu em estoque, vale e caixa desta venda (ou a
+        // venda é a nova de uma troca): cancelar por cima devolveria em dobro.
+        $temTroca = Devolucao::withoutGlobalScope(UnidadeScope::class)
+            ->where(fn ($q) => $q->where('venda_id', $venda->id)->orWhere('venda_nova_id', $venda->id))
+            ->where('status', '!=', 'cancelada')
+            ->exists();
+        if ($temTroca) {
+            return back()->with('error', 'Esta venda tem troca/devolução registrada — não pode ser cancelada por inteiro. Use a troca (F6 no PDV ou "Trocar / Devolver").');
+        }
+
+        // O que a venda lançou no caixa volta pelo estorno. Caixa da venda
+        // ainda aberto: sai dele. Já fechado: o dinheiro sai da gaveta de
+        // hoje, então vai para o caixa aberto de quem cancela, na mesma loja.
+        $entradas = MovimentacaoCaixa::withoutGlobalScope(UnidadeScope::class)
+            ->where('venda_id', $venda->id)
+            ->where('tipo', TipoMovimentacaoCaixa::Venda)
+            ->get();
+
+        $caixaEstorno = null;
+        if ($entradas->isNotEmpty()) {
+            $caixaVenda = Caixa::withoutGlobalScope(UnidadeScope::class)
+                ->find($venda->caixa_id);
+
+            $caixaEstorno = ($caixaVenda && $caixaVenda->status === StatusCaixa::Aberto)
+                ? $caixaVenda
+                : Caixa::withoutGlobalScope(UnidadeScope::class)
+                    ->where('unidade_id', $venda->unidade_id)
+                    ->where('user_id', auth()->id())
+                    ->where('status', StatusCaixa::Aberto)
+                    ->first();
+
+            if (! $caixaEstorno) {
+                return back()->with('error', 'O caixa desta venda já foi fechado. Abra o seu caixa nesta loja para cancelar: o valor da venda sai dele.');
+            }
+        }
+
+        DB::transaction(function () use ($venda, $entradas, $caixaEstorno) {
+            // Dois cliques / duas abas: só o primeiro cancela e estorna.
+            $travada = Venda::withoutGlobalScope(UnidadeScope::class)->lockForUpdate()->find($venda->id);
+            if ($travada->status === StatusVenda::Cancelada) {
+                return;
+            }
+
             // Revert estoque
             foreach ($venda->itens as $item) {
                 if ($item->produto_id) {
@@ -340,6 +390,28 @@ class VendaController extends Controller
                         ]
                     );
                 }
+            }
+
+            // Estorna o caixa: uma saída por entrada, mesma forma e valor.
+            foreach ($entradas as $entrada) {
+                MovimentacaoCaixa::create([
+                    'empresa_id'      => $venda->empresa_id,
+                    'unidade_id'      => $caixaEstorno->unidade_id,
+                    'caixa_id'        => $caixaEstorno->id,
+                    'venda_id'        => $venda->id,
+                    'tipo'            => TipoMovimentacaoCaixa::Estorno,
+                    'valor'           => $entrada->valor,
+                    'forma_pagamento' => $entrada->forma_pagamento,
+                    'descricao'       => "Cancelamento Venda #{$venda->numero}",
+                    'user_id'         => auth()->id(),
+                ]);
+            }
+
+            // Vale abatido na venda volta ao saldo do cliente.
+            $usosVale = ValeUso::where('venda_id', $venda->id)->where('tipo', 'venda')->get();
+            foreach ($usosVale as $uso) {
+                $vale = Vale::lockForUpdate()->find($uso->vale_id);
+                $vale?->estornar((float) $uso->valor, $venda->id);
             }
 
             // Cancel contas_receber

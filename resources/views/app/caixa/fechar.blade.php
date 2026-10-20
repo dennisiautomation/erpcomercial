@@ -380,6 +380,12 @@
             <div class="value">- R$ {{ number_format($resumo['devolucoes'], 2, ',', '.') }}</div>
         </div>
         @endif
+        @if(($resumo['estornos'] ?? 0) > 0)
+        <div class="resumo-item sangrias">
+            <div class="label"><i class="bi bi-x-circle me-1"></i> Vendas canceladas (já abatidas)</div>
+            <div class="value">R$ {{ number_format($resumo['estornos'], 2, ',', '.') }}</div>
+        </div>
+        @endif
     </div>
 
     {{-- Vendas por forma de pagamento --}}

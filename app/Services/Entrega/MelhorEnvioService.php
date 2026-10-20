@@ -371,6 +371,13 @@ class MelhorEnvioService
             ->throw()
             ->json();
 
+        // 27/09: com UM serviço em `services` o Melhor Envio devolve o OBJETO do
+        // serviço, não uma lista — o foreach andava pelos campos dele e voltava
+        // vazio ⇒ o pedido com a opção escolhida pelo cliente nascia SEM frete.
+        if (is_array($res) && isset($res['id'])) {
+            $res = [$res];
+        }
+
         $opcoes = [];
         foreach ((array) $res as $op) {
             if (! is_array($op) || ! empty($op['error']) || ! isset($op['id'])) {
@@ -402,25 +409,49 @@ class MelhorEnvioService
      */
     public static function mesmaCidade(string $cep, Unidade $unidade): bool
     {
-        $cep = preg_replace('/\D/', '', $cep);
-        if (strlen($cep) !== 8) {
-            return true;
-        }
-        $dados = Cache::remember("viacep_{$cep}", 60 * 60 * 24 * 30, function () use ($cep) {
-            try {
-                $r = Http::timeout(6)->get("https://viacep.com.br/ws/{$cep}/json/")->json();
-
-                return (is_array($r) && empty($r['erro'])) ? ['cidade' => $r['localidade'] ?? '', 'uf' => $r['uf'] ?? ''] : null;
-            } catch (\Throwable) {
-                return null;
-            }
-        });
+        $dados = self::consultarCep($cep);
         if (! $dados || $dados['cidade'] === '') {
             return true;
         }
 
         return self::normalizar($dados['cidade']) === self::normalizar((string) $unidade->cidade)
             && mb_strtoupper(trim($dados['uf'])) === mb_strtoupper(trim((string) $unidade->uf));
+    }
+
+    /**
+     * Endereço do CEP pelo ViaCEP (cache de 30 dias; só respostas válidas vão
+     * para o cache). CEP geral de cidade pequena vem com logradouro/bairro
+     * vazios — aí a rua tem de ser perguntada ao cliente.
+     *
+     * @return array{logradouro: string, bairro: string, cidade: string, uf: string}|null
+     */
+    public static function consultarCep(string $cep): ?array
+    {
+        $cep = preg_replace('/\D/', '', $cep);
+        if (strlen($cep) !== 8) {
+            return null;
+        }
+        $chave = "viacep_end_{$cep}";
+        if (($dados = Cache::get($chave)) !== null) {
+            return $dados;
+        }
+        try {
+            $r = Http::timeout(6)->get("https://viacep.com.br/ws/{$cep}/json/")->json();
+        } catch (\Throwable) {
+            return null;
+        }
+        if (! is_array($r) || ! empty($r['erro']) || empty($r['localidade'])) {
+            return null;
+        }
+        $dados = [
+            'logradouro' => trim((string) ($r['logradouro'] ?? '')),
+            'bairro' => trim((string) ($r['bairro'] ?? '')),
+            'cidade' => trim((string) $r['localidade']),
+            'uf' => mb_strtoupper(trim((string) ($r['uf'] ?? ''))),
+        ];
+        Cache::put($chave, $dados, 60 * 60 * 24 * 30);
+
+        return $dados;
     }
 
     private static function normalizar(string $s): string

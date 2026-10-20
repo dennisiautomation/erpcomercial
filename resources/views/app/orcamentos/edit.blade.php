@@ -203,7 +203,8 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     let itemIndex = 0;
-    const produtosBuscarUrl = '{{ url("app/pdv/buscar-produto") }}';
+    const produtosBuscarUrl = '{{ route("app.search.produtos") }}';
+    const servicosBuscarUrl = '{{ route("app.search.servicos") }}';
     const clientesBuscarUrl = '{{ route("app.search.clientes") }}';
     const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
 
@@ -279,50 +280,106 @@ document.addEventListener('DOMContentLoaded', function() {
         const descricaoInput = row.querySelector('.item-descricao');
         let searchTimeout;
 
-        buscaInput.addEventListener('input', function() {
-            clearTimeout(searchTimeout);
-            const termo = this.value.trim();
-            if (termo.length < 2) { resultadosDiv.style.display = 'none'; return; }
-            searchTimeout = setTimeout(() => {
-                fetch(`${produtosBuscarUrl}/${encodeURIComponent(termo)}`, {
+        // A lista fica dentro de uma celula da tabela: com position-absolute o
+        // overflow corta o dropdown. Reposiciona com position:fixed (as classes
+        // position-absolute/w-100 do Bootstrap tem !important e venceriam o inline).
+        function abrirResultados() {
+            resultadosDiv.classList.remove('position-absolute', 'w-100');
+            const rect = buscaInput.getBoundingClientRect();
+            resultadosDiv.style.position = 'fixed';
+            resultadosDiv.style.top = (rect.bottom + 2) + 'px';
+            resultadosDiv.style.left = rect.left + 'px';
+            resultadosDiv.style.width = rect.width + 'px';
+            resultadosDiv.style.zIndex = '2000';
+            resultadosDiv.style.display = 'block';
+        }
+
+        function limparEscolha() {
+            produtoIdInput.value = '';
+            servicoIdInput.value = '';
+            descricaoInput.value = '';
+        }
+
+        function escolher(escolhido) {
+            produtoIdInput.value = escolhido.tipo === 'produto' ? escolhido.id : '';
+            servicoIdInput.value = escolhido.tipo === 'servico' ? escolhido.id : '';
+            descricaoInput.value = escolhido.descricao;
+            buscaInput.value = escolhido.descricao;
+            row.querySelector('.item-preco').value = escolhido.valor.toFixed(2);
+            resultadosDiv.style.display = 'none';
+            calcularTotais();
+        }
+
+        // Produtos e servicos sao duas rotas: busca as duas e junta numa lista so.
+        function buscar(termo) {
+            const q = encodeURIComponent(termo);
+            const pega = (url) => fetch(url, {
                     headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': csrfToken }
                 })
-                .then(r => r.json())
-                .then(produtos => {
-                    resultadosDiv.innerHTML = '';
-                    if (produtos.length === 0) {
-                        resultadosDiv.innerHTML = '<div class="list-group-item text-muted small py-2">Nenhum produto encontrado</div>';
-                        resultadosDiv.style.display = 'block';
-                        return;
-                    }
-                    produtos.forEach(p => {
-                        const item = document.createElement('a');
-                        item.href = '#';
-                        item.className = 'list-group-item list-group-item-action py-2';
-                        item.innerHTML = `
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div>
-                                    <span class="fw-semibold">${p.descricao}</span>
-                                    <small class="text-muted ms-1">${p.codigo_interno ? '(' + p.codigo_interno + ')' : ''}</small>
-                                </div>
-                                <span class="badge bg-success">R$ ${parseFloat(p.preco_venda).toFixed(2).replace('.', ',')}</span>
+                .then(r => r.ok ? r.json() : [])
+                .then(d => Array.isArray(d) ? d : []);
+
+            Promise.all([
+                pega(`${produtosBuscarUrl}?q=${q}`),
+                pega(`${servicosBuscarUrl}?q=${q}`),
+            ])
+            .then(([produtos, servicos]) => {
+                const achados = [
+                    ...produtos.map(p => ({
+                        tipo: 'produto', id: p.id, descricao: p.descricao,
+                        codigo: p.codigo_interno || '', valor: parseFloat(p.preco_venda) || 0,
+                    })),
+                    ...servicos.map(s => ({
+                        tipo: 'servico', id: s.id, descricao: s.descricao,
+                        codigo: s.codigo_lc116 || '', valor: parseFloat(s.valor_padrao) || 0,
+                    })),
+                ];
+
+                resultadosDiv.innerHTML = '';
+                if (achados.length === 0) {
+                    resultadosDiv.innerHTML = '<div class="list-group-item text-muted small py-2">Nenhum produto ou servico encontrado</div>';
+                    abrirResultados();
+                    return;
+                }
+
+                achados.forEach(achado => {
+                    const item = document.createElement('a');
+                    item.href = '#';
+                    item.className = 'list-group-item list-group-item-action py-2';
+                    item.innerHTML = `
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <span class="badge ${achado.tipo === 'produto' ? 'bg-primary' : 'bg-info text-dark'} me-1">${achado.tipo === 'produto' ? 'Produto' : 'Servico'}</span>
+                                <span class="fw-semibold">${achado.descricao}</span>
+                                <small class="text-muted ms-1">${achado.codigo ? '(' + achado.codigo + ')' : ''}</small>
                             </div>
-                        `;
-                        item.addEventListener('click', function(e) {
-                            e.preventDefault();
-                            produtoIdInput.value = p.id;
-                            servicoIdInput.value = '';
-                            descricaoInput.value = p.descricao;
-                            buscaInput.value = p.descricao;
-                            row.querySelector('.item-preco').value = parseFloat(p.preco_venda).toFixed(2);
-                            resultadosDiv.style.display = 'none';
-                            calcularTotais();
-                        });
-                        resultadosDiv.appendChild(item);
+                            <span class="badge bg-success">R$ ${achado.valor.toFixed(2).replace('.', ',')}</span>
+                        </div>
+                    `;
+                    item.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        escolher(achado);
                     });
-                    resultadosDiv.style.display = 'block';
+                    resultadosDiv.appendChild(item);
                 });
-            }, 300);
+                abrirResultados();
+            })
+            .catch(() => {
+                resultadosDiv.innerHTML = '<div class="list-group-item text-danger small py-2">Erro ao buscar. Tente de novo.</div>';
+                abrirResultados();
+            });
+        }
+
+        buscaInput.addEventListener('focus', function() {
+            if (!this.value.trim()) buscar('');
+        });
+
+        buscaInput.addEventListener('input', function() {
+            clearTimeout(searchTimeout);
+            // O texto mudou: a escolha anterior nao vale mais.
+            limparEscolha();
+            const termo = this.value.trim();
+            searchTimeout = setTimeout(() => buscar(termo), 250);
         });
 
         row.querySelectorAll('.item-qtd, .item-preco, .item-desc-perc').forEach(input => {
@@ -448,6 +505,24 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         if (!e.target.closest('#clienteBusca') && !e.target.closest('#clienteResultados')) {
             clienteResultados.style.display = 'none';
+        }
+    });
+
+    // Rede de protecao: sem produto nem servico escolhido o item e um fantasma
+    // (a caixa de busca nao tem name, o que voce digita nao vai no POST).
+    document.getElementById('formOrcamento').addEventListener('submit', function(e) {
+        const linhas = document.querySelectorAll('#itensBody tr');
+        for (const linha of linhas) {
+            const temProduto = linha.querySelector('.produto-id').value;
+            const temServico = linha.querySelector('.servico-id').value;
+            if (!temProduto && !temServico) {
+                e.preventDefault();
+                const busca = linha.querySelector('.produto-busca');
+                busca.classList.add('is-invalid');
+                busca.focus();
+                alert('Escolha um produto ou servico da lista em todos os itens. Digitar o nome nao basta: e preciso clicar no resultado da busca.');
+                return;
+            }
         }
     });
 });

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Empresa;
 use App\Models\EmpresaGateway;
 use App\Services\Pagamento\AsaasService;
+use App\Services\Pagamento\CartaoPedidoService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -27,6 +28,10 @@ class EmpresaAsaasController extends Controller
             'ativo' => ['nullable', 'boolean'],
         ]);
 
+        // 25/09/2026: com a InfinitePay no jogo, ligar o Asaas não pode tirar
+        // o cartão que o agente já usa — a escolha fica gravada.
+        $emUsoAntes = CartaoPedidoService::provedorEmUso($empresa->id);
+
         $gateway = EmpresaGateway::firstOrCreate(
             ['empresa_id' => $empresa->id, 'provedor' => EmpresaGateway::PROVEDOR_ASAAS],
             ['base_url' => 'https://api.asaas.com/v3']
@@ -44,6 +49,7 @@ class EmpresaAsaasController extends Controller
         $gateway->config = $config;
         $gateway->ativo = $request->boolean('ativo');
         $gateway->save();
+        CartaoPedidoService::fixarEscolhaSeVazia($empresa->id, $emUsoAntes);
 
         return redirect()
             ->route('admin.empresas.show', $empresa)

@@ -1367,6 +1367,29 @@
     </div>
 </div>
 
+{{-- Dinheiro a menos (07/10/2026): o caixa corrige o valor ou completa com outra forma --}}
+<div class="modal fade" id="modalDinheiroMenor" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 470px;">
+        <div class="modal-content">
+            <div class="modal-body text-center" style="padding: 28px;">
+                <div style="font-size:1.05rem; font-weight:700; margin-bottom:6px;"><i class="bi bi-exclamation-triangle me-1" style="color:var(--accent-orange)"></i> Dinheiro a menos</div>
+                <div style="font-size:.9rem; color:var(--text-secondary); margin-bottom:4px;">Recebido <strong id="dinheiroMenorRecebido"></strong> de <strong id="dinheiroMenorDevido"></strong></div>
+                <div style="font-size:1.6rem; font-weight:800; color:var(--accent-red); margin-bottom:16px;">Faltam <span id="dinheiroMenorFalta"></span></div>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn-doc-escolha" onclick="PDV.corrigirDinheiroMenor()">
+                        <i class="bi bi-pencil-square d-block fs-3 mb-1"></i> Corrigir valor
+                        <div style="font-size:0.68rem; opacity:0.75;">voltar e digitar de novo</div>
+                    </button>
+                    <button type="button" class="btn-doc-escolha" onclick="PDV.completarDinheiroMenor()">
+                        <i class="bi bi-credit-card d-block fs-3 mb-1"></i> Completar com outra forma
+                        <div style="font-size:0.68rem; opacity:0.75;">o dinheiro fica lançado; falta o resto</div>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 {{-- Modal: Sucesso venda --}}
 {{-- Pergunta de documento na finalização (modo Auto sem regra automática) --}}
 <div class="modal fade" id="modalDocumento" tabindex="-1" data-bs-backdrop="static">
@@ -2557,6 +2580,15 @@ const PDV = {
             }
         }
 
+        // Dinheiro a MENOS sem split (07/10/2026): antes passava direto — a venda
+        // nascia com o total cheio e o caixa só com o que foi digitado (MISS
+        // MERLINDA, 5 vendas, R$ 540 sem rastro). Agora o caixa decide: corrige
+        // o valor ou completa com outra forma.
+        if (forma === 'dinheiro' && !isSplit && valor < restante - 0.01) {
+            this.mostrarDinheiroMenor(digitado, restante);
+            return;
+        }
+
         // For dinheiro, accept any value >= total for troco
         // For other methods, value should not exceed remaining
         if (forma !== 'dinheiro' && valor > restante + 0.01) {
@@ -2726,9 +2758,9 @@ const PDV = {
         }
 
         const totalPago = this.pagamentos.reduce((s, p) => s + p.valor, 0) + credito;
-        // For dinheiro, allow overpayment (troco). For others, must match.
-        const hasDinheiro = this.pagamentos.some(p => p.forma === 'dinheiro');
-        if (!hasDinheiro && totalPago < total - 0.01) {
+        // A MENOS nunca passa — em nenhuma forma (07/10/2026: dinheiro era isento
+        // da checagem "para permitir troco", mas troco é a MAIS, não a menos).
+        if (totalPago < total - 0.01) {
             this.showAlert(`Pagamento insuficiente. Faltam ${this.formatMoney(total - totalPago)}`, 'warning');
             return;
         }
@@ -3412,6 +3444,57 @@ const PDV = {
         this.valeSobraDinheiro = !!dinheiro;
         bootstrap.Modal.getInstance(document.getElementById('modalSobraTroca'))?.hide();
         this.finalizarVenda(this._docAposSobra || null);
+    },
+
+    // ===== DINHEIRO A MENOS (07/10/2026) =====
+    // Fecha um modal e só então roda `fn` — abrir o próximo em cima de um que
+    // ainda está sumindo deixa o body sem `modal-open` e a tela sem rolagem.
+    _aposFechar(modalId, fn) {
+        const el = document.getElementById(modalId);
+        const inst = el ? bootstrap.Modal.getInstance(el) : null;
+        if (inst && el.classList.contains('show')) {
+            el.addEventListener('hidden.bs.modal', fn, { once: true });
+            inst.hide();
+        } else {
+            inst?.hide();
+            fn();
+        }
+    },
+
+    mostrarDinheiroMenor(recebido, devido) {
+        recebido = round(recebido, 2); devido = round(devido, 2);
+        this._dinheiroMenor = { recebido, devido };
+        document.getElementById('dinheiroMenorRecebido').textContent = this.formatMoney(recebido);
+        document.getElementById('dinheiroMenorDevido').textContent = this.formatMoney(devido);
+        document.getElementById('dinheiroMenorFalta').textContent = this.formatMoney(round(devido - recebido, 2));
+        this._aposFechar('modalPagamento', () => new bootstrap.Modal(document.getElementById('modalDinheiroMenor')).show());
+    },
+
+    // "Corrigir valor": volta ao modal de dinheiro com o número digitado, para ajustar
+    corrigirDinheiroMenor() {
+        const d = this._dinheiroMenor; this._dinheiroMenor = null;
+        this._aposFechar('modalDinheiroMenor', () => {
+            this.openPagamento('dinheiro');
+            const input = document.getElementById('valorRecebido');
+            if (d && input) {
+                input.value = d.recebido.toFixed(2);
+                input.oninput?.();
+                setTimeout(() => { input.focus(); input.select(); }, 320);
+            }
+        });
+    },
+
+    // "Completar com outra forma": o dinheiro entra como primeira parte do split
+    // e o caixa escolhe a forma do resto (F-teclas / botões), como num split normal
+    completarDinheiroMenor() {
+        const d = this._dinheiroMenor; this._dinheiroMenor = null;
+        this._aposFechar('modalDinheiroMenor', () => {
+            if (!d) return;
+            this.pagamentos.push({ forma: 'dinheiro', valor: d.recebido, parcelas: 1 });
+            this.renderSplitPayments();
+            document.getElementById('trocoDisplay').style.display = 'none';
+            this.showAlert(`Dinheiro ${this.formatMoney(d.recebido)} lançado. Faltam ${this.formatMoney(round(d.devido - d.recebido, 2))} — escolha a outra forma.`, 'warning');
+        });
     },
 
     // ===== VALE (crédito de troca como pagamento) =====

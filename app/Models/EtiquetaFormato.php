@@ -131,6 +131,54 @@ class EtiquetaFormato extends Model
 
     public const ALINHAMENTOS = ['left', 'center', 'right'];
 
+    /**
+     * Grossura do texto. `negrito` (700) é o máximo que a fonte tem; na térmica
+     * de 203 dpi ele ainda sai magro. Os níveis acima engrossam o CONTORNO da
+     * letra (`-webkit-text-stroke`) em mm proporcional ao corpo — é o que faz a
+     * letra ficar preta no papel térmico sem trocar de fonte.
+     *
+     * valor = mm de contorno por pt de fonte (null = sem contorno).
+     */
+    public const PESOS = [
+        'normal'  => null,
+        'negrito' => null,
+        'extra'   => 0.025,
+        'maximo'  => 0.04,
+    ];
+
+    public const PESOS_LABELS = [
+        'normal'  => 'Normal',
+        'negrito' => 'Negrito',
+        'extra'   => 'Extra grosso',
+        'maximo'  => 'Máximo (térmica fraca)',
+    ];
+
+    /** Contorno mínimo em mm quando há contorno — abaixo disso a térmica nem enxerga (1 ponto = 0,125 mm). */
+    public const CONTORNO_MIN_MM = 0.15;
+
+    /** Contorno em mm para um peso e um corpo em pt; 0 quando o peso não tem contorno. */
+    public static function contornoMm(string $peso, float $tamanhoPt): float
+    {
+        $porPt = self::PESOS[$peso] ?? null;
+        if ($porPt === null) {
+            return 0.0;
+        }
+        $base = self::CONTORNO_MIN_MM * ($porPt / self::PESOS['extra']);
+
+        return round(max($base, $tamanhoPt * $porPt), 3);
+    }
+
+    /** Peso efetivo de um item: `peso` novo, ou derivado do `negrito` antigo. */
+    public static function pesoDoItem(array $el): string
+    {
+        $peso = $el['peso'] ?? null;
+        if (is_string($peso) && array_key_exists($peso, self::PESOS)) {
+            return $peso;
+        }
+
+        return ! empty($el['negrito']) ? 'negrito' : 'normal';
+    }
+
     /** Teto de itens por etiqueta — trava de sanidade, não limite de produto. */
     public const MAX_ELEMENTOS = 40;
 

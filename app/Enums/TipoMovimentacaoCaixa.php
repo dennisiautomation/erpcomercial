@@ -13,6 +13,9 @@ enum TipoMovimentacaoCaixa: string
     // Sai da gaveta como a sangria, mas com nome próprio: no fechamento o
     // caixa precisa saber o que foi devolução e o que foi retirada.
     case Devolucao = 'devolucao';
+    // Venda cancelada (24/09/2026): devolve ao caixa, na mesma forma, o que a
+    // venda tinha lançado — sem isso o esperado seguia somando venda cancelada.
+    case Estorno = 'estorno';
 
     public function label(): string
     {
@@ -23,6 +26,7 @@ enum TipoMovimentacaoCaixa: string
             self::Abertura => 'Abertura',
             self::Fechamento => 'Fechamento',
             self::Devolucao => 'Devolução',
+            self::Estorno => 'Estorno de venda',
         };
     }
 
@@ -30,7 +34,7 @@ enum TipoMovimentacaoCaixa: string
     {
         return match ($this) {
             self::Venda, self::Suprimento, self::Abertura => 1,
-            self::Sangria, self::Devolucao => -1,
+            self::Sangria, self::Devolucao, self::Estorno => -1,
             self::Fechamento => 0,
         };
     }

@@ -2,7 +2,7 @@
 
 > SaaS ERP multi-tenant para PMEs. Admin (IA365) gerencia a plataforma; cada empresa-cliente tem múltiplas unidades com fiscal, estoque e caixa independentes. Integração 100% Focus NFe (NF-e, NFC-e, NFS-e, CC-e, manifestação do destinatário, backup XMLs).
 
-**Última revisão:** 2026-09-11 (**o número do caixa sumiu da tela de abertura** — o campo "Numero do Caixa" era o resto de quando a pessoa digitava o número; desde 09/09 quem escolhe é o servidor, então o campo saiu inteiro: a tela de Abrir Caixa tem **um campo só, o troco inicial**, e o número é decidido dentro da `DB::transaction` (menor livre da loja, com preferência pelo último da própria pessoa). Saíram junto o `numeroSugerido` do GET, o `numero_caixa` do `validate()` e o aviso `caixa_numero_trocado` do PDV, que virou código morto; ficaram a caixinha "Já abertos nesta loja" (decisão dele) e o número no topo do PDV, na tela de Caixas, no fechamento e no comprovante; provado no `erp-test` na loja Timon, que tinha 1, 2 e 10 presos e abriu no 3 sem campo nenhum; seção 9y) · 2026-09-09 noite (**troca no PDV: o crédito não contava no split + peça sem cupom entra no F6 + rodada 2: peça SEM venda nenhuma (botão no passo 1 do F6, `devolucoes.venda_id` NULL, migration `2026_09_09_200000`, rota `pdv/troca/sem-venda`) + rodada 3: botão **Reimprimir** no topo do PDV (dia → vendas da loja → Recibo / Cupom fiscal, 2 rotas só-leitura em `app.pdv.*`)** — na LOJA RIVERSIDE da MISS MERLINDA a operadora fez a troca (vale de R$ 105), bipou R$ 180, lançou PIX 75 e a tela respondeu "Faltam R$ 105" e não finalizou: o `confirmarPagamento` e o "Faltam" do split somavam só `pagamentos`, sem o crédito da troca, então o modal fechava com "Restam R$ 105" e a venda nunca chegou ao servidor (o log do nginx não tem POST de venda entre 13:32 e 13:38; ela saiu para Estoque por Loja, voltou e o reload apagou o crédito da memória — o vale continua ativo); agora o crédito é a primeira linha do split e entra nos dois cálculos, e a venda finaliza sozinha quando o pagamento completa; **e o F6 ganhou "Bipar peça que NÃO está nesta venda"**: entra na mesma lista pelo preço de venda de hoje, marcada "sem cupom desta venda", sem teto de quantidade e com as regras normais (sem senha de gerente — decisão do Dennis), só dentro de uma venda encontrada; `devolucao_itens.venda_item_id` virou NULL para essas linhas (migration `2026_09_09_180000`); armadilha 75; seção própria) · 2026-09-09 tarde (**a sessão do PDV caindo em silêncio** — o relato chegou como "o produto *taxa de entrega* não aparece na busca do PDV da MISS MERLINDA, depois que cancelaram uma venda que tinha ele"; o produto está certo (2.000 un. em cada loja, 18 vendas, a busca devolve 1 resultado por nome, código e EAN) e o cancelamento não causou nada — o log do nginx mostra que a **sessão morreu 22 minutos ANTES** dele, por `SESSION_LIFETIME=120` depois de 2h03 de balcão parado, e que no mesmo intervalo `vestido duas cores` e `conj emili` também não apareceram; o defeito é o **401 morrendo num `console.error`**: a resposta `{"message":"Unauthenticated."}` estourava `TypeError` no `.forEach` do `cachePrecos`, o `catch` engolia, e o PDV ficava **mudo com cara de logado** — 192 buscas assim num dia, 21% do total, em 2 máquinas; entrou (1) wrapper em `window.fetch` que trata **401/419** com overlay "Sua sessão expirou — nada do que está na tela foi gravado", cobrindo busca, código de barras, F6, vale, sangria e o POST da venda de uma vez, (2) `GET /app/pdv/ping` renovando a sessão a cada 10 min **só com a aba visível** (provado: o mtime do arquivo de sessão avança no ping) e (3) `Array.isArray` em `cachePrecos`/`showSearchResults`; sem migration; armadilhas 74 e 74b; seção própria) · 2026-09-09 (**comprovante de fechamento de caixa na térmica + número de caixa automático + o botão de fechar que faltava** — o fechamento passa a cair num comprovante 80 mm com vendas por forma de pagamento, descontos, acréscimos de cartão/juros, os movimentos da gaveta e o quadro esperado × contado × sobra/falta, com 2ª via na tela do caixa; a abertura deixa de perguntar um número que ninguém lembra — vem preenchida com o último daquela pessoa naquela loja ou o menor livre, listando quem está com cada número aberto, e número ocupado no meio do caminho **não trava mais**: abre no próximo e avisa; e `/app/caixa` ganhou o botão **Fechar** para caixas abertos, que não existia — só dava para fechar o da própria sessão, e era essa a razão mecânica dos **25 caixas presos, 9 há mais de 7 dias** (as 6 lojas da MISS MERLINDA tinham 2 ou 3 números queimados cada, o mais antigo desde 05/08); sem migration; os caixas presos **não foram fechados**, por decisão do Dennis; seção própria) · 2026-09-08 (**sincronização automática ERP → agente do app.ia365** — `GET /capacidades`, `callback_url` no ativar, observers de gateway e job de aviso HMAC; seção própria) · 2026-09-06 (**treinamento de suporte + matriz das 4 camadas** — 751 campos, 6 divergências de tamanho e 44 obrigatórios sem marca na tela; seção própria) · 2026-09-05 noite (**Venda humana pelo app.ia365 — ações no pedido pela API do agente** — o painel do CRM passa a operar o pedido inteiro sem entrar no ERP: `POST /pedidos/{id}/verificar-pagamento` (re-consulta o PIX no Sicredi agora), `POST /pedidos/{id}/confirmar-pagamento` (recebido por fora: dinheiro/maquininha/PIX manual/transferência — rascunho→confirmado com anotação de quem confirmou, `condicao_pagamento` preenchida e o mesmo despacho automático do PIX), `POST /pedidos/{id}/cancelar` (rascunho/confirmado, motivo, cobrança PIX ativa vira CANCELADA; PIX já pago exige o ERP), `POST /pedidos/{id}/entregue` (só faturado, como no ERP); `GET /pedidos` ganha `busca` (nome, telefone ou nº) e `pagamento=pendente|pago`; a resposta do pedido traz `pagamento_resumo` (situação consolidada PIX/cartão/por fora), `acoes` (o que o painel pode fazer — o servidor manda), `subtotal`, `canal`, `vendedor`, `cpf_cnpj` e endereço do cliente; `POST /pedidos` aceita `vendedor_nome` (casado com o usuário ativo da empresa — é o que separa a venda de cada atendente no Gersen); PIX que cai em pedido CANCELADO só anota (não despacha); validado no erp-test-app; seção própria) · 2026-09-05 tarde (**Melhor Envio — frete para OUTRA cidade no Vendedor IA** — o agente só sabia cotar a Uber Direct (entrega local) e a DONA DOURO tem faixas de CEP vazias, então qualquer CEP do Brasil ia para a Uber; agora: aplicativo "IA365" do Melhor Envio cadastrado UMA vez em **`/admin/integracoes`** (Client ID/Secret cifrados em `plataforma_configuracoes`, e-mail do `User-Agent`, ambiente, escopos, URL de callback para copiar), e cada empresa **autoriza a própria conta** pelo botão "Conectar Melhor Envio" do card novo da aba Integração (OAuth2, UMA URL de callback para todas — o `state` cifrado diz a empresa; tokens de 30 dias cifrados em `empresa_gateways`, renovados pelo cron `melhorenvio:renovar-tokens` às 5h); `POST /entrega/cotar` decide: CEP nas faixas da Uber ou, sem faixas, **mesma cidade da loja (ViaCEP)** → Uber como sempre; outra cidade → Melhor Envio pelas **medidas dos produtos** (`produtos.altura_cm/largura_cm/comprimento_cm` novas + peso; sem medida = pacote padrão da loja, configurável no card) devolvendo até 3 `opcoes` (PAC/SEDEX/Jadlog…) com `servico_id`, valor e `prazo_dias`; `POST /pedidos` aceita `entrega.servico_id`, embute o frete no total e grava `frete_provedor/servico/prazo` no pedido; Uber que falha cai no Melhor Envio; o despacho Uber ignora pedido do Melhor Envio (etiqueta = fase 2); validado no erp-test-app contra um Melhor Envio FALSO (OAuth, cotação, escolha de serviço, pedido, renovação); seção própria) · 2026-09-05 (**canal da venda — presencial × WhatsApp × online — no pedido de venda e na API do Gersen** — o Gersen precisa separar a conversão de balcão da conversão por WhatsApp de cada vendedor e a integração ERPIA365 (ativa para a DONA DOURO, sync de hora em hora) só conhecia `tipo` (pdv/balcao/pedido/importada), que diz de que TELA a venda nasceu e não COMO o cliente comprou; entrou `canal` em `pedidos` e `vendas` (2 colunas NULL, nada retroativo), select "Canal da venda" no pedido (create/edit/show/index, default Presencial, sem PDF porque pedido não tem impressão), pedido do Agente IA nasce `whatsapp`, PDV/balcão/OS gravam `presencial` sem mudar tela, faturar herda do pedido; `GET /vendas` devolve `canal` (venda antiga: `presencial` derivado para pdv/balcao, `null` para o resto) e `GET /canais` (novo) lista os 3 valores; o Gersen v5.203 já lê `canal` com fallback em `tipo`, então nada quebra em nenhuma ordem de deploy; validado no erp-test-app; seção própria) · 2026-09-04 noite (🔴 **o estoque da MISS MERLINDA nunca foi carregado** — a apuração do ruído da roda do mouse terminou num achado maior: a empresa tem **73 vendas, 817 ajustes manuais e ZERO entradas** de estoque, e a primeira movimentação da vida dela (20/08) já é uma venda saindo de saldo zero; a reconstrução pelo histórico foi escrita, aplicada e desfeita a pedido, e recuperou **1 produto**; a tela voltou a mostrar o saldo REAL com fração — arredondar a exibição escondeu o problema e fez parecer que o estoque tinha sumido (armadilha 68); **rodada 4, EM PRODUÇÃO 15:30**: setas ▲▼ próprias, foco seleciona a fração para substituí-la, botão "Salvar N alterações" e **célula intocada sai do POST** (`disabled`) — também corrige o 422 que `0,002` provocava no `numeric`; primeiro uso real pelo dono 3 min depois, 2 células tocadas = 2 movimentações e nada mais; o caminho para o estoque existir é o import de saldo; seção própria) · 2026-09-04 tarde (**acréscimo do cartão só sobre a parte do cartão** — quarta regra de split `por_parte`: o item para de mudar de tabela e o acréscimo vira valor de pagamento, como os juros de parcelamento já faziam; venda de R$ 300 com R$ 100 no PIX + resto no crédito a 10% cai de **R$ 330 para R$ 320**; a devolução passa a devolver o acréscimo (vale as vendas com juros também); migration `2026_09_04_140000` e **nenhuma loja migrada**; **EM PRODUÇÃO 04/09 ~13:54**; **rodada 2 na noite de 04/09**: o campo do PDV passa a mostrar o valor que passa na maquininha (R$ 99,00, não R$ 90,00) e o select de parcelas passa a simular sobre ele — antes a tela dizia "6x de R$ 16,20" numa venda que o servidor gravava a R$ 106,92; armadilha 67; seção própria) · 2026-09-04 tarde (**a roda do mouse virou ajuste de estoque** — `/app/multilojas/estoque` usava `<input type="number" step="0.001">` e o spinner responde à roda do mouse numa tabela que rola: **787 ajustes fracionários em 3 dias, 623 produtos com saldo "0,005 peça"** e um `-0,999`, todos dos 2 gerentes da MISS MERLINDA desde 02/09, quando ganharam a tela; campo virou `type="text" inputmode="numeric"` **só com inteiro** (vírgula corta o resto) + célula suja mostrada no inteiro e acertada ao salvar (rodada 2 da noite: o `pattern` travava o Salvar como o `min=0` travava antes, e saldo negativo entrou no mesmo aviso) + antídoto global de `wheel` no `erp-core.js` (foi por `docker cp` de `public/`); **EM PRODUÇÃO 04/09 ~12:59**; limpeza dos 623 **adiada por decisão do Dennis**; armadilha 66; seção própria) · 2026-09-04 tarde (**o gerente altera a tela de Configurações da Loja INTEIRA** — o card "Acesso do vendedor" era a última opção travada para ele; `podeMudarAcessoVendedor()` passa a aceitar `gerente` e o aviso âmbar do card ganha uma linha dizendo que o que ele ligar ali vale para as lojas que não são dele; 6 gerentes alcançados, sem migration, **EM PRODUÇÃO desde 04/09 ~10:14**; subseção "Rodada 2" na seção do vendedor) · 2026-09-04 (**vendedor opera somente o PDV + F3 só com os vendedores da loja — duas chaves por empresa-cliente, ambas default OFF** — o pedido chegou como "limpar o menu" e o que existia era acesso de LEITURA a faturamento e margem: fora do bloco Gestão o menu **não perguntava permissão nenhuma**, então o vendedor via 36 links, 14 davam 403 no clique e **22 abriam** — Dashboard com faturamento do mês/ticket médio/top produtos, `/app/relatorios/financeiro`, `/app/relatorios/vendas`, `/app/comissoes` e o preço de custo no cadastro de produto; agora `empresas.vendedor_apenas_pdv` (default **false**, nenhuma das 6 empresas muda no deploy) tranca o perfil `vendedor` no PDV: continua vendendo, trocando pelo F6, usando vale e abrindo/fechando o caixa, e todo o resto **redireciona para `/app/pdv`** (AJAX recebe 403 JSON); 🔑 a tranca é de **ROTA** (`RestringeVendedorAoPdv`, registrado por CLASSE no grupo `/app` para não exigir rebuild — armadilha 46), não de menu, porque os módulos `vendas`/`trocas` também cobrem `/app/vendas`, `/app/trocas` e `/app/comissoes`; o gate é uma função só (`CheckPermission::canUser()`) que o middleware E o menu consultam (armadilha 59); é por EMPRESA e não por loja porque o mesmo vendedor atende em lojas diferentes da rede; card em Configurações da Loja (dono/admin editam, gerente vê travado — a guarda é no SERVIDOR, `@disabled` não impede POST forjado) + espelho no admin; armadilha 65; **chave irmã `pdv_vendedores_da_loja`**: o select de vendedor do PDV (F3) listava TODOS os usuários ativos da empresa — `unidade_user` nunca era consultado — e a MISS MERLINDA tem 6 lojas com 4 vendedores de UMA loja cada (a N S BORBA, 3 lojas e 5 vendedores, idem); ligada, o F3 lista só quem está vinculado à loja da sessão, com 🔑 **dono e admin aparecendo sempre** (o dono da MISS MERLINDA está em 1 loja de 6 e sumiria das outras 5) e 🔑 **quem não tem vínculo nenhum aparecendo em todas** (mesmo fallback do MultilojaController); o relatório de vendas ficou de fora de propósito, porque lá o filtro de loja pode ser "Todas"; seção própria) · 2026-09-03 (**PWA — o ERP vira aplicativo instalável no computador** — o sistema era site puro: sem manifest, sem service worker e com `public/favicon.ico` de **0 bytes**, então o Chrome/Edge nem oferecia "Instalar" e não havia o que perguntar; agora o login e as telas internas convidam a instalar (atalho na área de trabalho, fixar na barra de tarefas, janela própria sem barra do navegador), com "Agora não" adiando 7 dias e o convite sumindo de vez depois de instalado; 🔑 manifest, `sw.js` e ícones são servidos por **rota** (`PwaController`), não por arquivo em `public/` — o deploy por tar não leva `public/` (armadilha 46) e um PWA lá exigiria rebuild a cada ajuste; o service worker é deliberadamente burro (rede primeiro em toda navegação, **zero HTML de `/app` ou `/admin` em cache** numa base multi-tenant, só estáticos e a casca `/offline`), o **PDV ficou de fora** por ser documento próprio e tela operacional, e existe a chave `PWA_ATIVO=false` que faz o `/sw.js` se **desregistrar** nos navegadores já instalados — rollback sem deploy de código; **EM PRODUÇÃO desde a noite de 03/09**, conferido em 04/09; armadilha 64; seção própria) · 2026-09-03 (**Trocas no PDV (F6) + vale de crédito + relatório de vendas com listas** — o ERP não tinha troca: só "Cancelar Venda" (tudo ou nada, sem mexer no caixa), as tabelas `devolucoes`/`devolucao_itens` existiam desde abril com model e **zero controller/rota/tela** (o CLAUDE.md dizia que Devoluções estava pronto), e o botão Vale do PDV era um rótulo que aceitava qualquer valor; agora o caixa aperta **F6**, acha a venda (número, cupom bipado `V{id}` ou cliente — de qualquer dia e de qualquer loja), marca o que volta e bipa o que o cliente leva: a diferença é cobrada, zera ou vira **vale com código** (`VT-XXXX-XXXX`, saldo, validade, uso parcial, código de barras no comprovante) ou dinheiro pela gaveta, conforme **Configurações da Loja → Trocas** (prazo 30 dias, sobra em vale por padrão, validade 90 dias, fora da política pede e-mail+senha de um gerente); `TrocaService` é o ponto único (estoque de volta na loja da SESSÃO, abate de crediário/boleto em aberto antes do crédito, tipo `devolucao` no caixa com sinal −1 que entra no fechamento); tela `/app/trocas` + `/app/trocas/vales`; relatório de vendas ganhou select de vendedor, autocomplete de cliente, filtro de loja, card de trocas e **deixou de somar canceladas** no faturamento; armadilhas 61-63; seção própria) · 2026-09-02 (**fornecedor no cadastro do produto, opcional** — não era campo de tela faltando: `produtos` **não tinha `fornecedor_id`**, as duas tabelas nunca se falaram; entrou na **etapa 2** do wizard ("Identificação — opcional"), ao lado do SKU, com `Sem fornecedor` por padrão, e é opcional nas 4 camadas (coluna nullable, FK `nullOnDelete` para que excluir o fornecedor não trave o produto, validação nullable, enviar vazio limpa o vínculo); 🔑 a validação é **escopada à empresa** — `exists:fornecedores,id` solto aceitaria o id de fornecedor de outro cliente do SaaS; ⚠️ `fornecedor_id` no `$fillable` do Produto, senão a chave seria descartada calada (armadilha 53); os ~2.500 produtos existentes ficam NULL; seção própria) · 2026-09-02 (**textos da OS: o limite de 500 não existia** — a Realiza Phone reportou que os Termos de garantia paravam em 500 caracteres; nas 4 camadas o campo aceitava **5.000** (coluna TEXT, `max:5000`, zero `maxlength` no HTML, sem corte na impressão) e um teste ao vivo em produção gravou 1.439 de 1.440 enviados — 📌 o que existia era uma **tela muda**: `rows="4"` e nenhum contador, então o texto rola para fora da caixa e o lojista conclui que bateu no teto (as 14 configurações de loja estavam com os 4 textos da OS NULL — ninguém nunca preencheu); ganhou contador `247 de 15.000 caracteres` lendo o MESMO número da validação, campos mais altos (garantia 4→12 linhas) e tetos ampliados (garantia e texto legal 5.000→15.000, cabeçalho e rodapé 2.000→5.000, sem migration); armadilha 60, seção própria) · 2026-09-02 (**gerente entra em Configurações da Loja e Multilojas** — o gerente não tinha `/app/multilojas/estoque` nem `/app/configuracoes`, e o bloqueio de cada uma era de natureza diferente: multiloja era `abort(403)` **hardcoded** nos 4 métodos do controller (a rota nem consultava a matriz), configurações era a matriz, e Plano de Contas / Centros de Custo eram **só o menu** — a matriz já liberava; 🔑 o módulo `configuracoes` cobria, sob o mesmo nome, a tela operacional da loja **e** o certificado A1 + token da Focus + tokens da API, então liberar o módulo inteiro teria entregado tudo calado: separado em `configuracoes` (gerente entra), `configuracoes_fiscais` e `integracoes` (admin/dono); multiloja virou módulo próprio com escopo — o gerente vê só as lojas **vinculadas** (`unidade_user`), mesmo critério do `LojaController::podeEditar`, e o POST de ajuste usa a mesma lista (POST forjado para loja alheia não grava); o menu passou a perguntar à matriz em vez de repetir a lista de perfis, o que também tirou o link de Configuração Fiscal da cara do vendedor e do caixa; armadilhas 57-59, seção própria) · 2026-09-02 (**limite de lojas por plano — a troca de plano no admin não valia** — a MISS MERLINDA não cadastrava a 4ª loja mesmo com badge `enterprise`: `empresas` tem `plano` (enum, o que o select do admin grava e as badges mostram) e `plano_id` (FK, o que `getPlanoAtivo()` lê para TODOS os limites), e **nenhuma tela altera o `plano_id` depois do onboarding** — ela seguia no Profissional (3 lojas); as lojas que existem nunca passaram pelo limite porque só a tela do CLIENTE o checa, o `Admin\UnidadeController` não (é assim que a STILO VINTE tem 8 lojas num plano de 3); destravada em produção com **plano de exceção `ativo = 0`** ("Profissional 6 Lojas", teto 6) apontado pelo `plano_id` — some de todo select porque as telas usam `Plano::ativo()` e continua valendo porque o `belongsTo` não filtra `ativo`, sem tocar no pacote de DONA DOURO e STILO VINTE e sem deploy; ⚠️ segue em aberto: o select do admin gravar `plano_id`, a N S BORBA sem `plano_id` nenhum (não cria loja pela tela dela desde que nasceu) e a própria ia365 no Básico com 4 lojas, salva só pelo `pos_pago`; armadilha 56, seção própria) · 2026-09-02 (**CPF/CNPJ opcional por empresa + juros de parcelamento por loja** — entrega da N S BORBA SERVICOS (empresa 6) que precisava entrar **sem mexer nas outras 5 empresas**: a obrigatoriedade do documento vira `empresas.exige_documento_cadastro` (default TRUE, switch no admin da plataforma porque a NF-e modelo 55 continua exigindo destinatário com CPF/CNPJ) e o parcelamento no crédito ganha a tabela `configuracoes_loja.juros_por_parcela` (nasce vazia, no formato em que a adquirente manda a dela, com o servidor refazendo a conta em `registrarVenda` e a NFC-e mandando `vOutro` — sem ele `vNF = vProd − vDesc + vOutro` não fecha e a SEFAZ rejeita); o que **vazava** para as outras lojas era o select de parcelas do PDV, que passava a mostrar o valor de cada parcela em todo mundo — agora depende de `pdv_mostrar_valor_parcelas`, **mas tabela de juros cadastrada ignora o flag desligado**, porque esconder o acréscimo de uma venda que encarece surpreende o cliente no total; merge das duas branches sem cherry-pick — o `UTC` na ponta da branch de juros era herança do merge-base, não mudança dela (armadilha 54); **rodada 2 no mesmo dia**: no teste ao vivo a tela de configuração do juros se mostrou ilegível — faltava o 1x na tabela (que mora no "Acréscimo no Crédito", em outro card), o exemplo era texto fixo e nada avisava que os dois acréscimos SOMAM numa loja que já cobra 4% no crédito; ganhou linha do 1x travada, simulador ao vivo por parcela e aviso da soma com número real; seção própria) · 2026-08-31 (**preço de atacado por cliente + módulo de Ordem de Serviço** — `produto_precos` ganha a 4ª modalidade `atacado` e `clientes.tipo_preco` decide a tabela: cliente de atacado leva o preço de atacado em QUALQUER forma de pagamento, com o servidor refazendo a conta em `registrarVenda` (senão a venda voltaria para varejo na gravação); OS ganha cadastro de cliente na própria abertura, impressão com textos e blocos por loja (7 colunas em `configuracoes_loja`, lidas da loja DONA da OS) e — o que faltava — **baixa de estoque na conversão em venda**, que até aqui deixava a peça sair da loja sem registro nenhum; `entregue`/`cancelada` viram estados finais; **fix junto**: a conversão gravava a chave `desconto`, que não existe em `vendas` nem no `$fillable`, e a venda nascia com subtotal − desconto ≠ total (armadilha 53); o merge da produção `2037c47` foi feito na branch ANTES do build para não reverter o fuso (armadilha 52); seção própria) · 2026-08-25 noite (**fuso horário: app sai de UTC para America/Sao_Paulo SEM data-fix** — o Histórico de Caixas da DONA DOURO exibia abertura "12:13" para um caixa aberto às 9:13: `config/app.php` tinha `timezone => 'UTC'` hardcoded desde o nascimento; como TODAS as 178 colunas de data são **TIMESTAMP** (epoch UTC convertido pelo fuso da SESSÃO MySQL), bastou virar o app (`APP_TIMEZONE` no .env + config env-driven) e o MySQL (`SET GLOBAL time_zone='-03:00'` + `--default-time-zone=-03:00` no compose) — o histórico INTEIRO passou a exibir hora local sozinho, zero UPDATE; o script de shift -3h chegou a ser preparado e foi DESCARTADO (teria causado correção dupla); backup prévio `pre-fuso-fix-20260825.sql.gz` mantido; crons `dailyAt` passam a valer em hora LOCAL; armadilha 51b) · 2026-08-25 noite (**entrega na CONVERSA do agente — fecha a "próxima fase" da Fase 3**: rota nova `POST /api/integracao/v1/entrega/cotar` sempre-200 response-driven; `POST /pedidos` aceita `entrega{metodo,endereço}` gravando endereço no CLIENTE + `pedidos.metodo_entrega` (migration `2026_08_25_170000`); `DespacharEntregaUberJob` respeita `retirada`; `GET /pedidos` com bloco `entrega` + rastreio Uber; template/agentes do app.ia365 sincronizados lá (§282); ver subseção na Fase 3) · 2026-08-25 tarde (**vendedor troca a foto do produto** — ação nova `foto` no módulo produtos (matriz do CheckPermission) + rota própria `POST produtos/{produto}/foto` + formulário discreto na tela do produto, visível só para quem tem a ação; vendedor NÃO ganhou `editar` — preço/fiscal seguem fora do alcance; **rodada 2**: no teste real a vendedora usou o botão Editar e tomou 403 no PUT — a tela de edição agora funciona em modo "só foto" para o perfil (campos bloqueados + salvar só da imagem no próprio update); ver seção RBAC) · 2026-08-25 (**card Uber Direct: rótulos iguais aos do painel do Uber + guarda anti-inversão** — a DONA DOURO cadastrou o "ID do usuário" no campo Client ID e vice-versa (o painel do Uber em PT chama Client ID de "ID de cliente do desenvolvedor" e Customer ID de "ID do usuário"); data-fix aplicado em produção e o card agora usa os nomes do painel, com validação que recusa UUID no Client ID e vice-versa; ⚠️ a conta Uber da DONA DOURO ainda NÃO tem o escopo `eats.deliveries` liberado — só `direct.organizations`; ver seção Fase 3) · 2026-08-20 (**fix da conferência de bobina nas etiquetas** — o bloco de JS entrou fora da tag `<script>` do push e era IMPRESSO como texto no rodapé de `/app/etiquetas`; a conta da bobina ficou 8 dias morta; armadilha 51 — e **auditoria de produção completa**: a worktree que builda a imagem está ATRÁS do container e um rebuild reverteria 3 entregas (armadilha 52), o webhook da Focus AINDA responde 419, rate limit fantasma em toda chamada à Focus e R$ 13.264/ano contratados sem fatura; seção própria) · 2026-08-14 (**Landing V2 "formato Apple" PROMOVIDA A PADRÃO** — site público redesenhado no estilo Apple/Find My é a página oficial em `/`; v1 clássica segue no ar via `/?visual=classico`; 2 fixes de mobile no mesmo dia: botão Entrar visível e overflow horizontal do `span 6` inline; seção própria) · 2026-08-13 tarde (**Agente IA v2** — busca com ordenar/preco_min/max + fallback de catálogo + JSON forçado no api/integracao + merge do admin-acesso-como + armadilha 50; seção 9f) · 2026-08-13 (**"Acessar como"** — admin da plataforma entra no sistema logado como o dono de qualquer empresa-cliente, com banner, bypass de suspensão e rastro `acesso_como_admin_id` em toda activity da sessão) · 2026-08-13 noite (**PIX Sicredi no Agente IA** — gateway por empresa em `empresa_gateways` com credenciais cifradas + cobrança automática no pedido do agente + webhook re-consultado via mTLS + cron de sincronização; piloto DONA DOURO; seção 9f) · 2026-08-13 (**Agente IA** — banco vetorial pgvector `erp-com-vector` + busca semântica multi-tenant + pedidos rascunho via API, módulo ativável por empresa no admin; consumido pelo app.ia365; seção 9f) · 2026-08-12 (**API de Integração v1 — Gersen**: primeira API externa do ERP, somente leitura, token por empresa gerado no admin; seção própria) · 2026-08-12 madrugada (**backup mensal de XMLs virou pacote LOCAL** — o `/v2/backups` da Focus não existe, armadilha 49; **DONA DOURO em `producao`** com série 2 e CSC na Focus) · 2026-08-12 noite (**editor visual de layout de etiqueta** — arrasta-e-solta com imagens e formas, branch `layout-etiquetas` DEPLOYADA em produção; armadilha 48 + lição de deploy na 26b) · 2026-08-12 (vários estoques por loja + contagem cega + bonificação que deve voltar + estilo de etiqueta "nome no topo" + conferência de bobina; armadilhas 43-47; **imagem rebuildada** e main promovida) · 2026-08-11 (formato de etiqueta cadastrável pelo lojista + fix do CRUD de categorias — `status` feminino, armadilha 42) · 2026-08-05 (filtro por loja em vendas + imports de vendas/contas a receber + import robusto + lojas mesmo CNPJ compartilham empresa Focus) · **Estado:** integração fiscal Fase 1-4 + multi-loja + regime de cobrança + auto-sync Focus + UX config fiscal + caixa por forma de pagamento (14/07) + Configurações da Loja/tabelas de preço/emissão parametrizada/adquirentes (24/07) + **Reforma Tributária NT 2025.002 (obrigatório 03/08/2026) + CNPJ alfanumérico NT 2025.001 (25/07)** + **e-mails/no-reply + cobrança direta mensal/anual com bloqueio + pode_ver_financeiro (04/08)** + **doc de alterações do Dennis (05/08)** + **etiqueta cadastrável pelo lojista em cm + fix do CRUD de categorias + auditoria de produção (11/08)** — concluídos
+**Última revisão:** 2026-10-20 (**regressão do deploy §343 corrigida** — o `routes/web.php` copiado da branch apagou as 5 rotas da InfinitePay e o show de empresa no admin dava 500; rotas repostas em produção 11:36 UTC, armadilha 82) · 2026-09-27 (**Vendedor IA: frete escolhido sumia do pedido** — o Melhor Envio devolve objeto com 1 serviço e o `cotar` lia como lista ⇒ pedido sem frete; e o endereço do agente caía na cidade da LOJA — agora cidade/UF/rua/bairro pelo CEP (ViaCEP) e a cotação devolve o endereço para o agente confirmar; branch `frete-servico-cep`) · 2026-09-25 (**cartão do Vendedor IA com dois provedores** — InfinitePay por empresa (InfiniteTag, link que aceita cartão e PIX, webhook reconfirmado em `payment_check` + checagem a cada 15 min), Asaas e InfinitePay podem ficar ligados mas o agente usa o **selecionado**, 2ª via `POST /pedidos/{id}/cartao`, `/capacidades` diz o `cartao` em uso e o app.ia365 troca intenção e treinamento sozinho; menu Integrações virou painel por empresa; branch `feat/cartao-infinitepay`; seção própria + armadilhas 80 e 81) · 2026-09-25 (**sessão: de 2 horas para 7 dias** — lojas reclamando que "o sistema desloga": `SESSION_LIFETIME=120` matava a sessão com 2 h sem clique em qualquer tela que não fosse o PDV; Dennis escolheu 7 dias de inatividade (10080 min). `docker cp .env` + `config:cache` NÃO mudou nada: o compose usa `env_file` e a chave já vivia no ambiente do processo desde 02/09 — saída foi a chave nova `SESSION_LIFETIME_MIN` em `config/session.php` + USR2 no php-fpm (opcache); provado por HTTP: `Max-Age` 7200 → 604800, TTL no Redis 604799 s; **EM PRODUÇÃO 25/09 15:40 UTC**, branch `sessao-7-dias`, não pushada; seção própria + armadilha 80) · 2026-09-24 (**cancelar venda estorna o caixa** — o cancelamento não tirava o pagamento do caixa em nenhuma forma; agora lança `estorno` na mesma forma, devolve vale e bloqueia venda com troca; caso MISS MERLINDA Matriz corrigido; EM PRODUÇÃO 24/09 19:38 UTC, não commitado; seção própria + armadilha 79) · 2026-09-22 (**etiquetas: níveis "Extra grosso" e "Máximo"** — o negrito 700 é o teto da fonte e sai cinza na térmica; agora o item tem 4 níveis de grossura e um seletor "todos os textos"; contorno `text-stroke` proporcional ao corpo; JSON antigo intocado; validado no `erp-test` com PNG headless + puppeteer; branch `etiquetas-extra-grosso`, **EM PRODUÇÃO 22/09 12:50 UTC**, não pushada; seção própria + armadilha 78) · 2026-09-11 tarde (**relatório de vendas: impresso em folha limpa + peças, formas de pagamento, vendedor e loja** — o "Imprimir" de `/app/relatorios/vendas` mandava para o papel a sidebar, o topbar, os filtros e os botões, porque a página não tinha uma regra de impressão sequer; e o relatório só dizia nº de vendas, faturamento e ticket, sem **quantas peças** saíram. Agora: cabeçalho do impresso com empresa, loja, período, filtros e quem gerou; 8 indicadores (vendas, peças, faturamento, ticket por venda, valor bruto, descontos, acréscimos de cartão/juros, trocas — com peças por venda, preço médio por peça e líquido de trocas); quadro **por forma de pagamento** (do JSON `pagamento_detalhes`, troco abatendo só o dinheiro), **por vendedor** (vendas, peças, faturamento, ticket, %) e **por loja** quando "Todas"; coluna Peças na lista; e os **Top 10 passaram a respeitar os filtros** (antes somavam a empresa inteira, canceladas inclusas, com o topo dizendo o nome da loja). Impressão A4 sem moldura, com float no lugar do flex (armadilha 76) e o admin da plataforma deixou de ver o relatório zerado (armadilha 77). Sem migration; validado no `erp-test` com 4 perfis e PDF pelo Chrome headless; seção 9z) · 2026-09-11 (**o número do caixa sumiu da tela de abertura** — o campo "Numero do Caixa" era o resto de quando a pessoa digitava o número; desde 09/09 quem escolhe é o servidor, então o campo saiu inteiro: a tela de Abrir Caixa tem **um campo só, o troco inicial**, e o número é decidido dentro da `DB::transaction` (menor livre da loja, com preferência pelo último da própria pessoa). Saíram junto o `numeroSugerido` do GET, o `numero_caixa` do `validate()` e o aviso `caixa_numero_trocado` do PDV, que virou código morto; ficaram a caixinha "Já abertos nesta loja" (decisão dele) e o número no topo do PDV, na tela de Caixas, no fechamento e no comprovante; provado no `erp-test` na loja Timon, que tinha 1, 2 e 10 presos e abriu no 3 sem campo nenhum; seção 9y) · 2026-09-09 noite (**troca no PDV: o crédito não contava no split + peça sem cupom entra no F6 + rodada 2: peça SEM venda nenhuma (botão no passo 1 do F6, `devolucoes.venda_id` NULL, migration `2026_09_09_200000`, rota `pdv/troca/sem-venda`) + rodada 3: botão **Reimprimir** no topo do PDV (dia → vendas da loja → Recibo / Cupom fiscal, 2 rotas só-leitura em `app.pdv.*`)** — na LOJA RIVERSIDE da MISS MERLINDA a operadora fez a troca (vale de R$ 105), bipou R$ 180, lançou PIX 75 e a tela respondeu "Faltam R$ 105" e não finalizou: o `confirmarPagamento` e o "Faltam" do split somavam só `pagamentos`, sem o crédito da troca, então o modal fechava com "Restam R$ 105" e a venda nunca chegou ao servidor (o log do nginx não tem POST de venda entre 13:32 e 13:38; ela saiu para Estoque por Loja, voltou e o reload apagou o crédito da memória — o vale continua ativo); agora o crédito é a primeira linha do split e entra nos dois cálculos, e a venda finaliza sozinha quando o pagamento completa; **e o F6 ganhou "Bipar peça que NÃO está nesta venda"**: entra na mesma lista pelo preço de venda de hoje, marcada "sem cupom desta venda", sem teto de quantidade e com as regras normais (sem senha de gerente — decisão do Dennis), só dentro de uma venda encontrada; `devolucao_itens.venda_item_id` virou NULL para essas linhas (migration `2026_09_09_180000`); armadilha 75; seção própria) · 2026-09-09 tarde (**a sessão do PDV caindo em silêncio** — o relato chegou como "o produto *taxa de entrega* não aparece na busca do PDV da MISS MERLINDA, depois que cancelaram uma venda que tinha ele"; o produto está certo (2.000 un. em cada loja, 18 vendas, a busca devolve 1 resultado por nome, código e EAN) e o cancelamento não causou nada — o log do nginx mostra que a **sessão morreu 22 minutos ANTES** dele, por `SESSION_LIFETIME=120` depois de 2h03 de balcão parado, e que no mesmo intervalo `vestido duas cores` e `conj emili` também não apareceram; o defeito é o **401 morrendo num `console.error`**: a resposta `{"message":"Unauthenticated."}` estourava `TypeError` no `.forEach` do `cachePrecos`, o `catch` engolia, e o PDV ficava **mudo com cara de logado** — 192 buscas assim num dia, 21% do total, em 2 máquinas; entrou (1) wrapper em `window.fetch` que trata **401/419** com overlay "Sua sessão expirou — nada do que está na tela foi gravado", cobrindo busca, código de barras, F6, vale, sangria e o POST da venda de uma vez, (2) `GET /app/pdv/ping` renovando a sessão a cada 10 min **só com a aba visível** (provado: o mtime do arquivo de sessão avança no ping) e (3) `Array.isArray` em `cachePrecos`/`showSearchResults`; sem migration; armadilhas 74 e 74b; seção própria) · 2026-09-09 (**comprovante de fechamento de caixa na térmica + número de caixa automático + o botão de fechar que faltava** — o fechamento passa a cair num comprovante 80 mm com vendas por forma de pagamento, descontos, acréscimos de cartão/juros, os movimentos da gaveta e o quadro esperado × contado × sobra/falta, com 2ª via na tela do caixa; a abertura deixa de perguntar um número que ninguém lembra — vem preenchida com o último daquela pessoa naquela loja ou o menor livre, listando quem está com cada número aberto, e número ocupado no meio do caminho **não trava mais**: abre no próximo e avisa; e `/app/caixa` ganhou o botão **Fechar** para caixas abertos, que não existia — só dava para fechar o da própria sessão, e era essa a razão mecânica dos **25 caixas presos, 9 há mais de 7 dias** (as 6 lojas da MISS MERLINDA tinham 2 ou 3 números queimados cada, o mais antigo desde 05/08); sem migration; os caixas presos **não foram fechados**, por decisão do Dennis; seção própria) · 2026-09-08 (**sincronização automática ERP → agente do app.ia365** — `GET /capacidades`, `callback_url` no ativar, observers de gateway e job de aviso HMAC; seção própria) · 2026-09-06 (**treinamento de suporte + matriz das 4 camadas** — 751 campos, 6 divergências de tamanho e 44 obrigatórios sem marca na tela; seção própria) · 2026-09-05 noite (**Venda humana pelo app.ia365 — ações no pedido pela API do agente** — o painel do CRM passa a operar o pedido inteiro sem entrar no ERP: `POST /pedidos/{id}/verificar-pagamento` (re-consulta o PIX no Sicredi agora), `POST /pedidos/{id}/confirmar-pagamento` (recebido por fora: dinheiro/maquininha/PIX manual/transferência — rascunho→confirmado com anotação de quem confirmou, `condicao_pagamento` preenchida e o mesmo despacho automático do PIX), `POST /pedidos/{id}/cancelar` (rascunho/confirmado, motivo, cobrança PIX ativa vira CANCELADA; PIX já pago exige o ERP), `POST /pedidos/{id}/entregue` (só faturado, como no ERP); `GET /pedidos` ganha `busca` (nome, telefone ou nº) e `pagamento=pendente|pago`; a resposta do pedido traz `pagamento_resumo` (situação consolidada PIX/cartão/por fora), `acoes` (o que o painel pode fazer — o servidor manda), `subtotal`, `canal`, `vendedor`, `cpf_cnpj` e endereço do cliente; `POST /pedidos` aceita `vendedor_nome` (casado com o usuário ativo da empresa — é o que separa a venda de cada atendente no Gersen); PIX que cai em pedido CANCELADO só anota (não despacha); validado no erp-test-app; seção própria) · 2026-09-05 tarde (**Melhor Envio — frete para OUTRA cidade no Vendedor IA** — o agente só sabia cotar a Uber Direct (entrega local) e a DONA DOURO tem faixas de CEP vazias, então qualquer CEP do Brasil ia para a Uber; agora: aplicativo "IA365" do Melhor Envio cadastrado UMA vez em **`/admin/integracoes`** (Client ID/Secret cifrados em `plataforma_configuracoes`, e-mail do `User-Agent`, ambiente, escopos, URL de callback para copiar), e cada empresa **autoriza a própria conta** pelo botão "Conectar Melhor Envio" do card novo da aba Integração (OAuth2, UMA URL de callback para todas — o `state` cifrado diz a empresa; tokens de 30 dias cifrados em `empresa_gateways`, renovados pelo cron `melhorenvio:renovar-tokens` às 5h); `POST /entrega/cotar` decide: CEP nas faixas da Uber ou, sem faixas, **mesma cidade da loja (ViaCEP)** → Uber como sempre; outra cidade → Melhor Envio pelas **medidas dos produtos** (`produtos.altura_cm/largura_cm/comprimento_cm` novas + peso; sem medida = pacote padrão da loja, configurável no card) devolvendo até 3 `opcoes` (PAC/SEDEX/Jadlog…) com `servico_id`, valor e `prazo_dias`; `POST /pedidos` aceita `entrega.servico_id`, embute o frete no total e grava `frete_provedor/servico/prazo` no pedido; Uber que falha cai no Melhor Envio; o despacho Uber ignora pedido do Melhor Envio (etiqueta = fase 2); validado no erp-test-app contra um Melhor Envio FALSO (OAuth, cotação, escolha de serviço, pedido, renovação); seção própria) · 2026-09-05 (**canal da venda — presencial × WhatsApp × online — no pedido de venda e na API do Gersen** — o Gersen precisa separar a conversão de balcão da conversão por WhatsApp de cada vendedor e a integração ERPIA365 (ativa para a DONA DOURO, sync de hora em hora) só conhecia `tipo` (pdv/balcao/pedido/importada), que diz de que TELA a venda nasceu e não COMO o cliente comprou; entrou `canal` em `pedidos` e `vendas` (2 colunas NULL, nada retroativo), select "Canal da venda" no pedido (create/edit/show/index, default Presencial, sem PDF porque pedido não tem impressão), pedido do Agente IA nasce `whatsapp`, PDV/balcão/OS gravam `presencial` sem mudar tela, faturar herda do pedido; `GET /vendas` devolve `canal` (venda antiga: `presencial` derivado para pdv/balcao, `null` para o resto) e `GET /canais` (novo) lista os 3 valores; o Gersen v5.203 já lê `canal` com fallback em `tipo`, então nada quebra em nenhuma ordem de deploy; validado no erp-test-app; seção própria) · 2026-09-04 noite (🔴 **o estoque da MISS MERLINDA nunca foi carregado** — a apuração do ruído da roda do mouse terminou num achado maior: a empresa tem **73 vendas, 817 ajustes manuais e ZERO entradas** de estoque, e a primeira movimentação da vida dela (20/08) já é uma venda saindo de saldo zero; a reconstrução pelo histórico foi escrita, aplicada e desfeita a pedido, e recuperou **1 produto**; a tela voltou a mostrar o saldo REAL com fração — arredondar a exibição escondeu o problema e fez parecer que o estoque tinha sumido (armadilha 68); **rodada 4, EM PRODUÇÃO 15:30**: setas ▲▼ próprias, foco seleciona a fração para substituí-la, botão "Salvar N alterações" e **célula intocada sai do POST** (`disabled`) — também corrige o 422 que `0,002` provocava no `numeric`; primeiro uso real pelo dono 3 min depois, 2 células tocadas = 2 movimentações e nada mais; o caminho para o estoque existir é o import de saldo; seção própria) · 2026-09-04 tarde (**acréscimo do cartão só sobre a parte do cartão** — quarta regra de split `por_parte`: o item para de mudar de tabela e o acréscimo vira valor de pagamento, como os juros de parcelamento já faziam; venda de R$ 300 com R$ 100 no PIX + resto no crédito a 10% cai de **R$ 330 para R$ 320**; a devolução passa a devolver o acréscimo (vale as vendas com juros também); migration `2026_09_04_140000` e **nenhuma loja migrada**; **EM PRODUÇÃO 04/09 ~13:54**; **rodada 2 na noite de 04/09**: o campo do PDV passa a mostrar o valor que passa na maquininha (R$ 99,00, não R$ 90,00) e o select de parcelas passa a simular sobre ele — antes a tela dizia "6x de R$ 16,20" numa venda que o servidor gravava a R$ 106,92; armadilha 67; seção própria) · 2026-09-04 tarde (**a roda do mouse virou ajuste de estoque** — `/app/multilojas/estoque` usava `<input type="number" step="0.001">` e o spinner responde à roda do mouse numa tabela que rola: **787 ajustes fracionários em 3 dias, 623 produtos com saldo "0,005 peça"** e um `-0,999`, todos dos 2 gerentes da MISS MERLINDA desde 02/09, quando ganharam a tela; campo virou `type="text" inputmode="numeric"` **só com inteiro** (vírgula corta o resto) + célula suja mostrada no inteiro e acertada ao salvar (rodada 2 da noite: o `pattern` travava o Salvar como o `min=0` travava antes, e saldo negativo entrou no mesmo aviso) + antídoto global de `wheel` no `erp-core.js` (foi por `docker cp` de `public/`); **EM PRODUÇÃO 04/09 ~12:59**; limpeza dos 623 **adiada por decisão do Dennis**; armadilha 66; seção própria) · 2026-09-04 tarde (**o gerente altera a tela de Configurações da Loja INTEIRA** — o card "Acesso do vendedor" era a última opção travada para ele; `podeMudarAcessoVendedor()` passa a aceitar `gerente` e o aviso âmbar do card ganha uma linha dizendo que o que ele ligar ali vale para as lojas que não são dele; 6 gerentes alcançados, sem migration, **EM PRODUÇÃO desde 04/09 ~10:14**; subseção "Rodada 2" na seção do vendedor) · 2026-09-04 (**vendedor opera somente o PDV + F3 só com os vendedores da loja — duas chaves por empresa-cliente, ambas default OFF** — o pedido chegou como "limpar o menu" e o que existia era acesso de LEITURA a faturamento e margem: fora do bloco Gestão o menu **não perguntava permissão nenhuma**, então o vendedor via 36 links, 14 davam 403 no clique e **22 abriam** — Dashboard com faturamento do mês/ticket médio/top produtos, `/app/relatorios/financeiro`, `/app/relatorios/vendas`, `/app/comissoes` e o preço de custo no cadastro de produto; agora `empresas.vendedor_apenas_pdv` (default **false**, nenhuma das 6 empresas muda no deploy) tranca o perfil `vendedor` no PDV: continua vendendo, trocando pelo F6, usando vale e abrindo/fechando o caixa, e todo o resto **redireciona para `/app/pdv`** (AJAX recebe 403 JSON); 🔑 a tranca é de **ROTA** (`RestringeVendedorAoPdv`, registrado por CLASSE no grupo `/app` para não exigir rebuild — armadilha 46), não de menu, porque os módulos `vendas`/`trocas` também cobrem `/app/vendas`, `/app/trocas` e `/app/comissoes`; o gate é uma função só (`CheckPermission::canUser()`) que o middleware E o menu consultam (armadilha 59); é por EMPRESA e não por loja porque o mesmo vendedor atende em lojas diferentes da rede; card em Configurações da Loja (dono/admin editam, gerente vê travado — a guarda é no SERVIDOR, `@disabled` não impede POST forjado) + espelho no admin; armadilha 65; **chave irmã `pdv_vendedores_da_loja`**: o select de vendedor do PDV (F3) listava TODOS os usuários ativos da empresa — `unidade_user` nunca era consultado — e a MISS MERLINDA tem 6 lojas com 4 vendedores de UMA loja cada (a N S BORBA, 3 lojas e 5 vendedores, idem); ligada, o F3 lista só quem está vinculado à loja da sessão, com 🔑 **dono e admin aparecendo sempre** (o dono da MISS MERLINDA está em 1 loja de 6 e sumiria das outras 5) e 🔑 **quem não tem vínculo nenhum aparecendo em todas** (mesmo fallback do MultilojaController); o relatório de vendas ficou de fora de propósito, porque lá o filtro de loja pode ser "Todas"; seção própria) · 2026-09-03 (**PWA — o ERP vira aplicativo instalável no computador** — o sistema era site puro: sem manifest, sem service worker e com `public/favicon.ico` de **0 bytes**, então o Chrome/Edge nem oferecia "Instalar" e não havia o que perguntar; agora o login e as telas internas convidam a instalar (atalho na área de trabalho, fixar na barra de tarefas, janela própria sem barra do navegador), com "Agora não" adiando 7 dias e o convite sumindo de vez depois de instalado; 🔑 manifest, `sw.js` e ícones são servidos por **rota** (`PwaController`), não por arquivo em `public/` — o deploy por tar não leva `public/` (armadilha 46) e um PWA lá exigiria rebuild a cada ajuste; o service worker é deliberadamente burro (rede primeiro em toda navegação, **zero HTML de `/app` ou `/admin` em cache** numa base multi-tenant, só estáticos e a casca `/offline`), o **PDV ficou de fora** por ser documento próprio e tela operacional, e existe a chave `PWA_ATIVO=false` que faz o `/sw.js` se **desregistrar** nos navegadores já instalados — rollback sem deploy de código; **EM PRODUÇÃO desde a noite de 03/09**, conferido em 04/09; armadilha 64; seção própria) · 2026-09-03 (**Trocas no PDV (F6) + vale de crédito + relatório de vendas com listas** — o ERP não tinha troca: só "Cancelar Venda" (tudo ou nada, sem mexer no caixa), as tabelas `devolucoes`/`devolucao_itens` existiam desde abril com model e **zero controller/rota/tela** (o CLAUDE.md dizia que Devoluções estava pronto), e o botão Vale do PDV era um rótulo que aceitava qualquer valor; agora o caixa aperta **F6**, acha a venda (número, cupom bipado `V{id}` ou cliente — de qualquer dia e de qualquer loja), marca o que volta e bipa o que o cliente leva: a diferença é cobrada, zera ou vira **vale com código** (`VT-XXXX-XXXX`, saldo, validade, uso parcial, código de barras no comprovante) ou dinheiro pela gaveta, conforme **Configurações da Loja → Trocas** (prazo 30 dias, sobra em vale por padrão, validade 90 dias, fora da política pede e-mail+senha de um gerente); `TrocaService` é o ponto único (estoque de volta na loja da SESSÃO, abate de crediário/boleto em aberto antes do crédito, tipo `devolucao` no caixa com sinal −1 que entra no fechamento); tela `/app/trocas` + `/app/trocas/vales`; relatório de vendas ganhou select de vendedor, autocomplete de cliente, filtro de loja, card de trocas e **deixou de somar canceladas** no faturamento; armadilhas 61-63; seção própria) · 2026-09-02 (**fornecedor no cadastro do produto, opcional** — não era campo de tela faltando: `produtos` **não tinha `fornecedor_id`**, as duas tabelas nunca se falaram; entrou na **etapa 2** do wizard ("Identificação — opcional"), ao lado do SKU, com `Sem fornecedor` por padrão, e é opcional nas 4 camadas (coluna nullable, FK `nullOnDelete` para que excluir o fornecedor não trave o produto, validação nullable, enviar vazio limpa o vínculo); 🔑 a validação é **escopada à empresa** — `exists:fornecedores,id` solto aceitaria o id de fornecedor de outro cliente do SaaS; ⚠️ `fornecedor_id` no `$fillable` do Produto, senão a chave seria descartada calada (armadilha 53); os ~2.500 produtos existentes ficam NULL; seção própria) · 2026-09-02 (**textos da OS: o limite de 500 não existia** — a Realiza Phone reportou que os Termos de garantia paravam em 500 caracteres; nas 4 camadas o campo aceitava **5.000** (coluna TEXT, `max:5000`, zero `maxlength` no HTML, sem corte na impressão) e um teste ao vivo em produção gravou 1.439 de 1.440 enviados — 📌 o que existia era uma **tela muda**: `rows="4"` e nenhum contador, então o texto rola para fora da caixa e o lojista conclui que bateu no teto (as 14 configurações de loja estavam com os 4 textos da OS NULL — ninguém nunca preencheu); ganhou contador `247 de 15.000 caracteres` lendo o MESMO número da validação, campos mais altos (garantia 4→12 linhas) e tetos ampliados (garantia e texto legal 5.000→15.000, cabeçalho e rodapé 2.000→5.000, sem migration); armadilha 60, seção própria) · 2026-09-02 (**gerente entra em Configurações da Loja e Multilojas** — o gerente não tinha `/app/multilojas/estoque` nem `/app/configuracoes`, e o bloqueio de cada uma era de natureza diferente: multiloja era `abort(403)` **hardcoded** nos 4 métodos do controller (a rota nem consultava a matriz), configurações era a matriz, e Plano de Contas / Centros de Custo eram **só o menu** — a matriz já liberava; 🔑 o módulo `configuracoes` cobria, sob o mesmo nome, a tela operacional da loja **e** o certificado A1 + token da Focus + tokens da API, então liberar o módulo inteiro teria entregado tudo calado: separado em `configuracoes` (gerente entra), `configuracoes_fiscais` e `integracoes` (admin/dono); multiloja virou módulo próprio com escopo — o gerente vê só as lojas **vinculadas** (`unidade_user`), mesmo critério do `LojaController::podeEditar`, e o POST de ajuste usa a mesma lista (POST forjado para loja alheia não grava); o menu passou a perguntar à matriz em vez de repetir a lista de perfis, o que também tirou o link de Configuração Fiscal da cara do vendedor e do caixa; armadilhas 57-59, seção própria) · 2026-09-02 (**limite de lojas por plano — a troca de plano no admin não valia** — a MISS MERLINDA não cadastrava a 4ª loja mesmo com badge `enterprise`: `empresas` tem `plano` (enum, o que o select do admin grava e as badges mostram) e `plano_id` (FK, o que `getPlanoAtivo()` lê para TODOS os limites), e **nenhuma tela altera o `plano_id` depois do onboarding** — ela seguia no Profissional (3 lojas); as lojas que existem nunca passaram pelo limite porque só a tela do CLIENTE o checa, o `Admin\UnidadeController` não (é assim que a STILO VINTE tem 8 lojas num plano de 3); destravada em produção com **plano de exceção `ativo = 0`** ("Profissional 6 Lojas", teto 6) apontado pelo `plano_id` — some de todo select porque as telas usam `Plano::ativo()` e continua valendo porque o `belongsTo` não filtra `ativo`, sem tocar no pacote de DONA DOURO e STILO VINTE e sem deploy; ⚠️ segue em aberto: o select do admin gravar `plano_id`, a N S BORBA sem `plano_id` nenhum (não cria loja pela tela dela desde que nasceu) e a própria ia365 no Básico com 4 lojas, salva só pelo `pos_pago`; armadilha 56, seção própria) · 2026-09-02 (**CPF/CNPJ opcional por empresa + juros de parcelamento por loja** — entrega da N S BORBA SERVICOS (empresa 6) que precisava entrar **sem mexer nas outras 5 empresas**: a obrigatoriedade do documento vira `empresas.exige_documento_cadastro` (default TRUE, switch no admin da plataforma porque a NF-e modelo 55 continua exigindo destinatário com CPF/CNPJ) e o parcelamento no crédito ganha a tabela `configuracoes_loja.juros_por_parcela` (nasce vazia, no formato em que a adquirente manda a dela, com o servidor refazendo a conta em `registrarVenda` e a NFC-e mandando `vOutro` — sem ele `vNF = vProd − vDesc + vOutro` não fecha e a SEFAZ rejeita); o que **vazava** para as outras lojas era o select de parcelas do PDV, que passava a mostrar o valor de cada parcela em todo mundo — agora depende de `pdv_mostrar_valor_parcelas`, **mas tabela de juros cadastrada ignora o flag desligado**, porque esconder o acréscimo de uma venda que encarece surpreende o cliente no total; merge das duas branches sem cherry-pick — o `UTC` na ponta da branch de juros era herança do merge-base, não mudança dela (armadilha 54); **rodada 2 no mesmo dia**: no teste ao vivo a tela de configuração do juros se mostrou ilegível — faltava o 1x na tabela (que mora no "Acréscimo no Crédito", em outro card), o exemplo era texto fixo e nada avisava que os dois acréscimos SOMAM numa loja que já cobra 4% no crédito; ganhou linha do 1x travada, simulador ao vivo por parcela e aviso da soma com número real; seção própria) · 2026-08-31 (**preço de atacado por cliente + módulo de Ordem de Serviço** — `produto_precos` ganha a 4ª modalidade `atacado` e `clientes.tipo_preco` decide a tabela: cliente de atacado leva o preço de atacado em QUALQUER forma de pagamento, com o servidor refazendo a conta em `registrarVenda` (senão a venda voltaria para varejo na gravação); OS ganha cadastro de cliente na própria abertura, impressão com textos e blocos por loja (7 colunas em `configuracoes_loja`, lidas da loja DONA da OS) e — o que faltava — **baixa de estoque na conversão em venda**, que até aqui deixava a peça sair da loja sem registro nenhum; `entregue`/`cancelada` viram estados finais; **fix junto**: a conversão gravava a chave `desconto`, que não existe em `vendas` nem no `$fillable`, e a venda nascia com subtotal − desconto ≠ total (armadilha 53); o merge da produção `2037c47` foi feito na branch ANTES do build para não reverter o fuso (armadilha 52); seção própria) · 2026-08-25 noite (**fuso horário: app sai de UTC para America/Sao_Paulo SEM data-fix** — o Histórico de Caixas da DONA DOURO exibia abertura "12:13" para um caixa aberto às 9:13: `config/app.php` tinha `timezone => 'UTC'` hardcoded desde o nascimento; como TODAS as 178 colunas de data são **TIMESTAMP** (epoch UTC convertido pelo fuso da SESSÃO MySQL), bastou virar o app (`APP_TIMEZONE` no .env + config env-driven) e o MySQL (`SET GLOBAL time_zone='-03:00'` + `--default-time-zone=-03:00` no compose) — o histórico INTEIRO passou a exibir hora local sozinho, zero UPDATE; o script de shift -3h chegou a ser preparado e foi DESCARTADO (teria causado correção dupla); backup prévio `pre-fuso-fix-20260825.sql.gz` mantido; crons `dailyAt` passam a valer em hora LOCAL; armadilha 51b) · 2026-08-25 noite (**entrega na CONVERSA do agente — fecha a "próxima fase" da Fase 3**: rota nova `POST /api/integracao/v1/entrega/cotar` sempre-200 response-driven; `POST /pedidos` aceita `entrega{metodo,endereço}` gravando endereço no CLIENTE + `pedidos.metodo_entrega` (migration `2026_08_25_170000`); `DespacharEntregaUberJob` respeita `retirada`; `GET /pedidos` com bloco `entrega` + rastreio Uber; template/agentes do app.ia365 sincronizados lá (§282); ver subseção na Fase 3) · 2026-08-25 tarde (**vendedor troca a foto do produto** — ação nova `foto` no módulo produtos (matriz do CheckPermission) + rota própria `POST produtos/{produto}/foto` + formulário discreto na tela do produto, visível só para quem tem a ação; vendedor NÃO ganhou `editar` — preço/fiscal seguem fora do alcance; **rodada 2**: no teste real a vendedora usou o botão Editar e tomou 403 no PUT — a tela de edição agora funciona em modo "só foto" para o perfil (campos bloqueados + salvar só da imagem no próprio update); ver seção RBAC) · 2026-08-25 (**card Uber Direct: rótulos iguais aos do painel do Uber + guarda anti-inversão** — a DONA DOURO cadastrou o "ID do usuário" no campo Client ID e vice-versa (o painel do Uber em PT chama Client ID de "ID de cliente do desenvolvedor" e Customer ID de "ID do usuário"); data-fix aplicado em produção e o card agora usa os nomes do painel, com validação que recusa UUID no Client ID e vice-versa; ⚠️ a conta Uber da DONA DOURO ainda NÃO tem o escopo `eats.deliveries` liberado — só `direct.organizations`; ver seção Fase 3) · 2026-08-20 (**fix da conferência de bobina nas etiquetas** — o bloco de JS entrou fora da tag `<script>` do push e era IMPRESSO como texto no rodapé de `/app/etiquetas`; a conta da bobina ficou 8 dias morta; armadilha 51 — e **auditoria de produção completa**: a worktree que builda a imagem está ATRÁS do container e um rebuild reverteria 3 entregas (armadilha 52), o webhook da Focus AINDA responde 419, rate limit fantasma em toda chamada à Focus e R$ 13.264/ano contratados sem fatura; seção própria) · 2026-08-14 (**Landing V2 "formato Apple" PROMOVIDA A PADRÃO** — site público redesenhado no estilo Apple/Find My é a página oficial em `/`; v1 clássica segue no ar via `/?visual=classico`; 2 fixes de mobile no mesmo dia: botão Entrar visível e overflow horizontal do `span 6` inline; seção própria) · 2026-08-13 tarde (**Agente IA v2** — busca com ordenar/preco_min/max + fallback de catálogo + JSON forçado no api/integracao + merge do admin-acesso-como + armadilha 50; seção 9f) · 2026-08-13 (**"Acessar como"** — admin da plataforma entra no sistema logado como o dono de qualquer empresa-cliente, com banner, bypass de suspensão e rastro `acesso_como_admin_id` em toda activity da sessão) · 2026-08-13 noite (**PIX Sicredi no Agente IA** — gateway por empresa em `empresa_gateways` com credenciais cifradas + cobrança automática no pedido do agente + webhook re-consultado via mTLS + cron de sincronização; piloto DONA DOURO; seção 9f) · 2026-08-13 (**Agente IA** — banco vetorial pgvector `erp-com-vector` + busca semântica multi-tenant + pedidos rascunho via API, módulo ativável por empresa no admin; consumido pelo app.ia365; seção 9f) · 2026-08-12 (**API de Integração v1 — Gersen**: primeira API externa do ERP, somente leitura, token por empresa gerado no admin; seção própria) · 2026-08-12 madrugada (**backup mensal de XMLs virou pacote LOCAL** — o `/v2/backups` da Focus não existe, armadilha 49; **DONA DOURO em `producao`** com série 2 e CSC na Focus) · 2026-08-12 noite (**editor visual de layout de etiqueta** — arrasta-e-solta com imagens e formas, branch `layout-etiquetas` DEPLOYADA em produção; armadilha 48 + lição de deploy na 26b) · 2026-08-12 (vários estoques por loja + contagem cega + bonificação que deve voltar + estilo de etiqueta "nome no topo" + conferência de bobina; armadilhas 43-47; **imagem rebuildada** e main promovida) · 2026-08-11 (formato de etiqueta cadastrável pelo lojista + fix do CRUD de categorias — `status` feminino, armadilha 42) · 2026-08-05 (filtro por loja em vendas + imports de vendas/contas a receber + import robusto + lojas mesmo CNPJ compartilham empresa Focus) · **Estado:** integração fiscal Fase 1-4 + multi-loja + regime de cobrança + auto-sync Focus + UX config fiscal + caixa por forma de pagamento (14/07) + Configurações da Loja/tabelas de preço/emissão parametrizada/adquirentes (24/07) + **Reforma Tributária NT 2025.002 (obrigatório 03/08/2026) + CNPJ alfanumérico NT 2025.001 (25/07)** + **e-mails/no-reply + cobrança direta mensal/anual com bloqueio + pode_ver_financeiro (04/08)** + **doc de alterações do Dennis (05/08)** + **etiqueta cadastrável pelo lojista em cm + fix do CRUD de categorias + auditoria de produção (11/08)** — concluídos
 
 ---
 
@@ -41,6 +41,9 @@
 9w. [Troca no PDV: crédito no split + peça sem cupom no F6 (09/09/2026)](#troca-no-pdv-o-crédito-não-contava-no-split-e-a-peça-sem-cupom-entra-no-f6-09092026)
 9x. [A descrição do produto nunca chegava ao agente (10/09/2026)](#a-descrição-do-produto-nunca-chegava-ao-agente-10092026)
 9y. [O número do caixa sumiu da tela de abertura (11/09/2026)](#o-número-do-caixa-sumiu-da-tela-de-abertura-11092026)
+9z. [Relatório de vendas: impresso limpo, peças, formas, vendedor e loja (11/09/2026)](#relatório-de-vendas-impresso-limpo-peças-formas-de-pagamento-vendedor-e-loja-11092026)
+9aa. [Sessão: de 2 horas para 7 dias (25/09/2026)](#sessão-de-2-horas-para-7-dias-25092026--em-produção-2509-1540-utc)
+9ab. [Dinheiro a menos no PDV: aviso + trava no servidor (07/10/2026)](#dinheiro-a-menos-no-pdv-o-caixa-aceitava-menos-que-o-total-sem-avisar-07102026)
 10. [Armadilhas conhecidas](#armadilhas-conhecidas)
 11. [Próximos passos](#próximos-passos)
 
@@ -70,6 +73,8 @@ Compose ativo: `docker-compose.prod.yml` (não o `.yml` padrão de dev).
 
 ```bash
 # .env não é bind-mounted em prod — usar docker cp
+# ⚠️ chave que JÁ existe no ambiente do processo NÃO muda por docker cp (compose usa env_file) —
+#    só chave nova entra, e depois de config:cache é preciso USR2 no master do php-fpm (armadilha 80)
 docker cp .env erp-com-app:/var/www/.env
 docker exec -i erp-com-app php artisan config:clear
 
@@ -3680,6 +3685,94 @@ com o worker do supervisord reiniciado — `pkill -f` com o texto do comando mat
 
 ---
 
+## Cartão do Vendedor IA com dois provedores: InfinitePay + seletor + painel de integrações (25/09/2026)
+
+**Pedido do Dennis:** deixar pronta para ativar a integração de **cartão de crédito pela InfinitePay**, no mesmo molde das outras:
+ligou no ERP ⇒ a intenção e o treinamento aparecem sozinhos no agente do app.ia365. Regras dele: (1) a InfiniteTag é de
+**cada empresa** (o campo nasce vazio; vale para empresa nova e já ativa); (2) o link da InfinitePay aceita **cartão e PIX** — pode
+deixar os dois; (3) a empresa pode ter **Asaas e InfinitePay ligados, mas usa um só**, o selecionado; (4) ligar para um cliente
+**não pode exigir reiniciar** a plataforma. E o menu **Integrações** do admin, que só mostrava o Melhor Envio, virou painel.
+Branch `feat/cartao-infinitepay` (sobre `etiquetas-extra-grosso` = produção); lado da plataforma: §311 no docs.md de lá.
+
+### Como a InfinitePay funciona (documentação dela, 25/09)
+
+| Chamada | O quê |
+|---|---|
+| `POST https://api.checkout.infinitepay.io/links` | `{handle, order_nsu, items[{quantity, price(centavos), description}], webhook_url?, customer{name,email,phone_number}?}` → `{url}` |
+| `POST https://api.checkout.infinitepay.io/payment_check` | `{handle, order_nsu, transaction_nsu?, slug?}` → `{success, paid, amount, paid_amount, installments, capture_method}` |
+| webhook (POST na `webhook_url`) | `{invoice_slug, amount, paid_amount, installments, capture_method, transaction_nsu, order_nsu, receipt_url, items}` — **400 = "reenvie"** |
+
+**Não há chave de API** — a conta é a InfiniteTag (`handle`, sem o `$`). Por isso o webhook **não prova nada sozinho**.
+⚠️ O texto da documentação escreve `"itens"`, mas o payload que a própria página gera (e os plugins em produção) usa
+**`"items"`** — é o que mandamos. `paid_amount` pode vir **maior** que `amount` (juros/taxa do parcelamento pagos pelo comprador).
+
+### O que mudou
+
+| Peça | O quê |
+|---|---|
+| `empresa_gateways` provedor `infinitepay` | `config.handle` (InfiniteTag, gravada sem `$`) + `config.webhook_token` (40 caracteres, gerado ao salvar). `capacidadeAtiva()` = ativo **e** handle preenchido. Entrou em `EmpresaGateway::PROVEDORES` (logo `/capacidades` e os avisos ao app.ia365 funcionam sem mais nada) e em `PROVEDORES_CARTAO` (`asaas`, `infinitepay`). |
+| `agente_ia_configs.provedor_cartao` | Qual cartão o agente usa. `CartaoPedidoService::provedorEmUso()`: o escolhido, se estiver utilizável; senão o outro ativo (Asaas primeiro — era o único); nenhum ⇒ `null`. **Salvar um card de cartão grava a escolha quando ela está vazia** (`fixarEscolhaSeVazia`) — sem isso, empresa que ligou só a InfinitePay e depois o Asaas passaria para o Asaas sem ninguém pedir (pego antes do QA). |
+| `pedido_links_cartao` (tabela nova) | Todo link gerado (Asaas **e** InfinitePay): `referencia` (payment id do Asaas / `order_nsu` da InfinitePay, unique por provedor), link, valor, status `ativo/pago/cancelado`, `transaction_nsu`, `capture_method`, parcelas, `valor_pago`, comprovante. Antes o link do Asaas só existia no log. |
+| `InfinitePayService` | Cria o link (itens discriminados + linha "Entrega" quando a soma em centavos bate com o total; senão **uma linha "Pedido #N" com o total** — desconto dado no ERP, quantidade fracionada), consulta `payment_check`, e o **Testar** (link de R$ 1,00 sem webhook — criar link não cobra ninguém). `order_nsu` = `erp{empresa}p{pedido}t{AAMMDDhhmmss}{4 aleatórios}`. |
+| `CartaoPedidoService` | Ponto único: provedor em uso, link do pedido (**reaproveita** o aberto do mesmo provedor e mesmo valor por 20 h), confirmação, cancelamento dos links e a checagem periódica. |
+| `POST /api/integracao/v1/pedidos` | `cartao_link` sai do provedor em uso + campo novo `cartao_provedor`. Com InfinitePay a `mensagem` diz "aceita cartão de crédito ou PIX". |
+| `POST /api/integracao/v1/pedidos/{id}/cartao` (novo) | 2ª via do link (ferramenta **LINK DE CARTÃO DO PEDIDO** do agente): `{provedor, valor, pago, link, aceita_pix, mensagem}`. Pago (por link, PIX ou por fora) ⇒ `pago:true` sem link; cancelado ⇒ 422; sem cartão ⇒ 409. Vale também para o Asaas, que não tinha 2ª via. |
+| `GET /capacidades` | `gateways.infinitepay` + **`cartao`** (provedor em uso ou `null`). |
+| Resposta do pedido | Bloco `cartao{provedor,status,link,valor,valor_pago,parcelas,forma,comprovante_url,pago_em}`; `acoes.gerar_link_cartao`; `pagamento_resumo` reconhece `CARTÃO PAGO via InfinitePay` / `PIX PAGO via InfinitePay` (com `provedor`). Cancelar pedido **pago pelo link** ⇒ 422 (estorno é no ERP); cancelar marca os links abertos como `cancelado`. |
+| `POST /api/integracao/v1/webhooks/infinitepay/{token}` (novo, sem Bearer) | Token da empresa **no caminho** + `order_nsu` tem de ser um link nosso daquela empresa + **reconfirma em `payment_check`** antes de mexer no pedido. Guarda `transaction_nsu`/slug/comprovante que vieram. 200 para o que não é nosso/já processado/não pago; **400 só quando a consulta à InfinitePay falhou** (ela reenvia). |
+| Confirmação | `paid=true` e `paid_amount ≥ valor do link` ⇒ link `pago`, pedido `rascunho→confirmado`, `condicao_pagamento` = `cartao` ou `pix`, anotação `CARTÃO PAGO via InfinitePay em … — R$ X (3x; cliente pagou R$ Y com R$ Z de juros/taxa; NSU …)` e o mesmo `DespacharEntregaUberJob`. Pago a menos ⇒ não confirma (log). Pedido **cancelado** que foi pago ⇒ continua cancelado + "⚠️ estornar". Webhook e checagem ao mesmo tempo ⇒ `lockForUpdate`, o primeiro vence. |
+| `agente:cartao-sincronizar` (a cada 15 min) | Rede de segurança do webhook: consulta os links InfinitePay abertos (e cancelados) dos últimos 3 dias. |
+| Webhook Asaas | Também marca o link guardado como pago. |
+| `AgenteIaConfigObserver` | Trocar `provedor_cartao` avisa o app.ia365 (`provedor: "cartao"`), que troca o treinamento sozinho. |
+| Aba Integração da empresa | Card **"Cartão do Vendedor IA (InfinitePay)"** (InfiniteTag vazia com `$` fixo à esquerda, Ativo, Testar, última falha) + card **"Cartão usado pelo agente"** (rádio Asaas/InfinitePay; inativo desabilitado; com um só ativo, ele vale sozinho). |
+| **`/admin/integracoes`** (menu Integrações) | Virou **painel**: em cima, toda empresa com agente ou integração × Agente IA / PIX Sicredi / Asaas / InfinitePay / Uber / Melhor Envio (Ativo · Incompleto · Inativo · —), cartão em uso, últimas falhas e atalho para a aba da empresa. Embaixo, **Configuração da plataforma**: só o app do Melhor Envio, com o aviso de que é o único provedor que precisa de algo da IA365 (OAuth) — PIX, Asaas, InfinitePay e Uber usam só a conta de cada empresa. |
+
+Migration `2026_09_25_120000_cartao_infinitepay` (coluna + tabela). Config `services.infinitepay.base_url`
+(`INFINITEPAY_BASE_URL`, padrão a API pública; só muda em QA).
+
+### Validação (`erp-test-app` + InfinitePay FALSA em `172.17.0.1:3298`) — 63/63 ✅
+
+Fake em Python (`~/qa-311/fake-infinitepay.py`: `/links`, `/payment_check`, `/_pagar` que dispara o webhook). Roteiro
+`~/qa-311/qa-erp.sh` (10 fases): card nasce vazio; `$Loja-QA` grava `Loja-QA`; InfiniteTag inválida recusada; Testar gera
+link de R$ 1 sem webhook; pedido do agente sai com link (178 + 2×69,90 = 31780 centavos discriminados, `webhook_url` com o
+token, telefone `+55…`); 2ª via devolve o MESMO link; webhook com token errado e webhook **forjado** (não pago na InfinitePay)
+não confirmam; pagamento real 3x com R$ 12,34 de juros confirma com a anotação, `valor_pago` 330,14 e comprovante; repetido
+⇒ `ja_processado`; webhook perdido + **PIX pelo link** ⇒ a checagem confirma com `PIX PAGO via InfinitePay`; pedido
+cancelado e pago ⇒ segue cancelado com "estornar"; total alterado ⇒ link novo de 1 linha; Asaas ligado depois **não troca**
+o cartão em uso; seletor troca e enfileira o aviso; desligar o escolhido ⇒ o outro assume, religar ⇒ volta; painel
+`/admin/integracoes` com a coluna InfinitePay. O QA pegou o `order_nsu` colidindo quando o mesmo pedido ganhava 2 links no
+mesmo segundo (unique) — corrigido com o sufixo aleatório.
+
+**Armadilha 80 (25/09/2026) — a InfinitePay não assina o webhook:** confiar no corpo do aviso é aceitar pagamento de
+qualquer um que conheça um `order_nsu`. O token vai no caminho da `webhook_url` e, mesmo com ele, **só `payment_check`
+confirma**. Não "simplificar" tirando a consulta.
+
+**Armadilha 81 (25/09/2026) — Blade: a palavra de fim de bloco php num COMENTÁRIO quebra a view inteira.** O
+`storePhpBlocks` do Blade roda ANTES de tirar os comentários `{{-- --}}`: numa view que usa a forma inline `@php(...)`
+(como `admin/empresas/show`), um comentário citando o fim de bloco casou com o primeiro `@php(` lá de cima e a página da
+empresa deu 500 ("unexpected token class"). `view:cache` não acusa — compilar e rodar `php -l` nos compilados.
+
+### Deploy
+
+Rito de sempre, **sem rebuild**: tar dos arquivos da branch → `migrate --force` → `optimize` → `view:cache` → `php -l` nos
+compilados → `chown www-data bootstrap/cache` → USR2 no master do php-fpm → `queue:restart` (o observer e o job mudaram).
+A produção tem hoje o estorno do caixa (outra sessão, ainda sem commit) — os arquivos desta branch **não se sobrepõem** aos
+dele (conferido por md5 em 25/09: os 12 arquivos alterados aqui são idênticos em produção, HEAD e teste). Depois, a
+plataforma (§311 de lá). Ligar para um cliente: aba Integração → InfiniteTag → Ativo → Salvar → Testar.
+
+✅ **EM PRODUÇÃO 25/09/2026 12:34 UTC** (Dennis rodou `deploy-311-v2.sh` da branch da plataforma): backup
+`~/backups/deploy-311-20260925_1234` + imagem `erp-com-app:pre-311-20260925_1234`; migration batch 42; `route:list --path=infinitepay`
+= 3 rotas, `/login` 200, webhook responde pelo site após `opcache_reset()`. A v1 do script voltou sozinha 2× em "rota do webhook
+ausente" (causa não identificada — a v1 escondia a saída; a tabela nova ficou vazia no banco, inofensiva). Plataforma subiu em
+seguida (§311 lá). Branch pushada.
+
+**26/09 — InfiniteTag colada era recusada.** A DONA DOURO colou `$marcus-vinicius-mue` do app da InfinitePay e a validação
+recusou: o copiar/colar traz caractere invisível (NBSP/zero-width) ou traço tipográfico no lugar do hífen — na tela é igual.
+`InfinitePayService::normalizarHandle()` agora remove os invisíveis e troca `– — −` por `-`, e o controller limpa ANTES de
+validar. Deploy pontual: `scripts/deploy-311-handle.sh` da branch da plataforma (2 arquivos + optimize + opcache_reset).
+
+---
+
 ## Treinamento de suporte, agente de chamado e a matriz das 4 camadas (06/09/2026)
 
 **Pedido do Dennis:** "treinamento completo para suporte com abertura de chamado perguntando o nome
@@ -4362,6 +4455,37 @@ desnecessário.
   descrição, por falta de cadastro. As que existem são curtas (máx. 36 caracteres, média 17), então
   não há custo relevante de token.
 
+## Orçamentos: a busca de produto e serviço voltou a aparecer (10/09/2026, na `main` em 11/09)
+
+Commit do Dennis (`c1dd256`, 10/09, `origin/orcamento-busca-produto`) trazido por cherry-pick sobre a
+`main` de 11/09 na branch `orcamento-busca-produto-main` — só esta correção, sem arrastar o que veio
+depois. O que ele corrige em `/app/orcamentos/create` e `edit`:
+
+- A caixa de busca do item apontava para `app/pdv/buscar-produto`, que **não existe** (é só o NOME da
+  rota; o caminho é `app/pdv/produto`). O fetch tomava 404 engolido e a tela não mostrava nem resultado
+  nem "nenhum encontrado". Mesmo bug já corrigido em Pedidos em 24/07; Orçamentos ficou para trás.
+- Serviço nunca teve busca. Entra `SearchController::servicos()` + rota `app/search/servicos`
+  (LIKE em descrição e `codigo_lc116`, só ativos). As views usam `app/search/produtos` (acha por parte
+  do código, coisa que o `pdv/produto` exato não fazia) e juntam produto + serviço numa lista só, com
+  badge de tipo; clicar preenche `produto_id` XOR `servico_id`.
+- 🔴 **Item fantasma**: a caixa de busca não tem `name`, então o que se digitava sem clicar não ia no
+  POST — dava para salvar item com `produto_id` e `servico_id` nulos e descrição vazia, e o
+  `converter()` levava isso para dentro do Pedido. Agora `required_without` cruzado no `store()`/
+  `update()` + trava no JS antes do submit (Ctrl+Enter passou a `requestSubmit`, senão pulava a trava).
+- Dropdown em `position:fixed` (o `overflow` da tabela cortava a lista); digitar de novo limpa a escolha.
+
+**Validação no `erp-test` (11/09):** `create`/`edit` renderizam com as duas rotas de busca; `search/servicos`
+devolve o serviço por nome e por código LC 116; item sem produto e sem serviço → volta com "Escolha um
+produto ou servico da lista…" e nada grava; orçamento com 1 produto + 1 serviço grava os dois itens
+(`produto_id`/`servico_id` certos), `show` e `edit` em 200. Dados de QA (serviço, cliente, orçamento)
+apagados; `laravel.log` sem linha nova. Sem migration; **rota nova** ⇒ no deploy o `optimize` vem antes
+do USR2 (armadilha 26b). ✅ **EM PRODUÇÃO desde 11/09/2026 13:37 UTC**, junto com o relatório de vendas
+(9z) — o deploy é um só, pela branch `entrega-11set-relatorio-orcamentos` (merge das duas); ver o bloco
+de deploy na seção 9z. Rota `app.search.servicos` no cache de rotas de produção; `/app/orcamentos/create`
+e `/app/search/servicos` respondem 302 para o login (não 500).
+
+---
+
 ## O número do caixa sumiu da tela de abertura (11/09/2026)
 
 **Pedido do Dennis:** *"quando vou abrir o caixa mudamos para deixar o número automático — tem como
@@ -4464,6 +4588,463 @@ promovida** — produção está 1 commit à frente da `main` (`ddee60a`). Enqua
   `(unidade_id, numero_aberto)`, não `LOCK TABLES`.
 
 ---
+
+## Relatório de vendas: impresso limpo, peças, formas de pagamento, vendedor e loja (11/09/2026)
+
+**Pedido do Dennis**, olhando `/app/relatorios/vendas?loja=25` de setembro: "tem que melhorar o layout do
+impresso pois está ruim, e preciso ter a quantidade de vendas e a quantidade de peças daquele período,
+e mais informações de ticket médio etc. — para todos". Branch `relatorio-vendas-impresso`.
+
+### O que estava ruim
+
+- **Nenhuma regra de impressão.** A página não tinha `@media print`: o "Imprimir" mandava para o papel a
+  sidebar, o topbar, o card de filtros, os botões, os ícones e as sombras. Só o relatório de contagem
+  cega (12/08) tinha uma regra própria — foi o molde.
+- **Faltava a peça.** O relatório dizia nº de vendas, faturamento, ticket e trocas. Não dizia quantas
+  peças saíram, nem por forma de pagamento, nem por vendedor. Loja de roupa conta peça.
+- 🔴 **Os Top 10 mentiam.** Produtos e clientes eram calculados pela empresa inteira, no período, sem
+  loja, vendedor, cliente nem origem — e **somando canceladas** (o faturamento já as excluía desde
+  03/09). O topo da página dizia "LOJA RIVERSIDE" e o top 10 era das 6 lojas.
+
+### O que entrou (sem migration)
+
+| Bloco | O quê |
+|---|---|
+| Cabeçalho do impresso | só no papel (`.rel-print-header`): empresa, loja (ou "Todas as lojas"), período, origem/vendedor/cliente filtrados, gerado em/por |
+| 8 indicadores | vendas (+ peças por venda) · **peças vendidas** (item de produto; serviço conta à parte) · faturamento (+ líquido de trocas) · ticket por venda (+ **preço médio por peça**) · valor bruto dos itens · descontos (+ % do bruto) · acréscimos de cartão/juros (`Venda::outras_despesas`) · trocas (valor, registros, **peças devolvidas**) |
+| Por forma de pagamento | lê `pagamento_detalhes` (o split); venda sem o JSON cai na `forma_pagamento` com o total; **troco abate só o dinheiro** (mesma regra do `PdvController`). Rodapé avisa quando o recebido ≠ faturamento (acréscimos entram no recebido) |
+| Por vendedor | vendas, peças, faturamento, ticket, % — a mesma conta agrupada por `vendedor_id` |
+| Por loja | só quando o filtro é "Todas" e há mais de uma loja visível |
+| Lista de vendas | coluna **Peças**; rótulo da forma pelo `MovimentacaoCaixa::FORMAS_LABELS`; rodapé com nº de vendas e peças |
+| Top 10 | produtos e clientes calculados **sobre as vendas filtradas** (`whereIn venda_id`), sem canceladas; produto mostra o código interno |
+
+Tudo sai de UMA consulta de vendas (`with('itens')`), então cada indicador responde ao mesmo filtro.
+
+### A impressão
+
+`@push('styles')` com `@media print`: some sidebar, topbar, banner de trial, alertas, filtros e botões
+(`.d-print-none`); A4 com margem de 12 mm; indicadores em grade de 4; tabelas compactas com `thead`
+repetindo por página; cores viram preto (térmica/laser não precisam de verde e azul). Validado com
+PDF gerado pelo Chrome headless (`chrome-headless-shell` do puppeteer no host) sobre o HTML da tela.
+
+🔑 **Flex não pagina no Chrome** (armadilha 76): os cards lado a lado (`.row` do Bootstrap) na
+primeira versão saíram **vazios** no papel — o Top 10 inteiro sumiu da página 2. Na impressão as
+colunas viram `float` e `.h-100` volta a `auto`. E o título de um quadro não pode ficar órfão no pé da
+página: `break-after: avoid` no `.card-header` + card da lista sem moldura própria (a moldura vazia que
+sobrava na página anterior era feia).
+
+### O admin da plataforma via o relatório ZERADO (armadilha 77)
+
+`session('empresa_id')` do admin nasce **NULL** (o `EnsureUnidadeSelected` só copia quando o usuário
+tem empresa), e o relatório lia `auth()->user()->empresa_id ?? session('empresa_id')` — os dois nulos,
+`where empresa_id IS NULL`, zero vendas, **sem erro nenhum**. Já era assim antes. Agora o último
+recurso é a empresa da **loja da sessão** (`Unidade::whereKey(session('unidade_id'))->value('empresa_id')`),
+nos dois pontos que leem a empresa (`vendas()` e `lojasParaFiltro()`).
+
+### Validação (`erp-test-app`, banco `erp_test` — produção intocada)
+
+| Caso | Resultado |
+|---|---|
+| Gerente, loja 20, setembro | 19 vendas · 37 peças · R$ 4.312,52 · acréscimo R$ 162,52 — **iguais ao SQL** (`count`, `sum(total)`, `sum(quantidade)`) |
+| Gerente vinculado a 2 lojas + "Todas" | quadro **Por loja** aparece, coluna Loja na lista, 20 vendas/38 peças |
+| Filtro por vendedor | 13 vendas / 29 peças — todos os quadros e o Top 10 mudam junto |
+| Dono da empresa 5, agosto | 37 vendas · 45 peças · R$ 9.991,41; formas Crédito 6.846,78 + PIX 1.608 + Dinheiro 1.052,81 + Débito 483,82 = **9.991,41 exatos** |
+| Vendedor (sem filtro de loja) | 200, mesmos números da loja da sessão |
+| Admin da plataforma | 200 e **19 vendas** (antes: 0) |
+| PDF do Chrome headless | empresa 5 = 3 páginas: cabeçalho, indicadores, formas, vendedor, Top 10 na 1ª; lista com `thead` repetido nas seguintes; nenhuma moldura vazia |
+
+`laravel.log` do teste sem linha nova. QA: senha do `qa.dono@teste.local` redefinida para `qa123456`
+no `erp_test`; o vínculo temporário do `qa.gerente` com a loja 11 foi removido.
+
+### 🔎 Achado no caminho: 3 vendas da RIVERSIDE cobraram o acréscimo duas vezes (04/09)
+
+Ao montar o quadro por forma, apareceram vendas de **cartão com troco**: 199, 201 e 209 da LOJA
+RIVERSIDE (regra `por_parte`), todas entre 14:11 e 15:05 de 04/09 — os minutos seguintes ao deploy
+das 13:54. Venda 209: itens R$ 195, pagamento R$ 235,95 (= 195 × 1,10 × 1,10), total gravado R$ 216,45,
+troco R$ 19,50. É o caso previsto na seção do acréscimo por parte: **aba do PDV antiga** mandou os
+itens já na tabela do cartão e o servidor somou o acréscimo por cima. Cliente pagou R$ 37,00 a mais
+nas 3 (19,50 + 10,00 + 7,50). Não se repetiu depois do reload. **Nada foi corrigido** — decisão do
+Dennis (estorno/vale).
+
+### Deploy — FEITO em 11/09/2026 13:37 UTC (OK do Dennis: "pode fazer o deploy")
+
+**EM PRODUÇÃO**, junto com a correção de Orçamentos, a partir da branch
+`entrega-11set-relatorio-orcamentos` = `main` + merge de `relatorio-vendas-impresso` (`ced2476`) + merge
+de `orcamento-busca-produto-main` (`8d06714`). 🔑 **Uma branch só para o tar**: as duas mexem em arquivos
+diferentes, mas o tar de `app resources routes config` de UMA delas levaria a versão da `main` dos
+arquivos da OUTRA e a reverteria em silêncio. Rito de sempre, **sem rebuild e sem migration**.
+
+| Passo | O quê |
+|---|---|
+| Pré-voo | `diff -rq` do container × `git archive main` em `app resources routes config database`: **nenhuma diferença** fora os `.bak-297` (armadilhas 50 e 52) |
+| Backup do banco | `/home/ubuntu/erp-backups/pre-relatorio-orcamentos-20260911-1337.sql.gz` (73 tabelas) |
+| Backup do código no ar | `/home/ubuntu/erp-backups/erp-code-no-ar-pre-relatorio-orcamentos-20260911-1337.tgz` (os 7 arquivos) |
+| Rollback | imagem `erp-com-app:pre-relatorio-orcamentos-20260911` (`docker commit`) |
+| Código | `tar app database resources routes config` |
+| Caches | `artisan optimize` (**antes** do reload — rota nova, armadilha 26b) → `chown www-data` → `kill -USR2 29` (master do php-fpm, não o PID 1) |
+
+Conferido depois: os **7 arquivos byte-idênticos** à branch (md5); `app.search.servicos` no cache de rotas
+(gravado como `www-data`); `/` e `/login` 200; `/app/relatorios/vendas`, `/app/orcamentos/create`,
+`/app/search/servicos` e `/app/pdv` em **302 para o login** (302 e não 500 = a rota resolveu na cadeia
+do grupo `/app`); `laravel.log` sem linha nova. ⚠️ `curl https://erp.ia365.com.br` de dentro do
+servidor **trava** (hairpin) — conferir por `http://127.0.0.1:8091` com `Host: erp.ia365.com.br`.
+
+🔑 **Prova com dado real**, renderizando o controller em tinker (`Auth::login` sem sessão, nada gravado)
+para um gerente da MISS MERLINDA na **LOJA RIVERSIDE (25), setembro** — a tela que o Dennis mandou:
+**109 vendas · 292 peças · R$ 14.257,00 · ticket R$ 130,80 · bruto R$ 14.046,00 · descontos R$ 195,00
+· acréscimos R$ 406,00 · trocas R$ 580,00**, 5 formas de pagamento no quadro.
+
+Rollback: `git archive main <7 arquivos> | docker exec -i erp-com-app tar -x -C /var/www` + `optimize` +
+USR2 (sem banco envolvido), ou recreate da imagem acima.
+
+⚠️ **`main` NÃO promovida e nada pushado** — produção está 4 commits à frente da `main` (`2d82e74`).
+Enquanto isso não mudar, **rebuild da imagem reverte as duas entregas** (armadilhas 46 e 52). Promover =
+fast-forward da `main` para `entrega-11set-relatorio-orcamentos`.
+
+### O que ficou de fora
+
+- Exportar o relatório em .xlsx (a tela só imprime).
+- Vendas por dia / por hora (curva do período).
+- Comissão por vendedor no quadro (mora em `/app/comissoes`).
+
+---
+
+## Etiquetas: "Extra grosso" e "Máximo" — o negrito da fonte não basta para a térmica (22/09/2026)
+
+**Pedido do Dennis** (MISS MERLINDA, print do editor de `Elgin 110mm 3 colunas`): *"eles estão imprimindo
+diversas etiquetas, vamos ter que deixar um pouco mais grosso os preços e as letras"* — e, quando apontado
+que o Negrito já existia no painel do item: *"já está negrito mas não tem a intensidade, mesmo com negrito
+está fraco"*. Branch `etiquetas-extra-grosso`. Sem migration.
+
+### Por que o negrito não resolvia
+
+- O checkbox **Negrito** (12/08) manda `font-weight:700`. É o **máximo que a Arial tem**: 900 no CSS não
+  engrossa nada, o Chrome cai no mesmo 700. Numa térmica de 203 dpi (1 ponto = 0,125 mm), a haste de um
+  7 pt em negrito tem ~3 pontos — sai cinza e falhada.
+- Nos 3 formatos livres da MISS MERLINDA os preços estavam em **5,6 pt sem negrito** e os dígitos em 6,6 pt
+  sem negrito; só o nome da loja era negrito. E o Negrito só aparece com o item **clicado** no desenho —
+  o painel "Nenhum item selecionado" do print é exatamente o que o Dennis via.
+
+### O que entrou
+
+| Onde | O quê |
+|---|---|
+| `EtiquetaFormato` | `PESOS` (`normal`, `negrito`, `extra` = 0,025 mm/pt, `maximo` = 0,04 mm/pt), `PESOS_LABELS`, `CONTORNO_MIN_MM` = 0,15, `contornoMm($peso, $pt)` e `pesoDoItem($el)` (lê `peso`; sem ele, deriva do `negrito` antigo) |
+| `EtiquetaController::sanitizarElementos` | grava `peso` (whitelist; valor inválido cai no `negrito`/`normal`) **e** mantém `negrito = peso !== 'normal'` — JSON antigo e leitores do booleano continuam valendo |
+| `_elemento.blade.php` | `font-weight` 400/700 pelo peso e, em `extra`/`maximo`, `-webkit-text-stroke:<mm> <cor>` — **contorno da mesma cor por cima do negrito**. É o único jeito de a letra sair preta na térmica sem trocar de fonte |
+| `editor.blade.php` | painel do item: o checkbox Negrito virou o select **"Grossura da letra"** (4 níveis, com dica); rodapé de "Itens da etiqueta" ganhou **"Grossura de todos os textos"** (aplica em todos os textos de uma vez e volta a "— escolher —"); a prévia aplica o mesmo contorno na escala do palco (`contornoMm` em JS, mesma conta do servidor) |
+
+Contorno = `max(piso, pt × mm/pt)`, piso 0,15 mm no Extra e 0,24 mm no Máximo — abaixo disso a térmica nem
+enxerga o traço. Em 7 pt: Extra 0,175 mm (+1,4 ponto de cada lado), Máximo 0,28 mm. O Máximo é a válvula de
+escape para cabeça térmica fraca; em corpo pequeno ele começa a fechar os olhos do "8" e do "0" —
+por isso a dica manda subir de nível, não começar por ele.
+
+### Prova no `erp-test` (22/09/2026, `qa.gerente@teste.local`, formato 6 da MISS MERLINDA)
+
+1. `PUT layout` com `peso` inválido no nome (`"lixo"` + `negrito:true`) → gravou `negrito`; cartão `extra`,
+   PIX `maximo`, dígitos `extra` → gravados como pedido, todos com `negrito=true`.
+2. `POST gerar termica-custom-6` → estilos por item: 9,2 pt/700 sem contorno; 7 pt/700 + `0.175mm`;
+   7 pt/700 + `0.35mm` (antes da calibração para 0,04); 6,6 pt/700 + `0.165mm`. PNG pelo Chrome headless
+   a 4×: Extra visivelmente mais preto que o negrito; Máximo pesado demais em 7 pt → calibrado de 0,05 para 0,04.
+3. `POST gerar termica-custom-2` (**JSON antigo, sem `peso`**) → byte-a-byte o mesmo de antes: nome 700,
+   preços 400, **zero** `text-stroke`. Nenhum formato existente muda sem alguém mexer.
+4. Editor no Chrome headless (puppeteer, login pelo form): abre sem erro de JS; clicar "Preço no cartão" na
+   lista mostra o select em `extra`; "Grossura de todos os textos = Máximo" engrossa os 4 textos na prévia
+   e o select volta a "— escolher —"; "= Extra" + **Salvar layout** → flash "Layout salvo!" e os 4 textos
+   no banco com `peso=extra`, `negrito=true`.
+
+### Deploy — FEITO em 22/09/2026 12:47–12:50 UTC (OK do Dennis: "pode fazer o deploy")
+
+**EM PRODUÇÃO.** Rito à mão, sem rebuild e sem migration. Pré-voo: `diff -rq` do container × `git archive`
+da base da branch (`entrega-11set-relatorio-orcamentos`) em `app resources routes config database` sem
+nenhuma diferença fora os `.bak-297`.
+
+| Passo | O quê |
+|---|---|
+| Backup do banco | `/home/ubuntu/erp-backups/pre-etiquetas-grosso-20260922-1247.sql.gz` (73 tabelas, 1,5 MB) |
+| Backup do código no ar | `/home/ubuntu/erp-backups/erp-code-no-ar-pre-etiquetas-grosso-20260922-1247.tgz` (os 4 arquivos) |
+| Rollback | imagem `erp-com-app:pre-etiquetas-grosso-20260922-1247` (`docker commit`) |
+| Código | `git archive HEAD` dos 4 arquivos → `tar -x` no container + `chown www-data` |
+| Caches | `view:clear` → `optimize` como `www-data` → `chown` de `bootstrap/cache` e `storage/framework/views`; `php -l` nos 4 e nas 2 views compiladas |
+| Reload | `kill -USR2 29` (master do php-fpm, não o PID 1) — workers novos no `ps` |
+
+Conferido depois: os **4 md5 batem** com a branch; `/` e `/login` 200; `/app/etiquetas` e o editor em 302
+para o login (a rota resolveu); `laravel.log` sem linha nova; e `_elemento.blade` renderizado em produção
+via tinker (nada gravado) para um item `peso=extra` 7 pt devolveu `text-stroke:0.175mm`. Os 3 formatos da
+MISS MERLINDA continuam como estavam (o formato 6 já estava com os 4 textos em negrito desde as 09:33 de
+22/09 — nível `negrito`, sem contorno, até alguém subir).
+
+Rollback: `tar xzf` do tgz acima em `/var/www` + `optimize` + USR2, ou recreate da imagem.
+
+⚠️ **Branch `etiquetas-extra-grosso` NÃO pushada, `main` NÃO promovida** — produção agora está 6 commits
+à frente da `main` (`2d82e74`). Rebuild reverte (armadilhas 46 e 52).
+
+### O que ficou de fora / próximos
+
+- **Os 3 formatos da MISS MERLINDA não foram alterados** — é a loja (ou o Dennis) quem escolhe o nível no
+  editor, com "Grossura de todos os textos" isso é 1 clique + Salvar. Sugestão: preços e dígitos em
+  **Extra grosso e 7 pt**, imprimir 1 tira e só então rodar o lote.
+- Se depois do Extra/Máximo ainda sair fraco, o resto é **densidade (darkness) no driver da Elgin** e
+  cabeça térmica suja — não há mais nada a fazer no HTML.
+- O layout automático (sem desenho) segue com o `font-weight:bold` de sempre; os níveis só existem no
+  layout livre, onde o lojista tem o item na mão.
+
+---
+
+## Cancelar venda estorna o caixa (24/09/2026) — EM PRODUÇÃO 24/09 19:38 UTC
+
+**Chamado:** MISS MERLINDA · Matriz (caixa 210, Tatiana) — venda #2125/#2126 lançada em dobro, as duas
+canceladas, e o dinheiro esperado seguiu em R$ 133 em vez de R$ 104. `VendaController::destroy` devolvia
+estoque e cancelava `contas_receber`, mas **não tocava em `movimentacoes_caixa`** — e o `resumoCaixa`
+soma toda entrada `venda`. Valia para **todas as formas** e todas as empresas: em 24/09 havia 36
+entradas de 31 vendas canceladas presas em caixas (R$ 8.490,76 — PIX 6.340, crédito 943, dinheiro 795,
+vale 215, débito 198) em MISS MERLINDA, DONA DOURO, N S BORBA e ia365.
+
+**Conserto de dados do caso (24/09):** Dennis escolheu reativar a #2126 (29 dinheiro + 13 PIX; venda →
+`concluida`, contas → `paga`, saída de estoque 4→3) e tirar a entrada da #2125. ⚠️ `deleted_at` na
+`movimentacoes_caixa` **não funciona** (armadilha 79) — foi preciso `DELETE` real. Fechou em R$ 104.
+Backups: `erp-backups/pre-fix-caixa210-matriz-merlinda-20260924-1858.sql.gz` e
+`erp_comercial-pre-estorno-caixa-20260924-1937.sql.gz` (banco inteiro, antes do deploy).
+
+**O que mudou (migration `2026_09_24_180000_estorno_de_venda_no_caixa`):**
+- `movimentacoes_caixa.venda_id` (FK nullable) — antes a ligação era só o texto "Venda #N" (número não é
+  único na empresa). Backfill por `caixa_id` + descrição: 2411/2411 em produção. O PDV já grava.
+- `tipo` ganha `estorno` (sinal −1, "Estorno de venda"); `vale_usos.tipo` ganha `estorno`.
+- `destroy`: uma saída `estorno` por entrada da venda (mesma forma e valor). Caixa da venda aberto →
+  estorna nele; fechado → no caixa **aberto de quem cancela, na mesma loja** (o dinheiro sai da gaveta
+  de hoje); sem caixa aberto → recusa com "abra o seu caixa". Vale abatido volta ao saldo
+  (`Vale::estornar`, utilizado → ativo). Venda com troca/devolução (origem ou `venda_nova_id`) é
+  **bloqueada**. `lockForUpdate` na venda: clique duplo estorna uma vez.
+- `resumoCaixa`: `vendas_por_forma` e dinheiro esperado são **líquidos** de estorno; forma que só tem
+  estorno entra negativa. Extrato, fechamento e comprovante mostram "Vendas canceladas (já abatidas)".
+  Fechamentos antigos não mudam (não recebem estorno).
+- `down()` se recusa se já houver estorno lançado (apagar reinflaria caixas em silêncio).
+
+**Validação (`erp-test-app`, HTTP real com login/CSRF, qa.gerente e qa.caixa, empresa 4): 25/25** —
+dinheiro, dinheiro+PIX, troco, vale, cancelar de novo, 2 cancelamentos simultâneos, caixa fechado com e
+sem caixa aberto de quem cancela, forma sem venda no caixa (achou bug, corrigido), troca bloqueada,
+venda pré-deploy (backfill), outra empresa 404, 3 telas. Em produção: sem erro no log, caixa 210 seguiu
+batendo (R$ 139 = 104 + venda #2216 de 35 feita antes do deploy).
+
+**Pendente (decisão do Dennis):** histórico não foi estornado — caixas abertos 14 e 35 (Timon) e 38
+(CellMaster, PIX 3.000); os fechados ficam como estão. Vales da MISS MERLINDA das vendas canceladas #418
+(vale 7, R$ 115) e #474 (vale 13, R$ 100) não voltaram ao saldo. **Arquivos NÃO commitados** — o `.git`
+é do root; estão aplicados nesta worktree (build) e no container.
+
+---
+
+## Sessão: de 2 horas para 7 dias (25/09/2026) — EM PRODUÇÃO 25/09 15:40 UTC
+
+**Chamado:** lojas reclamando que "o sistema desloga". `SESSION_LIFETIME=120`: duas horas sem nenhum
+request e a sessão morria — cookie e chave no Redis, os dois em 120 min (medido: TTL 7199 s). Só o PDV
+se mantinha vivo (ping de 10 em 10 min, entrega de 09/09). Em qualquer outra tela: formulário parado
+virava 419 "página expirou", link virava tela de login e, mesmo com "Lembrar-me" marcado (26 dos 47
+usuários têm `remember_token`), a pessoa caía em "escolher a loja", porque `unidade_id` vive na sessão.
+
+**Decisão do Dennis (25/09):** 7 dias de inatividade (10080 min), e não 18 h — sábado 19h até segunda
+8h são 61 h, feriado prolongado idem. O prazo renova a cada clique; "Sair" continua valendo. Custo:
+Redis com 1,5 MB usados, sem `maxmemory`, política `noeviction`.
+
+**O que travou:** trocar o `.env` e rodar `config:cache` não mudou nada — `config('session.lifetime')`
+seguia 120. Causa: o `docker-compose.prod.yml` tem `env_file: .env`, então **toda chave do `.env` virou
+variável de ambiente do processo quando o container nasceu (02/09)**, e o Dotenv do Laravel não
+sobrescreve variável que já existe. Recriar o container é a armadilha 46 (perde as entregas por tar).
+Saída: chave **nova**, que o processo não tem — `SESSION_LIFETIME_MIN` — lida em `config/session.php`
+com fallback para `SESSION_LIFETIME`. As duas estão em 10080 no `.env` do host e do container, para um
+recreate futuro não divergir.
+
+**Segundo tropeço:** com o `config:cache` refeito (arquivo em disco já com 10080), o PHP continuou
+servindo `Max-Age=7200`. Opcache com `validate_timestamps=Off`: só entrou depois de `kill -USR2 29`
+(master do php-fpm — não o PID 1, armadilha 26b).
+
+**Rito:** `docker commit` → `erp-com-app:pre-sessao-7d-20260925`; `.env` de antes em
+`~/erp-backups/env-pre-sessao-7d-20260925.env`; `tar cf - config/session.php | docker exec -i erp-com-app tar xf - -C /var/www/`;
+`docker cp .env`; `config:cache` + `chown www-data` do `bootstrap/cache/config.php`; USR2 no 29.
+Sem migration, sem rebuild, ninguém derrubado.
+
+**Prova (HTTP real em `127.0.0.1:8091`, `Host: erp.ia365.com.br`):**
+
+| | Cookie `erp-comercial-session` | TTL da chave no Redis |
+|---|---|---|
+| Antes | `Max-Age=7200` | 7199 s |
+| Depois de `config:cache` (sem USR2) | `Max-Age=7200` | 7199 s |
+| Depois do USR2 | `Max-Age=604800` (vence 02/10) | 604799 s |
+
+`/login` 200, `laravel.log` sem linha nova. Sessões já abertas ganham o prazo novo no próximo clique.
+
+**Rollback:** `SESSION_LIFETIME_MIN=120` no `.env` → `docker cp` → `config:cache` → USR2. Ou a imagem
+acima.
+
+---
+
+## Dinheiro a menos no PDV: o caixa aceitava menos que o total sem avisar (07/10/2026)
+
+**Chamado:** MISS MERLINDA — "quando clica em receber e coloca um valor em dinheiro menor que o devido, o
+sistema não avisa e não pergunta se tem outra forma para completar". Confirmado em produção: **5 vendas
+(23/09–03/10) somam R$ 1.015 e só R$ 475 recebidos — R$ 540 sem rastro**:
+
+| Venda | Loja | Data | Total | Recebido | Faltou |
+|---|---|---|---|---|---|
+| #3717 (id 7034) | Dirceu | 03/10 | 85 | 70 | 15 |
+| #3680 (id 6997) | Dirceu | 03/10 | 65 | 50 | 15 |
+| #3630 (id 6947) | Timon | 03/10 | 320 | 200 | 120 |
+| #3199 (id 6513) | Timon | 01/10 | 390 | 5 | 385 |
+| #2116 (id 5424) | Riverside | 23/09 | 155 | 150 | 5 |
+
+(+ 1 venda de teste da ia365 em 29/05, R$ 200 a menos.) Nas outras empresas, nenhuma.
+
+**O defeito (duas camadas, `resources/views/app/pdv/index.blade.php` + `PdvController::registrarVenda`):**
+- `confirmarPagamento()`: só bloqueava "valor excede o restante" para forma ≠ dinheiro; com dinheiro e a
+  caixa "Pagamento dividido" desmarcada, gravava `pagamentos = [{dinheiro, digitado}]` e chamava finalizar.
+- `finalizarVenda()`: a checagem "Pagamento insuficiente. Faltam R$ X" era **pulada quando havia dinheiro**
+  (`if (!hasDinheiro && ...)`) — a intenção era permitir troco (a MAIS), mas isentou também a MENOS.
+- Servidor: `$troco = max(0, totalPago − total)` e nenhuma recusa. A venda nascia com o **total cheio**,
+  a movimentação de caixa só com o recebido, a conta a receber "paga" no valor menor e a comissão sobre o
+  total. O fechamento do caixa "batia" com a gaveta, então a loja nunca via a diferença.
+- O caminho do split (caixa marcada) sempre funcionou: dinheiro menor virava parcial e pedia o resto.
+
+**O que entrou (sem migration):**
+- **Modal "Dinheiro a menos"** (`#modalDinheiroMenor`, estático): "Recebido R$ X de R$ Y — Faltam R$ Z" com
+  dois botões. **Corrigir valor** reabre o modal de dinheiro com o número digitado (ajusta e confirma).
+  **Completar com outra forma** lança o dinheiro como primeira parte do split e mostra "Faltam R$ Z"; a
+  próxima forma (F-teclas/botões) já abre com o restante, como num split normal.
+- `finalizarVenda()`: a MENOS nunca passa, em nenhuma forma (a MAIS em dinheiro continua = troco).
+- `PdvController`: `totalPago < total − 0,01` → `DomainException` 422 "Pagamento insuficiente: recebido R$ X
+  de R$ Y. Faltam R$ Z — corrija o valor ou complete com outra forma". Tolerância de 1 centavo (conferido:
+  em ~7.000 vendas de produção, só as 6 acima ficam abaixo dela).
+- Métodos novos: `mostrarDinheiroMenor`, `corrigirDinheiroMenor`, `completarDinheiroMenor` e o utilitário
+  `_aposFechar(modalId, fn)` (abre o próximo modal só depois do `hidden.bs.modal` do anterior — abrir em
+  cima de um que ainda está sumindo deixa o body sem `modal-open`).
+
+**Validação (`erp-test-app`, `127.0.0.1:8099`, banco `erp_test`, `qa.caixa@teste.local`, caixa 41, produto
+2560 "taxa de entrega" R$ 1,00 — produção intocada), antes → depois:**
+
+| Caso | Antes | Depois |
+|---|---|---|
+| HTTP dinheiro 0,50 em 1,00 | ❌ 200, venda gravada total 1,00 / pago 0,50 | ✅ 422, nada gravado |
+| HTTP PIX 0,50 em 1,00 | ❌ 200 | ✅ 422 |
+| HTTP split dinheiro 0,50 + PIX 0,30 | ❌ 200 | ✅ 422 |
+| HTTP dinheiro 1,00 / 2,00 (troco 1,00) / PIX 1,00 / split 0,40+0,60 / 0,995 | ✅ 200 | ✅ 200 (5/5, caixa confere) |
+| Tela: dinheiro 0,50 → aviso "Faltam R$ 0,50", não finaliza | ❌ finalizou venda de teste #36 | ✅ |
+| Tela: "Corrigir valor" reabre com 0,50 → 1,00 → finaliza | — | ✅ |
+| Tela: "Completar" → split Dinheiro 0,40 + "Faltam 0,60" → PIX já vem 0,60 → finaliza | — | ✅ |
+| Tela: dinheiro 2,00 (troco), split marcado 0,30 + PIX 0,70, dinheiro exato | ✅ | ✅ sem regressão, zero erro de JS |
+
+Scripts: `valida-http.sh` (curl com login/CSRF, 8 casos, limpa o que criou pelo id) e `valida-ui.js`
+(Puppeteer + chrome-headless-shell do `~/.cache/puppeteer`, `NODE_PATH=~/.npm/_npx/7d92d9a2d2ccc630/node_modules`).
+⚠️ No teste de tela, clicar num botão do modal durante o fade de entrada (a caixa desliza 50 px) perde o
+clique — esperar ~450 ms depois da classe `show`.
+
+**Ambiente de teste (07/10):** depois do reboot do host os containers de teste subiram com IP novo e o
+`erp-test-app` ficou preso em "aguardando MySQL em 172.17.0.3" (IP chumbado no `-e DB_HOST`). Recriado
+com `DB_HOST=172.17.0.9` (`erp-test-mysql` atual); o antigo ficou parado como `erp-test-app-old`. A imagem
+tem `opcache.validate_timestamps = 0` — **arquivo novo só vale depois de `kill -USR2` no master do php-fpm**
+(BusyBox: `ps -o pid,args | grep "php-fpm: master"`; `ps -C` não existe) — valeu também para o teste.
+
+**Pendente (decisão do Dennis):** as 5 vendas acima — cobrar da loja, lançar como desconto ou deixar como
+está. Não foram tocadas.
+
+**Deploy — FEITO em 07/10/2026 13:52 UTC (Dennis: "faça o fluxo de testes… antes de por em produção"):**
+`docker commit` → `erp-com-app:pre-pdv-dinheiro-menor-20261007` (rollback); `tar` só dos 2 arquivos
+(`PdvController.php`, `pdv/index.blade.php`) para o container; `view:clear` + `view:cache` + `chown`;
+`kill -USR2 30` (master do php-fpm — "Reloading in progress… ready to handle connections");
+`/login` 200 em `127.0.0.1:8091` com `Host: erp.ia365.com.br`; `laravel.log` sem linha nova
+(47.545 antes e depois); arquivos no container idênticos ao HEAD. Sem migration, ninguém derrubado.
+**Rollback:** `tar` dos 2 arquivos de `526667f` + `view:cache` + USR2, ou a imagem acima.
+Git: branch `pdv-dinheiro-menor-07out` (não pushada, não mergeada). `526667f` commitou os arquivos do
+estorno de 24/09 que estavam soltos — exceto o trecho do `PdvController` (`venda_id` na movimentação),
+que foi junto no `425421f` porque o arquivo já carregava o conserto.
+
+---
+
+## Vendedor IA: frete escolhido sumia do pedido e o endereço virava a cidade da loja (27/09/2026)
+
+**Achado** na conversa de teste do Dennis com a Dona Douro (27/09, pedido #22, CEP 11320-000 = Av. Presidente
+Wilson, Centro, **São Vicente/SP**): a IA cotou o frete (.Package R$ 35,13 · .Com R$ 75,89), o cliente escolheu a
+opção 1, e o pedido nasceu com **total R$ 110,00, sem frete**, e o cliente foi gravado em **TERESINA/PI**.
+
+**Causa 1 — frete zerado (`MelhorEnvioService::cotar`):** com UM serviço em `services` (o `servico_id` que o cliente
+escolheu) o Melhor Envio devolve o **objeto** do serviço, não uma lista. O `foreach` andava pelos campos do objeto,
+nenhum era opção válida ⇒ `[]` ⇒ `resolverEntrega` devolvia `sem_servico` ⇒ `criarPedido` seguia **sem frete e sem
+log** (a regra "frete nunca derruba a venda"). **Toda venda de outra cidade em que o cliente escolhia a opção perdia o
+frete.** Medido em 27/09: os 3 pedidos de entrega do agente (empresa 5) estão sem frete, todos rascunho (nenhum pago).
+Simulado no container de produção (só consulta): antes `servico=3 ⇒ []`; depois `servico=3 ⇒ .Package R$ 35,13`.
+- Correção: resposta com `id` na raiz vira lista de 1.
+- Defesa: se o serviço pedido não voltar (id errado, serviço fora do ar), `resolverEntrega` **recota sem filtro** e
+  fica com a mais barata em vez de zerar.
+- `criarPedido` agora loga `Agente IA: pedido de entrega segue SEM frete` (motivo + servico_id) no canal `integracao`.
+
+**Causa 2 — cidade errada (`criarPedido`):** sem cidade/UF na conversa, o ERP completava com a cidade **do cliente
+antigo ou da LOJA** (Teresina) e nunca olhava o CEP. Agora `MelhorEnvioService::consultarCep()` (ViaCEP, cache 30
+dias só de respostas válidas, chave `viacep_end_<cep>`) preenche **cidade/UF** e, se faltarem, **rua e bairro**.
+Sem ViaCEP: cidade antiga do cliente só se o CEP é o mesmo; senão a da loja (comportamento antigo).
+`mesmaCidade()` passou a usar o mesmo `consultarCep()`.
+
+**Cotação devolve o endereço do CEP (`cotarEntrega`):** `dados.endereco_cep` (`logradouro, bairro, cidade, uf,
+cep_geral`) e a `mensagem` ganha "Endereço do CEP: Av. X, bairro Y, Cidade/UF — confirme com o cliente e peça o NÚMERO
+e o COMPLEMENTO" (ou, em CEP geral de cidade, "peça RUA, NÚMERO, BAIRRO e COMPLEMENTO"). O agente já usa o campo
+`mensagem` pronto — nada muda no app.ia365 para isso funcionar.
+
+Branch `frete-servico-cep` (sobre `feat/cartao-infinitepay` @7efb9d1 = produção desses 2 arquivos), worktree
+`/home/ubuntu/apps/erp-frete-cep`. Arquivos: `app/Services/Entrega/MelhorEnvioService.php`,
+`app/Http/Controllers/Api/IntegracaoAgenteController.php`. Sem migration, sem env. Deploy = `docker cp` dos 2 arquivos
++ `opcache_reset()` (validate_timestamps=Off, armadilha do §311). ✅ **EM PRODUÇÃO 27/09/2026 13:08 UTC** (Dennis rodou `scripts/deploy-frete-cep.sh`; backup dos originais em `~/backups/deploy-frete-cep-20260927_1308`; `/login` 200, 0 erros novos no log). **Teste de ponta a ponta (27/09, depois do deploy — a mesma conversa do Dennis pelo agente, telefone dele):** CEP
+11320000 ⇒ a IA confirmou "Avenida Presidente Wilson, Centro — São Vicente/SP" e pediu número e complemento; escolheu
+.Package ⇒ `CRIAR PEDIDO` com `servico_id=3` ⇒ **pedido #23 (id 31) `frete_valor=35.13`, `total=145.13`**, .Package 12
+dias, cobrança PIX de R$ 145,13; cliente 333 regravado como Av. Presidente Wilson, 1016, AP 12, Centro, **São Vicente/SP**.
+O prompt do agente da Dona Douro também foi ajustado nesse dia (ramo, "PIX ou cartão?", endereço pelo CEP) — docs.md
+do app.ia365 §315.
+**Pendentes (aguardam OK):** cancelar os pedidos de TESTE #20, #21, #22 (sem frete) e #23 (teste) — nenhum pago;
+cliente 337 (Joao Teste) ainda TERESINA/PI com CEP 65200-000 (= Pinheiro/MA).
+
+## Trava de força bruta no login: 8 senhas erradas travam o e-mail, 30 travam o IP (12/10/2026)
+
+**Pedido do Dennis (12/10):** "mecanismo de tentar login e senha bloqueia o IP, já colocamos em alguns sistemas (app.ia365 §325,
+JL), precisamos no restante". O ERP não tinha nada no `POST /login` (só o formulário de demonstração tinha `throttle`).
+
+**O que mudou (branch `login-trava-343`, sobre a `main` @75e95d9 = produção):**
+- `AuthController::login`: antes de `Auth::attempt`, consulta o `RateLimiter` em duas chaves — `login:email:<e-mail>` (máx. 8)
+  e `login:ip:<ip>` (máx. 30), janela de 15 min. Bloqueado → volta ao formulário com "Muitas tentativas de login. Aguarde N
+  minuto(s)…". Senha errada → `hit` nas duas chaves; login certo → `clear` do e-mail (o IP continua contando). Contador no cache
+  (`CACHE_STORE=redis` em produção: vale entre workers e restarts).
+- `routes/web.php`: `POST /login` ganhou `throttle:30,1` (30 req/min por IP → 429).
+- `tests/Feature/Auth/LoginTest::test_oito_senhas_erradas_travam_o_email` (não roda na imagem de produção — sem dev deps).
+
+**Validação no `erp-test-app` (hot-patch dos 2 arquivos + `route:cache` + USR2):** 9 POSTs com senha errada → 9º volta com
+"Muitas tentativas de login. Aguarde 15 minuto(s)…"; outro e-mail do mesmo IP → "E-mail ou senha incorretos" (livre); 35 POSTs
+rápidos → `429` a partir do 31º (throttle); `GET /login` 200. `php -l` nos 3 arquivos.
+
+**EM PRODUÇÃO desde 12/10/2026 15:54 UTC** (hot-patch; backup em `/home/ubuntu/erp-backups/login-343-20261012-1554/`; conferido: `/login` 200, e-mail inexistente travado na 9ª com "Muitas tentativas…", outro e-mail do mesmo IP livre, log sem erro novo). Branch `login-trava-343` @404a127; `main` NÃO avançada (merge só quando o Dennis pedir).
+
+**Deploy (rito do 07/10, armadilha 52 — a imagem NÃO é rebuildada):** backup dos 2 arquivos do container em
+`/home/ubuntu/erp-backups/login-343-<ts>/`, `docker cp` dos 2 arquivos, `php artisan route:cache`, `kill -USR2 30` (master do
+php-fpm), conferir `/login` 200 e a mensagem de trava com e-mail inexistente. **Rollback:** copiar os 2 arquivos do backup de
+volta + `route:cache` + USR2.
+**nginx (Dennis, sudo):** `/home/ubuntu/seguranca-343/aplicar.sh` acrescenta `limit_req` 10/min em `erp.ia365.com.br /login`.
+**Pendente:** `LOG_STACK=daily,stderr` no `.env` (root) para o `laravel.log` (8,5 MB, 2 mil ERROR) rotacionar e os erros irem
+ao stdout do container (o coletor do Monitor ao vivo §341 do app.ia365 lê os dois) — exige recriar o container, e recriar
+reverte os hot-patches (armadilha 52): fica para quando a imagem for rebuildada de um checkout alinhado.
+
+### 🔴 Regressão do deploy acima: o `routes/web.php` apagou a InfinitePay (corrigido 20/10/2026 11:36 UTC)
+
+**Sintoma (Dennis, 20/10):** o 👁 de qualquer empresa em `/admin/empresas` dava **500** — `Route
+[admin.empresas.gateway-infinitepay.store] not defined (View: admin/empresas/show.blade.php)`, no log desde 14/10.
+
+**Causa:** esta branch nasceu da `main` @75e95d9, que **não tem a InfinitePay** (ela vive em `feat/cartao-infinitepay`,
+em produção desde 25/09 e nunca mergeada). O `docker cp` do `routes/web.php` da branch trocou o arquivo INTEIRO e levou
+embora 5 rotas: `admin.empresas.gateway-infinitepay.store` / `.testar`, `admin.empresas.agente-ia.cartao`,
+`POST /api/integracao/v1/pedidos/{id}/cartao` e o webhook `webhooks.infinitepay`. Nenhum POST no webhook nos logs do nginx
+no período (nenhum pagamento perdido aparente). O `AuthController` não tinha o problema (diff = só o §343).
+
+**Conserto:** `routes/web.php` de produção = backup pré-343 (`/home/ubuntu/erp-backups/login-343-20261012-1554/routes/web.php`)
++ só a linha do `throttle:30,1`; `docker cp` + `route:cache` + USR2. Backup do estado quebrado em
+`/home/ubuntu/erp-backups/rotas-infinitepay-20261020-1136/`. Validado antes → depois: `/admin/empresas/{1..9}` 500 → 200 (9/9,
+renderizado como o admin 20 via kernel no tinker), 5 rotas ❌ → ✅, trava de login segue (9ª senha errada com e-mail
+inexistente = "Muitas tentativas…"; nginx dá 429 acima de 10/min), zero ERROR novo no log.
+
+⚠️ **Esta branch NÃO pode ser deployada sozinha** (nem rebuild a partir dela): o `routes/web.php` dela não tem a InfinitePay.
+**Lição:** em hot-patch, nunca copiar arquivo inteiro de branch — `diff` do arquivo do container × branch ANTES; se aparecer
+qualquer linha além da mudança, aplicar só a mudança sobre o arquivo do container (armadilha 82).
 
 ## Armadilhas conhecidas
 
@@ -4879,6 +5460,38 @@ promovida** — produção está 1 commit à frente da `main` (`ddee60a`). Enqua
     Corolário: teste o JS do PDV com o objeto `PDV` real em node (`vm` + DOM de mentira) — foi o que
     provou os três cenários de uma vez sem navegador.
 
+76. **Flex não pagina na impressão do Chrome — card lado a lado sai VAZIO no papel.** O `.row` do
+    Bootstrap é `display:flex`; quando um card dentro dele atravessa a página, o Chrome corta o
+    conteúdo em vez de continuar na página seguinte: o Top 10 do relatório de vendas (11/09/2026)
+    imprimiu só o cabeçalho, com 10 linhas no HTML. Em `@media print`, colunas lado a lado viram
+    `float: left` + `width: 50%` (o `.row` vira `display: block` com `::after` limpando o float) e
+    `.h-100` volta a `auto`. Junto: `.table-responsive` com `overflow: visible`, senão a barra de
+    rolagem sai impressa. E título de quadro não fica órfão: `break-after: avoid` no `.card-header`.
+    Copiar de `relatorios/vendas.blade.php` ao dar impressão a qualquer tela com `layouts/app`.
+
+77. **O admin da plataforma tem `session('empresa_id')` NULL — relatório "zerado" sem erro.** O
+    `EnsureUnidadeSelected` só grava `empresa_id` na sessão quando o usuário TEM empresa; o admin não
+    tem (armadilha 25). Tela que lê `auth()->user()->empresa_id ?? session('empresa_id')` recebe NULL
+    duas vezes e consulta `where empresa_id IS NULL`: 200, zero linhas, nada no log. O relatório de
+    vendas viveu assim até 11/09/2026. Último recurso: a empresa da **loja da sessão**
+    (`Unidade::withoutGlobalScopes()->whereKey(session('unidade_id'))->value('empresa_id')`). Ao testar
+    como admin, conferir o NÚMERO, não só o status 200.
+
+80. **`.env` copiado por `docker cp` NÃO muda chave que já existe no ambiente do processo.** O compose
+    usa `env_file`, então toda chave do `.env` virou variável de ambiente na criação do container
+    (02/09) e o Dotenv não sobrescreve. Para mudar o valor sem recreate (armadilha 46), é chave NOVA
+    (caso `SESSION_LIFETIME_MIN`, 25/09). E depois do `config:cache`, **USR2 no master do php-fpm**
+    (opcache sem `validate_timestamps`) — sem isso o valor antigo continua sendo servido, medido.
+
+79. **`movimentacoes_caixa` NÃO tem SoftDeletes** — preencher `deleted_at` não tira nada do caixa: o
+    `resumoCaixa` segue somando. Para desfazer entrada de venda, o caminho é o `estorno` (24/09); em
+    conserto manual, `DELETE` real com backup.
+
+78. **`font-weight` acima de 700 não engrossa a Arial — e negrito 700 sai cinza na térmica.** A fonte só
+    tem 400 e 700; 800/900 no CSS renderizam o mesmo 700. Para engrossar de verdade é contorno
+    (`-webkit-text-stroke`) da mesma cor por cima da letra, em mm proporcional ao corpo e com piso de
+    0,15 mm (1 ponto da térmica = 0,125 mm). Ver a seção "Extra grosso" de 22/09.
+
 73. **Recurso que só funciona para o registro da SESSÃO deixa o resto sem saída.** `CaixaController::fechar`
     lia `session('caixa_id')` e mais nada: dava para fechar o caixa da própria sessão, pelo PDV, e
     ponto. A tela de Caixas listava caixas abertos de semanas atrás **sem ação nenhuma** — e como
@@ -4912,10 +5525,20 @@ promovida** — produção está 1 commit à frente da `main` (`ddee60a`). Enqua
     precisa lembrar do `TrocaService` — o que não está no item não volta na devolução, a menos que
     o rateio some `outras_despesas` (04/09/2026).
 
+81. **Dinheiro é isento de "excede" (troco), não de "falta"** (07/10/2026). Toda checagem de pagamento no PDV tem de valer para TODAS as formas; só a MAIS em dinheiro é exceção. E o servidor é a autoridade: `PdvController` recusa `totalPago < total` (422). Antes disso, 5 vendas da MISS MERLINDA nasceram com R$ 540 a menos sem rastro — ver seção 9ab.
+
+82. **Hot-patch nunca copia arquivo inteiro de uma branch** (20/10/2026). As branches do ERP nascem de pontos diferentes (`main`, `feat/cartao-infinitepay`, entregas não mergeadas) e produção é a SOMA delas por cima da imagem. Copiar o `routes/web.php` da `login-trava-343` apagou 5 rotas da InfinitePay e derrubou o show de empresa no admin por 6 dias. Antes do `docker cp`: `diff` do arquivo do container × o da branch; se houver qualquer linha além da sua mudança, aplique só a mudança sobre o arquivo do container. Ver a subseção da regressão na seção da trava de login.
 
 ---
 
 ## Próximos passos
+
+### Sessão de 7 dias (25/09/2026)
+1. Branch `sessao-7-dias` (sobre `etiquetas-extra-grosso`) **NÃO mergeada nem pushada** — produção já
+   tem o `config/session.php` novo e o `.env` com as duas chaves em 10080.
+2. No próximo rebuild/recreate, conferir que a imagem leva o `config/session.php` desta entrega e que
+   o `.env` do host segue com `SESSION_LIFETIME=10080` e `SESSION_LIFETIME_MIN=10080` (já está).
+3. "Guardar o carrinho quando a sessão cai" (fila de 09/09) fica menos urgente com 7 dias, mas segue aberto.
 
 > Estado do banco conferido em **20/08/2026** (ver a seção Auditoria de produção). Onde a
 > realidade divergia do que estava escrito aqui, o texto foi corrigido — vale a auditoria, não a
@@ -4929,7 +5552,11 @@ vendas históricas 28/08" — que a `main` não tem; portar quando for o caso).
 
 | Ref | Onde está | O que tem |
 |---|---|---|
+| **`etiquetas-extra-grosso` = produção** | `entrega-11set-relatorio-orcamentos` + 2 commits | ✅ **EM PRODUÇÃO 22/09 12:50 UTC** (4 arquivos, sem migration); **NÃO pushada, `main` NÃO promovida** — produção 6 commits à frente da `main` |
 | `main` = `origin/main` = **produção** = `85845f1` | ponta de `caixa-numero-automatico-sem-campo` | ✅ **promovida por fast-forward e pushada em 11/09**, conferido por `ls-remote` (`refs/heads/main` e a branch apontam para o mesmo SHA). Traz o campo do número fora da tela de abertura (9y) por cima de tudo que já estava |
+| **`entrega-11set-relatorio-orcamentos` = produção** | `main` + merge das duas abaixo (+ docs do deploy) | ✅ **EM PRODUÇÃO 11/09 13:37 UTC**; **NÃO pushada, `main` NÃO promovida** — produção está à frente da `main`; rebuild reverte (armadilha 52). Promover = fast-forward da `main` para esta |
+| `relatorio-vendas-impresso` = `ced2476` | contida na de entrega | relatório de vendas (9z), 11/09 tarde; sem migration; 2 arquivos + docs |
+| `orcamento-busca-produto-main` = `8d06714` | contida na de entrega | cherry-pick do `c1dd256` (commit do Dennis de 10/09 em `origin/orcamento-busca-produto`: busca de produto/serviço em Orçamentos + rota `search/servicos` + item fantasma barrado) + docs |
 | `caixa-numero-automatico-sem-campo` = `85845f1` | `39c0e97` (código) + `85845f1` (docs do deploy) | entrega de 11/09 **EM PRODUÇÃO**; sem migration; pushada |
 | `produto-descricao-agente` = `ddee60a` | contida na `main` | descrição do produto no agente (10/09) + as 3 rodadas da troca de 09/09 |
 | `troca-item-sem-cupom` = `f52e8cc`, `pdv-sessao-expirada` = `f747426` | contidas | rastro de 09/09; podem ser apagadas |
@@ -4949,6 +5576,15 @@ São cópias inertes (o PHP não carrega `.php.bak-297`) e aparecem em todo `dif
 
 ⚠️ `refs/heads/fix/` no `.git` é de root (`/root/erp/.git` é o repositório real desta worktree):
 branch nova aqui vai **sem barra** no nome, ou pedir ao Dennis para criar.
+
+**Fila de 11/09 tarde (relatório de vendas + orçamentos):**
+
+1. ✅ **Deploy das duas — FEITO 11/09 13:37 UTC** pela branch `entrega-11set-relatorio-orcamentos`. Falta:
+   **Dennis abrir `/app/relatorios/vendas?loja=25` e imprimir** (entrega só é entregue quando ele vê),
+   e decidir a **promoção da `main` + push** (produção está 4 commits à frente; rebuild reverte).
+2. **As 3 vendas da RIVERSIDE de 04/09 com acréscimo em dobro** (199, 201, 209 — R$ 37,00 a mais no
+   total): decidir estorno/vale. Ver o achado na seção 9z.
+3. Exportar o relatório em .xlsx e a curva por dia ficaram de fora.
 
 **Fila de 11/09 (número do caixa fora da tela):**
 
@@ -4981,7 +5617,7 @@ branch nova aqui vai **sem barra** no nome, ou pedir ao Dennis para criar.
 2. **O mesmo tratamento de 401 nas outras telas** — `/app/*` que usa `layouts/app` mostra o
    redirect para o login ao navegar, mas qualquer AJAX dessas telas (autocomplete, notificações,
    import) cai no mesmo silêncio. Vale varrer quando alguém reclamar de "não achou nada".
-3. Reavaliar `SESSION_LIFETIME=120` para o resto do sistema, agora que o PDV se mantém sozinho.
+3. ✅ **Feito em 25/09:** sessão de 7 dias para o sistema inteiro (seção própria).
 
 **Fila de 09/09 (caixa):**
 
