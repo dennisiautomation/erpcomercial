@@ -5118,6 +5118,21 @@ só entram com o **rebuild** — por tar o upload funciona em pedaços de 15 MB.
 
 ---
 
+## Conta a Pagar: "O campo fornecedor id é obrigatório" — a tela agora explica e manda cadastrar (21/10/2026)
+
+**Caso:** DONA DOURO (empresa 5), usuária Dani (id 65, perfil dono desde 21/10 17:55 UTC). Às 21:08 UTC ela tentou lançar "ALUGUEL LOJA" R$ 3.000. Digitou "ADM ROCHA&ROCHA" na busca de fornecedor e salvou. Esse fornecedor não existe na empresa (são só 3 fornecedores), então a busca voltou vazia, o `fornecedor_id` (campo escondido, preenchido só quando a pessoa **clica** num nome da lista) foi vazio e o back-end respondeu com a mensagem técnica "O campo fornecedor id é obrigatório". Não era problema de usuário nem de perfil.
+
+**O que mudou** (branch `feat/conta-pagar-fornecedor-rapido-21out`, worktree `/home/ubuntu/apps/erp-fornecedor-rapido`, a partir de `treinamento` = produção):
+- `contas-pagar/create.blade.php`: dica fixa abaixo do campo ("Escolha o fornecedor na lista. Não achou? Cadastre o fornecedor", em outra aba). Quando a busca não acha, aparece o botão **Cadastrar "<o que foi digitado>" como fornecedor**, que abre `fornecedores/create?razao_social=...`. Ao voltar para a aba, a busca roda de novo sozinha. Salvar sem escolher fornecedor não vai ao servidor: aparece o aviso na tela, com o foco no campo.
+- Quem não tem `produtos:criar` (ex.: perfil financeiro, que levaria 403 na rota de fornecedores) vê "Peça ao dono ou gerente para cadastrar o fornecedor" em vez do link. Usa `CheckPermission::canUser()` (armadilha 9b).
+- `fornecedores/create.blade.php`: `razao_social` aceita `?razao_social=` para já vir preenchido.
+- `ContaPagarController::store`: mensagens em português ("Escolha o fornecedor na lista...") e **`exists` restrito à empresa** (`empresa_id` da sessão, `deleted_at` nulo). Antes, `exists:fornecedores,id` aceitava o id de um fornecedor de **outra empresa**, e o teste "antes" provou isso: a conta gravou.
+- O banco aceita `contas_pagar.fornecedor_id` NULL; quem obriga é a regra. Ficou obrigatório de propósito (decisão do Dennis em 21/10).
+
+**Validação** (ambiente descartável: container da imagem `erp-com-app:latest` na rede `erp-man-net`, banco dos manuais, tudo dentro de transação com rollback, container removido depois): antes (código de produção) 3 ✅ / 8 ❌ → depois **11 ✅ / 0 ❌**. Também: `php -l` do controller, as 2 Blades compiladas e `php -l` nelas, `node --check` no JS da tela renderizada.
+
+**Estado:** só na branch, **não está em produção**.
+
 ## Armadilhas conhecidas
 
 1. **EmpresaScope recursão**: `auth()->user()` dentro do scope chama User model que tem o scope → loop infinito. Scopes têm flag `static $applying`. Não remover.
@@ -5602,6 +5617,8 @@ só entram com o **rebuild** — por tar o upload funciona em pedaços de 15 MB.
 82. **Hot-patch nunca copia arquivo inteiro de uma branch** (20/10/2026). As branches do ERP nascem de pontos diferentes (`main`, `feat/cartao-infinitepay`, entregas não mergeadas) e produção é a SOMA delas por cima da imagem. Copiar o `routes/web.php` da `login-trava-343` apagou 5 rotas da InfinitePay e derrubou o show de empresa no admin por 6 dias. Antes do `docker cp`: `diff` do arquivo do container × o da branch; se houver qualquer linha além da sua mudança, aplique só a mudança sobre o arquivo do container. Ver a subseção da regressão na seção da trava de login.
 
 83. **Upload grande no ERP = em pedaços, e o pedaço vem do servidor** (20/10/2026). O php.ini de produção aceita 16M (40M após o rebuild da branch `treinamento`), o nginx do container 20M→50M e o nginx do **host** 50M (fora da imagem — mudar é tarefa do Dennis). Nunca fixe o tamanho do pedaço no JS: `TreinamentoController::tamanhoDoPedaco()` lê o php.ini em uso e o form recebe `$pedaco`. Vídeo (e qualquer arquivo grande no futuro) vai para `storage/app/private` (volume `app_storage`), nunca para `public/` (armadilha 46).
+
+84. **`exists:tabela,id` sem `empresa_id` vaza entre empresas** (21/10/2026). Em validação de id vindo do form, use `Rule::exists('tabela','id')->where('empresa_id', auth()->user()->empresa_id)`. O `ContaPagarController` aceitava fornecedor de outra empresa assim. E campo escondido preenchido por autocomplete precisa de aviso na tela + link de cadastro quando a busca não acha; senão o usuário só vê "campo X id é obrigatório". Ver a seção da Conta a Pagar de 21/10.
 
 ---
 
