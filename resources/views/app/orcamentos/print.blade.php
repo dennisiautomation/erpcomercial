@@ -8,10 +8,13 @@
     // Condições do próprio orçamento; em branco, o padrão da loja
     $condicoes = filled($orcamento->condicoes) ? $orcamento->condicoes : $configLoja->orcamento_condicoes;
     $temDescontoItem = $orcamento->itens->contains(fn ($i) => (float) $i->desconto_valor > 0);
-    $enderecoCliente = $cli ? trim(implode(' - ', array_filter([
-        trim(implode(', ', array_filter([$cli->logradouro, $cli->numero]))),
-        $cli->bairro,
-        trim(implode('/', array_filter([$cli->cidade, $cli->uf]))),
+    // Cadastro com "-" ou "S/N" no lugar do endereço não pode virar "-, S/N - - -/SP" na folha:
+    // campo só de traço/ponto conta como vazio, e sem rua não sai linha de endereço.
+    $limpo = fn ($v) => preg_match('/^[\s\-–.]*$/u', (string) $v) ? null : trim((string) $v);
+    $enderecoCliente = ($cli && $limpo($cli->logradouro)) ? trim(implode(' - ', array_filter([
+        trim(implode(', ', array_filter([$limpo($cli->logradouro), $limpo($cli->numero)]))),
+        $limpo($cli->bairro),
+        trim(implode('/', array_filter([$limpo($cli->cidade), $limpo($cli->uf)]))),
     ]))) : '';
 @endphp
 <!DOCTYPE html>
