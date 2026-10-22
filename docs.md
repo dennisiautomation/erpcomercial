@@ -5160,6 +5160,11 @@ emitidas, porque o cupom saía com o título "DANFE NFC-e", sem número e sem pr
    O **Reimprimir** do PDV escolhe a nota `autorizada` mais recente, então já imprime o DANFE certo. ⚠️ Se a DK um
    dia voltar a usar as séries 1/2, a numeração tem de seguir do último número do sistema antigo. Quem sabe é o
    contador.
+5. **Canceladas a pedido do Dennis (22/10, 11:3x BRT, dentro dos 30 min):** as 4 NFC-e (notas 31 a 34) foram
+   canceladas na SEFAZ pelo `NFCeService::cancelar`; a Focus devolveu `cancelado` e a SEFAZ o código 135. Depois as 4 vendas
+   foram canceladas pelo próprio `VendaController::destroy`, como o operador Wellington (user 30). Resultado: estorno no
+   caixa 452 (aberto), mesma forma e valor; 1 peça devolvida ao estoque por venda. Os números 10/1 a 10/4 ficam
+   usados e cancelados; as próximas NFC-e da DK saem a partir do 10/5. Ele vai lançar as vendas de novo.
 
 **O que mudou no código:**
 
