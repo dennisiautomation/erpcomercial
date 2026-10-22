@@ -65,7 +65,10 @@ class OrcamentoController extends Controller
         $produtos = Produto::where('empresa_id', session('empresa_id'))->where('status', 'ativo')->orderBy('descricao')->get();
         $servicos = Servico::where('empresa_id', session('empresa_id'))->where('status', 'ativo')->orderBy('descricao')->get();
 
-        return view('app.orcamentos.create', compact('vendedores', 'produtos', 'servicos'));
+        // Condições já vêm com o padrão da loja; o vendedor ajusta para este cliente
+        $condicoesPadrao = \App\Models\ConfiguracaoLoja::daUnidade()->orcamento_condicoes;
+
+        return view('app.orcamentos.create', compact('vendedores', 'produtos', 'servicos', 'condicoesPadrao'));
     }
 
     public function store(Request $request)
@@ -78,6 +81,7 @@ class OrcamentoController extends Controller
             'desconto_valor'          => 'nullable|numeric|min:0',
             'observacoes_internas'    => 'nullable|string|max:2000',
             'observacoes_externas'    => 'nullable|string|max:2000',
+            'condicoes'               => 'nullable|string|max:5000',
             'itens'                   => 'required|array|min:1',
             'itens.*.produto_id'      => 'required_without:itens.*.servico_id|nullable|exists:produtos,id',
             'itens.*.servico_id'      => 'required_without:itens.*.produto_id|nullable|exists:servicos,id',
@@ -148,6 +152,7 @@ class OrcamentoController extends Controller
                 'status'              => StatusOrcamento::EmAberto,
                 'observacoes_internas'=> $request->observacoes_internas,
                 'observacoes_externas'=> $request->observacoes_externas,
+                'condicoes'           => $request->condicoes,
             ]);
 
             foreach ($itensData as $itemData) {
@@ -195,7 +200,9 @@ class OrcamentoController extends Controller
         $produtos = Produto::where('empresa_id', session('empresa_id'))->where('status', 'ativo')->orderBy('descricao')->get();
         $servicos = Servico::where('empresa_id', session('empresa_id'))->where('status', 'ativo')->orderBy('descricao')->get();
 
-        return view('app.orcamentos.edit', compact('orcamento', 'vendedores', 'produtos', 'servicos'));
+        $condicoesPadrao = \App\Models\ConfiguracaoLoja::daUnidade($orcamento->empresa_id, $orcamento->unidade_id)->orcamento_condicoes;
+
+        return view('app.orcamentos.edit', compact('orcamento', 'vendedores', 'produtos', 'servicos', 'condicoesPadrao'));
     }
 
     public function update(Request $request, Orcamento $orcamento)
@@ -212,6 +219,7 @@ class OrcamentoController extends Controller
             'desconto_valor'          => 'nullable|numeric|min:0',
             'observacoes_internas'    => 'nullable|string|max:2000',
             'observacoes_externas'    => 'nullable|string|max:2000',
+            'condicoes'               => 'nullable|string|max:5000',
             'itens'                   => 'required|array|min:1',
             'itens.*.produto_id'      => 'required_without:itens.*.servico_id|nullable|exists:produtos,id',
             'itens.*.servico_id'      => 'required_without:itens.*.produto_id|nullable|exists:servicos,id',
@@ -272,6 +280,7 @@ class OrcamentoController extends Controller
                 'total'               => $total,
                 'observacoes_internas'=> $request->observacoes_internas,
                 'observacoes_externas'=> $request->observacoes_externas,
+                'condicoes'           => $request->condicoes,
             ]);
 
             $orcamento->itens()->delete();

@@ -5,6 +5,8 @@
     $qtd = fn ($q) => rtrim(rtrim(number_format((float) $q, 3, ',', '.'), '0'), ',');
     $brl = fn ($v) => 'R$ ' . number_format((float) $v, 2, ',', '.');
     $cli = $orcamento->cliente;
+    // Condições do próprio orçamento; em branco, o padrão da loja
+    $condicoes = filled($orcamento->condicoes) ? $orcamento->condicoes : $configLoja->orcamento_condicoes;
     $temDescontoItem = $orcamento->itens->contains(fn ($i) => (float) $i->desconto_valor > 0);
     $enderecoCliente = $cli ? trim(implode(' - ', array_filter([
         trim(implode(', ', array_filter([$cli->logradouro, $cli->numero]))),
@@ -179,10 +181,10 @@
                         <div class="texto">{{ $orcamento->observacoes_externas }}</div>
                     </div>
                 @endif
-                @if(filled($configLoja->orcamento_condicoes))
+                @if(filled($condicoes))
                     <div class="caixa">
                         <div class="rotulo">Condições</div>
-                        <div class="texto">{{ $configLoja->orcamento_condicoes }}</div>
+                        <div class="texto">{{ $condicoes }}</div>
                     </div>
                 @endif
             </td>

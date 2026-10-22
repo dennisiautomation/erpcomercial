@@ -238,6 +238,16 @@
     </div>
 
     {{-- Observacoes --}}
+    @if($orcamento->condicoes)
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-transparent fw-semibold">
+                    <i class="bi bi-credit-card me-1"></i> Condições de pagamento e entrega
+                </div>
+                <div class="card-body" style="white-space: pre-line;">{{ $orcamento->condicoes }}</div>
+            </div>
+        </div>
+    @endif
     @if($orcamento->observacoes_internas || $orcamento->observacoes_externas)
         <div class="col-12">
             <div class="card border-0 shadow-sm">

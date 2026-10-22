@@ -144,7 +144,14 @@
                     <div class="mb-0">
                         <label class="form-label small fw-semibold">Observacoes para o Cliente</label>
                         <textarea name="observacoes_externas" class="form-control" rows="3"
-                                  placeholder="Condicoes, prazo de entrega...">{{ $orcamento->observacoes_externas }}</textarea>
+                                  placeholder="Prazo de entrega, garantia, recado para o cliente...">{{ $orcamento->observacoes_externas }}</textarea>
+                    </div>
+                    <div class="mt-3 mb-0">
+                        <label class="form-label small fw-semibold">Condições de pagamento e entrega</label>
+                        <textarea name="condicoes" class="form-control @error('condicoes') is-invalid @enderror" rows="3" maxlength="5000"
+                                  placeholder="{{ $condicoesPadrao ? 'Em branco: sai o padrão da loja — ' . \Illuminate\Support\Str::limit($condicoesPadrao, 80) : 'Ex.: Cartão em até 6x. À vista 7% de desconto. Entrega em 2 dias úteis.' }}">{{ old('condicoes', $orcamento->condicoes) }}</textarea>
+                        <div class="form-text">Sai no orçamento impresso, ao lado do total. O texto padrão fica em Configurações da Loja → Impressão do Orçamento.</div>
+                        @error('condicoes') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
                 </div>
             </div>

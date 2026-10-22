@@ -30,6 +30,7 @@ class Orcamento extends Model
         'status',
         'observacoes_internas',
         'observacoes_externas',
+        'condicoes',
     ];
 
     protected function casts(): array

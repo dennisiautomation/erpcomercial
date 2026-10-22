@@ -839,7 +839,7 @@
             <textarea name="orcamento_condicoes" id="orcamento_condicoes" rows="4" data-contador="5000"
                       class="form-control @error('orcamento_condicoes') is-invalid @enderror"
                       placeholder="Ex.: Cartão em até 6x sem juros. À vista no PIX ou dinheiro, 7% de desconto. Entrega em Teresina em até 2 dias úteis.">{{ old('orcamento_condicoes', $config->orcamento_condicoes) }}</textarea>
-            <div class="form-text d-flex justify-content-between gap-2 flex-wrap"><span>Sai em todos os orçamentos desta loja, ao lado do total. A observação de cada orçamento continua saindo também.</span><span class="text-muted" data-contador-de="orcamento_condicoes"></span></div>
+            <div class="form-text d-flex justify-content-between gap-2 flex-wrap"><span>Vem preenchido em cada orçamento novo e o vendedor pode mudar naquele orçamento. Orçamento com o campo em branco usa este texto.</span><span class="text-muted" data-contador-de="orcamento_condicoes"></span></div>
             @error('orcamento_condicoes') <div class="invalid-feedback">{{ $message }}</div> @enderror
         </div>
 

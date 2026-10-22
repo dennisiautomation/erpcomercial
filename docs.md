@@ -5122,9 +5122,9 @@ só entram com o **rebuild** — por tar o upload funciona em pedaços de 15 MB.
 
 ## Orçamento impresso com logo e endereço escolhido + estoque da loja nos produtos + foto até 10 MB (22/10/2026)
 
-Branch `orcamento-layout-estoque-loja` (sobre `nfce-dk-cupom-resync`, que é a produção). **Migration nova:**
-`2026_10_22_150000_add_orcamento_impressao_to_configuracoes_loja` (8 colunas, todas nullable ou com default — nada
-retroativo muda).
+Branch `orcamento-layout-estoque-loja` (sobre `nfce-dk-cupom-resync`, que é a produção). **Migrations novas:**
+`2026_10_22_150000_add_orcamento_impressao_to_configuracoes_loja` (8 colunas) e `2026_10_22_160000_add_condicoes_to_orcamentos`
+(1 coluna), todas nullable ou com default — nada retroativo muda.
 
 ### Orçamento
 
@@ -5153,6 +5153,19 @@ como", o menu, os botões "Converter/Editar/Voltar", os cards e os valores quebr
   houver logo, o card avisa onde enviar. Em 22/10 nenhuma empresa tinha logo (DK e DONA DOURO: `logo` NULL).
 - **Código:** a montagem do topo fica em um lugar só, `ConfiguracaoLoja::cabecalhoOrcamento()`, usado pela folha e
   pela pré-visualização. Junto vêm `formatarTelefone()` e `formatarDocumento()` (CNPJ alfanumérico volta como veio).
+
+### Condições em cada orçamento (rodada 2, pedido do Dennis)
+
+- **Campo:** `orcamentos.condicoes` (TEXT, NULL), na migration `2026_10_22_160000_add_condicoes_to_orcamentos`.
+- **Telas de criar/editar:** ganharam "Condições de pagamento e entrega" no card Observações. O **orçamento novo já vem
+  preenchido** com o padrão da loja (`orcamento_condicoes`), e o vendedor muda para aquele cliente.
+- **Folha:** usa o texto do orçamento; **em branco (NULL), usa o padrão da loja**. Orçamentos antigos ficam NULL e
+  imprimem com o padrão, sem migrar dado.
+- **Tela do orçamento:** mostra um card "Condições" quando o campo está preenchido.
+- **Converter em pedido:** não leva as condições, porque `pedidos` não tem a coluna.
+- **Validação `validar-condicoes.sh`: 9/9 ✅.** O create vem preenchido; o POST real grava; tela e folha mostram o
+  texto do orçamento e não o padrão; o edit mostra o texto; com NULL a folha volta ao padrão; orçamento antigo
+  imprime 200. O `validar.sh` foi rodado de novo: 26/26.
 
 ### Estoque da loja na lista e no card do produto
 
