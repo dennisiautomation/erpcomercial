@@ -160,6 +160,15 @@
     {{-- Estoque e Peso --}}
     <div class="col-md-4">
         <x-erp.card title="Estoque e Especificacoes" icon="boxes" class="h-100">
+            @php($lojaAtual = collect($saldoPorUnidade)->firstWhere('eh_atual', true))
+            @if($lojaAtual)
+                <div class="mb-3">
+                    <small class="text-muted d-block">Estoque nesta loja ({{ $lojaAtual['nome'] }})</small>
+                    {{-- saldo REAL, com fração quando houver (armadilha 68) --}}
+                    <span class="fs-5 fw-bold {{ $lojaAtual['saldo'] <= 0 ? 'text-danger' : '' }}">{{ rtrim(rtrim(number_format($lojaAtual['saldo'], 3, ',', '.'), '0'), ',') }}</span>
+                    <small class="text-muted ms-1">{{ $produto->unidade_medida }}</small>
+                </div>
+            @endif
             <div class="mb-3">
                 <small class="text-muted d-block">Estoque Minimo</small>
                 <span class="fs-5 fw-bold">{{ $produto->estoque_minimo !== null ? number_format($produto->estoque_minimo, 0, ',', '.') : '-' }}</span>

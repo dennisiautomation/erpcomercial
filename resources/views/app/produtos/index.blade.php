@@ -83,6 +83,9 @@
                         <th>Categoria</th>
                         <th class="text-center">Unidade</th>
                         <th class="text-end">Preco Venda</th>
+                        <th class="text-end" title="Quantidade em estoque na loja selecionada no topo">
+                            Estoque{{ $lojaAtual ? ' ' . $lojaAtual->nome : '' }}
+                        </th>
                         <th class="text-center">Status</th>
                         <th class="text-center" style="width: 150px;">Acoes</th>
                     </tr>
@@ -107,6 +110,16 @@
                                 <span class="badge bg-light text-dark">{{ $produto->unidade_medida }}</span>
                             </td>
                             <td class="text-end fw-bold text-success">R$ {{ number_format($produto->preco_venda, 2, ',', '.') }}</td>
+                            <td class="text-end">
+                                @if($lojaAtual)
+                                    @php($qtd = $saldosLoja[$produto->id] ?? 0)
+                                    {{-- saldo REAL, com fração quando houver (armadilha 68) --}}
+                                    <span class="fw-bold {{ $qtd <= 0 ? 'text-danger' : '' }}">{{ rtrim(rtrim(number_format($qtd, 3, ',', '.'), '0'), ',') }}</span>
+                                    <small class="text-muted">{{ $produto->unidade_medida }}</small>
+                                @else
+                                    <span class="text-muted">—</span>
+                                @endif
+                            </td>
                             <td class="text-center">
                                 <span class="badge bg-{{ $produto->status === 'ativo' ? 'success' : 'secondary' }}">
                                     {{ ucfirst($produto->status) }}
@@ -132,7 +145,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7" class="text-center text-muted py-4">
+                            <td colspan="8" class="text-center text-muted py-4">
                                 <i class="bi bi-inbox fs-1 d-block mb-2"></i>
                                 Nenhum produto encontrado
                             </td>

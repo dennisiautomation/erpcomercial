@@ -39,7 +39,15 @@ class ProdutoController extends Controller
         // categorias.status é FEMININO ('ativa') — com 'ativo' o filtro vinha sempre vazio
         $categorias = Categoria::where('status', 'ativa')->orderBy('nome')->get();
 
-        return view('app.produtos.index', compact('produtos', 'categorias'));
+        // Quantidade na loja da SESSÃO (a do seletor do topo). Admin da
+        // plataforma pode estar sem loja — aí a coluna mostra "—".
+        $unidadeId = (int) session('unidade_id');
+        $lojaAtual = $unidadeId ? \App\Models\Unidade::withoutGlobalScopes()->find($unidadeId, ['id', 'nome']) : null;
+        $saldosLoja = $lojaAtual
+            ? \App\Services\SaldoEstoque::porProdutoDaUnidade($lojaAtual->id, $produtos->pluck('id')->all())
+            : [];
+
+        return view('app.produtos.index', compact('produtos', 'categorias', 'lojaAtual', 'saldosLoja'));
     }
 
     public function create()
