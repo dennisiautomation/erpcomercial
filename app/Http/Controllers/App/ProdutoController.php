@@ -47,7 +47,13 @@ class ProdutoController extends Controller
             ? \App\Services\SaldoEstoque::porProdutoDaUnidade($lojaAtual->id, $produtos->pluck('id')->all())
             : [];
 
-        return view('app.produtos.index', compact('produtos', 'categorias', 'lojaAtual', 'saldosLoja'));
+        // Loja com mais de um estoque: a coluna também abre "Vitrine 3 · Depósito 7" (22/10/2026)
+        $estoquesLoja = $lojaAtual ? $this->estoquesAtivos($lojaAtual->id) : collect();
+        $saldosPorEstoque = $estoquesLoja->count() > 1
+            ? \App\Services\SaldoEstoque::porProdutoEEstoqueDaUnidade($lojaAtual->id, $produtos->pluck('id')->all())
+            : [];
+
+        return view('app.produtos.index', compact('produtos', 'categorias', 'lojaAtual', 'saldosLoja', 'estoquesLoja', 'saldosPorEstoque'));
     }
 
     public function create()
@@ -228,7 +234,29 @@ class ProdutoController extends Controller
             (int) session('unidade_id')
         );
 
-        return view('app.produtos.show', compact('produto', 'saldoPorUnidade', 'empresa'));
+        // Quebra por estoque da loja atual — só quando ela tem mais de um (22/10/2026)
+        $unidadeId = (int) session('unidade_id');
+        $estoquesLoja = $unidadeId ? $this->estoquesAtivos($unidadeId) : collect();
+        $saldoPorEstoque = [];
+        if ($estoquesLoja->count() > 1) {
+            $saldos = \App\Services\SaldoEstoque::porEstoqueDaUnidade($unidadeId, $produto->id);
+            foreach ($estoquesLoja as $est) {
+                $saldoPorEstoque[] = ['nome' => $est->nome, 'venda' => (bool) $est->permite_venda, 'saldo' => (float) ($saldos[$est->id] ?? 0)];
+            }
+        }
+
+        return view('app.produtos.show', compact('produto', 'saldoPorUnidade', 'empresa', 'saldoPorEstoque'));
+    }
+
+    /** Estoques ativos de uma loja, o de venda primeiro. */
+    private function estoquesAtivos(int $unidadeId)
+    {
+        return \App\Models\Estoque::withoutGlobalScopes()
+            ->where('unidade_id', $unidadeId)
+            ->where('status', 'ativo')
+            ->orderByDesc('permite_venda')
+            ->orderBy('nome')
+            ->get(['id', 'nome', 'permite_venda']);
     }
 
     public function edit(Produto $produto)

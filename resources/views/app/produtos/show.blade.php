@@ -169,6 +169,17 @@
                     {{-- saldo REAL, com fração quando houver (armadilha 68) --}}
                     <span class="fs-5 fw-bold {{ $lojaAtual['saldo'] <= 0 ? 'text-danger' : '' }}">{{ rtrim(rtrim(number_format($lojaAtual['saldo'], 3, ',', '.'), '0'), ',') }}</span>
                     <small class="text-muted ms-1">{{ $produto->unidade_medida }}</small>
+                    @if(count($saldoPorEstoque) > 1)
+                        {{-- Quantidade de cada estoque da loja (22/10/2026) --}}
+                        <div class="mt-1">
+                            @foreach($saldoPorEstoque as $est)
+                                <div class="d-flex justify-content-between small border-bottom py-1">
+                                    <span>{{ $est['nome'] }}@if($est['venda']) <span class="badge bg-light text-dark border">venda</span>@endif</span>
+                                    <span class="fw-semibold {{ $est['saldo'] <= 0 ? 'text-danger' : '' }}">{{ rtrim(rtrim(number_format($est['saldo'], 3, ',', '.'), '0'), ',') }}</span>
+                                </div>
+                            @endforeach
+                        </div>
+                    @endif
                 </div>
             @endif
             <div class="mb-3">

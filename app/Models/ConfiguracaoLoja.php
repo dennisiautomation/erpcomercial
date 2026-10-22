@@ -26,6 +26,8 @@ class ConfiguracaoLoja extends Model
         'cupom_automatico_cartao',
         'cpf_emite_fiscal',
         'padrao_impressao',
+        // PDV escolhe de qual estoque a venda sai (22/10/2026)
+        'pdv_escolher_estoque',
         'os_cabecalho',
         'os_termos_garantia',
         'os_texto_legal',
@@ -59,6 +61,7 @@ class ConfiguracaoLoja extends Model
         'os_mostrar_valores'    => true,
         // Orçamento sai com o endereço da própria loja até alguém escolher outro
         'orcamento_endereco'    => 'loja',
+        'pdv_escolher_estoque'  => false,
         // Trocas: loja que nunca abriu a tela troca em até 30 dias, sobra vira
         // vale de 90 dias e fora da política pede o gerente.
         'troca_prazo_dias'         => 30,
@@ -84,6 +87,7 @@ class ConfiguracaoLoja extends Model
             'troca_prazo_dias'           => 'integer',
             'troca_vale_validade_dias'   => 'integer',
             'troca_senha_gerente'        => 'boolean',
+            'pdv_escolher_estoque'       => 'boolean',
         ];
     }
 

@@ -69,10 +69,18 @@ class ConfiguracaoLojaController extends Controller
         $unidadeAtual = \App\Models\Unidade::withoutGlobalScopes()->find((int) session('unidade_id'));
         $cabecalhoOrcamento = $empresa ? $config->cabecalhoOrcamento($empresa, $unidadeAtual) : null;
 
+        // Estoques ativos desta loja: com 1 só, o seletor "Sai de" do PDV não aparece
+        // mesmo com a opção ligada — a tela diz isso com o número.
+        $estoquesAtivosLoja = \App\Models\Estoque::withoutGlobalScopes()
+            ->where('unidade_id', (int) session('unidade_id'))
+            ->where('status', 'ativo')
+            ->orderByDesc('permite_venda')->orderBy('nome')
+            ->pluck('nome');
+
         return view('app.configuracoes.edit', compact(
             'config', 'empresa', 'podeMudarAcessoVendedor',
             'vendedoresAtivos', 'vendedoresDestaLoja', 'vendedoresSemVinculo',
-            'produtosComPrecoProprio', 'cabecalhoOrcamento'
+            'produtosComPrecoProprio', 'cabecalhoOrcamento', 'estoquesAtivosLoja'
         ));
     }
 
@@ -121,6 +129,7 @@ class ConfiguracaoLojaController extends Controller
             'cupom_automatico_cartao'    => 'nullable|boolean',
             'cpf_emite_fiscal'           => 'nullable|boolean',
             'padrao_impressao'           => 'required|in:recibo,cupom_fiscal',
+            'pdv_escolher_estoque'       => 'nullable|boolean',
             // Impressão da Ordem de Serviço
             // Limites ampliados em 02/09/2026: a Realiza Phone reportou "está
             // limitado a 500". Não havia limite de 500 em lugar nenhum (a coluna é
@@ -172,6 +181,7 @@ class ConfiguracaoLojaController extends Controller
             'os_mostrar_valores',
             'pdv_mostrar_valor_parcelas',
             'troca_senha_gerente',
+            'pdv_escolher_estoque',
         ] as $flag) {
             $dados[$flag] = (bool) ($dados[$flag] ?? false);
         }

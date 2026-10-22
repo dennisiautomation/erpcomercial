@@ -98,7 +98,10 @@ class PdvController extends Controller
             ->orderBy('nome')
             ->get(['id', 'nome', 'permite_venda']);
 
-        return view('app.pdv.index', compact('caixa', 'unidade', 'configFiscal', 'operadores', 'configLoja', 'estoquesLoja'));
+        // Seletor "Sai de" no topo: só com a opção ligada E mais de um estoque ativo (22/10/2026)
+        $escolherEstoque = $configLoja->pdv_escolher_estoque && $estoquesLoja->count() > 1;
+
+        return view('app.pdv.index', compact('caixa', 'unidade', 'configFiscal', 'operadores', 'configLoja', 'estoquesLoja', 'escolherEstoque'));
     }
 
     /**
@@ -160,9 +163,27 @@ class PdvController extends Controller
         // não em depósito. A baixa é que sai do estoque de venda.
         $saldoAtual = SaldoEstoque::naUnidade($unidadeAtual, (int) $produtoId);
 
+        // Com "Sai de" ligado, o que importa para avisar "sem estoque" é o saldo do
+        // estoque escolhido; e o PDV mostra o saldo de cada estoque da loja.
+        $configLoja = ConfiguracaoLoja::daUnidade();
+        $porEstoque = [];
+        if ($configLoja->pdv_escolher_estoque) {
+            $saldos = SaldoEstoque::porEstoqueDaUnidade($unidadeAtual, (int) $produtoId);
+            $nomes = \App\Models\Estoque::withoutGlobalScopes()->whereIn('id', array_keys($saldos))
+                ->where('status', 'ativo')->pluck('nome', 'id');
+            foreach ($nomes as $id => $nome) {
+                $porEstoque[] = ['estoque_id' => (int) $id, 'nome' => $nome, 'saldo' => (float) ($saldos[$id] ?? 0)];
+            }
+            $escolhido = SaldoEstoque::estoqueDeSaidaId($unidadeAtual, $request->integer('estoque_id') ?: null, true);
+            if (count($porEstoque) > 1 && $escolhido) {
+                $saldoAtual = (float) ($saldos[$escolhido] ?? 0);
+            }
+        }
+
         $response = [
             'produto_id' => $produtoId,
             'estoque_atual' => $saldoAtual,
+            'estoques' => $porEstoque,
             'estoque_minimo' => $produto->estoque_minimo ?? 0,
             'pode_vender_remoto' => false,
             'outras_unidades' => [],
@@ -227,6 +248,7 @@ class PdvController extends Controller
             'itens.*.preco_unitario'   => 'required|numeric|min:0',
             'itens.*.desconto_valor'   => 'nullable|numeric|min:0',
             'itens.*.unidade_origem_id'=> 'nullable|integer|exists:unidades,id',
+            'estoque_id'               => 'nullable|integer',
             'pagamentos'               => 'required|array|min:1',
             'pagamentos.*.forma'       => 'required|string',
             'pagamentos.*.valor'       => 'required|numeric|min:0.01',
@@ -482,6 +504,12 @@ class PdvController extends Controller
 
                 // Create VendaItens + descarga de estoque (local OU remoto)
                 $estoqueRemoto = app(EstoqueMultiUnidadeService::class);
+                // Estoque escolhido no "Sai de" vale só se a loja ligou a opção e ele é desta loja
+                $estoqueSaidaId = SaldoEstoque::estoqueDeSaidaId(
+                    $unidadeId,
+                    $request->integer('estoque_id') ?: null,
+                    (bool) ConfiguracaoLoja::daUnidade($empresaId, $unidadeId)->pdv_escolher_estoque
+                );
                 foreach ($itensData as $i => $itemData) {
                     $vendaItem = $venda->itens()->create($itemData);
                     $produtoId = $itemData['produto_id'];
@@ -496,11 +524,11 @@ class PdvController extends Controller
                         }
                         $estoqueRemoto->registrarVendaRemota($venda, $vendaItem, $origemRemota, (int) auth()->id());
                     } else {
-                        // Venda local — baixa no estoque de venda da loja ativa
+                        // Venda local — baixa no estoque de saída (o de venda, ou o escolhido no "Sai de")
                         SaldoEstoque::registrar(
                             $empresaId,
                             $unidadeId,
-                            SaldoEstoque::estoqueDeVendaId($unidadeId),
+                            $estoqueSaidaId,
                             $produtoId,
                             TipoMovimentacaoEstoque::Saida->value,
                             -$qtd,

@@ -375,10 +375,21 @@ class VendaController extends Controller
                 if ($item->produto_id) {
                     // Volta para o estoque de venda da MESMA loja da venda —
                     // não a da sessão, senão a peça reaparece na loja errada.
+                    // Volta para o estoque de onde a peça SAIU nesta venda (o PDV pode ter
+                    // baixado de outro que não o de venda — 22/10/2026); sem registro, o de venda.
+                    $estoqueDeOrigem = \App\Models\EstoqueMovimentacao::withoutGlobalScopes()
+                        ->where('origem_tipo', Venda::class)
+                        ->where('origem_id', $venda->id)
+                        ->where('produto_id', $item->produto_id)
+                        ->where('tipo', TipoMovimentacaoEstoque::Saida->value)
+                        ->where('unidade_id', $venda->unidade_id)
+                        ->latest('id')
+                        ->value('estoque_id');
+
                     SaldoEstoque::registrar(
                         $venda->empresa_id,
                         $venda->unidade_id,
-                        SaldoEstoque::estoqueDeVendaId($venda->unidade_id),
+                        $estoqueDeOrigem ?: SaldoEstoque::estoqueDeVendaId($venda->unidade_id),
                         (int) $item->produto_id,
                         TipoMovimentacaoEstoque::Devolucao->value,
                         (float) $item->quantidade,

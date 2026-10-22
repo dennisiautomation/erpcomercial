@@ -109,6 +109,59 @@ class SaldoEstoque
     }
 
     /**
+     * Saldo de vários produtos em CADA estoque de uma loja — uma query só, para a
+     * lista de produtos mostrar "Vitrine 3 · Depósito 7" sem uma consulta por linha.
+     *
+     * @param  array<int, int>  $produtoIds
+     * @return array<int, array<int, float>> produto_id => [estoque_id => saldo]
+     */
+    public static function porProdutoEEstoqueDaUnidade(int $unidadeId, array $produtoIds): array
+    {
+        if ($produtoIds === []) {
+            return [];
+        }
+
+        $saldos = [];
+        DB::table('estoque_movimentacoes as e')
+            ->select('e.produto_id', 'e.estoque_id', 'e.quantidade_posterior')
+            ->whereIn('e.id', function ($q) use ($unidadeId, $produtoIds) {
+                $q->selectRaw('MAX(id)')
+                    ->from('estoque_movimentacoes')
+                    ->where('unidade_id', $unidadeId)
+                    ->whereIn('produto_id', $produtoIds)
+                    ->groupBy('produto_id', 'estoque_id');
+            })
+            ->get()
+            ->each(function ($r) use (&$saldos) {
+                $saldos[(int) $r->produto_id][(int) $r->estoque_id] = (float) $r->quantidade_posterior;
+            });
+
+        return $saldos;
+    }
+
+    /**
+     * Estoque de onde ESTA venda baixa (22/10/2026). Com "Escolher o estoque no
+     * PDV" ligado na loja, vale o estoque que o caixa escolheu — desde que seja
+     * desta loja e esteja ativo; senão (ou com a opção desligada) é o estoque de
+     * venda de sempre. A checagem é aqui no servidor: o id vem do navegador.
+     */
+    public static function estoqueDeSaidaId(int $unidadeId, ?int $escolhido, bool $lojaPermiteEscolher): ?int
+    {
+        if ($lojaPermiteEscolher && $escolhido) {
+            $valido = Estoque::withoutGlobalScopes()
+                ->where('id', $escolhido)
+                ->where('unidade_id', $unidadeId)
+                ->where('status', 'ativo')
+                ->exists();
+            if ($valido) {
+                return $escolhido;
+            }
+        }
+
+        return static::estoqueDeVendaId($unidadeId);
+    }
+
+    /**
      * Saldo de TODOS os produtos da empresa, somando os estoques.
      *
      * @return array<int, float> produto_id => saldo

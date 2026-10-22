@@ -118,6 +118,13 @@
                                     {{-- saldo REAL, com fração quando houver (armadilha 68) --}}
                                     <span class="fw-bold {{ $qtd <= 0 ? 'text-danger' : '' }}">{{ rtrim(rtrim(number_format($qtd, 3, ',', '.'), '0'), ',') }}</span>
                                     <small class="text-muted">{{ $produto->unidade_medida }}</small>
+                                    @if($estoquesLoja->count() > 1)
+                                        <div class="small text-muted text-nowrap">
+                                            @foreach($estoquesLoja as $est)
+                                                {{ $est->nome }} {{ rtrim(rtrim(number_format($saldosPorEstoque[$produto->id][$est->id] ?? 0, 3, ',', '.'), '0'), ',') }}@if(! $loop->last) · @endif
+                                            @endforeach
+                                        </div>
+                                    @endif
                                 @else
                                     <span class="text-muted">—</span>
                                 @endif

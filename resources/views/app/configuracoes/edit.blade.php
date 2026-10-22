@@ -669,6 +669,35 @@
         </div>
     </x-erp.form-section>
 
+    {{-- ============ ESTOQUE NA VENDA (22/10/2026) ============ --}}
+    <x-erp.form-section title="Estoque na venda (PDV)" icon="boxes"
+        description="De qual estoque desta loja a venda sai">
+        <div class="form-check form-switch mb-1">
+            <input class="form-check-input" type="checkbox" role="switch" value="1"
+                   id="pdv_escolher_estoque" name="pdv_escolher_estoque"
+                   @checked(old('pdv_escolher_estoque', $config->pdv_escolher_estoque))>
+            <label class="form-check-label" for="pdv_escolher_estoque">
+                <strong>Deixar o caixa escolher no PDV de qual estoque a venda sai</strong>
+            </label>
+        </div>
+        <div class="text-muted small ps-4">
+            <div class="mb-1"><i class="bi bi-toggle-on me-1"></i><strong>Ligado:</strong> o topo do PDV ganha o campo
+                <strong>"Sai de"</strong>, já vindo no estoque de venda. O caixa troca quando a peça está em outro
+                estoque (ex.: Depósito), e ao bipar o produto o PDV mostra o saldo de cada estoque. Cancelar a venda
+                devolve a peça para o estoque de onde ela saiu.</div>
+            <div class="mb-1"><i class="bi bi-toggle-off me-1"></i><strong>Desligado (padrão):</strong> toda venda sai do
+                estoque de venda, como sempre.</div>
+            <div>
+                <i class="bi bi-info-circle me-1"></i>
+                Esta loja tem <strong>{{ $estoquesAtivosLoja->count() }}</strong> estoque(s) ativo(s){{ $estoquesAtivosLoja->isNotEmpty() ? ': ' . $estoquesAtivosLoja->implode(', ') : '' }}.
+                @if($estoquesAtivosLoja->count() < 2)
+                    Com um só, o campo não aparece no PDV — cadastre outro em
+                    <a href="{{ route('app.estoques.index') }}">Estoques da Loja</a>.
+                @endif
+            </div>
+        </div>
+    </x-erp.form-section>
+
     <x-erp.form-section title="Impressão da Ordem de Serviço" icon="wrench-adjustable"
         description="O que sai no papel quando você imprime uma OS — textos seus, desta loja">
 

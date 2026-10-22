@@ -65,6 +65,12 @@
         .topbar-info .label { color: var(--text-muted); margin-right: 4px; }
         .topbar-info .value { color: var(--text-primary); font-weight: 600; }
         .topbar-spacer { flex: 1; }
+        /* "Sai de" — estoque da venda (22/10/2026) */
+        .topbar-info select.estoque-saida {
+            background: rgba(245,158,11,0.15); color: var(--text-primary); border: 1px solid rgba(245,158,11,0.5);
+            border-radius: 6px; padding: 2px 6px; font-size: 0.82rem; font-weight: 600;
+        }
+        .topbar-info select.estoque-saida option { color: #111; }
         .topbar-fiscal {
             display: flex;
             align-items: center;
@@ -775,6 +781,17 @@
         @if($caixa)
             <span><span class="label">Caixa:</span> <span class="value">#{{ $caixa->numero_caixa }}</span></span>
         @endif
+        @if($escolherEstoque)
+            {{-- Configurações da Loja → "Estoque na venda (PDV)". A venda inteira sai do estoque escolhido. --}}
+            <span title="De qual estoque desta loja a venda sai">
+                <span class="label">Sai de:</span>
+                <select id="estoqueSaida" class="estoque-saida" onchange="PDV.trocarEstoqueSaida(this)">
+                    @foreach($estoquesLoja as $est)
+                        <option value="{{ $est->id }}" @selected($est->id === $estoquesLoja->first()->id)>{{ $est->nome }}{{ $est->permite_venda ? ' (venda)' : '' }}</option>
+                    @endforeach
+                </select>
+            </span>
+        @endif
     </div>
     <div class="topbar-spacer"></div>
 
@@ -1481,6 +1498,8 @@
 <script>
 const PDV = {
     itens: [],
+    // "Sai de" (22/10/2026): null = a loja não escolhe, a venda sai do estoque de venda
+    estoqueSaidaId: {{ $escolherEstoque ? (int) $estoquesLoja->first()->id : 'null' }},
     clienteId: null,
     clienteNome: null,
     clienteTipoPreco: 'varejo',
@@ -1817,6 +1836,16 @@ const PDV = {
         document.getElementById('searchDropdown').classList.remove('show');
     },
 
+    // ===== "SAI DE" — ESTOQUE DA VENDA (22/10/2026) =====
+    trocarEstoqueSaida(sel) {
+        this.estoqueSaidaId = parseInt(sel.value, 10) || null;
+        const nome = sel.options[sel.selectedIndex]?.textContent.trim() || '';
+        this.showAlert(this.itens.length
+            ? `A venda inteira vai sair de: ${this.escHtml(nome)}`
+            : `Próximas vendas saem de: ${this.escHtml(nome)}`, 'success');
+        document.getElementById('searchInput')?.focus();
+    },
+
     // ===== ADD ITEMS =====
     addProdutoById(id, descricao, preco, codigoInterno, codigoBarras) {
         this.addProduto({ id, descricao, preco_venda: preco, codigo_interno: codigoInterno, codigo_barras: codigoBarras });
@@ -1828,7 +1857,7 @@ const PDV = {
     async addProduto(produto) {
         let estoqueData = null;
         try {
-            const r = await fetch(`/app/pdv/estoque/${produto.id}`, {
+            const r = await fetch(`/app/pdv/estoque/${produto.id}` + (this.estoqueSaidaId ? `?estoque_id=${this.estoqueSaidaId}` : ''), {
                 headers: { 'X-Requested-With': 'XMLHttpRequest' }
             });
             estoqueData = await r.json();
@@ -1836,8 +1865,18 @@ const PDV = {
 
         let unidadeOrigemId = null;
 
+        // Com "Sai de": a peça pode estar em OUTRO estoque desta loja — avisa onde,
+        // em vez de oferecer venda de outra unidade.
+        const outrosEstoques = (this.estoqueSaidaId && estoqueData && estoqueData.estoques)
+            ? estoqueData.estoques.filter(e => e.estoque_id !== this.estoqueSaidaId && e.saldo > 0)
+            : [];
+
+        if (estoqueData && estoqueData.estoque_atual <= 0 && outrosEstoques.length > 0) {
+            const nomeAtual = document.querySelector('#estoqueSaida option:checked')?.textContent.trim() || 'este estoque';
+            const lista = outrosEstoques.map(e => `${this.escHtml(e.nome)}: ${e.saldo}`).join(' · ');
+            this.showAlert(`Sem estoque em ${this.escHtml(nomeAtual)}. Tem em ${lista} — troque o "Sai de" no topo.`, 'warning');
         // Estoque local zerado mas tem em outra unidade da empresa?
-        if (estoqueData && estoqueData.estoque_atual <= 0
+        } else if (estoqueData && estoqueData.estoque_atual <= 0
             && estoqueData.pode_vender_remoto
             && estoqueData.outras_unidades.length > 0) {
             const escolha = await this.escolherUnidadeRemota(produto, estoqueData.outras_unidades);
@@ -2796,6 +2835,7 @@ const PDV = {
                     desconto_valor: i.desconto_valor,
                     unidade_origem_id: i.unidade_origem_id || null,
                 })),
+                estoque_id: this.estoqueSaidaId,
                 pagamentos: credito > 0
                     ? [{ forma: 'vale', valor: credito, parcelas: 1, vale_codigo: this.creditoTroca.codigo }, ...this.pagamentos]
                     : this.pagamentos,
