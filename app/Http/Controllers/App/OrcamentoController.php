@@ -166,6 +166,23 @@ class OrcamentoController extends Controller
         return view('app.orcamentos.show', compact('orcamento'));
     }
 
+    /**
+     * Folha A4 do orçamento para o cliente (22/10/2026). Antes o "Imprimir" mandava
+     * a tela do sistema para o papel. Cabeçalho, endereço e textos vêm da loja DONA
+     * do orçamento (Configurações da Loja → Impressão do Orçamento), não da sessão.
+     */
+    public function imprimir(Orcamento $orcamento)
+    {
+        $orcamento->load(['cliente', 'vendedor', 'itens.produto', 'itens.servico']);
+
+        $empresa = \App\Models\Empresa::find($orcamento->empresa_id);
+        $unidade = \App\Models\Unidade::withoutGlobalScopes()->find($orcamento->unidade_id);
+        $configLoja = \App\Models\ConfiguracaoLoja::daUnidade($orcamento->empresa_id, $orcamento->unidade_id);
+        $cabecalho = $configLoja->cabecalhoOrcamento($empresa, $unidade);
+
+        return view('app.orcamentos.print', compact('orcamento', 'configLoja', 'cabecalho'));
+    }
+
     public function edit(Orcamento $orcamento)
     {
         if ($orcamento->status === StatusOrcamento::Convertido) {

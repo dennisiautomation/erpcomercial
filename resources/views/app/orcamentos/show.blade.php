@@ -34,9 +34,9 @@
                 <i class="bi bi-pencil me-1"></i> Editar
             </a>
         @endif
-        <button type="button" class="btn btn-outline-secondary" onclick="window.print()">
+        <a href="{{ route('app.orcamentos.imprimir', $orcamento) }}" target="_blank" rel="noopener" class="btn btn-outline-secondary">
             <i class="bi bi-printer me-1"></i> Imprimir
-        </button>
+        </a>
         <a href="{{ route('app.orcamentos.index') }}" class="btn btn-outline-secondary">
             <i class="bi bi-arrow-left me-1"></i> Voltar
         </a>

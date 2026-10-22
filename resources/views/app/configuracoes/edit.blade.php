@@ -749,6 +749,110 @@
         </div>
     </x-erp.form-section>
 
+    {{-- ============ IMPRESSÃO DO ORÇAMENTO (22/10/2026) ============ --}}
+    <x-erp.form-section title="Impressão do Orçamento" icon="file-earmark-text"
+        description="Cabeçalho, endereço e textos da folha que o cliente recebe">
+
+        @if($cabecalhoOrcamento)
+            <div class="border rounded-3 p-3 mb-3 bg-light">
+                <div class="small text-muted mb-2"><i class="bi bi-eye me-1"></i> Assim sai o topo do orçamento hoje (salve para atualizar):</div>
+                <div class="d-flex align-items-start gap-3 flex-wrap">
+                    @if($cabecalhoOrcamento['logo'])
+                        <img src="{{ $cabecalhoOrcamento['logo'] }}" alt="Logo" style="max-height:56px; max-width:150px;">
+                    @else
+                        <div class="border rounded text-muted small d-flex align-items-center justify-content-center" style="width:120px;height:56px;">sem logo</div>
+                    @endif
+                    <div class="flex-grow-1">
+                        <div class="fw-bold">{{ $cabecalhoOrcamento['nome'] }}</div>
+                        @if($cabecalhoOrcamento['cnpj'])<div class="small">CNPJ {{ $cabecalhoOrcamento['cnpj'] }}</div>@endif
+                        @foreach($cabecalhoOrcamento['endereco'] as $linha)<div class="small">{{ $linha }}</div>@endforeach
+                    </div>
+                    <div class="small text-end">
+                        @foreach($cabecalhoOrcamento['contatos'] as $contato)<div>{{ $contato }}</div>@endforeach
+                    </div>
+                </div>
+                @unless($cabecalhoOrcamento['logo'])
+                    <div class="small mt-2">
+                        <i class="bi bi-image me-1"></i> O logo é enviado em
+                        <a href="{{ route('app.empresa.edit') }}">Minha Empresa</a> (PNG ou JPG, até 2 MB) — ele sai no orçamento sozinho.
+                    </div>
+                @endunless
+            </div>
+        @endif
+
+        <div class="fw-semibold mb-2">Qual endereço sai no orçamento</div>
+        <div class="form-check mb-1">
+            <input class="form-check-input" type="radio" name="orcamento_endereco" id="orc_end_loja" value="loja"
+                   @checked(old('orcamento_endereco', $config->orcamento_endereco ?? 'loja') === 'loja')>
+            <label class="form-check-label" for="orc_end_loja">
+                <strong>Endereço da loja</strong> <span class="text-muted">— o do cadastro da loja (o mesmo da nota fiscal)</span>
+            </label>
+        </div>
+        <div class="form-check mb-2">
+            <input class="form-check-input" type="radio" name="orcamento_endereco" id="orc_end_comercial" value="comercial"
+                   @checked(old('orcamento_endereco', $config->orcamento_endereco) === 'comercial')>
+            <label class="form-check-label" for="orc_end_comercial">
+                <strong>Endereço comercial</strong> <span class="text-muted">— outro endereço, digitado abaixo (showroom, escritório, ponto de retirada)</span>
+            </label>
+        </div>
+        <div class="mb-3 ps-4">
+            <textarea name="orcamento_endereco_comercial" id="orcamento_endereco_comercial" rows="3"
+                      class="form-control @error('orcamento_endereco_comercial') is-invalid @enderror"
+                      placeholder="Ex.: Av. Frei Serafim, 2000 — Sala 5&#10;Centro · Teresina/PI · CEP 64001-020">{{ old('orcamento_endereco_comercial', $config->orcamento_endereco_comercial) }}</textarea>
+            <div class="form-text">Uma linha por linha da folha. Só é usado quando "Endereço comercial" está marcado.</div>
+            @error('orcamento_endereco_comercial') <div class="invalid-feedback">{{ $message }}</div> @enderror
+        </div>
+
+        <div class="row g-3 mb-3">
+            <div class="col-md-6">
+                <label for="orcamento_telefone" class="form-label fw-semibold">Telefone</label>
+                <input type="text" name="orcamento_telefone" id="orcamento_telefone" data-mask="telefone" maxlength="30"
+                       class="form-control @error('orcamento_telefone') is-invalid @enderror"
+                       value="{{ old('orcamento_telefone', $config->orcamento_telefone) }}" placeholder="Em branco: o telefone da loja">
+                @error('orcamento_telefone') <div class="invalid-feedback">{{ $message }}</div> @enderror
+            </div>
+            <div class="col-md-6">
+                <label for="orcamento_whatsapp" class="form-label fw-semibold">WhatsApp</label>
+                <input type="text" name="orcamento_whatsapp" id="orcamento_whatsapp" data-mask="telefone" maxlength="30"
+                       class="form-control @error('orcamento_whatsapp') is-invalid @enderror"
+                       value="{{ old('orcamento_whatsapp', $config->orcamento_whatsapp) }}" placeholder="Opcional">
+                @error('orcamento_whatsapp') <div class="invalid-feedback">{{ $message }}</div> @enderror
+            </div>
+            <div class="col-md-6">
+                <label for="orcamento_email" class="form-label fw-semibold">E-mail</label>
+                <input type="email" name="orcamento_email" id="orcamento_email" maxlength="150"
+                       class="form-control @error('orcamento_email') is-invalid @enderror"
+                       value="{{ old('orcamento_email', $config->orcamento_email) }}" placeholder="Em branco: o e-mail da empresa">
+                @error('orcamento_email') <div class="invalid-feedback">{{ $message }}</div> @enderror
+            </div>
+            <div class="col-md-6">
+                <label for="orcamento_site" class="form-label fw-semibold">Site ou Instagram</label>
+                <input type="text" name="orcamento_site" id="orcamento_site" maxlength="150"
+                       class="form-control @error('orcamento_site') is-invalid @enderror"
+                       value="{{ old('orcamento_site', $config->orcamento_site) }}" placeholder="Ex.: @dkhospitalar">
+                @error('orcamento_site') <div class="invalid-feedback">{{ $message }}</div> @enderror
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <label for="orcamento_condicoes" class="form-label fw-semibold">Condições de pagamento e entrega</label>
+            <textarea name="orcamento_condicoes" id="orcamento_condicoes" rows="4" data-contador="5000"
+                      class="form-control @error('orcamento_condicoes') is-invalid @enderror"
+                      placeholder="Ex.: Cartão em até 6x sem juros. À vista no PIX ou dinheiro, 7% de desconto. Entrega em Teresina em até 2 dias úteis.">{{ old('orcamento_condicoes', $config->orcamento_condicoes) }}</textarea>
+            <div class="form-text d-flex justify-content-between gap-2 flex-wrap"><span>Sai em todos os orçamentos desta loja, ao lado do total. A observação de cada orçamento continua saindo também.</span><span class="text-muted" data-contador-de="orcamento_condicoes"></span></div>
+            @error('orcamento_condicoes') <div class="invalid-feedback">{{ $message }}</div> @enderror
+        </div>
+
+        <div class="mb-2">
+            <label for="orcamento_rodape" class="form-label fw-semibold">Rodapé</label>
+            <textarea name="orcamento_rodape" id="orcamento_rodape" rows="2" data-contador="2000"
+                      class="form-control @error('orcamento_rodape') is-invalid @enderror"
+                      placeholder="Ex.: Obrigado pela preferência! Atendimento de segunda a sábado, 8h às 18h.">{{ old('orcamento_rodape', $config->orcamento_rodape) }}</textarea>
+            <div class="form-text d-flex justify-content-between gap-2 flex-wrap"><span>Última linha da folha, junto da data de emissão.</span><span class="text-muted" data-contador-de="orcamento_rodape"></span></div>
+            @error('orcamento_rodape') <div class="invalid-feedback">{{ $message }}</div> @enderror
+        </div>
+    </x-erp.form-section>
+
     {{-- ============ ONDE MAIS ISSO APARECE ============ --}}
     <x-erp.card title="Onde essas configurações aparecem no dia a dia" icon="map" class="mb-4">
         <div class="row g-3 small text-muted">

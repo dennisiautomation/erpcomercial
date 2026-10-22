@@ -33,6 +33,15 @@ class ConfiguracaoLoja extends Model
         'os_mostrar_assinatura',
         'os_mostrar_laudo',
         'os_mostrar_valores',
+        // Impressão do orçamento (22/10/2026)
+        'orcamento_endereco',
+        'orcamento_endereco_comercial',
+        'orcamento_telefone',
+        'orcamento_whatsapp',
+        'orcamento_email',
+        'orcamento_site',
+        'orcamento_condicoes',
+        'orcamento_rodape',
         // Trocas (03/09/2026)
         'troca_prazo_dias',
         'troca_sobra',
@@ -48,6 +57,8 @@ class ConfiguracaoLoja extends Model
         'os_mostrar_assinatura' => true,
         'os_mostrar_laudo'      => true,
         'os_mostrar_valores'    => true,
+        // Orçamento sai com o endereço da própria loja até alguém escolher outro
+        'orcamento_endereco'    => 'loja',
         // Trocas: loja que nunca abriu a tela troca em até 30 dias, sobra vira
         // vale de 90 dias e fora da política pede o gerente.
         'troca_prazo_dias'         => 30,
@@ -96,5 +107,80 @@ class ConfiguracaoLoja extends Model
             'empresa_id' => $empresaId,
             'unidade_id' => $unidadeId,
         ]);
+    }
+
+    /**
+     * O que vai no topo do orçamento impresso (22/10/2026). Um lugar só, usado
+     * pela folha e pela pré-visualização em Configurações da Loja.
+     *
+     * Endereço: 'loja' = cadastro da unidade (cai no da empresa campo a campo);
+     * 'comercial' = o texto digitado aqui. Telefone/e-mail digitados aqui valem
+     * nos dois casos; em branco, saem os do cadastro. Logo: o da loja, senão o da empresa.
+     *
+     * @return array{nome:string, razao:?string, cnpj:?string, logo:?string, endereco:array<int,string>, contatos:array<int,string>}
+     */
+    public function cabecalhoOrcamento(Empresa $empresa, ?Unidade $unidade): array
+    {
+        $campo = fn (string $c) => filled($unidade?->{$c}) ? $unidade->{$c} : $empresa->{$c};
+
+        if ($this->orcamento_endereco === 'comercial' && filled($this->orcamento_endereco_comercial)) {
+            $endereco = array_values(array_filter(array_map('trim', preg_split('/\R/', $this->orcamento_endereco_comercial))));
+        } else {
+            $rua = trim(implode(', ', array_filter([$campo('logradouro'), $campo('numero')])));
+            $rua = trim(implode(' — ', array_filter([$rua, $campo('complemento')])));
+            $cidade = trim(implode(' - ', array_filter([$campo('bairro'), trim(implode('/', array_filter([$campo('cidade'), $campo('uf')])))])));
+            $cep = preg_replace('/\D/', '', (string) $campo('cep'));
+            $endereco = array_values(array_filter([
+                $rua,
+                trim(implode(' · ', array_filter([$cidade, strlen($cep) === 8 ? 'CEP ' . substr($cep, 0, 5) . '-' . substr($cep, 5) : null]))),
+            ]));
+        }
+
+        $telefone = $this->orcamento_telefone ?: $campo('telefone');
+        $contatos = array_values(array_filter([
+            filled($telefone) ? 'Tel.: ' . self::formatarTelefone($telefone) : null,
+            filled($this->orcamento_whatsapp) ? 'WhatsApp: ' . self::formatarTelefone($this->orcamento_whatsapp) : null,
+            $this->orcamento_email ?: $empresa->email,
+            $this->orcamento_site,
+        ]));
+
+        $logo = $unidade?->logo ?: $empresa->logo;
+
+        return [
+            'nome'     => $empresa->nome_fantasia ?: $empresa->razao_social,
+            'razao'    => $empresa->nome_fantasia && $empresa->razao_social !== $empresa->nome_fantasia ? $empresa->razao_social : null,
+            'cnpj'     => self::formatarDocumento($unidade?->cnpj ?: $empresa->cnpj),
+            'logo'     => $logo ? asset('storage/' . $logo) : null,
+            'endereco' => $endereco,
+            'contatos' => $contatos,
+        ];
+    }
+
+    /** CPF/CNPJ só com dígitos ganha pontuação; o resto (CNPJ alfanumérico, já formatado) volta como veio. */
+    public static function formatarDocumento(?string $doc): ?string
+    {
+        $d = preg_replace('/\D/', '', (string) $doc);
+        if (strlen($d) === 14 && $d === preg_replace('/[^0-9]/', '', (string) $doc) && ! preg_match('/[A-Za-z]/', (string) $doc)) {
+            return vsprintf('%s.%s.%s/%s-%s', [substr($d, 0, 2), substr($d, 2, 3), substr($d, 5, 3), substr($d, 8, 4), substr($d, 12)]);
+        }
+        if (strlen($d) === 11 && ! preg_match('/[A-Za-z]/', (string) $doc)) {
+            return vsprintf('%s.%s.%s-%s', [substr($d, 0, 3), substr($d, 3, 3), substr($d, 6, 3), substr($d, 9)]);
+        }
+
+        return $doc ?: null;
+    }
+
+    /** "8681751869" → "(86) 8175-1869"; o que não for 10/11 dígitos volta como veio. */
+    public static function formatarTelefone(string $telefone): string
+    {
+        $d = preg_replace('/\D/', '', $telefone);
+        if (strlen($d) === 11) {
+            return sprintf('(%s) %s-%s', substr($d, 0, 2), substr($d, 2, 5), substr($d, 7));
+        }
+        if (strlen($d) === 10) {
+            return sprintf('(%s) %s-%s', substr($d, 0, 2), substr($d, 2, 4), substr($d, 6));
+        }
+
+        return $telefone;
     }
 }

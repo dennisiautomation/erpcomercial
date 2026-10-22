@@ -278,6 +278,9 @@ Route::middleware(['auth', 'suspensao', 'unidade', \App\Http\Middleware\Restring
 
     /* ------ Vendas ------ */
     Route::resource('orcamentos', App\OrcamentoController::class)->middleware('permission:orcamentos');
+    Route::get('orcamentos/{orcamento}/imprimir', [App\OrcamentoController::class, 'imprimir'])
+        ->name('orcamentos.imprimir')
+        ->middleware('permission:orcamentos');
     Route::post('orcamentos/{orcamento}/converter', [App\OrcamentoController::class, 'converter'])
         ->name('orcamentos.converter')
         ->middleware('permission:orcamentos');

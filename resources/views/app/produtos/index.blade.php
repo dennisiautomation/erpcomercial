@@ -112,7 +112,9 @@
                             <td class="text-end fw-bold text-success">R$ {{ number_format($produto->preco_venda, 2, ',', '.') }}</td>
                             <td class="text-end">
                                 @if($lojaAtual)
-                                    @php($qtd = $saldosLoja[$produto->id] ?? 0)
+                                    @php
+                                        $qtd = $saldosLoja[$produto->id] ?? 0;
+                                    @endphp
                                     {{-- saldo REAL, com fração quando houver (armadilha 68) --}}
                                     <span class="fw-bold {{ $qtd <= 0 ? 'text-danger' : '' }}">{{ rtrim(rtrim(number_format($qtd, 3, ',', '.'), '0'), ',') }}</span>
                                     <small class="text-muted">{{ $produto->unidade_medida }}</small>

@@ -113,7 +113,7 @@ class ProdutoController extends Controller
             'markup'             => 'nullable|numeric|min:0',
             'preco_venda'        => 'required|numeric|min:0',
             'estoque_minimo'     => 'nullable|numeric|min:0',
-            'foto'               => 'nullable|image|max:2048',
+            'foto'               => 'nullable|image|max:10240',
             'peso_bruto'         => 'nullable|numeric|min:0',
             'peso_liquido'       => 'nullable|numeric|min:0',
             'altura_cm'          => 'nullable|numeric|min:0|max:200',
@@ -268,7 +268,7 @@ class ProdutoController extends Controller
         $perfilStr = $user->is_admin ? 'admin' : ($user->perfil instanceof \App\Enums\Perfil ? $user->perfil->value : (string) $user->perfil);
         if (! \App\Http\Middleware\CheckPermission::can($perfilStr, 'produtos', 'editar')) {
             $request->validate(
-                ['foto' => 'required|image|max:2048'],
+                ['foto' => 'required|image|max:10240'],
                 ['foto.required' => 'Selecione a nova foto — seu perfil altera apenas a imagem do produto.']
             );
 
@@ -304,7 +304,7 @@ class ProdutoController extends Controller
             'markup'             => 'nullable|numeric|min:0',
             'preco_venda'        => 'required|numeric|min:0',
             'estoque_minimo'     => 'nullable|numeric|min:0',
-            'foto'               => 'nullable|image|max:2048',
+            'foto'               => 'nullable|image|max:10240',
             'peso_bruto'         => 'nullable|numeric|min:0',
             'peso_liquido'       => 'nullable|numeric|min:0',
             'altura_cm'          => 'nullable|numeric|min:0|max:200',
@@ -377,7 +377,7 @@ class ProdutoController extends Controller
     public function atualizarFoto(Request $request, Produto $produto)
     {
         $request->validate([
-            'foto' => 'required|image|max:2048',
+            'foto' => 'required|image|max:10240',
         ]);
 
         if ($produto->foto) {

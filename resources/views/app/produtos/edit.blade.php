@@ -284,7 +284,7 @@
                         </label>
                         <input type="file" name="foto" id="foto" class="form-control @error('foto') is-invalid @enderror" accept="image/*">
                         @error('foto') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                        <div class="form-text">JPG, PNG ou WEBP. Max 2MB.</div>
+                        <div class="form-text">JPG, PNG ou WEBP. Até 10 MB.</div>
                         @if($produto->foto)
                             <div class="mt-2">
                                 <img src="{{ Storage::url($produto->foto) }}" class="rounded border" style="max-height:80px;" alt="Foto atual">

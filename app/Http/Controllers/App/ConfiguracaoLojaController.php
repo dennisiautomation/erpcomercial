@@ -64,10 +64,15 @@ class ConfiguracaoLojaController extends Controller
                 ->count('produto_id')
             : 0;
 
+        // Pré-visualização do topo do orçamento impresso: o lojista vê o que vai
+        // sair (logo, endereço, contatos) antes de imprimir para um cliente.
+        $unidadeAtual = \App\Models\Unidade::withoutGlobalScopes()->find((int) session('unidade_id'));
+        $cabecalhoOrcamento = $empresa ? $config->cabecalhoOrcamento($empresa, $unidadeAtual) : null;
+
         return view('app.configuracoes.edit', compact(
             'config', 'empresa', 'podeMudarAcessoVendedor',
             'vendedoresAtivos', 'vendedoresDestaLoja', 'vendedoresSemVinculo',
-            'produtosComPrecoProprio'
+            'produtosComPrecoProprio', 'cabecalhoOrcamento'
         ));
     }
 
@@ -129,6 +134,15 @@ class ConfiguracaoLojaController extends Controller
             'os_mostrar_assinatura'      => 'nullable|boolean',
             'os_mostrar_laudo'           => 'nullable|boolean',
             'os_mostrar_valores'         => 'nullable|boolean',
+            // Impressão do orçamento (22/10/2026) — max = tamanho da coluna (armadilha 71)
+            'orcamento_endereco'           => 'required|in:loja,comercial',
+            'orcamento_endereco_comercial' => 'nullable|required_if:orcamento_endereco,comercial|string|max:2000',
+            'orcamento_telefone'           => 'nullable|string|max:30',
+            'orcamento_whatsapp'           => 'nullable|string|max:30',
+            'orcamento_email'              => 'nullable|email|max:150',
+            'orcamento_site'               => 'nullable|string|max:150',
+            'orcamento_condicoes'          => 'nullable|string|max:5000',
+            'orcamento_rodape'             => 'nullable|string|max:2000',
             // Trocas (03/09/2026)
             'troca_prazo_dias'           => 'required|integer|min:0|max:3650',
             'troca_sobra'                => 'required|in:vale,dinheiro',

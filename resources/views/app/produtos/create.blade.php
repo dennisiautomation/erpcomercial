@@ -260,7 +260,7 @@
                         </label>
                         <input type="file" name="foto" id="foto" class="form-control @error('foto') is-invalid @enderror" accept="image/*">
                         @error('foto') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                        <div class="form-text">JPG, PNG ou WEBP. Max 2MB.</div>
+                        <div class="form-text">JPG, PNG ou WEBP. Até 10 MB.</div>
                         <div id="fotoPreview" class="mt-2" style="display:none;">
                             <img id="fotoPreviewImg" class="rounded border" style="max-height:120px;" alt="Preview">
                         </div>

@@ -160,7 +160,9 @@
     {{-- Estoque e Peso --}}
     <div class="col-md-4">
         <x-erp.card title="Estoque e Especificacoes" icon="boxes" class="h-100">
-            @php($lojaAtual = collect($saldoPorUnidade)->firstWhere('eh_atual', true))
+            @php
+                $lojaAtual = collect($saldoPorUnidade)->firstWhere('eh_atual', true);
+            @endphp
             @if($lojaAtual)
                 <div class="mb-3">
                     <small class="text-muted d-block">Estoque nesta loja ({{ $lojaAtual['nome'] }})</small>
@@ -215,7 +217,7 @@
                                 <i class="bi bi-camera me-1"></i>{{ $produto->foto ? 'Trocar foto' : 'Adicionar foto' }}
                             </button>
                         </form>
-                        <small class="text-muted">JPG, PNG ou WebP até 2 MB.</small>
+                        <small class="text-muted">JPG, PNG ou WebP até 10 MB.</small>
                     @endif
                 </div>
             @endif
