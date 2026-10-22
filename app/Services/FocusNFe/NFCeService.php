@@ -76,7 +76,8 @@ class NFCeService
                 } else {
                     $nota->status = StatusNotaFiscal::Rejeitada;
                     $nota->focus_status = $data['status'] ?? 'erro';
-                    $nota->focus_mensagem = $data['mensagem'] ?? $data['status_sefaz'] ?? 'Erro ao emitir NFC-e';
+                    // Rejeição da SEFAZ vem em mensagem_sefaz; status_sefaz é só o código (ex.: "539")
+                    $nota->focus_mensagem = $data['mensagem_sefaz'] ?? $data['mensagem'] ?? $data['status_sefaz'] ?? 'Erro ao emitir NFC-e';
 
                     Log::warning('NFCe: NFC-e rejeitada', [
                         'ref' => $ref,

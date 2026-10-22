@@ -69,9 +69,22 @@ class ProvisionarEmpresaFocusJob implements ShouldQueue
 
         $service = FocusEmpresaService::make();
 
-        // 1. Criar (ou atualizar) empresa na Focus
+        // 1. Criar (ou atualizar) empresa na Focus.
+        // Já provisionada → PUT na MESMA empresa. Antes sempre fazia POST: cada
+        // "Resincronizar" criava outra empresa na Focus (sem certificado nem CSC)
+        // e trocava o focus_empresa_id — a DK ficou sem NFC-e em 22/10.
+        $jaProvisionada = ConfiguracaoFiscal::withoutGlobalScopes()
+            ->where('empresa_id', $this->empresaId)
+            ->where('unidade_id', $this->unidadeId)
+            ->whereNotNull('focus_empresa_id')
+            ->exists();
+
         try {
-            $service->criar($empresa, $unidade, $this->flags);
+            if ($jaProvisionada) {
+                $service->atualizar($empresa, $unidade, $this->flags);
+            } else {
+                $service->criar($empresa, $unidade, $this->flags);
+            }
         } catch (\Throwable $e) {
             Log::error('[ProvisionarFocus] falha ao criar empresa', [
                 'empresa_id' => $this->empresaId,

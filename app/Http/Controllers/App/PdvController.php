@@ -707,6 +707,12 @@ class PdvController extends Controller
                     $client = FocusNFeClient::fromConfig($config);
                     $nfceService = new NFCeService($client);
                     $notaFiscal = $nfceService->emitir($venda, $config);
+
+                    // Rejeição não lança exceção: volta a nota com status rejeitada.
+                    // Sem isto o operador via sucesso e o cupom saía como DANFE (DK 22/10).
+                    if ($notaFiscal && $notaFiscal->status === \App\Enums\StatusNotaFiscal::Rejeitada) {
+                        $nfceErro = 'NFC-e rejeitada: ' . ($notaFiscal->focus_mensagem ?: 'sem detalhe da Focus');
+                    }
                 } catch (\Throwable $e) {
                     // A venda nunca trava por falha fiscal — mas o operador
                     // precisa SABER que saiu recibo e o porquê (era silencioso).
@@ -726,7 +732,7 @@ class PdvController extends Controller
                 'venda'       => $venda,
                 'cupom'       => $cupomHtml,
                 'nota_fiscal' => $notaFiscal,
-                'tipo_cupom'  => ($deveEmitirNfce && $notaFiscal) ? 'fiscal' : 'nao_fiscal',
+                'tipo_cupom'  => ($deveEmitirNfce && $notaFiscal && ! $nfceErro) ? 'fiscal' : 'nao_fiscal',
                 'nfce_erro'   => $nfceErro,
                 'vale'        => $valeUsado ? [
                     'codigo'          => $valeUsado['vale_codigo'] ?? null,

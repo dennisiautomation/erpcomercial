@@ -202,6 +202,22 @@
 <hr class="line">
 
 {{-- ===== TIPO DO CUPOM ===== --}}
+{{-- Só nota autorizada (ou em contingência) vira DANFE. Rejeitada/pendente sai como
+     recibo sem valor fiscal — antes saía "DANFE NFC-e" sem número nem protocolo (DK 22/10). --}}
+@php
+    $notaNaoAutorizada = null;
+    if (isset($notaFiscal) && $notaFiscal && ! in_array(
+        $notaFiscal->status instanceof \App\Enums\StatusNotaFiscal ? $notaFiscal->status->value : $notaFiscal->status,
+        ['autorizada', 'contingencia'], true)) {
+        $notaNaoAutorizada = $notaFiscal;
+        $notaFiscal = null;
+    }
+@endphp
+@if($notaNaoAutorizada)
+    <div style="text-align:center; font-size:10px; font-weight:bold; border:1px dashed #000; padding:2px;">
+        NFC-e NÃO AUTORIZADA — RECIBO SEM VALOR FISCAL
+    </div>
+@endif
 @if(isset($notaFiscal) && $notaFiscal)
     <div class="tipo-cupom">DANFE NFC-e</div>
     {{-- Manual DANFE NFC-e: nome completo + frase de não aproveitamento de crédito são obrigatórios --}}
