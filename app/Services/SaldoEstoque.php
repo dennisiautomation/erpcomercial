@@ -81,6 +81,34 @@ class SaldoEstoque
     }
 
     /**
+     * Saldo de vários produtos numa loja (soma dos estoques dela) — uma query
+     * só, para a lista de produtos não fazer uma por linha.
+     *
+     * @param  array<int, int>  $produtoIds
+     * @return array<int, float> produto_id => saldo (produto sem movimentação fica fora)
+     */
+    public static function porProdutoDaUnidade(int $unidadeId, array $produtoIds): array
+    {
+        if ($produtoIds === []) {
+            return [];
+        }
+
+        return DB::table('estoque_movimentacoes as e')
+            ->selectRaw('e.produto_id, SUM(e.quantidade_posterior) as saldo')
+            ->whereIn('e.id', function ($q) use ($unidadeId, $produtoIds) {
+                $q->selectRaw('MAX(id)')
+                    ->from('estoque_movimentacoes')
+                    ->where('unidade_id', $unidadeId)
+                    ->whereIn('produto_id', $produtoIds)
+                    ->groupBy('produto_id', 'estoque_id');
+            })
+            ->groupBy('e.produto_id')
+            ->pluck('saldo', 'produto_id')
+            ->map(fn ($v) => (float) $v)
+            ->all();
+    }
+
+    /**
      * Saldo de TODOS os produtos da empresa, somando os estoques.
      *
      * @return array<int, float> produto_id => saldo
