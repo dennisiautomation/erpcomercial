@@ -5964,9 +5964,18 @@ emitidas, porque o cupom saía com o título "DANFE NFC-e", sem número e sem pr
 84. **Job de "provisionar" tem de ser idempotente de verdade, e nota rejeitada não é DANFE** (22/10/2026). `ProvisionarEmpresaFocusJob` prometia PUT e fazia POST: cada "Resincronizar" criava outra empresa na Focus, sem certificado nem CSC, e trocava o `focus_empresa_id`. A DK ficou sem NFC-e. Antes de reprovisionar, compare o `GET /v2/empresas?cnpj=` da Focus com a config. E todo documento impresso tem de perguntar o **status** da nota, não só se ela existe: `emitir()` devolve a nota rejeitada sem exceção.
 85. **Model com prefixo em sigla (`NFeEntrada`) e `hasMany` sem chave; `d-flex` contra `style.display`** (23/10/2026). O Laravel adivinha a chave estrangeira pelo nome da classe em snake_case: `NFeEntrada` vira `n_fe_entrada_id` e o insert dá 1054. Em model com sigla no nome (`NFe…`, `NFSe…`), passe a chave no `hasMany`/`belongsTo`. E no Blade: elemento com `d-flex`/`d-block` do Bootstrap não some com `el.style.display = 'none'` (a classe é `!important`); use `classList.toggle('d-none', ...)`. Só o print da tela pegou isso; o teste por HTTP passava.
 
+86. **Produção do ERP NÃO bate com nenhuma branch — trocar a base (PHP) por foto, nunca por rebuild** (23/10/2026). Desde 20/10 a imagem `erp-com-app:latest` (cc2a382b5e75) recebeu tars de 21, 22 e 23/10 por cima (orçamento, estoque da loja, NFC-e DK, entrada por NF-e). Um `docker compose build` de qualquer branch apagaria parte disso. Para atualizar só o PHP: `docker commit erp-com-app <foto>` → `docker/prod/Dockerfile.rebase-php` (base `php:8.4-fpm-alpine` nova + mesmas extensões + `COPY --from=<foto>` de `/var/www` e das configs) → conferir md5 de todo `/var/www` (fora `storage`) contra o container vivo → `docker tag … erp-com-app:latest` + `up -d --no-deps --no-build app`. `COPY --from` preserva dono e permissão. A foto guarda as variáveis de ambiente (senhas) na config da imagem: nunca pushar para registry. Se o código do ar mudar depois da foto, refazer a foto.
+
 ---
 
 ## Próximos passos
+
+### Segurança PHP 8.4.27 — CVE-2026-109618/109619 (23/10/2026)
+1. ✅ **EM PRODUÇÃO 23/10 13:26 UTC.** Comunicado EVEO + php.net (21/10): RCE sem autenticação, corrigido em 8.4.27. Produção estava em 8.4.26.
+2. Imagem nova `erp-com-app:php8427-20261023` (**db26c297c02d**) = foto do container vivo + PHP 8.4.27 (`docker/prod/Dockerfile.rebase-php`, armadilha 86). Validada 14 ✅ / 0 ❌ antes de subir: 6.986 arquivos de `/var/www` com md5 iguais ao ar, `zz-erp.ini`/nginx/supervisor/entrypoint/fpm iguais, 49 módulos (nenhum sumiu), `php-fpm -t`, `nginx -t`, artisan 12.56.0, lint 0, fuso -03. Depois: login 200, nginx + php-fpm + 2 `queue:work` + `schedule:work`, 0 erro novo.
+3. **Rollback:** `docker tag erp-com-app:live-pre-php-8427-20261023 erp-com-app:latest` + `up -d --no-deps --no-build app` (a foto de 23/10; a `pre-entrada-nfe-20261023` NÃO serve, não tem os tars).
+4. `erp-man-app` (manuais, interno, criado à mão) também: foto → `erp-com-app:man-php8427-20261023`, recriado pelo mesmo `docker run` 13:50 UTC; antigo parado como `erp-man-app-pre8427`.
+5. Próximo rebuild normal (`docker/prod/Dockerfile`) já pega 8.4.27+ sozinho (`php:8.4-fpm-alpine` flutuante) — mas só depois que a `main`/branch tiver TODOS os tars de produção.
 
 ### Entrada por NF-e (23/10/2026)
 1. ✅ **EM PRODUÇÃO 23/10 ~09:40 BRT.** Branch `entrada-nfe` pushada; `main` **não** promovida — rebuild a partir da `main` derruba (armadilha 52). Promover = merge da `entrada-nfe` na `main` quando o Dennis mandar.
