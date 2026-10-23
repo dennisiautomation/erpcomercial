@@ -4,6 +4,11 @@
 
 @section('content')
 <x-erp.page-header title="NFes Recebidas" icon="inbox-fill" subtitle="Manifestação do destinatário — NFes emitidas contra sua empresa">
+    @if($podeDarEntrada)
+        <a href="{{ route('app.entradas-nfe.index') }}" class="btn btn-sm btn-outline-success me-1">
+            <i class="bi bi-box-arrow-in-down me-1"></i> Entrada por XML
+        </a>
+    @endif
     <form method="POST" action="{{ route('app.nfes-recebidas.sincronizar') }}" class="d-inline">
         @csrf
         <button type="submit" class="btn btn-sm btn-primary" @if(!$sincronizacaoAtiva) disabled title="Ative a emissão fiscal para sincronizar" @endif>
@@ -20,6 +25,13 @@
             Ative a emissão fiscal e cadastre o token Focus NFe em
             <a href="{{ route('app.configuracao-fiscal.edit') }}">Configurações Fiscais</a>
             para começar a receber NFes destinadas a esta unidade.
+            @if($podeDarEntrada)
+                <div class="mt-2">
+                    <i class="bi bi-box-arrow-in-down me-1"></i>
+                    Para dar entrada dos produtos de uma compra, você não precisa esperar:
+                    <a href="{{ route('app.entradas-nfe.index') }}" class="fw-semibold">envie o XML da nota em Estoque › Entrada por NF-e</a>.
+                </div>
+            @endif
         </div>
     </div>
 @endif
@@ -109,6 +121,18 @@
                                 <a href="{{ $nota->danfe_url }}" target="_blank" class="btn btn-sm btn-outline-danger" title="DANFE">
                                     <i class="bi bi-file-pdf"></i>
                                 </a>
+                            @endif
+                            @if(($entradas[$nota->chave_acesso] ?? null) === 'concluida')
+                                <span class="badge bg-success-subtle text-success" title="Mercadoria já lançada no estoque">
+                                    <i class="bi bi-box-seam me-1"></i>No estoque
+                                </span>
+                            @elseif($podeDarEntrada)
+                                <form method="POST" action="{{ route('app.entradas-nfe.da-recebida', $nota) }}" class="d-inline">
+                                    @csrf
+                                    <button type="submit" class="btn btn-sm btn-outline-success" title="Dar entrada dos produtos no estoque">
+                                        <i class="bi bi-box-arrow-in-down"></i>
+                                    </button>
+                                </form>
                             @endif
                             <button type="button" class="btn btn-sm btn-outline-primary"
                                     data-bs-toggle="modal" data-bs-target="#modalManifestar-{{ $nota->id }}"

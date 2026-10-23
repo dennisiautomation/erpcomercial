@@ -395,6 +395,26 @@ Route::middleware(['auth', 'suspensao', 'unidade', \App\Http\Middleware\Restring
         ->only(['index', 'create', 'store', 'show']) // movimentação é imutável (auditoria)
         ->parameters(['movimentacoes' => 'movimentacao']) // casar com $movimentacao (binding)
         ->middleware('permission:estoque');
+    // Entrada de mercadoria pela NF-e de compra (23/10/2026). {entrada} casa com
+    // $entrada do controller; o binding passa pelos scopes de empresa/loja.
+    Route::get('estoque/entradas-nfe', [App\EntradaNFeController::class, 'index'])
+        ->name('entradas-nfe.index')
+        ->middleware('permission:estoque,criar');
+    Route::post('estoque/entradas-nfe', [App\EntradaNFeController::class, 'store'])
+        ->name('entradas-nfe.store')
+        ->middleware('permission:estoque,criar');
+    Route::post('estoque/entradas-nfe/recebida/{nfeRecebida}', [App\EntradaNFeController::class, 'daRecebida'])
+        ->name('entradas-nfe.da-recebida')
+        ->middleware('permission:estoque,criar');
+    Route::get('estoque/entradas-nfe/{entrada}', [App\EntradaNFeController::class, 'show'])
+        ->name('entradas-nfe.show')
+        ->middleware('permission:estoque,criar');
+    Route::post('estoque/entradas-nfe/{entrada}/confirmar', [App\EntradaNFeController::class, 'confirmar'])
+        ->name('entradas-nfe.confirmar')
+        ->middleware('permission:estoque,criar');
+    Route::delete('estoque/entradas-nfe/{entrada}', [App\EntradaNFeController::class, 'destroy'])
+        ->name('entradas-nfe.destroy')
+        ->middleware('permission:estoque,criar');
     Route::resource('estoque/transferencias', App\TransferenciaEstoqueController::class)
         ->except(['edit', 'update']) // fluxo é aprovar/cancelar, não editar
         ->middleware('permission:estoque');

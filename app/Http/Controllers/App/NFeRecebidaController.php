@@ -54,8 +54,16 @@ class NFeRecebidaController extends Controller
             'unidade_id' => session('unidade_id'),
         ]);
 
+        // Quais destas já deram entrada no estoque (Entrada por NF-e, 23/10/2026)
+        $entradas = \App\Models\NFeEntrada::withoutGlobalScopes()
+            ->where('empresa_id', session('empresa_id'))
+            ->whereIn('chave_acesso', $notas->pluck('chave_acesso'))
+            ->pluck('status', 'chave_acesso');
+
         return view('app.nfes-recebidas.index', [
             'notas'               => $notas,
+            'entradas'            => $entradas,
+            'podeDarEntrada'      => \App\Http\Middleware\CheckPermission::canUser(auth()->user(), 'estoque', 'criar'),
             'tipos'               => TipoManifestacao::cases(),
             'sincronizacaoAtiva'  => (bool) $config->focus_token && $config->emissao_fiscal_ativa,
         ]);
