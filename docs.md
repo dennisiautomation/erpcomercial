@@ -6384,3 +6384,8 @@ V2 e etiquetas preservados. ✅ **VALIDADO AO VIVO:** `POST /entrega/cotar` com 
 `[TOOL-LOOP]` chamou a rota com CEP/rua/número extraídos e `unidade_id` 12 preservado, resposta
 ofereceu retirada/atendente **sem inventar frete**. Quando o Uber liberar o escopo `eats.deliveries`,
 a entrega liga sozinha — nada a mexer.
+
+## Segurança — 24/Out/2026 — PHP CVE-2026-115560: session.upload_progress desligado (permanente)
+- php.net avisou em 23/10/2026 de nova RCE (CVE-2026-115560) ainda **sem correção**, ligada ao *session upload progress*. Mitigação oficial: `session.upload_progress.enabled = 0`. O sistema não usa esse recurso.
+- `docker/prod/php.ini` (vira `conf.d/zz-erp.ini` no build normal) ganhou a linha; `docker/prod/Dockerfile.rebase-php` grava `conf.d/zz-cve-2026-115560.ini`, porque copia o ini da foto de produção.
+- Em produção já estava ativo desde 24/10 10:33 UTC (ini à parte no container); este commit faz o próximo build nascer com ele.

@@ -20,6 +20,8 @@ RUN apk add --no-cache --virtual .build-deps \
     && apk del .build-deps tzdata
 COPY --from=foto /usr/bin/composer /usr/bin/composer
 COPY --from=foto /usr/local/etc/php/conf.d/zz-erp.ini /usr/local/etc/php/conf.d/zz-erp.ini
+# CVE-2026-115560 (23/10/2026, sem correção): a foto pode ser anterior à linha no php.ini
+RUN printf "session.upload_progress.enabled = 0\n" > /usr/local/etc/php/conf.d/zz-cve-2026-115560.ini
 COPY --from=foto /etc/nginx/nginx.conf /etc/nginx/nginx.conf
 COPY --from=foto /etc/supervisor/conf.d/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY --from=foto /usr/local/bin/entrypoint.sh /usr/local/bin/entrypoint.sh
