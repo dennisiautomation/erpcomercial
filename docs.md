@@ -5826,8 +5826,12 @@ apareça só após o quinto dígito." Dennis: "vamos fazer só este".
 - `scripts/validar-unificacao-25out.sh` contra a produção: **21/21 ✅** (114 telas × 5 perfis iguais, PDV idêntico).
 - `php -l` em todas as views compiladas: 0 erros. O lint pegou a armadilha 91 duas vezes antes do teste no navegador.
 
-### Deploy (quando o Dennis mandar)
-Por tar de 2 arquivos (controller + view), sem migration, `view:cache` + USR2.
+### Deploy — EM PRODUÇÃO 25/10/2026 ~14:01 UTC (ordem do Dennis)
+Tag `erp-com-app:pre-busca-mov-20261025` (caafd37c4cd7) + backup dos 2 arquivos em
+`/home/ubuntu/erp-backups/pre-busca-mov-20261025/` (estavam iguais à base `c3abc29`). Tar dos 2 → md5 conferido →
+`view:cache` → `php -l` nas views compiladas (0 erro) → USR2. Pós-deploy como dono: DK (763 produtos no índice) e
+DONA DOURO (2.282) com o campo de busca, listagem de movimentações 200, log sem erro.
+**Rollback:** os 2 arquivos do backup por cima de `/var/www` + `view:cache` + USR2.
 
 ---
 
