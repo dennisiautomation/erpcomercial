@@ -1855,6 +1855,27 @@ continua no ar via `/?visual=classico`.
   estava em produção (webhook-csrf, agente-ia, pix-sicredi, acesso-como,
   agente-busca-preco).
 
+### Endereço da empresa no site (30/09/2026)
+
+O endereço aparece em **3 arquivos**, e só neles (não há JSON-LD com `PostalAddress` neste site):
+
+| Arquivo | Onde |
+|---|---|
+| `resources/views/site/landing-v2.blade.php` | bloco `.map` da seção Demonstração (iframe do Google Maps + barra "Como chegar") e coluna Contato do rodapé |
+| `resources/views/site/landing.blade.php` (v1, `/?visual=classico`) | os mesmos dois lugares |
+| `resources/views/emails/nova-demonstracao.blade.php` | rodapé do e-mail que avisa a equipe de um pedido de demonstração |
+
+Endereço atual (ordem do Dennis em 30/09/2026): **Av. Paulista, 1337 · Cj. 72, 7º andar · Bela Vista · São Paulo/SP · CEP 01311-200**
+(antes: Alameda Santos, 200 — 9º andar, CEP 01418-000). O mapa é o embed público do Google
+(`https://www.google.com/maps?q=<endereço>&output=embed`, sem chave de API) e o link "Como chegar" usa
+`maps/search/?api=1&query=`. O mesmo endereço está no portal `ia365.com.br` (`src/data.mjs` de
+`/home/ubuntu/apps/site-ia365`) — trocar sempre nos dois.
+
+Deploy: branch `site/endereco-paulista` (worktree `/home/ubuntu/apps/erp-endereco`, sobre `frete-servico-cep`
+@69c13ba, que é a produção), `bash scripts/deploy-endereco.sh` (sem sudo: docker responde ao ubuntu). Como são views Blade, o script faz
+`view:clear` + `view:cache` + `php -l` das views compiladas (Blade não passa em lint direto) e `opcache_reset()`
+antes de conferir "/". Sem isso a view compilada em `storage/framework/views` continuaria com o endereço velho.
+
 ## Auditoria de produção (20/08/2026)
 
 > Varredura do docs.md inteiro contra o que está rodando. Onde a realidade divergia do texto,
