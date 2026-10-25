@@ -5764,7 +5764,7 @@ pagamento"). Base = `ac0d83a` (= código de produção, conferido pasta a pasta 
 - Seletor de vendedor, baixa de estoque por estoque, filtro de vendas por loja, seleção de unidade: refeitos depois.
 - Empty-state de Transferências ("só uma unidade"): hoje a loja atual é destino válido (transferir entre estoques).
 - Pasta `lang/` na raiz: no Laravel 12 ela **esconde** `resources/lang` (onde está o `pt_BR.json`).
-- **Banner do Asaas** no abrir caixa: anúncio para todos os clientes — decisão do Dennis.
+- **Banner do Asaas** no abrir caixa: anúncio para todos os clientes. **Dennis decidiu deixar de fora (25/10).**
 
 **Nenhum arquivo de pagamento/integração muda** (InfinitePay, Sicredi, gateways, PIX, cartão, juros, caixa, agente,
 `TabelaPrecoService`). Arquivos de código que mudam em relação a produção: 19 (lista: `git diff --name-only ac0d83a
