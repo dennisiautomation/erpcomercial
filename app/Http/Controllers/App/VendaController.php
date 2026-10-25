@@ -42,7 +42,7 @@ class VendaController extends Controller
         $query = Venda::where('empresa_id', session('empresa_id'))
             ->when($lojaFiltro, fn ($q) => $q->where('unidade_id', $lojaFiltro))
             ->when(! $lojaFiltro, fn ($q) => $q->whereIn('unidade_id', $lojas->pluck('id')))
-            ->with(['cliente:id,nome_razao_social,cpf_cnpj', 'vendedor:id,name', 'unidade:id,nome']);
+            ->with(['cliente:id,nome_razao_social,cpf_cnpj', 'vendedor:id,name', 'unidade:id,nome', 'caixa:id,numero_caixa']);
 
         if ($request->filled('busca')) {
             $busca = $request->busca;
@@ -256,7 +256,8 @@ class VendaController extends Controller
                 $vendedorId = $request->vendedor_id ?? auth()->id();
                 if ($vendedorId) {
                     $vendedor = User::find($vendedorId);
-                    $percentualComissao = $vendedor->comissao_percentual ?? 5;
+                    // Sem percentual configurado no funcionário, não gera comissão.
+                    $percentualComissao = $vendedor->comissao_percentual ?? 0;
                     $valorComissao = round($total * ($percentualComissao / 100), 2);
 
                     if ($valorComissao > 0) {

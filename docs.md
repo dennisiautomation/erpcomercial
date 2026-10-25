@@ -6257,6 +6257,49 @@ banco são próprios.
     lembrar que um job que falha dentro do `saved()` de um model pode reverter a escrita
     que o disparou.
 
+## Auditoria de bugs + visões por loja (2026-05-29)
+
+> **Unificação 25/10/2026 (branch `unificacao-25out`):** esta branch nunca tinha subido inteira. Entraram agora: ordem "código exato primeiro" e SKU na busca do PDV, trava de loja de outra empresa no `unidade_origem_id` do PDV, coluna Caixa na lista de vendas, Loja no detalhe da venda, visões por loja em comissões e no painel Multilojas, funcionários sem o campo morto `email_pessoal`, banner do caixa e o `show` de unidade no admin. Ficaram de fora por terem sido refeitos depois, de outro jeito: seletor de vendedor do PDV (regra de 09/09 + `pdv_vendedores_da_loja`), baixa de estoque da venda (`SaldoEstoque` por estoque), filtro de vendas por loja, seleção de unidade (checagem de empresa) e o empty-state de Transferências (a loja atual entra no destino para transferir entre estoques). `lang/pt_BR` daqui não entrou: as traduções vivem em `resources/lang`.
+
+
+Lote de correções na branch `fix/auditoria-bugs-mai2026`, após varredura de schema / rotas / permissão (vários eram 500 mascarados):
+
+| Área | Correção |
+|---|---|
+| Categorias | enum `ativa/inativa` (corrige 500 ao cadastrar) |
+| Validação pt-BR | criados `lang/pt_BR/{validation,auth,passwords,pagination}.php` |
+| Multilojas | 403 (`$user->papel` inexistente → `isDono()/isAdmin()`) + 500 (`pago_em`/`vencimento`) |
+| Sessão | `session('empresa_id')` gravado no middleware `EnsureUnidadeSelected` (era lido em ~70 pontos, só `unidade_id` era setado no login) |
+| PDV | busca por nome/código/SKU/cód. barras; bloqueio de pagamento insuficiente (422); comissão pelo `comissao_percentual` do vendedor; `lockForUpdate` em nº da venda e estoque; `exists` de `unidade_origem_id` com escopo de empresa; seletor de vendedor lista todos os funcionários ativos |
+| Funcionários | removido campo morto `email_pessoal` |
+| Transferências | empty-state quando só há 1 unidade |
+| Caixa/abrir | banner de integração PIX/Asaas (parceiro) |
+| admin/unidades | `show` redireciona p/ `edit`; `edit` passa `$empresa` e usa rota `admin.unidades.update` (corrige 500 ao editar/adicionar) |
+| Seleção de unidade | admin do cliente (`perfil=Admin`) vê/troca todas as unidades da empresa (antes só Dono) |
+| Produtos | filtro de categorias usava status `ativo` (vazio) → `ativa` |
+| Clientes | estatísticas usavam venda `finalizada` → `concluida` |
+| OS→Venda | enums inválidos (`venda`/`finalizada`) + coluna `desconto` → `balcao`/`concluida`/`desconto_valor` |
+
+### Visões por loja
+- **Comissões** (`/app/comissoes`): filtro por loja + coluna Loja + subtotal de comissão por loja (mês).
+- **Painel Multilojas** (`/app/multilojas`): colunas Comissão (mês) e nº de Vendedores por loja — serve como **relatório consolidado por loja** (faturamento, vendas, ticket, comissão, vendedores, estoque crítico).
+- **Vendas**: coluna Caixa na listagem + campo Loja no detalhe.
+
+### O que é por unidade × por empresa
+- **Por unidade** (`UnidadeScope` + `unidade_id`): `Caixa`, `MovimentacaoCaixa`, `Venda`, `EstoqueMovimentacao`, `ContaReceber`, `Comissao`, `Orcamento`, `Pedido`, `OrdemServico`, `NotaFiscal`, `ConfiguracaoFiscal`.
+- **Por empresa** (compartilhado entre lojas): `Produto`, `Cliente`, `Servico`, `Categoria`, `Fornecedor`.
+- **Funcionários (`User`)**: pertencem à empresa; atribuídos a unidades via pivot `unidade_user` (controla acesso/login, não cria folha separada por loja).
+
+### Lições da auditoria de maio (numeração original 21–27 de outra lista, mantidas como texto)
+
+21. **Categoria.status é `ativa/inativa`** (feminino, como Unidade) — NÃO `ativo/inativo`.
+22. **`lang/pt_BR` é obrigatório** — o skeleton do Laravel 12 não o traz; sem ele as mensagens de validação aparecem como chave crua (`validation.required`). `APP_LOCALE`/`APP_FALLBACK_LOCALE = pt_BR`.
+23. **`is_admin` (flag de plataforma) ≠ `perfil` (papel no tenant)** — a área `/admin` gateia por `is_admin`. O helper `User::isAdmin()` = `is_admin || perfil===Admin`; não confundir. Admin do cliente (`perfil=Admin`) **não** é admin de plataforma.
+24. **`ContaReceber` usa `pago_em` e `vencimento`** — NÃO `data_pagamento`/`data_vencimento`.
+25. **Resource `empresas.unidades` é `shallow()`** — `show/edit/update/destroy` são `admin.unidades.*` (param `{unidade}`), NÃO `admin.empresas.unidades.*`. Só `index/create/store` são nested.
+26. **`UnidadeScope` é ignorado para `perfil` admin/dono** — eles veem todas as unidades; o filtro por unidade ativa só vale para perfis operacionais. Telas que precisam isolar por unidade para admin/dono devem filtrar explicitamente (ex.: `VendaController::index` faz `where('unidade_id', session(...))`).
+27. **PDV `registrarVenda` exige pagamento ≥ total** (rejeita 422). Comissão usa `User.comissao_percentual` — sem percentual configurado, não gera comissão.
+
 ---
 
 ## Próximos passos
@@ -6551,6 +6594,8 @@ rastreio; fase 3 = webhooks do Melhor Envio para status de postagem/entrega.
 - **Autocomplete `/v2/municipios`** na edição de empresa/unidade/cliente para popular `codigo_municipio` IBGE automaticamente.
 - **Detector de mudança de regime tributário**: ao trocar `empresa.regime_tributario`, abrir modal "N produtos têm CST não compatível — revisar?" (M3 do plano original).
 - **Responsividade mobile/tablet**: revisão do PDV em tablet (só 1 `@media` em `erp.css`).
+- **Metas individuais (Incremento 2 — pendente)**: tabela `metas` (por vendedor e por loja, métrica = valor R$ vendido, período personalizado) + tela `/app/metas` para cadastro + acompanhamento do atingido (barra de progresso atingido × meta).
+- **Reconciliação de venda com pagamento parcial já gravada** (anterior ao fix do PDV): ajustar manualmente movimento de caixa / conta a receber das vendas afetadas.
 
 ---
 

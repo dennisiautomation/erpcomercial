@@ -12,6 +12,7 @@ use App\Models\Caixa;
 use App\Models\EstoqueMovimentacao;
 use App\Enums\TipoMovimentacaoEstoque;
 use App\Services\EstoqueMultiUnidadeService;
+use App\Models\Comissao;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
@@ -55,6 +56,19 @@ class MultilojaController extends Controller
                 })
                 ->count();
 
+            // Comissão gerada e nº de vendedores ativos na loja no mês
+            $comissaoMes = Comissao::where('empresa_id', $empresaId)
+                ->where('unidade_id', $unidade->id)
+                ->whereBetween('created_at', [$mesAtual, $fimMes])
+                ->sum('valor_comissao');
+
+            $operadores = Venda::where('empresa_id', $empresaId)
+                ->where('unidade_id', $unidade->id)
+                ->whereBetween('created_at', [$mesAtual, $fimMes])
+                ->whereNotIn('status', ['cancelada'])
+                ->distinct('vendedor_id')
+                ->count('vendedor_id');
+
             $faturamentoTotal += $faturamento;
             $vendasTotal += $totalVendas;
 
@@ -63,6 +77,8 @@ class MultilojaController extends Controller
                 'faturamento' => $faturamento,
                 'total_vendas' => $totalVendas,
                 'ticket_medio' => $ticketMedio,
+                'comissao' => $comissaoMes,
+                'operadores' => $operadores,
                 'estoque_critico' => $estoqueCritico,
             ];
         }

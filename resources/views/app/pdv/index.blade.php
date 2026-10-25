@@ -871,7 +871,7 @@
             <div class="search-input-wrap">
                 <i class="bi bi-upc-scan"></i>
                 <input type="text" id="searchInput"
-                    placeholder="Buscar produto por codigo de barras, codigo interno ou descricao..."
+                    placeholder="Buscar por nome, codigo interno, SKU ou codigo de barras..."
                     autocomplete="off" {{ !$caixa ? 'disabled' : '' }}>
                 <div class="search-results-dropdown" id="searchDropdown"></div>
             </div>
@@ -1828,7 +1828,7 @@ const PDV = {
             <div class="search-result-item" onclick="PDV.addProdutoById(${p.id}, '${(p.descricao||'').replace(/'/g, "\\'")}', ${p.preco_venda}, '${p.codigo_interno||''}', '${p.codigo_barras||''}')">
                 <div>
                     <div class="prod-name">${p.descricao}</div>
-                    <div class="prod-code">${p.codigo_interno || ''} ${p.codigo_barras ? '| ' + p.codigo_barras : ''}</div>
+                    <div class="prod-code">${p.codigo_interno || ''}${p.sku ? ' | SKU: ' + p.sku : ''}${p.codigo_barras ? ' | ' + p.codigo_barras : ''}</div>
                 </div>
                 <div class="prod-price">${this.formatMoney(p.preco_venda)}</div>
             </div>

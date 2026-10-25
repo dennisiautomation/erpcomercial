@@ -91,6 +91,8 @@ class NFSeRecebidaController extends Controller
     {
         abort_unless($nfseRecebida->empresa_id === session('empresa_id'), 403);
 
-        return view('app.nfses-recebidas.show', compact('nfseRecebida'));
+        // Não há tela de detalhe dedicada (a view 'show' nunca foi criada) — a listagem
+        // já exibe as NFS-e recebidas. Redireciona para evitar "View not found" (500).
+        return redirect()->route('app.nfses-recebidas.index');
     }
 }

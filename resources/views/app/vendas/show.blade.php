@@ -85,6 +85,10 @@
                         <small class="text-muted d-block">Status</small>
                         <span class="badge rounded-pill bg-{{ $venda->status->color() }}">{{ $venda->status->label() }}</span>
                     </div>
+                    <div class="col-6">
+                        <small class="text-muted d-block">Loja</small>
+                        <span><i class="bi bi-shop me-1"></i>{{ $venda->unidade->nome ?? '-' }}</span>
+                    </div>
                     @if($venda->caixa)
                         <div class="col-6">
                             <small class="text-muted d-block">Caixa</small>
