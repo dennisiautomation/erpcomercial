@@ -256,8 +256,7 @@ class VendaController extends Controller
                 $vendedorId = $request->vendedor_id ?? auth()->id();
                 if ($vendedorId) {
                     $vendedor = User::find($vendedorId);
-                    // Sem percentual configurado no funcionário, não gera comissão.
-                    $percentualComissao = $vendedor->comissao_percentual ?? 0;
+                    $percentualComissao = $vendedor->comissao_percentual ?? 5;
                     $valorComissao = round($total * ($percentualComissao / 100), 2);
 
                     if ($valorComissao > 0) {
