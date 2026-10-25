@@ -227,7 +227,7 @@
                     <label for="razao_social" class="form-label required-dot">Razao Social</label>
                     <input type="text" name="razao_social" id="razao_social"
                            class="form-control @error('razao_social') is-invalid @enderror"
-                           value="{{ old('razao_social') }}"
+                           value="{{ old('razao_social', request('razao_social')) }}"
                            placeholder="Razao social ou nome completo" required>
                     @error('razao_social')
                         <div class="text-danger small mt-1">{{ $message }}</div>

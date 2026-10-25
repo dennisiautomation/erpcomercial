@@ -8,6 +8,7 @@ use App\Models\Fornecedor;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 class ContaPagarController extends Controller
 {
@@ -77,7 +78,13 @@ class ContaPagarController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'fornecedor_id'      => 'required|exists:fornecedores,id',
+            // Só fornecedor da própria empresa (o exists puro aceitava id de outra loja).
+            'fornecedor_id'      => [
+                'required',
+                Rule::exists('fornecedores', 'id')
+                    ->where('empresa_id', auth()->user()->empresa_id)
+                    ->whereNull('deleted_at'),
+            ],
             'descricao'          => 'required|string|max:255',
             'valor'              => 'required|numeric|min:0.01',
             'vencimento'         => 'required|date',
@@ -88,6 +95,9 @@ class ContaPagarController extends Controller
             'recorrente'         => 'nullable|boolean',
             'recorrencia_tipo'   => 'nullable|in:mensal,bimestral,trimestral,semestral,anual',
             'observacoes'        => 'nullable|string|max:500',
+        ], [
+            'fornecedor_id.required' => 'Escolha o fornecedor na lista. Se ele não aparecer, cadastre o fornecedor primeiro (link abaixo do campo).',
+            'fornecedor_id.exists'   => 'Esse fornecedor não foi encontrado nesta empresa. Busque de novo e escolha na lista.',
         ]);
 
         DB::transaction(function () use ($validated) {

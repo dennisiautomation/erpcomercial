@@ -40,9 +40,20 @@
                             </div>
                         </div>
                     </div>
+                    <div id="fornecedorAviso" class="text-danger small mt-1" style="display:none;"></div>
                     @error('fornecedor_id')
                         <div class="text-danger small mt-1">{{ $message }}</div>
                     @enderror
+                    @php $podeCadastrarFornecedor = \App\Http\Middleware\CheckPermission::canUser(auth()->user(), 'produtos', 'criar'); @endphp
+                    <div class="form-text" id="fornecedorDica">
+                        Escolha o fornecedor na lista. Não achou?
+                        @if($podeCadastrarFornecedor)
+                            <a href="{{ route('app.fornecedores.create') }}" target="_blank">Cadastre o fornecedor</a>
+                            (abre em outra aba) e depois volte aqui e busque de novo.
+                        @else
+                            Peça ao dono ou gerente para cadastrar o fornecedor.
+                        @endif
+                    </div>
                 </div>
 
                 <div class="mb-4">
@@ -228,6 +239,7 @@
 <script>
     // ===== FORNECEDOR SEARCH =====
     const fornecedorBuscarUrl = '{{ route("app.search.fornecedores") }}';
+    const fornecedorCadastrarUrl = @json($podeCadastrarFornecedor ? route('app.fornecedores.create') : null);
     const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
     const fornecedorBusca = document.getElementById('fornecedorBusca');
     const fornecedorResultados = document.getElementById('fornecedorResultados');
@@ -245,7 +257,25 @@
             .then(fornecedores => {
                 fornecedorResultados.innerHTML = '';
                 if (fornecedores.length === 0) {
-                    fornecedorResultados.innerHTML = '<div class="list-group-item text-muted small py-2">Nenhum fornecedor encontrado</div>';
+                    // Sem resultado: o fornecedor precisa ser cadastrado antes — sem isso o
+                    // fornecedor_id fica vazio e o back-end recusa a conta.
+                    const vazio = document.createElement('div');
+                    vazio.className = 'list-group-item small py-2';
+                    vazio.innerHTML = '<div class="text-muted mb-1">Nenhum fornecedor encontrado com esse nome.</div>';
+                    if (!fornecedorCadastrarUrl) {
+                        vazio.insertAdjacentHTML('beforeend', '<div class="text-muted">Peça ao dono ou gerente para cadastrar o fornecedor.</div>');
+                        fornecedorResultados.appendChild(vazio);
+                        fornecedorResultados.style.display = 'block';
+                        return;
+                    }
+                    const cadastrar = document.createElement('a');
+                    cadastrar.href = fornecedorCadastrarUrl + '?razao_social=' + encodeURIComponent(termo);
+                    cadastrar.target = '_blank';
+                    cadastrar.className = 'btn btn-sm btn-primary';
+                    cadastrar.innerHTML = '<i class="bi bi-plus-lg me-1"></i>';
+                    cadastrar.append('Cadastrar "' + termo + '" como fornecedor');
+                    vazio.appendChild(cadastrar);
+                    fornecedorResultados.appendChild(vazio);
                     fornecedorResultados.style.display = 'block';
                     return;
                 }
@@ -264,6 +294,7 @@
                         document.getElementById('fornecedorDoc').textContent = f.cpf_cnpj || '';
                         document.getElementById('fornecedorSelecionado').style.display = 'block';
                         document.getElementById('fornecedorBuscaGroup').style.display = 'none';
+                        document.getElementById('fornecedorAviso').style.display = 'none';
                         fornecedorResultados.style.display = 'none';
                     });
                     fornecedorResultados.appendChild(item);
@@ -289,6 +320,27 @@
         if (!e.target.closest('#fornecedorBusca') && !e.target.closest('#fornecedorResultados')) {
             fornecedorResultados.style.display = 'none';
         }
+    });
+
+    // Voltou da aba de cadastro: refaz a busca com o que já está digitado.
+    window.addEventListener('focus', function() {
+        if (!document.getElementById('fornecedorId').value && fornecedorBusca.value.trim().length >= 2) {
+            fornecedorBusca.dispatchEvent(new Event('input'));
+        }
+    });
+
+    // Sem fornecedor escolhido não salva: avisa na tela em vez de mandar pro servidor.
+    fornecedorBusca.closest('form').addEventListener('submit', function(e) {
+        if (document.getElementById('fornecedorId').value) return;
+        e.preventDefault();
+        const aviso = document.getElementById('fornecedorAviso');
+        aviso.textContent = fornecedorBusca.value.trim()
+            ? 'Você digitou o nome, mas não escolheu o fornecedor na lista. Clique no nome na lista ou, se ele não aparecer, cadastre o fornecedor.'
+            : 'Escolha o fornecedor: digite o nome e clique nele na lista. Se ele não estiver cadastrado, cadastre o fornecedor primeiro.';
+        aviso.style.display = 'block';
+        fornecedorBusca.classList.add('is-invalid');
+        fornecedorBusca.focus();
+        fornecedorBusca.scrollIntoView({ behavior: 'smooth', block: 'center' });
     });
 
     // Toggle recorrencia options
