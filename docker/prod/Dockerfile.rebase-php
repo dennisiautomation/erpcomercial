@@ -1,0 +1,38 @@
+# ERP Comercial — troca SÓ a base do PHP mantendo o código QUE ESTÁ NO AR (docs.md, armadilha 86). Usado em 23/10/2026 (8.4.27).
+# Produção = imagem 20/10 + tars 21–23/10, então o código vem da foto do container vivo, não de uma branch.
+# Base e extensões = docker/prod/Dockerfile (estágio base), idênticas.
+ARG FOTO=erp-com-app:live-pre-php-8427-20261023
+FROM ${FOTO} AS foto
+FROM php:8.4-fpm-alpine
+RUN apk add --no-cache --virtual .build-deps \
+        autoconf g++ make linux-headers pkgconf postgresql-dev \
+    && apk add --no-cache \
+        bash curl git unzip icu-dev libzip-dev oniguruma-dev \
+        libpng-dev libjpeg-turbo-dev freetype-dev libpq \
+        nginx supervisor tzdata \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-install -j$(nproc) \
+        pdo_mysql mysqli pdo_pgsql bcmath intl zip pcntl gd opcache exif \
+    && pecl install redis \
+    && docker-php-ext-enable redis \
+    && cp /usr/share/zoneinfo/America/Sao_Paulo /etc/localtime \
+    && echo "America/Sao_Paulo" > /etc/timezone \
+    && apk del .build-deps tzdata
+COPY --from=foto /usr/bin/composer /usr/bin/composer
+COPY --from=foto /usr/local/etc/php/conf.d/zz-erp.ini /usr/local/etc/php/conf.d/zz-erp.ini
+# CVE-2026-115560 (23/10/2026, sem correção): a foto pode ser anterior à linha no php.ini
+RUN printf "session.upload_progress.enabled = 0\n" > /usr/local/etc/php/conf.d/zz-cve-2026-115560.ini
+COPY --from=foto /etc/nginx/nginx.conf /etc/nginx/nginx.conf
+COPY --from=foto /etc/supervisor/conf.d/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+COPY --from=foto /usr/local/bin/entrypoint.sh /usr/local/bin/entrypoint.sh
+COPY --from=foto /var/www /var/www
+RUN chmod +x /usr/local/bin/entrypoint.sh \
+    && mkdir -p /var/log/supervisor /run/nginx \
+    && mkdir -p /var/lib/nginx/tmp/client_body /var/lib/nginx/tmp/proxy \
+                /var/lib/nginx/tmp/fastcgi /var/lib/nginx/tmp/uwsgi /var/lib/nginx/tmp/scgi \
+    && chown -R www-data:www-data /var/lib/nginx \
+    && chmod -R 0755 /var/lib/nginx
+WORKDIR /var/www
+EXPOSE 80
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
