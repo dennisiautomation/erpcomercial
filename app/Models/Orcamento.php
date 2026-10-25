@@ -26,6 +26,9 @@ class Orcamento extends Model
         'subtotal',
         'desconto_percentual',
         'desconto_valor',
+        'frete_valor',
+        'parcelas',
+        'desconto_avista_percentual',
         'total',
         'status',
         'observacoes_internas',
@@ -40,6 +43,9 @@ class Orcamento extends Model
             'validade_ate' => 'date',
             'subtotal' => 'decimal:2',
             'desconto_valor' => 'decimal:2',
+            'frete_valor' => 'decimal:2',
+            'parcelas' => 'integer',
+            'desconto_avista_percentual' => 'decimal:2',
             'total' => 'decimal:2',
         ];
     }

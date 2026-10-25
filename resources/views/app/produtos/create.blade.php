@@ -100,9 +100,13 @@
                         @error('unidade_medida') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
                     </div>
 
-                    {{-- Preco de Venda --}}
+                    {{-- Preco de Venda. Loja com "preço cadastrado = cartão" (25/10/2026) vê o rótulo do cartão. --}}
+                    @php
+                        $lojaPrecoCartao = \App\Models\ConfiguracaoLoja::daUnidade()->precoBaseCartao();
+                        $lojaDescontoAvista = (float) \App\Models\ConfiguracaoLoja::daUnidade()->desconto_avista_percentual;
+                    @endphp
                     <div class="col-md-6">
-                        <label for="preco_venda" class="form-label fw-semibold">Preço à vista (Dinheiro/PIX) <span class="text-danger">*</span></label>
+                        <label for="preco_venda" class="form-label fw-semibold">@if($lojaPrecoCartao) Preço de venda (cartão) @else Preço à vista (Dinheiro/PIX) @endif <span class="text-danger">*</span></label>
                         <div class="input-group input-group-lg">
                             <span class="input-group-text text-success fw-bold">R$</span>
                             <input type="text" inputmode="numeric" data-mask="money" name="preco_venda" id="preco_venda" class="form-control form-control-lg fw-bold @error('preco_venda') is-invalid @enderror" value="{{ old('preco_venda', '0.00') }}" placeholder="0,00" required>
@@ -128,6 +132,27 @@
                     </div>
 
                     {{-- Preço no cartão (opcional — vale para crédito e débito) --}}
+                    @if($lojaPrecoCartao)
+                    {{-- Preço cadastrado = cartão: o campo opcional é o do Dinheiro/PIX; o do cartão
+                         segue escondido com o valor atual para salvar não apagar nada. --}}
+                    <input type="hidden" name="preco_cartao" value="{{ old('preco_cartao') }}">
+                    <div class="col-12">
+                        <div class="border rounded p-3 bg-light-subtle">
+                            <div class="fw-semibold mb-1"><i class="bi bi-cash-coin me-1"></i> Preço no Dinheiro/PIX <span class="text-muted fw-normal">(opcional)</span></div>
+                            <div class="text-muted small mb-3">O preço acima vale para <strong>crédito e débito</strong>. Em branco, Dinheiro/PIX sai com o desconto da loja (<strong>{{ rtrim(rtrim(number_format($lojaDescontoAvista, 2, ',', '.'), '0'), ',') }}%</strong>, em <a href="{{ route('app.configuracoes.edit') }}" target="_blank">Configurações da Loja</a>).</div>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label for="preco_pix" class="form-label">Preço no Dinheiro/PIX</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">R$</span>
+                                        <input type="text" inputmode="numeric" data-mask="money" name="preco_pix" id="preco_pix" class="form-control @error('preco_pix') is-invalid @enderror" value="{{ old('preco_pix') }}" placeholder="desconto da loja">
+                                        @error('preco_pix') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    @else
                     <div class="col-12">
                         <div class="border rounded p-3 bg-light-subtle">
                             <div class="fw-semibold mb-1"><i class="bi bi-credit-card me-1"></i> Preço no Cartão <span class="text-muted fw-normal">(opcional)</span></div>
@@ -144,6 +169,7 @@
                             </div>
                         </div>
                     </div>
+                    @endif
 
                     {{-- Preço de atacado (opcional — vale para cliente marcado como atacado) --}}
                     <div class="col-12">

@@ -1513,6 +1513,10 @@ const PDV = {
     documentoEscolhido: null,
     configLoja: {!! json_encode([
         'regra_split'             => $configLoja->regra_preco_split ?? 'cartao_maior',
+        // Preço cadastrado = preço do cartão (25/10/2026): a tabela "sem forma
+        // escolhida" e a de boleto/crediário passa a ser a do cartão.
+        'preco_base'              => $configLoja->preco_base ?? 'avista',
+        'desconto_avista'         => (float) ($configLoja->desconto_avista_percentual ?? 0),
         // Acréscimo por parte (regra `por_parte`, 04/09/2026): o front precisa dos
         // percentuais para mostrar a conta ANTES de confirmar. Quem grava é o
         // servidor, que refaz o cálculo — isto aqui é prévia.
@@ -1924,7 +1928,13 @@ const PDV = {
         return ({
             dinheiro: 'dinheiro_pix', pix: 'dinheiro_pix',
             cartao_debito: 'debito', cartao_credito: 'credito',
-        })[forma] || 'dinheiro_pix';
+        })[forma] || this.modalidadeDoCadastro();
+    },
+
+    // Espelha TabelaPrecoService::modalidadeDoCadastro: a tabela que vale o preço
+    // cadastrado no produto (Dinheiro/PIX na regra de sempre, cartão na regra 'cartao').
+    modalidadeDoCadastro() {
+        return this.configLoja.preco_base === 'cartao' ? 'credito' : 'dinheiro_pix';
     },
 
     // Modalidade aplicável às formas escolhidas (+ uma forma em análise no modal)
@@ -1940,7 +1950,7 @@ const PDV = {
 
         const formas = this.pagamentos.map(p => p.forma);
         if (formaExtra) formas.push(formaExtra);
-        if (formas.length === 0) return 'dinheiro_pix';
+        if (formas.length === 0) return this.modalidadeDoCadastro();
 
         const mods = formas.map(f => this.modalidadeDaForma(f));
         if (formas.length === 1) return mods[0];
@@ -2085,7 +2095,11 @@ const PDV = {
         // que não está sendo aplicada).
         const labels = this.cobraPorParte()
             ? { dinheiro_pix: null, debito: null, credito: null, atacado: 'Tabela: Atacado' }
-            : { dinheiro_pix: null, debito: 'Tabela: Débito', credito: 'Tabela: Crédito', atacado: 'Tabela: Atacado' };
+            : (this.configLoja.preco_base === 'cartao'
+                // Preço cadastrado = cartão: o que muda o preço é o desconto do PIX
+                ? { dinheiro_pix: 'Dinheiro/PIX: ' + String(this.configLoja.desconto_avista).replace('.', ',') + '% de desconto',
+                    debito: null, credito: null, atacado: 'Tabela: Atacado' }
+                : { dinheiro_pix: null, debito: 'Tabela: Débito', credito: 'Tabela: Crédito', atacado: 'Tabela: Atacado' });
         const texto = labels[this.tabelaAtiva];
         badge.style.display = texto ? 'block' : 'none';
         badge.textContent = texto || '';

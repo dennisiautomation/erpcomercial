@@ -153,6 +153,8 @@ class ProdutoController extends Controller
             'preco_credito'          => 'nullable|numeric|min:0',
             // Preço de atacado — vale para cliente marcado como atacado
             'preco_atacado'          => 'nullable|numeric|min:0',
+            // Preço próprio no Dinheiro/PIX — só a loja com "preço cadastrado = cartão" mostra o campo
+            'preco_pix'              => 'nullable|numeric|min:0',
         ]);
 
         // Preço no Cartão (form) vale para as duas modalidades; os campos
@@ -161,7 +163,10 @@ class ProdutoController extends Controller
         $precoDebito  = $precoCartao ?? $validated['preco_debito'] ?? null;
         $precoCredito = $precoCartao ?? $validated['preco_credito'] ?? null;
         $precoAtacado = $validated['preco_atacado'] ?? null;
+        // Campo ausente (loja na regra de sempre) = não mexe no preço PIX; presente e vazio = apaga
+        $precoPix = $request->has('preco_pix') ? ($validated['preco_pix'] ?? '') : false;
         unset(
+            $validated['preco_pix'],
             $validated['preco_cartao'],
             $validated['preco_debito'],
             $validated['preco_credito'],
@@ -214,7 +219,7 @@ class ProdutoController extends Controller
         }
 
         $produto = Produto::create($validated);
-        $this->salvarPrecosPorForma($produto, $precoDebito, $precoCredito, $precoAtacado);
+        $this->salvarPrecosPorForma($produto, $precoDebito, $precoCredito, $precoAtacado, $precoPix);
 
         return redirect()->route('app.produtos.index')
             ->with('success', 'Produto cadastrado com sucesso!');
@@ -367,6 +372,8 @@ class ProdutoController extends Controller
             'preco_credito'          => 'nullable|numeric|min:0',
             // Preço de atacado — vale para cliente marcado como atacado
             'preco_atacado'          => 'nullable|numeric|min:0',
+            // Preço próprio no Dinheiro/PIX — só a loja com "preço cadastrado = cartão" mostra o campo
+            'preco_pix'              => 'nullable|numeric|min:0',
         ]);
 
         // Preço no Cartão (form) vale para as duas modalidades; os campos
@@ -375,7 +382,10 @@ class ProdutoController extends Controller
         $precoDebito  = $precoCartao ?? $validated['preco_debito'] ?? null;
         $precoCredito = $precoCartao ?? $validated['preco_credito'] ?? null;
         $precoAtacado = $validated['preco_atacado'] ?? null;
+        // Campo ausente (loja na regra de sempre) = não mexe no preço PIX; presente e vazio = apaga
+        $precoPix = $request->has('preco_pix') ? ($validated['preco_pix'] ?? '') : false;
         unset(
+            $validated['preco_pix'],
             $validated['preco_cartao'],
             $validated['preco_debito'],
             $validated['preco_credito'],
@@ -392,7 +402,7 @@ class ProdutoController extends Controller
         }
 
         $produto->update($validated);
-        $this->salvarPrecosPorForma($produto, $precoDebito, $precoCredito, $precoAtacado);
+        $this->salvarPrecosPorForma($produto, $precoDebito, $precoCredito, $precoAtacado, $precoPix);
 
         return redirect()->route('app.produtos.index')
             ->with('success', 'Produto atualizado com sucesso!');
@@ -423,13 +433,18 @@ class ProdutoController extends Controller
      * Persiste/remove os overrides de preço por forma de pagamento.
      * Campo vazio = sem override (vale a regra geral das Configurações da Loja).
      */
-    private function salvarPrecosPorForma(Produto $produto, $precoDebito, $precoCredito, $precoAtacado = null): void
+    private function salvarPrecosPorForma(Produto $produto, $precoDebito, $precoCredito, $precoAtacado = null, $precoPix = false): void
     {
         $porModalidade = [
             'debito'  => $precoDebito,
             'credito' => $precoCredito,
             'atacado' => $precoAtacado,
         ];
+        // false = a tela não tinha o campo (loja na regra de sempre): o preço PIX
+        // próprio, se existir, fica como está.
+        if ($precoPix !== false) {
+            $porModalidade['dinheiro_pix'] = $precoPix;
+        }
 
         foreach ($porModalidade as $modalidade => $valor) {
             $registro = $produto->precos()->where('modalidade', $modalidade)->first();

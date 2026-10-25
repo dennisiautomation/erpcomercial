@@ -167,7 +167,47 @@
     <x-erp.form-section title="Preços por Forma de Pagamento" icon="tags"
         description="Um preço para Dinheiro/PIX, outro para Débito, outro para Crédito">
 
-        <div class="alert alert-light border mb-3">
+        {{-- Preço cadastrado = preço do cartão (25/10/2026). Nasce em 'avista': quem
+             nunca mexer aqui continua exatamente como antes. --}}
+        @php
+            $precoBase = old('preco_base', $config->preco_base ?? 'avista');
+            $descAvista = old('desconto_avista_percentual', $config->desconto_avista_percentual ?? 0);
+        @endphp
+        <label class="form-label fw-semibold mb-1">
+            <i class="bi bi-tag me-1"></i>O preço de venda cadastrado no produto é o preço…
+        </label>
+        <div class="form-check mb-1">
+            <input class="form-check-input" type="radio" name="preco_base" id="preco_base_avista"
+                   value="avista" @checked($precoBase !== 'cartao')>
+            <label class="form-check-label" for="preco_base_avista">
+                <strong>à vista (Dinheiro/PIX)</strong> <span class="badge bg-secondary">como sempre foi</span>
+                <div class="text-muted small">O cartão cobra os acréscimos de débito e crédito abaixo.</div>
+            </label>
+        </div>
+        <div class="form-check mb-2">
+            <input class="form-check-input" type="radio" name="preco_base" id="preco_base_cartao"
+                   value="cartao" @checked($precoBase === 'cartao')>
+            <label class="form-check-label" for="preco_base_cartao">
+                <strong>do cartão</strong> — Dinheiro/PIX ganha desconto
+                <div class="text-muted small">Débito e crédito cobram o preço cadastrado (parcelado sem juros até o
+                    máximo de parcelas). Os acréscimos de débito e crédito abaixo deixam de valer.</div>
+            </label>
+        </div>
+        <div class="row g-3 mb-3" id="blocoDescontoAvista" @if($precoBase !== 'cartao') style="display:none;" @endif>
+            <div class="col-md-4">
+                <label class="form-label fw-semibold">Desconto no Dinheiro/PIX (%)</label>
+                <div class="input-group">
+                    <input type="number" step="0.01" min="0" max="50" class="form-control @error('desconto_avista_percentual') is-invalid @enderror"
+                           name="desconto_avista_percentual" id="desconto_avista_percentual" value="{{ $descAvista }}">
+                    <span class="input-group-text">%</span>
+                </div>
+                @error('desconto_avista_percentual') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
+            </div>
+            <div class="col-md-8 small text-muted align-self-end" id="exemploDescontoAvista"></div>
+        </div>
+        @error('preco_base') <div class="alert alert-danger py-2 small">{{ $message }}</div> @enderror
+
+        <div class="alert alert-light border mb-3" id="explicaTabelasAvista" @if($precoBase === 'cartao') style="display:none;" @endif>
             <strong><i class="bi bi-book me-1"></i>Entenda as 3 tabelas:</strong>
             o <strong>preço de venda cadastrado no produto</strong> é o preço à vista
             (<span class="badge bg-success">Dinheiro / PIX</span>).
@@ -185,8 +225,12 @@
             </div>
         </div>
 
+        <div class="alert alert-warning py-2 small mb-2" id="avisoAcrescimoIgnorado" @if($precoBase !== 'cartao') style="display:none;" @endif>
+            <i class="bi bi-info-circle me-1"></i>Com o preço cadastrado sendo o do cartão, os dois acréscimos abaixo
+            <strong>não são usados</strong>. O máximo de parcelas e a tabela de juros continuam valendo.
+        </div>
         <div class="row g-3 mb-2">
-            <div class="col-md-4">
+            <div class="col-md-4 campo-acrescimo">
                 <label class="form-label fw-semibold">Acréscimo no Débito (%)</label>
                 <div class="input-group">
                     <input type="number" step="0.01" min="0" max="100" class="form-control"
@@ -197,7 +241,7 @@
                 <div class="form-text">Quanto o preço sobe quando o cliente paga no débito.
                     <strong>0 = mesmo preço do PIX.</strong></div>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-4 campo-acrescimo">
                 <label class="form-label fw-semibold">Acréscimo no Crédito (%)</label>
                 <div class="input-group">
                     <input type="number" step="0.01" min="0" max="100" class="form-control"
@@ -425,6 +469,42 @@
 
                 [campoMax, campoCredito, campoBase].forEach(c => c && c.addEventListener('input', render));
                 document.querySelectorAll('.juros-campo').forEach(c => c.addEventListener('input', render));
+                render();
+            })();
+        </script>
+
+        <script>
+            // Preço cadastrado = cartão (25/10/2026): mostra o desconto, esconde a
+            // explicação das 3 tabelas e avisa que os acréscimos não valem.
+            (function () {
+                const radios   = document.querySelectorAll('input[name="preco_base"]');
+                const bloco    = document.getElementById('blocoDescontoAvista');
+                const explica  = document.getElementById('explicaTabelasAvista');
+                const aviso    = document.getElementById('avisoAcrescimoIgnorado');
+                const campo    = document.getElementById('desconto_avista_percentual');
+                const exemplo  = document.getElementById('exemploDescontoAvista');
+                const campoMax = document.querySelector('input[name="max_parcelas"]');
+                const porParte = document.getElementById('regra_por_parte');
+                const brl = v => 'R$ ' + v.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+                function render() {
+                    const cartao = document.getElementById('preco_base_cartao').checked;
+                    bloco.style.display   = cartao ? '' : 'none';
+                    explica.style.display = cartao ? 'none' : '';
+                    aviso.style.display   = cartao ? '' : 'none';
+                    document.querySelectorAll('.campo-acrescimo').forEach(c => c.style.opacity = cartao ? '.45' : '');
+                    if (porParte) {
+                        porParte.disabled = cartao;
+                        if (cartao && porParte.checked) document.getElementById('regra_cartao_maior').checked = true;
+                    }
+                    const d = Math.min(50, Math.max(0, parseFloat(campo.value) || 0));
+                    const n = Math.max(1, parseInt(campoMax?.value) || 1);
+                    const pix = Math.round(300 * (1 - d / 100) * 100) / 100;
+                    exemplo.innerHTML = 'Exemplo: produto cadastrado a <strong>R$ 300,00</strong> → cartão '
+                        + '<strong>' + n + 'x de ' + brl(Math.round(300 / n * 100) / 100) + '</strong> · '
+                        + 'Dinheiro/PIX <strong>' + brl(pix) + '</strong>.';
+                }
+                radios.forEach(r => r.addEventListener('change', render));
+                [campo, campoMax].forEach(c => c && c.addEventListener('input', render));
                 render();
             })();
         </script>
@@ -870,6 +950,23 @@
                       placeholder="Ex.: Cartão em até 6x sem juros. À vista no PIX ou dinheiro, 7% de desconto. Entrega em Teresina em até 2 dias úteis.">{{ old('orcamento_condicoes', $config->orcamento_condicoes) }}</textarea>
             <div class="form-text d-flex justify-content-between gap-2 flex-wrap"><span>Vem preenchido em cada orçamento novo e o vendedor pode mudar naquele orçamento. Orçamento com o campo em branco usa este texto.</span><span class="text-muted" data-contador-de="orcamento_condicoes"></span></div>
             @error('orcamento_condicoes') <div class="invalid-feedback">{{ $message }}</div> @enderror
+        </div>
+
+        <div class="mb-3">
+            <label for="orcamento_parcelas" class="form-label fw-semibold">Formas de pagamento calculadas na folha</label>
+            <div class="input-group" style="max-width:22rem;">
+                <span class="input-group-text">Cartão em até</span>
+                <input type="number" min="1" max="24" name="orcamento_parcelas" id="orcamento_parcelas"
+                       class="form-control @error('orcamento_parcelas') is-invalid @enderror"
+                       value="{{ old('orcamento_parcelas', $config->orcamento_parcelas) }}" placeholder="desligado">
+                <span class="input-group-text">x</span>
+            </div>
+            <div class="form-text">
+                Preenchido, todo orçamento novo já sai com o quadro <strong>"Dinheiro/PIX: R$ …"</strong> e
+                <strong>"Cartão: 6x de R$ …"</strong>, calculado pelo sistema (o vendedor pode mudar as parcelas e o
+                desconto em cada orçamento). Em branco, o orçamento sai como hoje.
+            </div>
+            @error('orcamento_parcelas') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
         </div>
 
         <div class="mb-2">

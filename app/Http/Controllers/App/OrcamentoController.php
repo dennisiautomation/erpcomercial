@@ -66,9 +66,13 @@ class OrcamentoController extends Controller
         $servicos = Servico::where('empresa_id', session('empresa_id'))->where('status', 'ativo')->orderBy('descricao')->get();
 
         // Condições já vêm com o padrão da loja; o vendedor ajusta para este cliente
-        $condicoesPadrao = \App\Models\ConfiguracaoLoja::daUnidade()->orcamento_condicoes;
+        $configLoja = \App\Models\ConfiguracaoLoja::daUnidade();
+        $condicoesPadrao = $configLoja->orcamento_condicoes;
+        // Quadro de pagamento: liga sozinho só na loja que preencheu as parcelas
+        $parcelasPadrao = $configLoja->orcamento_parcelas;
+        $descontoAvistaPadrao = app(\App\Services\OrcamentoPagamentoService::class)->descontoPadrao($configLoja);
 
-        return view('app.orcamentos.create', compact('vendedores', 'produtos', 'servicos', 'condicoesPadrao'));
+        return view('app.orcamentos.create', compact('vendedores', 'produtos', 'servicos', 'condicoesPadrao', 'configLoja', 'parcelasPadrao', 'descontoAvistaPadrao'));
     }
 
     public function store(Request $request)
@@ -82,6 +86,10 @@ class OrcamentoController extends Controller
             'observacoes_internas'    => 'nullable|string|max:2000',
             'observacoes_externas'    => 'nullable|string|max:2000',
             'condicoes'               => 'nullable|string|max:5000',
+            // Taxa de entrega + quadro de formas de pagamento (25/10/2026)
+            'frete_valor'             => 'nullable|numeric|min:0|max:99999999',
+            'parcelas'                => 'nullable|integer|min:1|max:24',
+            'desconto_avista_percentual' => 'nullable|numeric|min:0|max:100',
             'itens'                   => 'required|array|min:1',
             'itens.*.produto_id'      => 'required_without:itens.*.servico_id|nullable|exists:produtos,id',
             'itens.*.servico_id'      => 'required_without:itens.*.produto_id|nullable|exists:servicos,id',
@@ -136,7 +144,9 @@ class OrcamentoController extends Controller
 
             $descontoGeralPerc  = $request->desconto_percentual ?? 0;
             $descontoGeralValor = $request->desconto_valor ?? round($subtotal * ($descontoGeralPerc / 100), 2);
-            $total = round($subtotal - $descontoGeralValor, 2);
+            // O frete soma no total; desconto nunca incide sobre ele
+            $freteValor = round((float) ($request->frete_valor ?? 0), 2);
+            $total = round($subtotal - $descontoGeralValor + $freteValor, 2);
 
             $orcamento = Orcamento::create([
                 'empresa_id'          => $empresaId,
@@ -148,6 +158,9 @@ class OrcamentoController extends Controller
                 'subtotal'            => $subtotal,
                 'desconto_percentual' => $descontoGeralPerc,
                 'desconto_valor'      => $descontoGeralValor,
+                'frete_valor'         => $freteValor,
+                'parcelas'            => $request->filled('parcelas') ? (int) $request->parcelas : null,
+                'desconto_avista_percentual' => $request->filled('parcelas') ? (float) ($request->desconto_avista_percentual ?? 0) : null,
                 'total'               => $total,
                 'status'              => StatusOrcamento::EmAberto,
                 'observacoes_internas'=> $request->observacoes_internas,
@@ -168,7 +181,10 @@ class OrcamentoController extends Controller
     {
         $orcamento->load(['cliente', 'vendedor', 'itens.produto', 'itens.servico', 'pedido']);
 
-        return view('app.orcamentos.show', compact('orcamento'));
+        $configLoja = \App\Models\ConfiguracaoLoja::daUnidade($orcamento->empresa_id, $orcamento->unidade_id);
+        $pagamento = $this->quadroPagamento($orcamento, $configLoja);
+
+        return view('app.orcamentos.show', compact('orcamento', 'pagamento'));
     }
 
     /**
@@ -184,8 +200,30 @@ class OrcamentoController extends Controller
         $unidade = \App\Models\Unidade::withoutGlobalScopes()->find($orcamento->unidade_id);
         $configLoja = \App\Models\ConfiguracaoLoja::daUnidade($orcamento->empresa_id, $orcamento->unidade_id);
         $cabecalho = $configLoja->cabecalhoOrcamento($empresa, $unidade);
+        $pagamento = $this->quadroPagamento($orcamento, $configLoja);
 
-        return view('app.orcamentos.print', compact('orcamento', 'configLoja', 'cabecalho'));
+        return view('app.orcamentos.print', compact('orcamento', 'configLoja', 'cabecalho', 'pagamento'));
+    }
+
+    /**
+     * Quadro "Formas de pagamento" (25/10/2026). NULL = orçamento sem parcelas
+     * (antigo, ou loja que não usa): a folha sai como antes.
+     */
+    private function quadroPagamento(Orcamento $orcamento, \App\Models\ConfiguracaoLoja $configLoja): ?array
+    {
+        if (! $orcamento->parcelas) {
+            return null;
+        }
+
+        $frete = (float) $orcamento->frete_valor;
+
+        return app(\App\Services\OrcamentoPagamentoService::class)->simular(
+            (float) $orcamento->total - $frete,
+            $frete,
+            (int) $orcamento->parcelas,
+            (float) $orcamento->desconto_avista_percentual,
+            $configLoja,
+        );
     }
 
     public function edit(Orcamento $orcamento)
@@ -200,9 +238,14 @@ class OrcamentoController extends Controller
         $produtos = Produto::where('empresa_id', session('empresa_id'))->where('status', 'ativo')->orderBy('descricao')->get();
         $servicos = Servico::where('empresa_id', session('empresa_id'))->where('status', 'ativo')->orderBy('descricao')->get();
 
-        $condicoesPadrao = \App\Models\ConfiguracaoLoja::daUnidade($orcamento->empresa_id, $orcamento->unidade_id)->orcamento_condicoes;
+        $configLoja = \App\Models\ConfiguracaoLoja::daUnidade($orcamento->empresa_id, $orcamento->unidade_id);
+        $condicoesPadrao = $configLoja->orcamento_condicoes;
+        $parcelasPadrao = $orcamento->parcelas;
+        $descontoAvistaPadrao = $orcamento->parcelas
+            ? (float) $orcamento->desconto_avista_percentual
+            : app(\App\Services\OrcamentoPagamentoService::class)->descontoPadrao($configLoja);
 
-        return view('app.orcamentos.edit', compact('orcamento', 'vendedores', 'produtos', 'servicos', 'condicoesPadrao'));
+        return view('app.orcamentos.edit', compact('orcamento', 'vendedores', 'produtos', 'servicos', 'condicoesPadrao', 'configLoja', 'parcelasPadrao', 'descontoAvistaPadrao'));
     }
 
     public function update(Request $request, Orcamento $orcamento)
@@ -220,6 +263,10 @@ class OrcamentoController extends Controller
             'observacoes_internas'    => 'nullable|string|max:2000',
             'observacoes_externas'    => 'nullable|string|max:2000',
             'condicoes'               => 'nullable|string|max:5000',
+            // Taxa de entrega + quadro de formas de pagamento (25/10/2026)
+            'frete_valor'             => 'nullable|numeric|min:0|max:99999999',
+            'parcelas'                => 'nullable|integer|min:1|max:24',
+            'desconto_avista_percentual' => 'nullable|numeric|min:0|max:100',
             'itens'                   => 'required|array|min:1',
             'itens.*.produto_id'      => 'required_without:itens.*.servico_id|nullable|exists:produtos,id',
             'itens.*.servico_id'      => 'required_without:itens.*.produto_id|nullable|exists:servicos,id',
@@ -268,7 +315,9 @@ class OrcamentoController extends Controller
 
             $descontoGeralPerc  = $request->desconto_percentual ?? 0;
             $descontoGeralValor = $request->desconto_valor ?? round($subtotal * ($descontoGeralPerc / 100), 2);
-            $total = round($subtotal - $descontoGeralValor, 2);
+            // O frete soma no total; desconto nunca incide sobre ele
+            $freteValor = round((float) ($request->frete_valor ?? 0), 2);
+            $total = round($subtotal - $descontoGeralValor + $freteValor, 2);
 
             $orcamento->update([
                 'cliente_id'          => $request->cliente_id,
@@ -277,6 +326,9 @@ class OrcamentoController extends Controller
                 'subtotal'            => $subtotal,
                 'desconto_percentual' => $descontoGeralPerc,
                 'desconto_valor'      => $descontoGeralValor,
+                'frete_valor'         => $freteValor,
+                'parcelas'            => $request->filled('parcelas') ? (int) $request->parcelas : null,
+                'desconto_avista_percentual' => $request->filled('parcelas') ? (float) ($request->desconto_avista_percentual ?? 0) : null,
                 'total'               => $total,
                 'observacoes_internas'=> $request->observacoes_internas,
                 'observacoes_externas'=> $request->observacoes_externas,
@@ -325,6 +377,8 @@ class OrcamentoController extends Controller
                 'subtotal'            => $orcamento->subtotal,
                 'desconto_percentual' => $orcamento->desconto_percentual,
                 'desconto_valor'      => $orcamento->desconto_valor,
+                // Pedido também soma o frete no total (total = subtotal − desconto + frete)
+                'frete_valor'         => (float) $orcamento->frete_valor > 0 ? $orcamento->frete_valor : null,
                 'total'               => $orcamento->total,
                 'status'              => StatusPedido::Rascunho,
                 'observacoes_internas'=> $orcamento->observacoes_internas,

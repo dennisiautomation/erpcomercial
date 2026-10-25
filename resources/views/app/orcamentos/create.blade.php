@@ -198,6 +198,7 @@
                             </div>
                         </div>
                     </div>
+                    @include('app.orcamentos._pagamento', ['freteAtual' => 0])
                     <div class="d-flex justify-content-between align-items-center p-3 bg-success bg-opacity-10 rounded-3">
                         <span class="fs-5 fw-semibold">TOTAL:</span>
                         <strong class="fs-4 text-success" id="totalDisplay">R$ 0,00</strong>
@@ -444,10 +445,15 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('descontoValor').value = descValor.toFixed(2);
         }
 
-        const total = Math.max(0, subtotal - descValor);
+        // Taxa de entrega soma no total; o quadro de pagamento usa os produtos sem ela
+        const frete = Math.max(0, parseFloat(document.getElementById('freteValor').value) || 0);
+        const produtos = Math.max(0, subtotal - descValor);
+        const total = produtos + frete;
         document.getElementById('totalDisplay').textContent = 'R$ ' + total.toFixed(2).replace('.', ',');
+        if (window.QuadroPagamentoOrc) window.QuadroPagamentoOrc.render(produtos);
     }
 
+    window.calcularTotaisOrc = calcularTotais;
     document.getElementById('descontoPerc').addEventListener('input', calcularTotais);
     document.getElementById('descontoValor').addEventListener('input', function() {
         document.getElementById('descontoPerc').value = 0;

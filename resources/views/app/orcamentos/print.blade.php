@@ -67,6 +67,10 @@
         .totais .final td { border-top: 2px solid #111827; padding-top: 7px; font-size: 16px; font-weight: bold; }
 
         .texto { white-space: pre-line; font-size: 11.5px; line-height: 1.5; }
+        .pagamento { width: 260px; margin: 10px 0 0 auto; border: 1px solid #d1d5db; border-radius: 6px; border-collapse: separate; padding: 6px 10px; }
+        .pagamento td { padding: 4px 0; font-size: 12px; vertical-align: top; }
+        .pagamento td small { display: block; font-size: 10px; color: #6b7280; }
+        .pagamento td b { font-size: 13px; }
         .validade { margin-top: 12px; font-size: 11px; color: #374151; }
         .assinatura { margin-top: 40px; width: 60%; margin-left: auto; margin-right: auto; text-align: center; }
         .assinatura div { border-top: 1px solid #374151; padding-top: 5px; font-size: 10.5px; color: #374151; }
@@ -201,8 +205,25 @@
                             <td class="r">− {{ $brl($orcamento->desconto_valor) }}</td>
                         </tr>
                     @endif
+                    @if((float) $orcamento->frete_valor > 0)
+                        <tr><td>Taxa de entrega</td><td class="r">+ {{ $brl($orcamento->frete_valor) }}</td></tr>
+                    @endif
                     <tr class="final"><td>TOTAL</td><td class="r">{{ $brl($orcamento->total) }}</td></tr>
                 </table>
+                {{-- Formas de pagamento (25/10/2026): o cliente vê as duas contas prontas --}}
+                @if($pagamento)
+                    <table class="pagamento">
+                        <tr><td colspan="2" class="rotulo">Formas de pagamento</td></tr>
+                        <tr>
+                            <td>Dinheiro / PIX @if($pagamento['desconto_percentual'] > 0)<small>{{ rtrim(rtrim(number_format($pagamento['desconto_percentual'], 2, ',', '.'), '0'), ',') }}% de desconto</small>@endif</td>
+                            <td class="r"><b>{{ $brl($pagamento['avista']) }}</b></td>
+                        </tr>
+                        <tr>
+                            <td>Cartão de crédito<small>{{ $pagamento['tem_juros'] ? 'com juros' : 'sem juros' }} @if($pagamento['parcelas'] > 1 || $pagamento['tem_juros']) · total {{ $brl($pagamento['cartao_total']) }}@endif</small></td>
+                            <td class="r"><b>{{ $pagamento['parcelas'] }}x de {{ $brl($pagamento['valor_parcela']) }}</b></td>
+                        </tr>
+                    </table>
+                @endif
             </td>
         </tr>
     </table>

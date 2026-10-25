@@ -226,11 +226,25 @@
                                 <strong>- R$ {{ number_format($orcamento->desconto_valor, 2, ',', '.') }}</strong>
                             </div>
                         @endif
+                        @if((float) $orcamento->frete_valor > 0)
+                            <div class="d-flex justify-content-between py-1">
+                                <span class="text-muted">Taxa de entrega:</span>
+                                <strong>+ R$ {{ number_format($orcamento->frete_valor, 2, ',', '.') }}</strong>
+                            </div>
+                        @endif
                         <hr class="my-2">
                         <div class="d-flex justify-content-between py-1">
                             <span class="fs-5 fw-bold">TOTAL:</span>
                             <span class="fs-5 fw-bold text-success">R$ {{ number_format($orcamento->total, 2, ',', '.') }}</span>
                         </div>
+                        @if($pagamento)
+                            <div class="border rounded-3 p-2 mt-2 small">
+                                <div><i class="bi bi-cash-coin text-success me-1"></i>Dinheiro/PIX @if($pagamento['desconto_percentual'] > 0) ({{ rtrim(rtrim(number_format($pagamento['desconto_percentual'], 2, ',', '.'), '0'), ',') }}% de desconto)@endif:
+                                    <strong>R$ {{ number_format($pagamento['avista'], 2, ',', '.') }}</strong></div>
+                                <div><i class="bi bi-credit-card text-primary me-1"></i>Cartão: <strong>{{ $pagamento['parcelas'] }}x de R$ {{ number_format($pagamento['valor_parcela'], 2, ',', '.') }}</strong>
+                                    {{ $pagamento['tem_juros'] ? 'com juros' : 'sem juros' }} @if($pagamento['parcelas'] > 1 || $pagamento['tem_juros']) (total R$ {{ number_format($pagamento['cartao_total'], 2, ',', '.') }})@endif</div>
+                            </div>
+                        @endif
                     </div>
                 </div>
             </div>

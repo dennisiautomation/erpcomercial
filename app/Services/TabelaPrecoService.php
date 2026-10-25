@@ -55,6 +55,22 @@ class TabelaPrecoService
             ? $produto->precos->pluck('valor', 'modalidade')
             : $produto->precos()->pluck('valor', 'modalidade');
 
+        // Preço cadastrado = preço do cartão (25/10/2026, opção da loja, nasce
+        // desligada): débito e crédito cobram o cadastrado e Dinheiro/PIX leva o
+        // desconto. Os percentuais de acréscimo do cartão NÃO valem nesta regra.
+        // Loja na regra de sempre ('avista') não passa por aqui — nada muda para ela.
+        if ($config->precoBaseCartao()) {
+            $desconto = max(0.0, min(100.0, (float) $config->desconto_avista_percentual));
+
+            return [
+                'dinheiro_pix' => (float) ($overrides['dinheiro_pix']
+                    ?? round($base * (1 - $desconto / 100), 2)),
+                'debito'       => (float) ($overrides['debito'] ?? $base),
+                'credito'      => (float) ($overrides['credito'] ?? $base),
+                'atacado'      => (float) ($overrides['atacado'] ?? $base),
+            ];
+        }
+
         return [
             'dinheiro_pix' => (float) ($overrides['dinheiro_pix'] ?? $base),
             'debito'       => (float) ($overrides['debito']
@@ -92,8 +108,12 @@ class TabelaPrecoService
      */
     public function modalidadeDosPagamentos(array $formas, ConfiguracaoLoja $config): string
     {
+        // Boleto, crediário, transferência e vale usam a tabela do preço
+        // cadastrado: Dinheiro/PIX na regra de sempre, o cartão na regra 'cartao'
+        // (o desconto é só de Dinheiro/PIX).
+        $tabelaCadastro = $this->modalidadeDoCadastro($config);
         $modalidades = array_map(
-            fn ($forma) => self::FORMA_MODALIDADE[$forma] ?? 'dinheiro_pix',
+            fn ($forma) => self::FORMA_MODALIDADE[$forma] ?? $tabelaCadastro,
             $formas
         );
 
@@ -108,7 +128,7 @@ class TabelaPrecoService
         }
 
         if (count($formas) <= 1) {
-            return $modalidades[0] ?? 'dinheiro_pix';
+            return $modalidades[0] ?? $tabelaCadastro;
         }
 
         return match ($config->regra_preco_split ?? 'cartao_maior') {
@@ -116,6 +136,15 @@ class TabelaPrecoService
             'sempre_maior' => 'credito',
             default        => $this->maiorModalidade($modalidades),
         };
+    }
+
+    /**
+     * Tabela que vale o preço cadastrado no produto: 'dinheiro_pix' na regra de
+     * sempre, 'credito' quando a loja cadastra o preço do cartão (25/10/2026).
+     */
+    public function modalidadeDoCadastro(ConfiguracaoLoja $config): string
+    {
+        return $config->precoBaseCartao() ? 'credito' : 'dinheiro_pix';
     }
 
     /** A loja cobra por parte (cada forma paga a tabela dela)? */

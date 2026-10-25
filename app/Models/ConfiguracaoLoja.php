@@ -18,6 +18,9 @@ class ConfiguracaoLoja extends Model
         'unidade_id',
         'vendedor_responsavel_caixa',
         'regra_preco_split',
+        // Preço cadastrado = preço do cartão; PIX/dinheiro com desconto (25/10/2026)
+        'preco_base',
+        'desconto_avista_percentual',
         'percentual_debito',
         'percentual_credito',
         'max_parcelas',
@@ -44,6 +47,7 @@ class ConfiguracaoLoja extends Model
         'orcamento_site',
         'orcamento_condicoes',
         'orcamento_rodape',
+        'orcamento_parcelas',
         // Trocas (03/09/2026)
         'troca_prazo_dias',
         'troca_sobra',
@@ -62,6 +66,8 @@ class ConfiguracaoLoja extends Model
         // Orçamento sai com o endereço da própria loja até alguém escolher outro
         'orcamento_endereco'    => 'loja',
         'pdv_escolher_estoque'  => false,
+        'preco_base'            => 'avista',
+        'desconto_avista_percentual' => 0,
         // Trocas: loja que nunca abriu a tela troca em até 30 dias, sobra vira
         // vale de 90 dias e fora da política pede o gerente.
         'troca_prazo_dias'         => 30,
@@ -88,7 +94,18 @@ class ConfiguracaoLoja extends Model
             'troca_vale_validade_dias'   => 'integer',
             'troca_senha_gerente'        => 'boolean',
             'pdv_escolher_estoque'       => 'boolean',
+            'desconto_avista_percentual' => 'decimal:2',
+            'orcamento_parcelas'         => 'integer',
         ];
+    }
+
+    /**
+     * O preço cadastrado no produto é o do cartão (25/10/2026)? Então Dinheiro/PIX
+     * leva `desconto_avista_percentual` e débito/crédito cobram o preço cheio.
+     */
+    public function precoBaseCartao(): bool
+    {
+        return ($this->preco_base ?? 'avista') === 'cartao';
     }
 
     /**

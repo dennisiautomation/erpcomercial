@@ -5477,6 +5477,61 @@ emitidas, porque o cupom saía com o título "DANFE NFC-e", sem número e sem pr
 
 ---
 
+## DK: taxa de entrega e formas de pagamento no orçamento + "preço cadastrado = cartão" (25/10/2026)
+
+Pedido do Wellington (DK, WhatsApp 22–23/10): as vendedoras digitavam à mão "5x de R$ 300 no cartão / R$ X no PIX"
+nas condições do orçamento, não havia campo de taxa de entrega e o preço cadastrado na DK é o do **cartão** (o PIX
+ganha 5–10% de desconto) — o ERP só sabia o contrário (cadastrado = à vista, cartão com acréscimo).
+
+**Tudo é opção da loja e nasce desligado.** Loja que não mexer continua exatamente como antes (validado
+antes × depois: mesmas tabelas de preço no PDV nas regras `cartao_maior` e `por_parte`, etiqueta idêntica,
+folha do orçamento igual fora o CSS novo).
+
+### O que mudou
+| Onde | O quê |
+|---|---|
+| `configuracoes_loja.preco_base` (`avista`\|`cartao`, default `avista`) + `desconto_avista_percentual` | Configurações da Loja → Preços por Forma de Pagamento: "O preço cadastrado é o preço… à vista / do cartão" |
+| `TabelaPrecoService::precosDoProduto()` | na regra `cartao`: débito = crédito = cadastrado; Dinheiro/PIX = cadastrado × (1 − desconto). Os percentuais de acréscimo **não** valem. Override por produto continua tendo prioridade |
+| `TabelaPrecoService::modalidadeDoCadastro()` | tabela do preço cadastrado: `dinheiro_pix` (sempre) ou `credito` (regra `cartao`). Boleto, crediário, transferência, vale e "nenhuma forma ainda" usam ela — **o desconto é só de Dinheiro/PIX** |
+| PDV (`pdv/index.blade.php`) | espelha o acima: carrinho abre no preço do cartão e cai para o do PIX ao escolher PIX; badge "Dinheiro/PIX: 5% de desconto" |
+| `ConfiguracaoLojaController` | recusa `cartao` + `por_parte` (não há acréscimo para cobrar por parte; as duas juntas dariam centavos de diferença). Desconto máx. 50%. Form antigo sem o campo = `avista` |
+| Cadastro de produto | na regra `cartao`: rótulo "Preço de venda (cartão)" e campo opcional **Preço no Dinheiro/PIX** (`produto_precos.modalidade = dinheiro_pix`). O preço próprio do cartão vai num hidden, para salvar não apagar. Na regra de sempre o campo PIX não existe e salvar **não** mexe nele |
+| `orcamentos.frete_valor`, `parcelas`, `desconto_avista_percentual` | taxa de entrega soma no total (desconto não incide nela); `parcelas` NULL = sem quadro (orçamentos antigos ficam assim) |
+| `configuracoes_loja.orcamento_parcelas` | Impressão do Orçamento → "Formas de pagamento calculadas na folha: cartão em até Nx". Preenchido, todo orçamento novo já vem com N e com o desconto da loja; em branco, "Não mostrar" |
+| `OrcamentoPagamentoService::simular()` | quadro da folha/tela. Regra `cartao`: cartão = produtos + entrega; PIX = produtos × (1 − d) + entrega. Regra de sempre: cartão = produtos × (1 + acréscimo crédito) + entrega; PIX = total (− d, se o vendedor puser). Juros da tabela da loja por cima do cartão (`JurosParcelamentoService::simular`) |
+| `_pagamento.blade.php` | campos + prévia ao vivo em novo/editar orçamento (espelha o service; quem grava é o PHP) |
+| `print.blade.php` / `show.blade.php` | linha "Taxa de entrega" e caixa "Formas de pagamento" |
+| `OrcamentoController::converter` | pedido herda `frete_valor` (pedido já soma frete no total) |
+
+Não entra no quadro: preço próprio por produto (`produto_precos`) — o orçamento usa o preço da linha do item.
+Outros lugares que leem `preco_venda` direto (Vendedor IA, venda balcão) mostram o preço cadastrado — na regra
+`cartao`, o do cartão.
+
+### Para a DK usar (configuração, depois do deploy)
+Configurações da Loja da Matriz: **"do cartão"** + desconto (5% foi o exemplo dele) e, em Impressão do Orçamento,
+**"cartão em até 6x"**. Hoje a DK está em `cartao_maior`, acréscimos 0%, 6 parcelas, sem juros — compatível.
+
+### Validação (25/10, ambiente descartável: mysql + pgvector; código de produção na 8096 e da branch na 8097, mesmo banco)
+- **`scripts/validar-dk-orcamento-preco-cartao.sh`: 58/58 ✅** (2 rodadas)
+  - regressão: 11 telas × dono e caixa, mesmo código HTTP antes × depois;
+  - regra de sempre com débito 3% / crédito 8% / juros: tabelas do PDV idênticas às de produção em `cartao_maior` e
+    `por_parte`; etiqueta idêntica; modalidades de boleto/crediário inalteradas; form antigo salva e segue `avista`;
+  - regra `cartao`: recusa com `por_parte` e desconto > 50%; PDV PIX 284,91 / débito e crédito 299,90 com os 8%
+    ignorados; **vendas reais no PDV** (servidor reprecifica): PIX grava 284,91, crédito 3x 299,90, PIX+crédito 299,90,
+    PIX a menos recusado; etiqueta "Cartão R$ 299,90 / PIX R$ 284,91"; PIX próprio no produto vale e não some ao
+    salvar na regra de sempre;
+  - orçamento: 1500 + entrega 30 = 1530; folha PIX 1.455,00 (5%) e 5x de 306,00; regra de sempre com +8% e 10% de
+    juros no 5x → 5x de 363,00 com juros; editar/desligar; converter leva a entrega; 30x recusado.
+- **Lint:** `php -l` nos 8 PHP e nas 254 views compiladas. O lint pegou a armadilha 86 (500 na folha).
+- **Visual:** Chromium headless: configuração, novo orçamento (prévia = cálculo do servidor), folha A4, produto.
+
+### Deploy (quando o Dennis mandar)
+`docker tag` da imagem antes; por tar (sobre o que está em produção — conferir por `diff` que os arquivos do
+container são a base da branch, armadilha 82): 17 arquivos (14 alterados + service, migration e `_pagamento.blade.php`) + `migrate --force` (1 migration, só colunas com default)
++ `route:cache` + `view:cache` + USR2. **Rollback:** tar de volta + `migrate:rollback --step=1` + caches + USR2.
+
+---
+
 ## Armadilhas conhecidas
 
 1. **EmpresaScope recursão**: `auth()->user()` dentro do scope chama User model que tem o scope → loop infinito. Scopes têm flag `static $applying`. Não remover.
@@ -5963,6 +6018,7 @@ emitidas, porque o cupom saía com o título "DANFE NFC-e", sem número e sem pr
 83. **Upload grande no ERP = em pedaços, e o pedaço vem do servidor** (20/10/2026). O php.ini de produção aceita 16M (40M após o rebuild da branch `treinamento`), o nginx do container 20M→50M e o nginx do **host** 50M (fora da imagem — mudar é tarefa do Dennis). Nunca fixe o tamanho do pedaço no JS: `TreinamentoController::tamanhoDoPedaco()` lê o php.ini em uso e o form recebe `$pedaco`. Vídeo (e qualquer arquivo grande no futuro) vai para `storage/app/private` (volume `app_storage`), nunca para `public/` (armadilha 46).
 84. **Job de "provisionar" tem de ser idempotente de verdade, e nota rejeitada não é DANFE** (22/10/2026). `ProvisionarEmpresaFocusJob` prometia PUT e fazia POST: cada "Resincronizar" criava outra empresa na Focus, sem certificado nem CSC, e trocava o `focus_empresa_id`. A DK ficou sem NFC-e. Antes de reprovisionar, compare o `GET /v2/empresas?cnpj=` da Focus com a config. E todo documento impresso tem de perguntar o **status** da nota, não só se ela existe: `emitir()` devolve a nota rejeitada sem exceção.
 85. **Model com prefixo em sigla (`NFeEntrada`) e `hasMany` sem chave; `d-flex` contra `style.display`** (23/10/2026). O Laravel adivinha a chave estrangeira pelo nome da classe em snake_case: `NFeEntrada` vira `n_fe_entrada_id` e o insert dá 1054. Em model com sigla no nome (`NFe…`, `NFSe…`), passe a chave no `hasMany`/`belongsTo`. E no Blade: elemento com `d-flex`/`d-block` do Bootstrap não some com `el.style.display = 'none'` (a classe é `!important`); use `classList.toggle('d-none', ...)`. Só o print da tela pegou isso; o teste por HTTP passava.
+86. **Diretiva Blade colada numa letra não é diretiva** (25/10/2026). `Dinheiro/PIX@if(...)` não compila o `@if` (o Blade exige não haver letra/número antes do `@`, por causa de e-mails), mas compila o `@endif` → `ParseError` e **500 na folha inteira**. Antes de `@if`/`@endif` em texto corrido, ponha um espaço. O `view:cache` não avisa: só o `php -l` nas views compiladas (armadilha 63) ou abrir a página.
 
 ---
 

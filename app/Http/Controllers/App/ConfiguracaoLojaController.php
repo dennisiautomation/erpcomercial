@@ -120,6 +120,11 @@ class ConfiguracaoLojaController extends Controller
         $dados = $request->validate([
             'vendedor_responsavel_caixa' => 'nullable|boolean',
             'regra_preco_split'          => 'required|in:cartao_maior,sempre_menor,sempre_maior,por_parte',
+            // Preço cadastrado = preço do cartão (25/10/2026). Ausente = 'avista'
+            // (form antigo aberto antes do deploy não muda a loja).
+            'preco_base'                 => 'nullable|in:avista,cartao',
+            'desconto_avista_percentual' => 'nullable|numeric|min:0|max:50',
+            'orcamento_parcelas'         => 'nullable|integer|min:1|max:24',
             'percentual_debito'          => 'required|numeric|min:0|max:100',
             'percentual_credito'         => 'required|numeric|min:0|max:100',
             'max_parcelas'               => 'required|integer|min:1|max:24',
@@ -164,6 +169,17 @@ class ConfiguracaoLojaController extends Controller
             'vendedor_apenas_pdv'        => 'nullable|boolean',
             'pdv_vendedores_da_loja'     => 'nullable|boolean',
         ]);
+
+        $dados['preco_base'] = $dados['preco_base'] ?? 'avista';
+        $dados['desconto_avista_percentual'] = (float) ($dados['desconto_avista_percentual'] ?? 0);
+        // 'por_parte' cobra o acréscimo do cartão sobre a parte paga no cartão; com o
+        // preço cadastrado já sendo o do cartão não há acréscimo para cobrar — as duas
+        // juntas dariam centavos de diferença. Recusa em vez de adivinhar.
+        if ($dados['preco_base'] === 'cartao' && $dados['regra_preco_split'] === 'por_parte') {
+            return back()->withInput()->withErrors([
+                'preco_base' => 'Com o preço cadastrado sendo o do cartão, a regra "Cada forma paga a sua própria tabela" não se aplica. Escolha outra regra de pagamento dividido.',
+            ]);
+        }
 
         $daEmpresa = [
             'vendedor_apenas_pdv'    => (bool) ($dados['vendedor_apenas_pdv'] ?? false),
