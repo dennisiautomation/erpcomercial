@@ -1314,6 +1314,60 @@ Pontos que mordem:
 
 ---
 
+### Carga de vendas históricas (28/08/2026) — a PRIMEIRA do ERP
+
+Planilhas do Hiper (`Operacoes.xlsx` + `Vendas com itens.xlsx`, 27/02 → 24/08/2026)
+carregadas em produção: **45 clientes + 87 vendas concluídas, R$ 19.169,91**, numeradas
+8–94 na unidade 12 (Matriz). Foi a estreia do `/app/import/vendas` — até aqui a tela
+existia desde 05/08 e **nenhuma empresa tinha uma linha com `tipo='importada'`**.
+
+O que a carga confirmou (vale para MISS MERLINDA e STILO VINTE, que também vêm do Hiper):
+
+- **A venda importada não tem produto.** O import grava 1 item genérico com
+  `produto_id = null`, então "Produtos mais vendidos" e Curva ABC
+  (`RelatorioController` 63/127, `DashboardController` 117 agrupam por `produto_id`)
+  seguem cegos para o histórico. Faturamento, relatório por período e por vendedor
+  funcionam normalmente. Trazer o item exigiria mexer no import — não foi feito.
+- **Vendedor casa por `users.name` EXATO**: `Francisca Pâmella` ≠ `Pâmella`,
+  `THAYNARA` ≠ `Thaynara Ferreira`. Sem mapear na conversão, as 87 entrariam
+  todas sem vendedor. `ISABEL` não existe como usuário e `M & R LTDA` é o operador,
+  não vendedor → 32 vendas ficaram sem vendedor de propósito.
+- **O import NÃO cria cliente** (diferente do de clientes/produtos): rodar
+  `/app/import/clientes` antes é obrigatório, senão a venda nasce órfã. Os 76
+  "clientes" que já existiam são a lista de funcionárias/consignação
+  (`- LOJA`, `- Ex func`) — nenhum dos 45 nomes reais batia.
+- **Não é idempotente** (ao contrário do import de estoque): não há chave por
+  `numero_antigo`; rodar o arquivo duas vezes duplica a carga inteira.
+- ⚠️ **A hora se perde**: `parseData` faz `startOfDay()` e o `createFromFormat('d/m/Y')`
+  engole o " HH:MM" como trailing data em silêncio — todas as vendas nascem 00:00.
+  Aqui o horário real foi aplicado por UPDATE depois, casando `Nº original: N.`.
+- Pagamento misto ("Dinheiro | Cartão de débito", 15 itens) colapsa numa forma só
+  (a ordem do `match` é crédito > débito > dinheiro > pix); o texto original ficou
+  nas observações. Forma vazia grava `_` se a célula vier com `-` — mandar em branco.
+- Caixa não entra: os 40 fechamentos, 9 suprimentos, 2 sangrias e 9 faltas de caixa
+  da `Operacoes.xlsx` não têm import e o ERP não aceita caixa retroativo.
+
+**Sujeira do Hiper achada na conferência** (nada disso é defeito do ERP):
+
+- Vendas **#26 (26/06, R$ 427,41)** e **#41 (03/07, R$ 224,24)**: concluídas com um
+  item marcado como cancelado que o Hiper **deixou somado no total** (R$ 294,00 e
+  R$ 58,90). Diferença de R$ 335,51 — **ficaram FORA da carga** até a loja dizer se a
+  peça foi cobrada. Por isso 87 e não 89 vendas.
+- Cancelada #143 diz 5 itens e a planilha detalha 4; #100–#108 são canceladas de
+  valor zero; 14 vendas estão como "Operação não concluída" na `Operacoes` e como
+  "Cancelada" na planilha de itens.
+- 17 dos 136 códigos vendidos não existem em `produtos` (5317…5436 e cinco `999…`) —
+  produtos criados no Hiper depois da carga de 05/08. Sem efeito nesta carga (que não
+  liga produto), mas mordem se um dia o import passar a gravar item.
+- 19 produtos criados à mão em 26–28/08 nasceram todos com o mesmo
+  `codigo_interno` "005304".
+
+**Rollback**: `DELETE FROM vendas WHERE empresa_id=5 AND tipo='importada'` (+ itens).
+A carga não tocou estoque, caixa, contas a receber nem fiscal — conferido depois de
+rodar. Dump pré-carga em `/home/ubuntu/erp-backups/donadouro-vendas-20260828/`.
+
+---
+
 ### Estilo "nome no topo" (12/08/2026)
 
 `etiqueta_formatos.estilo` = `padrao` | `nome_topo`. Como o formato é por
