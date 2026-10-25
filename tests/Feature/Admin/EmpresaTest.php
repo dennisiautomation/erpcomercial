@@ -21,7 +21,7 @@ class EmpresaTest extends TestCase
         parent::setUp();
 
         $this->empresa = Empresa::create([
-            'cnpj'              => '12.345.678/0001-99',
+            'cnpj'              => '12.345.678/0001-95',
             'razao_social'      => 'Empresa Teste LTDA',
             'nome_fantasia'     => 'Empresa Teste',
             'regime_tributario' => 'simples_nacional',
@@ -71,7 +71,7 @@ class EmpresaTest extends TestCase
     public function test_admin_can_create_empresa(): void
     {
         $empresaData = [
-            'cnpj'              => '98.765.432/0001-10',
+            'cnpj'              => '98.765.432/0001-98',
             'razao_social'      => 'Nova Empresa LTDA',
             'nome_fantasia'     => 'Nova Empresa',
             'regime_tributario' => 'lucro_presumido',
@@ -92,7 +92,7 @@ class EmpresaTest extends TestCase
 
         $response->assertRedirect();
         $this->assertDatabaseHas('empresas', [
-            'cnpj'         => '98.765.432/0001-10',
+            'cnpj'         => '98.765.432/0001-98',
             'razao_social' => 'Nova Empresa LTDA',
         ]);
     }
@@ -111,10 +111,13 @@ class EmpresaTest extends TestCase
     {
         $response = $this->actingAs($this->admin)
             ->put(route('admin.empresas.update', $this->empresa), [
-                'cnpj'              => '12.345.678/0001-99',
+                'cnpj'              => '12.345.678/0001-95',
                 'razao_social'      => 'Empresa Atualizada LTDA',
                 'nome_fantasia'     => 'Empresa Atualizada',
                 'regime_tributario' => 'lucro_real',
+                // O form do admin sempre manda o regime de cobrança; sem ele o
+                // `required_unless:regime_cobranca,padrao` exige o motivo da cortesia.
+                'regime_cobranca'   => 'padrao',
                 'cep'               => '01001000',
                 'logradouro'        => 'Rua Teste',
                 'numero'            => '100',
@@ -157,7 +160,7 @@ class EmpresaTest extends TestCase
     {
         $response = $this->actingAs($this->admin)
             ->post(route('admin.empresas.store'), [
-                'cnpj'              => '12.345.678/0001-99', // Already exists
+                'cnpj'              => '12.345.678/0001-95', // Already exists
                 'razao_social'      => 'Outra Empresa LTDA',
                 'regime_tributario' => 'simples_nacional',
                 'cep'               => '01001000',

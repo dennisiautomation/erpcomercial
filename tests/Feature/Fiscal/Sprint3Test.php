@@ -2,14 +2,20 @@
 
 namespace Tests\Feature\Fiscal;
 
+use App\Enums\StatusNotaFiscal;
+use App\Enums\TipoNotaFiscal;
+use App\Jobs\BaixarXmlNotaJob;
 use App\Models\ConfiguracaoFiscal;
 use App\Models\NFSeRecebida;
+use App\Models\NotaFiscal;
 use App\Services\FocusNFe\BackupXmlService;
 use App\Services\FocusNFe\EmailsBloqueadosService;
 use App\Services\FocusNFe\FocusNFeClient;
 use App\Services\FocusNFe\NFSesRecebidasService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 use Tests\Traits\CreatesTestData;
 
@@ -20,6 +26,10 @@ class Sprint3Test extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        // Nota autorizada dispara BaixarXmlNotaJob; na fila `sync` do phpunit ele
+        // roda na hora e tenta buscar o XML na Focus. Aqui o XML é posto à mão.
+        Bus::fake([BaixarXmlNotaJob::class]);
 
         [$this->empresa, $this->unidade] = $this->createTenant();
 
@@ -167,60 +177,116 @@ class Sprint3Test extends TestCase
 
     // ─── Backups XML ──────────────────────────────────────────────────
 
-    public function test_backup_solicitar_aceita_status_202(): void
+    /* ─── Backup mensal de XMLs (pacote LOCAL, armadilha 49) ───────────── */
+
+    /**
+     * O `/v2/backups` da Focus NÃO existe (armadilha 49). Desde 12/08/2026 o pacote
+     * mensal é montado localmente a partir das cópias por nota, e o serviço nem
+     * recebe mais um FocusNFeClient. Os 4 testes antigos falavam de
+     * `solicitar()`/`consultar()`, que morreram junto com o endpoint.
+     */
+    private function notaComXmlLocal(string $chave, ?string $mes = null): NotaFiscal
     {
-        Http::fake([
-            'homologacao.focusnfe.com.br/v2/backups' => Http::response([
-                'status' => 'processando',
-            ], 202),
+        $emitida = $mes
+            ? \Illuminate\Support\Carbon::createFromFormat('Y-m', $mes)->startOfMonth()->addDays(3)
+            : now();
+
+        $nota = NotaFiscal::withoutGlobalScopes()->create([
+            'empresa_id'   => $this->empresa->id,
+            'unidade_id'   => $this->unidade->id,
+            'tipo'         => TipoNotaFiscal::NFCe,
+            'status'       => StatusNotaFiscal::Autorizada,
+            'focus_ref'    => 'ref-' . $chave,
+            'chave_acesso' => $chave,
+            'numero'       => '1',
+            'serie'        => 1,
+            'valor_total'  => 100.00,
+            'ambiente'     => 'homologacao',
+            'emitida_em'   => $emitida,
         ]);
 
-        $config = ConfiguracaoFiscal::withoutGlobalScopes()->first();
-        $service = new BackupXmlService(FocusNFeClient::fromConfig($config));
+        Storage::put($nota->caminhoXmlLocal(), '<nfeProc><chave>' . $chave . '</chave></nfeProc>');
 
-        $result = $service->solicitar('2026-03');
+        return $nota;
+    }
 
-        $this->assertEquals('processando', $result['status']);
-        $this->assertEquals('2026-03', $result['mes']);
+    public function test_backup_gera_zip_com_os_xmls_do_mes_e_manifest(): void
+    {
+        Storage::fake();
+
+        $mes = now()->format('Y-m');
+        $this->notaComXmlLocal('35260900000000000000000000000000000000000001', $mes);
+        $this->notaComXmlLocal('35260900000000000000000000000000000000000002', $mes);
+
+        $service = new BackupXmlService();
+        $result = $service->gerar($this->empresa->id, $this->unidade->cnpj, $mes);
+
+        $this->assertEquals('concluido', $result['status']);
+        $this->assertEquals(2, $result['arquivos']);
+        $this->assertEquals([], $result['sem_xml']);
+        Storage::assertExists($result['path']);
+
+        // O manifest é o índice que o contador confere
+        $zip = new \ZipArchive();
+        $this->assertTrue($zip->open(Storage::path($result['path'])) === true);
+        $manifest = json_decode($zip->getFromName('manifest.json'), true);
+        $zip->close();
+
+        $this->assertEquals($mes, $manifest['mes']);
+        $this->assertEquals(2, $manifest['total_notas']);
+        $this->assertCount(2, $manifest['notas']);
+    }
+
+    public function test_backup_de_mes_sem_nota_sai_vazio_e_nao_cria_arquivo(): void
+    {
+        Storage::fake();
+
+        $service = new BackupXmlService();
+        $result = $service->gerar($this->empresa->id, $this->unidade->cnpj, '2026-01');
+
+        $this->assertEquals('vazio', $result['status']);
+        $this->assertEquals(0, $result['arquivos']);
+        $this->assertNull($result['path']);
+        Storage::assertMissing($service->caminhoZip($this->unidade->cnpj, '2026-01'));
     }
 
     public function test_backup_rejeita_mes_invalido(): void
     {
-        $config = ConfiguracaoFiscal::withoutGlobalScopes()->first();
-        $service = new BackupXmlService(FocusNFeClient::fromConfig($config));
+        $service = new BackupXmlService();
 
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessageMatches('/Mês inválido/u');
 
-        $service->solicitar('2026/03');
+        $service->gerar($this->empresa->id, $this->unidade->cnpj, '2026/03');
+    }
+
+    public function test_backup_info_diz_indisponivel_antes_de_gerar_e_concluido_depois(): void
+    {
+        Storage::fake();
+
+        $mes = now()->format('Y-m');
+        $service = new BackupXmlService();
+
+        $antes = $service->info($this->unidade->cnpj, $mes);
+        $this->assertEquals('indisponivel', $antes['status']);
+        $this->assertNull($antes['path']);
+
+        $this->notaComXmlLocal('35260900000000000000000000000000000000000003', $mes);
+        $service->gerar($this->empresa->id, $this->unidade->cnpj, $mes);
+
+        $depois = $service->info($this->unidade->cnpj, $mes);
+        $this->assertEquals('concluido', $depois['status']);
+        $this->assertEquals(1, $depois['arquivos']); // manifest.json não conta
+        $this->assertNotNull($depois['atualizado_em']);
     }
 
     public function test_backup_meses_disponiveis_retorna_12_em_ordem_decrescente(): void
     {
-        $config = ConfiguracaoFiscal::withoutGlobalScopes()->first();
-        $service = new BackupXmlService(FocusNFeClient::fromConfig($config));
-
-        $meses = $service->mesesDisponiveis();
+        $meses = (new BackupXmlService())->mesesDisponiveis();
 
         $this->assertCount(12, $meses);
-        // Primeiro item é o mês anterior ao atual
-        $this->assertEquals(now()->subMonth()->format('Y-m'), $meses[0]);
-        // Ordem decrescente
-        $this->assertEquals(now()->subMonths(12)->format('Y-m'), $meses[11]);
-    }
-
-    public function test_backup_consultar_retorna_indisponivel_quando_focus_nega(): void
-    {
-        Http::fake([
-            'homologacao.focusnfe.com.br/v2/backups*' => Http::response('erro', 500),
-        ]);
-
-        $config = ConfiguracaoFiscal::withoutGlobalScopes()->first();
-        $service = new BackupXmlService(FocusNFeClient::fromConfig($config));
-
-        $result = $service->consultar('2026-02');
-
-        $this->assertEquals('indisponivel', $result['status']);
-        $this->assertNull($result['url']);
+        // O primeiro é o mês CORRENTE — o pacote em andamento é parcial de propósito
+        $this->assertEquals(now()->format('Y-m'), $meses[0]);
+        $this->assertEquals(now()->subMonths(11)->format('Y-m'), $meses[11]);
     }
 }

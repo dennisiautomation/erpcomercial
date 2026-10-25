@@ -37,6 +37,12 @@ class NFeServiceTest extends TestCase
             'focus_token'         => 'test-token-fake-123',
             'serie_nfe'           => 1,
             'serie_nfce'          => 1,
+            // Responsável técnico é obrigatório na NF-e desde a NT 2018/003 —
+            // sem ele o FiscalPayloadBuilder nem monta o payload.
+            'responsavel_tecnico_cnpj'     => '12345678000195',
+            'responsavel_tecnico_nome'     => 'Suporte IA365',
+            'responsavel_tecnico_email'    => 'suporte@ia365.com.br',
+            'responsavel_tecnico_telefone' => '11999999999',
             'emissao_fiscal_ativa' => true,
             'tipo_cupom_pdv'      => 'fiscal',
         ]);

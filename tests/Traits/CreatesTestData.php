@@ -2,13 +2,16 @@
 
 namespace Tests\Traits;
 
+use App\Enums\TipoMovimentacaoEstoque;
 use App\Models\Caixa;
 use App\Models\Cliente;
 use App\Models\Empresa;
+use App\Models\EstoqueMovimentacao;
 use App\Models\Fornecedor;
 use App\Models\Produto;
 use App\Models\Unidade;
 use App\Models\User;
+use App\Services\SaldoEstoque;
 
 trait CreatesTestData
 {
@@ -23,6 +26,7 @@ trait CreatesTestData
             'cnpj'              => '12345678000' . str_pad($s, 3, '0', STR_PAD_LEFT),
             'razao_social'      => 'Empresa Teste ' . $s,
             'nome_fantasia'     => 'Teste ' . $s,
+            'ie'                => '11122233344' . $s,
             'regime_tributario'  => 'simples_nacional',
             'cep'               => '01001000',
             'logradouro'        => 'Rua Teste',
@@ -43,6 +47,8 @@ trait CreatesTestData
             'empresa_id' => $empresa->id,
             'nome'       => 'Matriz ' . $s,
             'cnpj'       => $empresa->cnpj,
+            // Sem IE a SEFAZ rejeita NFC-e/NF-e e o FiscalPayloadBuilder nem monta o payload
+            'ie'         => '11122233344' . $s,
             'cep'        => '01001000',
             'logradouro' => 'Rua Teste',
             'numero'     => '100',
@@ -133,6 +139,47 @@ trait CreatesTestData
             'uf'           => 'SP',
             'telefone'     => '11977777777',
         ], $extra));
+    }
+
+    /**
+     * Estoque inicial de um produto numa loja.
+     *
+     * Passa por `SaldoEstoque::registrar()` DE PROPÓSITO. Desde 12/08/2026
+     * `estoque_movimentacoes.estoque_id` é NOT NULL e a cadeia
+     * anterior→posterior é por (estoque, produto) — montar a movimentação na
+     * mão no teste grava sem `estoque_id` e estoura 1364 (armadilha 47).
+     * Todo teste que precisa de saldo deve chamar este helper, nunca
+     * `EstoqueMovimentacao::create()`.
+     *
+     * @param  array<string, mixed>  $extra  custo_unitario, user_id, observacoes…
+     */
+    protected function darEntradaEstoque(
+        Unidade $unidade,
+        Produto $produto,
+        float $quantidade,
+        array $extra = []
+    ): EstoqueMovimentacao {
+        $estoqueId = SaldoEstoque::estoqueDeVendaId($unidade->id);
+
+        if (! $estoqueId) {
+            $this->fail("Unidade {$unidade->id} não tem estoque de venda — o Principal nasce em Unidade::booted().");
+        }
+
+        return SaldoEstoque::registrar(
+            (int) $unidade->empresa_id,
+            (int) $unidade->id,
+            $estoqueId,
+            (int) $produto->id,
+            TipoMovimentacaoEstoque::Entrada->value,
+            $quantidade,
+            $extra
+        );
+    }
+
+    /** O estoque "Principal" da loja, criado por `Unidade::booted()`. */
+    protected function estoquePrincipal(Unidade $unidade): int
+    {
+        return (int) SaldoEstoque::estoqueDeVendaId($unidade->id);
     }
 
     protected function openCaixa(Empresa $empresa, Unidade $unidade, User $user, float $valorAbertura = 100.00): Caixa

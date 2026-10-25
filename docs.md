@@ -5641,6 +5641,105 @@ container são a base da branch, armadilha 82): 17 arquivos (14 alterados + serv
 
 **Estado:** só na branch, **não está em produção**.
 
+## Suíte de testes de volta ao VERDE — 29 falhas em 7 famílias (02/09/2026)
+
+O pedido era um teste só. A varredura mostrou a suíte **parada em 29 falhas desde
+12/08/2026** — nenhuma delas bug de produção: em todas, o **teste** é que descrevia um sistema que
+não existe mais. Tudo foi corrigido do lado do teste; **nenhuma linha de `app/` mudou.**
+
+### A família que morreu com o `estoque_id`
+
+`test_sale_deducts_stock` (`PdvTest`) estourava
+`SQLSTATE[HY000] 1364 Field 'estoque_id' doesn't have a default value` **desde 12/08/2026**, o dia
+em que a coluna virou NOT NULL (armadilha 47). Ao varrer a suíte atrás do mesmo padrão apareceram
+**6 testes quebrados, em duas famílias distintas — as duas nascidas da mesma entrega de 12/08**:
+
+| Teste | Causa |
+|---|---|
+| `PdvTest::sale_deducts_stock` | `EstoqueMovimentacao::create()` na mão, sem `estoque_id` |
+| `EstoqueTest::transferencia_approval_moves_stock` | idem (e mais 2 gravações na simulação do controller) |
+| `EstoqueTest::stock_isolated_by_unidade` | idem, nas duas lojas |
+| `PedidoTest::pedido_reduces_stock_on_faturamento` | idem (e mais 1 na simulação do controller) |
+| `EstoqueTest::gerente_can_create_manual_movimentacao` | POST no formato antigo (`produto_id`+`quantidade` soltos) |
+| `EstoqueTest::movimentacao_updates_stock_quantity` | idem, nos dois POSTs |
+
+### O estoque de teste virou um helper só
+
+`CreatesTestData::darEntradaEstoque($unidade, $produto, $qtd, $extra)` — passa por
+**`SaldoEstoque::registrar()`**, resolve o estoque pelo `estoqueDeVendaId()` da loja (o "Principal"
+que nasce em `Unidade::booted()`) e mantém a cadeia `anterior→posterior`. Junto veio
+`estoquePrincipal($unidade)`, para o teste afirmar em QUAL estoque a movimentação caiu.
+**Nenhum teste deve montar `EstoqueMovimentacao::create()` na mão** — foi exatamente o que
+permitiu que a regra mudasse embaixo deles.
+
+### 🔑 A causa de fundo: teste que COPIA o controller não cobre o controller
+
+`transferencia_approval_moves_stock` e `pedido_reduces_stock_on_faturamento` não chamavam rota
+nenhuma: reimplementavam, dentro do `DB::transaction` do próprio teste, a lógica de
+`TransferenciaEstoqueController::aprovar` e de `PedidoController::baixarEstoquePedido`, com um
+comentário explicando que era "mais confiável" que passar pelo controller. O efeito real é o
+oposto — **a cópia envelhece junto com o teste e o controller muda sozinho**: quando os dois
+migraram para `SaldoEstoque::registrar()`, o código de produção ficou certo e o teste ficou
+falando de um mundo que não existe mais (e ainda assim "cobrindo" o faturamento no nome).
+Os dois foram reescritos para bater na rota de verdade
+(`PATCH app.transferencias.aprovar`, `POST app.pedidos.update-status`) e agora afirmam também o
+`estoque_id` e o saldo por `SaldoEstoque::naUnidade()`. Virou a **armadilha 89**.
+
+⚠️ Sobra um caso do mesmo tipo, hoje verde e por isso deixado como está:
+`PedidoTest::pedido_generates_contas_receber_on_confirm` ainda simula o `updateStatus` na mão.
+Ao mexer nele, troque pela rota.
+
+### As outras 6 famílias — a mesma doença, causas diferentes
+
+A varredura começou pelo `estoque_id` e revelou que a suíte estava parada em **29 falhas**.
+Nenhuma delas era bug de produção: em todos os casos o **teste** é que descrevia um sistema
+que não existe mais. Todas foram corrigidas no mesmo trabalho:
+
+| Família | O que estava errado no teste | Verdade de hoje |
+|---|---|---|
+| Admin de empresa/unidade (4) | CNPJ de fixture com DV inventado (`…0001-99`) e `PUT` sem `regime_cobranca` | `CnpjValido` (NT 2025.001) recusa DV errado; `cortesia_motivo` é `required_unless:regime_cobranca,padrao` |
+| `ExampleTest` (1) | esperava `/` redirecionando para `/login` | `/` é a **Landing V2** desde 14/08; a v1 vive em `?visual=classico` |
+| Emissão fiscal (9) | fixture sem **IE**, config sem **responsável técnico**, e `BaixarXmlNotaJob` derrubando a emissão | IE e resp. técnico entraram no `CreatesTestData`/config; o job virou `Bus::fake` (armadilha 90) |
+| Certificado A1 (4) | falava com `POST /v2/empresas/{cnpj}/certificado` e arquivo `'binary-fake'` | `PUT /v2/empresas/{id}` com token master (armadilha 29) + leitura local do `.pfx` por openssl |
+| Backup de XMLs (4) | `BackupXmlService::solicitar()/consultar()`, que morreram com o `/v2/backups` | pacote **local** (`gerar`/`info`/`mesesDisponiveis`) desde 12/08 (armadilha 49) |
+| `FocusReferenciasTest` (1) | 🔴 **sem `Http::fake`: o teste chamava a Focus de VERDADE** | `Http::fake()` + `assertNothingSent` na UF vazia |
+
+Dois testes ganharam cobertura de verdade no caminho: o do certificado passou a **gerar um
+PKCS#12 real** (`openssl_pkey_new` + `openssl_csr_sign` + `openssl_pkcs12_export`, com o CNPJ
+no CN como num e-CNPJ) e por isso agora exercita senha errada, CNPJ divergente, arquivo que não
+é PKCS#12 e unidade não provisionada; o do backup monta o ZIP mensal e **confere o manifest.json**
+que o contador lê.
+
+### Estado da suíte
+
+**230 testes / 699 asserções — VERDE**, inclusive com `--order-by=random`. Antes deste trabalho:
+29 falhas (a suíte não passava desde 12/08/2026). O `phpunit.xml` não mudou; nenhuma linha de
+`app/` foi tocada — a correção é inteira do lado do teste.
+
+### Como rodar (ver armadilha 55)
+
+```
+docker network create erp-suite-net
+docker run -d --name erp-suite-mysql  --network erp-suite-net --network-alias mysql \
+  -e MYSQL_ROOT_PASSWORD=rootpw -e MYSQL_DATABASE=erp_comercial_test \
+  -e MYSQL_USER=erp_user -e MYSQL_PASSWORD=erp_password mysql:8.0
+docker run -d --name erp-suite-vector --network erp-suite-net --network-alias vector \
+  -e POSTGRES_DB=agente_busca -e POSTGRES_USER=agente \
+  -e POSTGRES_HOST_AUTH_METHOD=trust pgvector/pgvector:pg16
+docker run -d --name erp-suite-app --network erp-suite-net \
+  -v <worktree>:/var/www -w /var/www --entrypoint sh erp-com-app:latest -c 'sleep infinity'
+docker exec -u 1000:1000 -e COMPOSER_HOME=/tmp/composer erp-suite-app \
+  sh -lc 'cd /var/www && composer install && php artisan key:generate --force'
+docker exec -u 1000:1000 erp-suite-app sh -lc 'cd /var/www && php artisan test'
+```
+
+O `.env` do worktree de teste sai do `.env.example` com `DB_HOST=mysql`,
+`DB_DATABASE=erp_comercial_test`, `DB_USERNAME=erp_user`, `DB_PASSWORD=erp_password` e
+`VECTOR_DB_*` apontando para o alias `vector`. **Nada disso toca produção**: rede, containers e
+banco são próprios.
+
+---
+
 ## Armadilhas conhecidas
 
 1. **EmpresaScope recursão**: `auth()->user()` dentro do scope chama User model que tem o scope → loop infinito. Scopes têm flag `static $applying`. Não remover.
@@ -6129,9 +6228,34 @@ container são a base da branch, armadilha 82): 17 arquivos (14 alterados + serv
 85. **Model com prefixo em sigla (`NFeEntrada`) e `hasMany` sem chave; `d-flex` contra `style.display`** (23/10/2026). O Laravel adivinha a chave estrangeira pelo nome da classe em snake_case: `NFeEntrada` vira `n_fe_entrada_id` e o insert dá 1054. Em model com sigla no nome (`NFe…`, `NFSe…`), passe a chave no `hasMany`/`belongsTo`. E no Blade: elemento com `d-flex`/`d-block` do Bootstrap não some com `el.style.display = 'none'` (a classe é `!important`); use `classList.toggle('d-none', ...)`. Só o print da tela pegou isso; o teste por HTTP passava.
 86. **Diretiva Blade colada numa letra não é diretiva** (25/10/2026). `Dinheiro/PIX@if(...)` não compila o `@if` (o Blade exige não haver letra/número antes do `@`, por causa de e-mails), mas compila o `@endif` → `ParseError` e **500 na folha inteira**. Antes de `@if`/`@endif` em texto corrido, ponha um espaço. O `view:cache` não avisa: só o `php -l` nas views compiladas (armadilha 63) ou abrir a página.
 
-86. **Produção do ERP NÃO bate com nenhuma branch — trocar a base (PHP) por foto, nunca por rebuild** (23/10/2026). Desde 20/10 a imagem `erp-com-app:latest` (cc2a382b5e75) recebeu tars de 21, 22 e 23/10 por cima (orçamento, estoque da loja, NFC-e DK, entrada por NF-e). Um `docker compose build` de qualquer branch apagaria parte disso. Para atualizar só o PHP: `docker commit erp-com-app <foto>` → `docker/prod/Dockerfile.rebase-php` (base `php:8.4-fpm-alpine` nova + mesmas extensões + `COPY --from=<foto>` de `/var/www` e das configs) → conferir md5 de todo `/var/www` (fora `storage`) contra o container vivo → `docker tag … erp-com-app:latest` + `up -d --no-deps --no-build app`. `COPY --from` preserva dono e permissão. A foto guarda as variáveis de ambiente (senhas) na config da imagem: nunca pushar para registry. Se o código do ar mudar depois da foto, refazer a foto.
+87. **Produção do ERP NÃO bate com nenhuma branch — trocar a base (PHP) por foto, nunca por rebuild** (23/10/2026). Desde 20/10 a imagem `erp-com-app:latest` (cc2a382b5e75) recebeu tars de 21, 22 e 23/10 por cima (orçamento, estoque da loja, NFC-e DK, entrada por NF-e). Um `docker compose build` de qualquer branch apagaria parte disso. Para atualizar só o PHP: `docker commit erp-com-app <foto>` → `docker/prod/Dockerfile.rebase-php` (base `php:8.4-fpm-alpine` nova + mesmas extensões + `COPY --from=<foto>` de `/var/www` e das configs) → conferir md5 de todo `/var/www` (fora `storage`) contra o container vivo → `docker tag … erp-com-app:latest` + `up -d --no-deps --no-build app`. `COPY --from` preserva dono e permissão. A foto guarda as variáveis de ambiente (senhas) na config da imagem: nunca pushar para registry. Se o código do ar mudar depois da foto, refazer a foto.
 
-84. **`exists:tabela,id` sem `empresa_id` vaza entre empresas** (21/10/2026). Em validação de id vindo do form, use `Rule::exists('tabela','id')->where('empresa_id', auth()->user()->empresa_id)`. O `ContaPagarController` aceitava fornecedor de outra empresa assim. E campo escondido preenchido por autocomplete precisa de aviso na tela + link de cadastro quando a busca não acha; senão o usuário só vê "campo X id é obrigatório". Ver a seção da Conta a Pagar de 21/10.
+88. **`exists:tabela,id` sem `empresa_id` vaza entre empresas** (21/10/2026). Em validação de id vindo do form, use `Rule::exists('tabela','id')->where('empresa_id', auth()->user()->empresa_id)`. O `ContaPagarController` aceitava fornecedor de outra empresa assim. E campo escondido preenchido por autocomplete precisa de aviso na tela + link de cadastro quando a busca não acha; senão o usuário só vê "campo X id é obrigatório". Ver a seção da Conta a Pagar de 21/10.
+89. **Teste que COPIA a lógica do controller não cobre o controller — e envelhece calado.**
+    `EstoqueTest::transferencia_approval_moves_stock` e
+    `PedidoTest::pedido_reduces_stock_on_faturamento` reimplementavam, dentro de um
+    `DB::transaction` do próprio teste, o que `TransferenciaEstoqueController::aprovar` e
+    `PedidoController::baixarEstoquePedido` fazem — com comentário dizendo que era "mais
+    confiável" do que passar pelo controller. Quando os dois controllers migraram para
+    `SaldoEstoque::registrar()` (12/08/2026), a cópia ficou para trás: o teste passou a validar
+    um caminho que **não existe em lugar nenhum do sistema**, enquanto anunciava no nome que
+    cobria a aprovação e o faturamento. Reescritos em 02/09 para bater na rota
+    (`PATCH app.transferencias.aprovar`, `POST app.pedidos.update-status`). Regra: se o teste se
+    chama "X faz Y", ele tem que **chamar X**. Simular o controller só se justifica quando a rota
+    é inalcançável no teste — e aí o comentário explica o porquê, não afirma que é melhor.
+
+90. **Na fila `sync` dos testes, `BaixarXmlNotaJob` DERRUBA a emissão fiscal inteira.**
+    `NotaFiscal::booted()` dispara o job em todo `saved()` de nota com chave+XML, com
+    `->delay(15s)` porque a Focus leva alguns segundos para publicar o arquivo. O
+    `phpunit.xml` roda `QUEUE_CONNECTION=sync`: o delay é ignorado, o job executa DENTRO da
+    transação da emissão, não acha o XML, lança `RuntimeException` e o `catch` do service
+    grava a nota como **rejeitada**. O sintoma engana — "Rejeitada does not match expected
+    Autorizada" parece erro de payload ou de fake da Focus, e o log diz `NFC-e autorizada`
+    logo antes do erro. Foram 5 testes (NFC-e, NFS-e x2, PDV fiscal, webhook). Teste de
+    emissão precisa de `Bus::fake([BaixarXmlNotaJob::class])`; o arquivamento é assunto de
+    outro teste. ⚠️ Em produção a fila NÃO é `sync`, então o efeito é só de teste — mas vale
+    lembrar que um job que falha dentro do `saved()` de um model pode reverter a escrita
+    que o disparou.
 
 ---
 
@@ -6139,7 +6263,7 @@ container são a base da branch, armadilha 82): 17 arquivos (14 alterados + serv
 
 ### Segurança PHP 8.4.27 — CVE-2026-109618/109619 (23/10/2026)
 1. ✅ **EM PRODUÇÃO 23/10 13:26 UTC.** Comunicado EVEO + php.net (21/10): RCE sem autenticação, corrigido em 8.4.27. Produção estava em 8.4.26.
-2. Imagem nova `erp-com-app:php8427-20261023` (**db26c297c02d**) = foto do container vivo + PHP 8.4.27 (`docker/prod/Dockerfile.rebase-php`, armadilha 86). Validada 14 ✅ / 0 ❌ antes de subir: 6.986 arquivos de `/var/www` com md5 iguais ao ar, `zz-erp.ini`/nginx/supervisor/entrypoint/fpm iguais, 49 módulos (nenhum sumiu), `php-fpm -t`, `nginx -t`, artisan 12.56.0, lint 0, fuso -03. Depois: login 200, nginx + php-fpm + 2 `queue:work` + `schedule:work`, 0 erro novo.
+2. Imagem nova `erp-com-app:php8427-20261023` (**db26c297c02d**) = foto do container vivo + PHP 8.4.27 (`docker/prod/Dockerfile.rebase-php`, armadilha 87). Validada 14 ✅ / 0 ❌ antes de subir: 6.986 arquivos de `/var/www` com md5 iguais ao ar, `zz-erp.ini`/nginx/supervisor/entrypoint/fpm iguais, 49 módulos (nenhum sumiu), `php-fpm -t`, `nginx -t`, artisan 12.56.0, lint 0, fuso -03. Depois: login 200, nginx + php-fpm + 2 `queue:work` + `schedule:work`, 0 erro novo.
 3. **Rollback:** `docker tag erp-com-app:live-pre-php-8427-20261023 erp-com-app:latest` + `up -d --no-deps --no-build app` (a foto de 23/10; a `pre-entrada-nfe-20261023` NÃO serve, não tem os tars).
 4. `erp-man-app` (manuais, interno, criado à mão) também: foto → `erp-com-app:man-php8427-20261023`, recriado pelo mesmo `docker run` 13:50 UTC; antigo parado como `erp-man-app-pre8427`.
 5. Próximo rebuild normal (`docker/prod/Dockerfile`) já pega 8.4.27+ sozinho (`php:8.4-fpm-alpine` flutuante) — mas só depois que a `main`/branch tiver TODOS os tars de produção.

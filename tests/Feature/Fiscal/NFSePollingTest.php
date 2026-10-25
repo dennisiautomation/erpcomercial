@@ -4,6 +4,7 @@ namespace Tests\Feature\Fiscal;
 
 use App\Enums\StatusNotaFiscal;
 use App\Enums\TipoNotaFiscal;
+use App\Jobs\BaixarXmlNotaJob;
 use App\Jobs\ConsultarNotaFiscalJob;
 use App\Jobs\EmitirNFSeJob;
 use App\Models\Cliente;
@@ -140,6 +141,10 @@ class NFSePollingTest extends TestCase
 
     public function test_emissao_nfse_aceita_alias_descricao_e_valor_servico(): void
     {
+        // Nota autorizada dispara BaixarXmlNotaJob; na fila `sync` ele roda na hora
+        // e falha ao buscar o XML na Focus. O arquivamento é assunto de outro teste.
+        Bus::fake([BaixarXmlNotaJob::class]);
+
         Http::fake([
             'homologacao.focusnfe.com.br/v2/nfse*' => Http::response([
                 'status'                    => 'autorizado',
@@ -162,11 +167,13 @@ class NFSePollingTest extends TestCase
 
         $this->assertEquals(\App\Enums\StatusNotaFiscal::Autorizada, $nota->status);
 
-        // Confere que o payload enviado à Focus já tem discriminacao
+        // Confere que o payload enviado à Focus já tem discriminacao.
+        // O payload da NFS-e é ANINHADO (`prestador`/`servico`/`tomador`) — os
+        // campos do serviço nunca estão na raiz.
         Http::assertSent(function ($request) {
-            $body = $request->data();
-            return ($body['discriminacao'] ?? '') === 'Prestacao de servico mensal de TI'
-                && ($body['valor_servicos'] ?? '') === '750.00';
+            $servico = $request->data()['servico'] ?? [];
+            return ($servico['discriminacao'] ?? '') === 'Prestacao de servico mensal de TI'
+                && ($servico['valor_servicos'] ?? '') === '750.00';
         });
     }
 

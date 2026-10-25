@@ -100,17 +100,10 @@ class PdvTest extends TestCase
         $produto  = $this->createProduto($this->empresa, ['preco_venda' => 30.00]);
         $caixa    = $this->openCaixa($this->empresa, $this->unidade, $operador);
 
-        // Create initial stock
-        EstoqueMovimentacao::withoutGlobalScopes()->create([
-            'empresa_id'           => $this->empresa->id,
-            'unidade_id'           => $this->unidade->id,
-            'produto_id'           => $produto->id,
-            'tipo'                 => TipoMovimentacaoEstoque::Entrada,
-            'quantidade'           => 100,
-            'quantidade_anterior'  => 0,
-            'quantidade_posterior' => 100,
-            'custo_unitario'       => 15.00,
-            'user_id'              => $operador->id,
+        // Estoque inicial pelo caminho oficial (com estoque_id e cadeia de saldo)
+        $this->darEntradaEstoque($this->unidade, $produto, 100, [
+            'custo_unitario' => 15.00,
+            'user_id'        => $operador->id,
         ]);
 
         $this->actingAsUser($operador, $this->unidade)
