@@ -5799,6 +5799,38 @@ Antes: tag da imagem + backup dos 19 arquivos. Rebuild da imagem a partir desta 
 
 ---
 
+## Nova Movimentação de Estoque: busca do produto enquanto digita (25/10/2026)
+
+Pedido do Wellington (DK, 23/10, print da tela): o campo Produto de cada item era um `<select>` com **todos** os
+produtos ativos e abria inteiro (a DK tem ~760). "Pode deixar esse campo livre, ou então que a sugestão do produto
+apareça só após o quinto dígito." Dennis: "vamos fazer só este".
+
+**O que mudou** (branch `busca-produto-movimentacao`, sobre `main` = produção `c3abc29`):
+- `EstoqueMovimentacaoController::create()` manda também `codigo_interno`, `codigo_barras` e `sku`.
+- `estoque/movimentacoes/create.blade.php`: o `<select>` virou campo de texto + `itens[i][produto_id]` escondido
+  (`montarBusca()`), na 1ª linha e nas que o "Adicionar Item" cria. Busca **no navegador** sobre a lista que a tela já
+  recebia — sem rota nova, sem permissão nova. Filtra por nome, código interno, código de barras e SKU, sem acento,
+  várias palavras ("mecânico red"); código exato vem primeiro; até 15 sugestões + "Mais N — continue digitando".
+- Sugestões a partir de **3** caracteres (`MIN_LETRAS`; o Wellington falou em 5, mas com 5 não dá para achar
+  "luva"/"faixa" pelo nome — é uma constante, troca numa linha).
+- Leitor de código de barras: bipou + Enter → se o código bate exato, o produto é escolhido e o Enter **não** envia
+  o formulário. Setas ↑/↓, Enter e Esc funcionam na lista.
+- Linha só digitada (sem escolher da lista) não deixa salvar: campo fica vermelho com "Escolha o produto na lista de
+  sugestões" (rede de proteção no `submit`, como no orçamento).
+- Transferências, orçamento, PDV e Entrada por NF-e **não** mudaram.
+
+### Validação (25/10, ambiente descartável: produção `c3abc29` na 8096 × branch na 8097, mesmo banco)
+- `scripts/validar-busca-movimentacao.py` (Chromium headless): **12/12 ✅** — sem `<select>`; 2 letras não abre,
+  3 abre; clicar escolhe; item novo vem com foco; EAN + Enter escolhe sem enviar; acento e várias palavras; SKU;
+  "Nenhum produto"; linha não escolhida bloqueia (nada gravado); salvar com 2 itens grava +3 e +2 nos saldos certos.
+- `scripts/validar-unificacao-25out.sh` contra a produção: **21/21 ✅** (114 telas × 5 perfis iguais, PDV idêntico).
+- `php -l` em todas as views compiladas: 0 erros. O lint pegou a armadilha 91 duas vezes antes do teste no navegador.
+
+### Deploy (quando o Dennis mandar)
+Por tar de 2 arquivos (controller + view), sem migration, `view:cache` + USR2.
+
+---
+
 ## Armadilhas conhecidas
 
 1. **EmpresaScope recursão**: `auth()->user()` dentro do scope chama User model que tem o scope → loop infinito. Scopes têm flag `static $applying`. Não remover.
@@ -6359,6 +6391,11 @@ Lote de correções na branch `fix/auditoria-bugs-mai2026`, após varredura de s
 26. **`UnidadeScope` é ignorado para `perfil` admin/dono** — eles veem todas as unidades; o filtro por unidade ativa só vale para perfis operacionais. Telas que precisam isolar por unidade para admin/dono devem filtrar explicitamente (ex.: `VendaController::index` faz `where('unidade_id', session(...))`).
 27. **PDV `registrarVenda` exige pagamento ≥ total** (rejeita 422). Comissão usa `User.comissao_percentual` — sem percentual configurado, não gera comissão.
 
+91. **`@json(...)` com vírgula dentro e diretiva Blade dentro de comentário JS** (25/10/2026). O `@json` do Blade
+    separa o argumento nas **vírgulas** (2º = flags, 3º = profundidade): `@json($x->only(['a','b','c']))` vira PHP
+    inválido ("Unclosed '['"). Use `{!! json_encode(..., JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) !!}`.
+    E o Blade compila diretiva **até dentro de comentário `//` do JavaScript**: escrever "@json" num comentário
+    também quebra. Só o `php -l` na view compilada (armadilha 63) ou abrir a tela mostra.
 ---
 
 ## Próximos passos

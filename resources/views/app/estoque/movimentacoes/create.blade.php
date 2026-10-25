@@ -91,12 +91,9 @@
                                 </div>
                                 <div class="col-md-5">
                                     <label class="form-label small fw-semibold text-muted">Produto</label>
-                                    <select name="itens[0][produto_id]" class="form-select" required>
-                                        <option value="">Selecione...</option>
-                                        @foreach($produtos as $produto)
-                                            <option value="{{ $produto->id }}">{{ $produto->descricao }}</option>
-                                        @endforeach
-                                    </select>
+                                    {{-- Busca enquanto digita (25/10/2026): a lista com todos os produtos
+                                         abria inteira e a DK tem centenas. Montada pelo JS (montarBusca). --}}
+                                    <div class="busca-produto" data-name="itens[0][produto_id]"></div>
                                 </div>
                                 <div class="col-md-2">
                                     <label class="form-label small fw-semibold text-muted">Quantidade</label>
@@ -233,13 +230,132 @@
 <script>
     let itemIndex = 1;
     const container = document.getElementById('itens-container');
-    const produtos = @json($produtos->map->only(['id', 'descricao']));
+    // json_encode, não a diretiva json do Blade: ela separa o argumento nas vírgulas e quebra com a lista de campos
+    const produtos = {!! json_encode($produtos->map->only(['id', 'descricao', 'codigo_interno', 'codigo_barras', 'sku'])->values(), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE) !!};
+
+    /* --- Busca de produto enquanto digita (25/10/2026, pedido da DK) -----------
+       Antes era um <select> com TODOS os produtos ativos, que abria inteiro. Agora
+       as sugestões só aparecem a partir de MIN_LETRAS e filtram por nome, código
+       interno, código de barras e SKU. Leitor de código de barras: bipou + Enter,
+       se o código bate exato com um produto ele é escolhido sozinho. */
+    const MIN_LETRAS = 3;
+    const MAX_SUGESTOES = 15;
+    const semAcento = t => (t || '').toString().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    const indice = produtos.map(p => ({
+        p,
+        texto: semAcento([p.codigo_interno, p.descricao, p.codigo_barras, p.sku].filter(Boolean).join(' ')),
+        codigos: [p.codigo_interno, p.codigo_barras, p.sku].filter(Boolean).map(c => semAcento(c)),
+    }));
+    const rotulo = p => (p.codigo_interno ? p.codigo_interno + ' · ' : '') + p.descricao;
+
+    function montarBusca(alvo) {
+        const nome = alvo.dataset.name;
+        alvo.classList.add('position-relative');
+        alvo.innerHTML = `
+            <input type="text" class="form-control produto-texto" autocomplete="off"
+                   placeholder="Digite nome, código ou código de barras">
+            <input type="hidden" class="produto-id" name="${nome}">
+            <div class="list-group shadow-sm produto-sugestoes d-none"
+                 style="position:absolute; z-index:1050; left:0; right:0; max-height:320px; overflow-y:auto;"></div>
+            <div class="form-text produto-dica">Mínimo ${MIN_LETRAS} letras ou números.</div>`;
+        const texto = alvo.querySelector('.produto-texto');
+        const hid = alvo.querySelector('.produto-id');
+        const lista = alvo.querySelector('.produto-sugestoes');
+        const dica = alvo.querySelector('.produto-dica');
+        let achados = [], ativo = -1;
+
+        function fechar() { lista.classList.add('d-none'); ativo = -1; }
+        function escolher(p) {
+            hid.value = p.id;
+            texto.value = rotulo(p);
+            texto.classList.remove('is-invalid');
+            dica.textContent = 'Escolhido.';
+            fechar();
+            const qtd = alvo.closest('.item-row')?.querySelector('input[name$="[quantidade]"]');
+            if (qtd) qtd.focus();
+        }
+        function marcar(i) {
+            ativo = i;
+            lista.querySelectorAll('.list-group-item').forEach((el, j) => el.classList.toggle('active', j === i));
+            lista.querySelectorAll('.list-group-item')[i]?.scrollIntoView({ block: 'nearest' });
+        }
+        function buscar() {
+            hid.value = '';
+            const termo = semAcento(texto.value.trim());
+            if (termo.length < MIN_LETRAS) {
+                fechar();
+                dica.textContent = termo.length ? `Digite mais ${MIN_LETRAS - termo.length} para ver sugestões.` : `Mínimo ${MIN_LETRAS} letras ou números.`;
+                return;
+            }
+            const partes = termo.split(/\s+/);
+            const exatos = indice.filter(x => x.codigos.includes(termo));
+            const resto = indice.filter(x => !x.codigos.includes(termo) && partes.every(t => x.texto.includes(t)));
+            const total = exatos.length + resto.length;
+            achados = exatos.concat(resto).slice(0, MAX_SUGESTOES).map(x => x.p);
+            lista.innerHTML = '';
+            if (!achados.length) {
+                lista.innerHTML = '<div class="list-group-item text-muted small">Nenhum produto encontrado.</div>';
+            } else {
+                achados.forEach((p, i) => {
+                    const b = document.createElement('button');
+                    b.type = 'button';
+                    b.className = 'list-group-item list-group-item-action py-2';
+                    const linha1 = document.createElement('div');
+                    linha1.textContent = rotulo(p);
+                    b.appendChild(linha1);
+                    const extra = [p.codigo_barras ? 'EAN ' + p.codigo_barras : '', p.sku ? 'SKU ' + p.sku : ''].filter(Boolean).join(' · ');
+                    if (extra) { const s2 = document.createElement('small'); s2.className = 'text-muted'; s2.textContent = extra; b.appendChild(s2); }
+                    b.addEventListener('mousedown', ev => { ev.preventDefault(); escolher(p); });
+                    lista.appendChild(b);
+                });
+                if (total > MAX_SUGESTOES) {
+                    const mais = document.createElement('div');
+                    mais.className = 'list-group-item text-muted small';
+                    mais.textContent = `Mais ${total - MAX_SUGESTOES} — continue digitando para filtrar.`;
+                    lista.appendChild(mais);
+                }
+            }
+            dica.textContent = `${total} produto(s).`;
+            lista.classList.remove('d-none');
+            marcar(achados.length ? 0 : -1);
+        }
+
+        texto.addEventListener('input', buscar);
+        texto.addEventListener('focus', () => { if (!hid.value && texto.value.trim().length >= MIN_LETRAS) buscar(); });
+        texto.addEventListener('blur', () => setTimeout(fechar, 150));
+        texto.addEventListener('keydown', ev => {
+            const aberta = !lista.classList.contains('d-none');
+            if (ev.key === 'ArrowDown' && aberta) { ev.preventDefault(); marcar(Math.min(ativo + 1, achados.length - 1)); }
+            else if (ev.key === 'ArrowUp' && aberta) { ev.preventDefault(); marcar(Math.max(ativo - 1, 0)); }
+            else if (ev.key === 'Escape') { fechar(); }
+            else if (ev.key === 'Enter') {
+                // Enter nunca envia o formulário daqui: escolhe o produto (leitor de código de barras manda Enter)
+                ev.preventDefault();
+                const termo = semAcento(texto.value.trim());
+                const exato = indice.find(x => x.codigos.includes(termo));
+                if (exato) escolher(exato.p);
+                else if (aberta && achados[ativo]) escolher(achados[ativo]);
+            }
+        });
+    }
+
+    document.querySelectorAll('.busca-produto').forEach(montarBusca);
+
+    // Rede de proteção: linha sem produto ESCOLHIDO (só digitado) não vai
+    document.getElementById('form-movimentacao')?.addEventListener('submit', function (e) {
+        for (const linha of container.querySelectorAll('.item-row')) {
+            if (!linha.querySelector('.produto-id').value) {
+                e.preventDefault();
+                const t = linha.querySelector('.produto-texto');
+                t.focus(); // antes da mensagem: o foco refaz a busca e reescreveria a dica
+                t.classList.add('is-invalid');
+                linha.querySelector('.produto-dica').textContent = 'Escolha o produto na lista de sugestões.';
+                return;
+            }
+        }
+    });
 
     document.getElementById('btn-add-item').addEventListener('click', function() {
-        let options = '<option value="">Selecione...</option>';
-        produtos.forEach(p => {
-            options += `<option value="${p.id}">${p.descricao}</option>`;
-        });
 
         const row = document.createElement('div');
         row.className = 'card bg-light border-0 mb-2 item-row';
@@ -252,9 +368,7 @@
                     </div>
                     <div class="col-md-5">
                         <label class="form-label small fw-semibold text-muted">Produto</label>
-                        <select name="itens[${itemIndex}][produto_id]" class="form-select" required>
-                            ${options}
-                        </select>
+                        <div class="busca-produto" data-name="itens[${itemIndex}][produto_id]"></div>
                     </div>
                     <div class="col-md-2">
                         <label class="form-label small fw-semibold text-muted">Quantidade</label>
@@ -273,6 +387,8 @@
             </div>
         `;
         container.appendChild(row);
+        montarBusca(row.querySelector('.busca-produto'));
+        row.querySelector('.produto-texto').focus();
         itemIndex++;
         updateRemoveButtons();
         renumberItems();

@@ -80,7 +80,9 @@ class EstoqueMovimentacaoController extends Controller
         $produtos = Produto::where('empresa_id', auth()->user()->empresa_id)
             ->where('status', 'ativo')
             ->orderBy('descricao')
-            ->get(['id', 'descricao', 'estoque_minimo']);
+            // Códigos vão junto: a tela busca enquanto digita por nome, código
+            // interno, código de barras ou SKU (25/10/2026, pedido da DK)
+            ->get(['id', 'descricao', 'codigo_interno', 'codigo_barras', 'sku', 'estoque_minimo']);
 
         // A view só mostra o seletor se vier mais de um — loja com estoque
         // único continua com a tela idêntica à de antes.
