@@ -5779,7 +5779,21 @@ HEAD -- app resources routes config database`).
   (`PdvTest::test_caixa_fechamento_calculates_correctly` espera o redirect anterior ao comprovante de 09/09;
   `LoginTest` usa `Perfil::GERENTE`, que não existe). Não é regressão.
 
-### Deploy (quando o Dennis mandar)
+### Deploy — EM PRODUÇÃO 25/10/2026 ~13:38 UTC (ordem do Dennis)
+- Antes: `docker tag erp-com-app:latest erp-com-app:pre-unificacao-20261025` (caafd37c4cd7) e backup em
+  `/home/ubuntu/erp-backups/pre-unificacao-20261025/` (17 arquivos que existiam, `codigo-completo.tgz`, `lista.txt`).
+  Os 17 estavam em produção idênticos à base `ac0d83a` (md5 um a um); 2 novos (`resources/lang/pt_BR/auth.php`,
+  `passwords.php`).
+- Tar dos 19 → md5 conferido no container → `chown www-data` → `route:cache` + `view:cache` → USR2 no master
+  (`pgrep -o`, PID 32) → `queue:restart`. Sem migration.
+- Pós-deploy, como dono da DK (7) e da DONA DOURO (5): dashboard, configurações, orçamentos (+ novo, show, folha),
+  PDV, produtos, etiquetas, vendas (com a coluna Caixa) e detalhe, comissões, multilojas, novo funcionário, nova conta
+  a pagar, novo fornecedor, movimentações, transferências (sem o aviso de "uma unidade"), NFes recebidas → 200;
+  abrir caixa sem o banner do Asaas (302 na DONA DOURO = caixa já aberto). 19 lojas em `avista`. Log sem erro.
+- **Rollback:** extrair `arquivos/` do backup por cima de `/var/www`, apagar os 2 arquivos novos de
+  `resources/lang/pt_BR`, caches + USR2.
+
+### Como foi o deploy (referência)
 Por **tar** dos 19 arquivos (nenhuma migration) + `route:cache` + `view:cache` + USR2 (`pgrep -o -f "php-fpm: master"`).
 Antes: tag da imagem + backup dos 19 arquivos. Rebuild da imagem a partir desta branch agora é seguro (tem o php.ini).
 
