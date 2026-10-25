@@ -6409,7 +6409,15 @@ Lote de correções na branch `fix/auditoria-bugs-mai2026`, após varredura de s
    (rebuildada 12:47 UTC com o php.ini da CVE-2026-115560); o código do container é igual ao da `main`.
 2. Toda entrega nova sai de uma branch criada a partir da `main` e volta para ela (fast-forward) depois do deploy.
    Conferir sempre `git diff --name-only main HEAD` contra os arquivos do container antes do tar (armadilha 82).
-3. Branches antigas que **não** entraram na `main` de propósito: resto de `fix/auditoria-bugs-mai2026` (PDV/comissão,
+3. **Só existe a `main`** (25/10, ordem do Dennis: "deixar na main tudo e excluir as outras"). As 46 branches antigas
+   (22 do GitHub + locais) viraram **tags `arquivo/<nome>`** no GitHub antes de apagar — lista com o commit de cada uma
+   em `/home/ubuntu/erp-backups/branches-arquivadas-20261025.txt`. Recuperar uma: `git switch -c <nome> arquivo/<nome>`.
+   Todas estavam dentro da `main`, menos `arquivo/claude/erp-analysis-ia365-curation-nxwN4` (landing de junho).
+   No servidor ficaram só as pastas em uso: `erp-unificacao` (na `main`), `erp-treinamento` e `erp-agente-ia` (o
+   compose de produção sobe delas — **não apagar**: guardam o `.env`) e o checkout `/root/erp`. `/root/erp-integracao`
+   é pasta solta do root (sem permissão para apagar). `.env` de teste da `erp-testes` guardado em
+   `/home/ubuntu/erp-backups/worktrees-removidas-20261025/`.
+4. Branches antigas que **não** entraram na `main` de propósito: resto de `fix/auditoria-bugs-mai2026` (PDV/comissão,
    banner Asaas, `lang/` na raiz, empty-state de transferências) e `origin/claude/erp-analysis-ia365-curation-nxwN4`
    (landing de junho). Ver a seção "Unificação das branches pendentes".
 
