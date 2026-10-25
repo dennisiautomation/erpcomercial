@@ -5740,6 +5740,51 @@ banco são próprios.
 
 ---
 
+## Unificação das branches pendentes (25/10/2026) — branch `unificacao-25out`
+
+Pedido do Dennis: juntar as branches que nunca subiram, **sem perder nada de produção** ("tem que ser a versão de
+produção que está no ar + os ajustes e funções que criamos agora; não podemos perder integrações com formas de
+pagamento"). Base = `ac0d83a` (= código de produção, conferido pasta a pasta contra o container em 25/10).
+
+| Branch | O que entrou | Observação |
+|---|---|---|
+| `chore/php-8427-23out` (contém `chore/php-upload-progress-24out`) | `docker/prod/php.ini` + `Dockerfile.rebase-php` + docs | só infra; é o que já está na imagem de 12:47 UTC de 25/10. Sem isto um rebuild perderia a correção da CVE |
+| `feat/conta-pagar-fornecedor-rapido-21out` | tela de contas a pagar explica o fornecedor; `exists` do fornecedor restrito à empresa | nunca subiu |
+| `site/endereco-paulista` | Av. Paulista, 1337 na landing v1/v2 e no e-mail de demonstração | nunca subiu |
+| `entrega/testes-estoque-id` | só `tests/` | não vai para produção |
+| `fix/auditoria-bugs-mai2026` | coluna Caixa em Vendas, Loja no detalhe da venda, filtro por loja em Comissões, Comissão/Vendedores no painel Multilojas, campo morto `email_pessoal` fora de Funcionários, `show` de NFS-e recebida sem 500, `auth.php`/`passwords.php` em `resources/lang/pt_BR` | ver abaixo o que ficou de fora |
+| `estoque-loja-produtos`, `origin/orcamento-busca-produto` | nada | o mesmo patch já está em produção (`git cherry` = `-`) |
+| `origin/claude/erp-analysis-ia365-curation-nxwN4` | nada | landing de junho, nunca aprovada; mudaria a rota `/` |
+
+**Ficou de fora da auditoria de maio, de propósito:**
+- **PDV inteiro** (`PdvController` e `pdv/index.blade.php` = produção, byte a byte): o merge AUTOMÁTICO (sem
+  conflito!) trocava a comissão de 5% fixo pelo percentual do funcionário (sem percentual = sem comissão), deixava a
+  busca por código de ser exata e somava uma 2ª checagem de pagamento insuficiente. Regra de negócio, todos os clientes.
+- **Venda balcão:** comissão padrão continua 5% (a auditoria mudava para 0%).
+- Seletor de vendedor, baixa de estoque por estoque, filtro de vendas por loja, seleção de unidade: refeitos depois.
+- Empty-state de Transferências ("só uma unidade"): hoje a loja atual é destino válido (transferir entre estoques).
+- Pasta `lang/` na raiz: no Laravel 12 ela **esconde** `resources/lang` (onde está o `pt_BR.json`).
+- **Banner do Asaas** no abrir caixa: anúncio para todos os clientes — decisão do Dennis.
+
+**Nenhum arquivo de pagamento/integração muda** (InfinitePay, Sicredi, gateways, PIX, cartão, juros, caixa, agente,
+`TabelaPrecoService`). Arquivos de código que mudam em relação a produção: 19 (lista: `git diff --name-only ac0d83a
+HEAD -- app resources routes config database`).
+
+### Validação (25/10, ambiente descartável: produção `ac0d83a` na 8096 × unificação na 8097, mesmo banco)
+- `scripts/validar-unificacao-25out.sh`: **22/22 ✅** — 114 telas GET × 5 perfis (admin, dono, gerente, vendedor,
+  caixa) com o mesmo código HTTP; nenhuma tela 500; PDV (tela e busca) idêntico à produção; cada item que entrou.
+- `scripts/validar-dk-orcamento-preco-cartao.sh` rodado na unificação: **58/58 ✅** (inclui vendas reais no PDV).
+- `php -l`: 402 PHP + 254 views compiladas, 0 erros.
+- PHPUnit (232 testes): **mesmo resultado na produção e na unificação** — 2 testes velhos falham nos dois
+  (`PdvTest::test_caixa_fechamento_calculates_correctly` espera o redirect anterior ao comprovante de 09/09;
+  `LoginTest` usa `Perfil::GERENTE`, que não existe). Não é regressão.
+
+### Deploy (quando o Dennis mandar)
+Por **tar** dos 19 arquivos (nenhuma migration) + `route:cache` + `view:cache` + USR2 (`pgrep -o -f "php-fpm: master"`).
+Antes: tag da imagem + backup dos 19 arquivos. Rebuild da imagem a partir desta branch agora é seguro (tem o php.ini).
+
+---
+
 ## Armadilhas conhecidas
 
 1. **EmpresaScope recursão**: `auth()->user()` dentro do scope chama User model que tem o scope → loop infinito. Scopes têm flag `static $applying`. Não remover.
