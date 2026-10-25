@@ -5579,7 +5579,26 @@ Configurações da Loja da Matriz: **"do cartão"** + desconto (5% foi o exemplo
 - **Lint:** `php -l` nos 8 PHP e nas 254 views compiladas. O lint pegou a armadilha 86 (500 na folha).
 - **Visual:** Chromium headless: configuração, novo orçamento (prévia = cálculo do servidor), folha A4, produto.
 
-### Deploy (quando o Dennis mandar)
+### Deploy — EM PRODUÇÃO 25/10/2026 ~13:15 UTC (ordem do Dennis)
+- Antes: `docker tag erp-com-app:latest erp-com-app:pre-dk-orcamento-20261025` (= caafd37c4cd7, a imagem rebuildada
+  às 12:47 UTC com o php.ini da CVE — o código dela é igual ao de produção, conferido pasta a pasta); backup em
+  `/home/ubuntu/erp-backups/pre-dk-orcamento-20261025/` (os 14 arquivos alterados, `codigo-completo.tgz`, dump de
+  `configuracoes_loja`, `orcamentos`, `orcamento_itens`, `produto_precos`, e `lista.txt` com os 17 arquivos).
+- Os 14 arquivos do container eram idênticos à base da branch (md5 um a um). Tar dos 17 → md5 conferido no container →
+  `chown www-data` → `migrate --force` (batch 47) → `route:cache` + `view:cache` → USR2 no master do php-fpm (PID 32)
+  → `queue:restart`.
+- ⚠️ `kill -USR2 $(pgrep -f "php-fpm: master")` dentro de `sh -c` também casa o PRÓPRIO shell (a linha de comando
+  contém o texto) e o shell morre com o sinal (exit 140). O php-fpm recarregou, mas use `pgrep -o -f` ou o PID direto.
+- Pós-deploy, renderizado como o dono da DK (empresa 7) e da DONA DOURO (empresa 5): configurações, orçamentos,
+  novo orçamento (com o campo de entrega), PDV, produtos, edição de produto, etiquetas, orçamento e folha → todos 200;
+  folha antiga da DK sem o quadro, como antes. As 19 lojas em `avista`. MISS MERLINDA (crédito +10%, `por_parte`):
+  250 → 275 no crédito, igual a antes. Log sem erro desde o deploy.
+- **Rollback:** extrair `arquivos/` do backup por cima de `/var/www`, apagar os 3 arquivos novos (service, migration,
+  `_pagamento.blade.php`) só DEPOIS de `migrate:rollback --step=1`, caches + USR2.
+- **Falta (configuração, não código):** na DK, Configurações da Loja → "do cartão" + desconto; Impressão do Orçamento
+  → "cartão em até 6x". Nenhuma loja tem a opção ligada.
+
+### Como foi o deploy (referência)
 `docker tag` da imagem antes; por tar (sobre o que está em produção — conferir por `diff` que os arquivos do
 container são a base da branch, armadilha 82): 17 arquivos (14 alterados + service, migration e `_pagamento.blade.php`) + `migrate --force` (1 migration, só colunas com default)
 + `route:cache` + `view:cache` + USR2. **Rollback:** tar de volta + `migrate:rollback --step=1` + caches + USR2.
