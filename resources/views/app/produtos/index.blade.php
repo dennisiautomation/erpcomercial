@@ -71,6 +71,10 @@
     </div>
 </div>
 
+@php
+    $podeEditarPreco = \App\Http\Middleware\CheckPermission::canUser(auth()->user(), 'produtos', 'editar');
+@endphp
+
 {{-- Tabela --}}
 <div class="card shadow-sm">
     <div class="card-body p-0">
@@ -109,7 +113,41 @@
                             <td class="text-center">
                                 <span class="badge bg-light text-dark">{{ $produto->unidade_medida }}</span>
                             </td>
-                            <td class="text-end fw-bold text-success">R$ {{ number_format($produto->preco_venda, 2, ',', '.') }}</td>
+                            <td class="text-end fw-bold text-success text-nowrap">
+                                @if($podeEditarPreco)
+                                    <span class="preco-inline" data-url="{{ route('app.produtos.preco', $produto) }}" data-valor="{{ $produto->preco_venda }}"
+                                          role="button" title="Clique para alterar o preço">
+                                        <span class="preco-texto">R$ {{ number_format($produto->preco_venda, 2, ',', '.') }}</span>
+                                        <i class="bi bi-pencil small text-muted ms-1"></i>
+                                    </span>
+                                @else
+                                    R$ {{ number_format($produto->preco_venda, 2, ',', '.') }}
+                                @endif
+                                @php
+                                    // Preço fixo por forma tem prioridade sobre a regra geral e NÃO
+                                    // acompanha o preço de venda — avisa para ninguém se confundir.
+                                    // Débito = crédito é o "Preço no Cartão" da tela de edição.
+                                    $fixos = $produto->precos->pluck('valor', 'modalidade');
+                                    $avisoFixos = [];
+                                    if (isset($fixos['debito'], $fixos['credito']) && (float) $fixos['debito'] === (float) $fixos['credito']) {
+                                        $avisoFixos['Cartão'] = $fixos['debito'];
+                                    } else {
+                                        if (isset($fixos['debito'])) $avisoFixos['Débito'] = $fixos['debito'];
+                                        if (isset($fixos['credito'])) $avisoFixos['Crédito'] = $fixos['credito'];
+                                    }
+                                    if (isset($fixos['dinheiro_pix'])) $avisoFixos['Dinheiro/PIX'] = $fixos['dinheiro_pix'];
+                                    if (isset($fixos['atacado'])) $avisoFixos['Atacado'] = $fixos['atacado'];
+                                @endphp
+                                @if($avisoFixos)
+                                    <div class="small fw-normal text-warning-emphasis"
+                                         title="Preço fixo cadastrado no produto: não muda quando o preço de venda é alterado. Para mudar, use Editar.">
+                                        <i class="bi bi-exclamation-triangle me-1"></i>Fixo:
+                                        @foreach($avisoFixos as $rotulo => $valor)
+                                            {{ $rotulo }} R$ {{ number_format($valor, 2, ',', '.') }}@if(! $loop->last) · @endif
+                                        @endforeach
+                                    </div>
+                                @endif
+                            </td>
                             <td class="text-end">
                                 @if($lojaAtual)
                                     @php
@@ -171,3 +209,69 @@
     @endif
 </div>
 @endsection
+
+@if($podeEditarPreco)
+@push('scripts')
+<script>
+// Preço editável na lista: clique abre o campo, Enter/sair salva, Esc cancela
+document.querySelectorAll('.preco-inline').forEach(el => {
+    el.addEventListener('click', () => {
+        if (el.querySelector('input')) return;
+        const original = el.innerHTML;
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.inputMode = 'numeric';
+        input.className = 'form-control form-control-sm text-end fw-bold';
+        input.style.width = '110px';
+        input.style.display = 'inline-block';
+        input.value = ERP.masks.money(Number(el.dataset.valor).toFixed(2));
+        input.addEventListener('input', () => { input.value = ERP.masks.money(input.value); });
+        el.innerHTML = '';
+        el.appendChild(input);
+        input.focus();
+        input.select();
+
+        let fechado = false;
+        const restaurar = () => { fechado = true; el.innerHTML = original; };
+
+        const salvar = async () => {
+            if (fechado) return;
+            fechado = true;
+            const valor = ERP.moneyToDecimal(input.value);
+            if (input.value === '' || valor.toFixed(2) === Number(el.dataset.valor).toFixed(2)) {
+                el.innerHTML = original;
+                return;
+            }
+            input.disabled = true;
+            try {
+                const res = await fetch(el.dataset.url, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    },
+                    body: JSON.stringify({ preco_venda: valor.toFixed(2) }),
+                });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) throw new Error(data.message || 'Não foi possível salvar o preço.');
+                el.dataset.valor = data.preco_venda;
+                el.innerHTML = original;
+                el.querySelector('.preco-texto').textContent = data.preco_formatado;
+                ERP.toast('Preço atualizado', 'success');
+            } catch (e) {
+                el.innerHTML = original;
+                ERP.toast(e.message, 'danger');
+            }
+        };
+
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') { e.preventDefault(); salvar(); }
+            if (e.key === 'Escape') { restaurar(); }
+        });
+        input.addEventListener('blur', salvar);
+    });
+});
+</script>
+@endpush
+@endif

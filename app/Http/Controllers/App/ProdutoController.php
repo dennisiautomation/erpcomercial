@@ -15,7 +15,8 @@ class ProdutoController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Produto::with('categoria:id,nome');
+        // precos = preços fixos por forma (aviso na lista: não acompanham o preço de venda)
+        $query = Produto::with(['categoria:id,nome', 'precos:id,produto_id,modalidade,valor']);
 
         if ($request->filled('busca')) {
             $busca = $request->busca;
@@ -427,6 +428,29 @@ class ProdutoController extends Controller
 
         return redirect()->route('app.produtos.show', $produto)
             ->with('success', 'Foto do produto atualizada!');
+    }
+
+    /**
+     * Altera só o preço de venda, direto da lista de produtos (AJAX).
+     * O markup acompanha quando há preço de custo — mesma conta da tela de edição.
+     */
+    public function atualizarPreco(Request $request, Produto $produto)
+    {
+        $validated = $request->validate([
+            'preco_venda' => 'required|numeric|min:0',
+        ]);
+
+        $produto->preco_venda = $validated['preco_venda'];
+        if ((float) $produto->preco_custo > 0) {
+            $custo = (float) $produto->preco_custo;
+            $produto->markup = round(((float) $validated['preco_venda'] - $custo) / $custo * 100, 2);
+        }
+        $produto->save();
+
+        return response()->json([
+            'preco_venda'     => $produto->preco_venda,
+            'preco_formatado' => 'R$ ' . number_format($produto->preco_venda, 2, ',', '.'),
+        ]);
     }
 
     /**
