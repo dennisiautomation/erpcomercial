@@ -6491,7 +6491,7 @@ Lote de correções na branch `fix/auditoria-bugs-mai2026`, após varredura de s
 3. ~~Trocar nomes em massa (ALAA → ALÇA)~~ — descartado pelo Dennis em 25/10.
 4. Configuração fiscal da Matriz da DK para as NFes Recebidas sincronizarem (configuração, não código).
 5. **27/10:** Faturar com forma de pagamento + observações com texto pronto/caixinha (54/54 ✅) **EM PRODUÇÃO
-   27/10 16:29 UTC**, mesclada na `main` local (fast-forward), push pendente. CPF opcional = desligar a chave da DK no
+   27/10 16:29 UTC**, mesclada na `main` (fast-forward) e **pushada** 27/10 — GitHub `main` = `e5f7732` = produção. CPF opcional = desligar a chave da DK no
    admin. Isa já é gerente (Wellington mudou). Ver a seção de 27/10.
 
 
