@@ -145,6 +145,12 @@
                         <label class="form-label small fw-semibold">Observacoes para o Cliente</label>
                         <textarea name="observacoes_externas" class="form-control" rows="3"
                                   placeholder="Prazo de entrega, garantia, recado para o cliente...">{{ $orcamento->observacoes_externas }}</textarea>
+                        {{-- Caixinha (27/10/2026): desmarcada, o texto fica salvo mas não sai na folha --}}
+                        <input type="hidden" name="imprimir_observacoes" value="0">
+                        <div class="form-check mt-2">
+                            <input class="form-check-input" type="checkbox" name="imprimir_observacoes" value="1" id="imprimirObservacoes" @checked((string) old('imprimir_observacoes', $orcamento->imprimir_observacoes ? '1' : '0') === '1')>
+                            <label class="form-check-label small" for="imprimirObservacoes">Imprimir as observações no orçamento</label>
+                        </div>
                     </div>
                     <div class="mt-3 mb-0">
                         <label class="form-label small fw-semibold">Condições de pagamento e entrega</label>

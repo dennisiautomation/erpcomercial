@@ -33,6 +33,7 @@ class Orcamento extends Model
         'status',
         'observacoes_internas',
         'observacoes_externas',
+        'imprimir_observacoes',
         'condicoes',
     ];
 
@@ -46,6 +47,7 @@ class Orcamento extends Model
             'frete_valor' => 'decimal:2',
             'parcelas' => 'integer',
             'desconto_avista_percentual' => 'decimal:2',
+            'imprimir_observacoes' => 'boolean',
             'total' => 'decimal:2',
         ];
     }

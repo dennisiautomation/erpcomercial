@@ -68,11 +68,13 @@ class OrcamentoController extends Controller
         // Condições já vêm com o padrão da loja; o vendedor ajusta para este cliente
         $configLoja = \App\Models\ConfiguracaoLoja::daUnidade();
         $condicoesPadrao = $configLoja->orcamento_condicoes;
+        // Observações para o cliente: texto pronto da loja (27/10/2026)
+        $observacoesPadrao = $configLoja->orcamento_observacoes;
         // Quadro de pagamento: liga sozinho só na loja que preencheu as parcelas
         $parcelasPadrao = $configLoja->orcamento_parcelas;
         $descontoAvistaPadrao = app(\App\Services\OrcamentoPagamentoService::class)->descontoPadrao($configLoja);
 
-        return view('app.orcamentos.create', compact('vendedores', 'produtos', 'servicos', 'condicoesPadrao', 'configLoja', 'parcelasPadrao', 'descontoAvistaPadrao'));
+        return view('app.orcamentos.create', compact('vendedores', 'produtos', 'servicos', 'condicoesPadrao', 'observacoesPadrao', 'configLoja', 'parcelasPadrao', 'descontoAvistaPadrao'));
     }
 
     public function store(Request $request)
@@ -85,6 +87,7 @@ class OrcamentoController extends Controller
             'desconto_valor'          => 'nullable|numeric|min:0',
             'observacoes_internas'    => 'nullable|string|max:2000',
             'observacoes_externas'    => 'nullable|string|max:2000',
+            'imprimir_observacoes'    => 'nullable|boolean',
             'condicoes'               => 'nullable|string|max:5000',
             // Taxa de entrega + quadro de formas de pagamento (25/10/2026)
             'frete_valor'             => 'nullable|numeric|min:0|max:99999999',
@@ -165,6 +168,7 @@ class OrcamentoController extends Controller
                 'status'              => StatusOrcamento::EmAberto,
                 'observacoes_internas'=> $request->observacoes_internas,
                 'observacoes_externas'=> $request->observacoes_externas,
+                'imprimir_observacoes'=> $request->boolean('imprimir_observacoes'),
                 'condicoes'           => $request->condicoes,
             ]);
 
@@ -262,6 +266,7 @@ class OrcamentoController extends Controller
             'desconto_valor'          => 'nullable|numeric|min:0',
             'observacoes_internas'    => 'nullable|string|max:2000',
             'observacoes_externas'    => 'nullable|string|max:2000',
+            'imprimir_observacoes'    => 'nullable|boolean',
             'condicoes'               => 'nullable|string|max:5000',
             // Taxa de entrega + quadro de formas de pagamento (25/10/2026)
             'frete_valor'             => 'nullable|numeric|min:0|max:99999999',
@@ -332,6 +337,7 @@ class OrcamentoController extends Controller
                 'total'               => $total,
                 'observacoes_internas'=> $request->observacoes_internas,
                 'observacoes_externas'=> $request->observacoes_externas,
+                'imprimir_observacoes'=> $request->boolean('imprimir_observacoes'),
                 'condicoes'           => $request->condicoes,
             ]);
 

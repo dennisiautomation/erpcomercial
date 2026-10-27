@@ -215,7 +215,25 @@ class PedidoController extends Controller
             'faltas_nfce' => $faltasNfce,
         ];
 
-        return view('app.pedidos.show', compact('pedido', 'fiscalPedido'));
+        // Faturar pergunta a forma de pagamento (27/10/2026, pedido da DK): a
+        // venda e a NFC-e saíam "a definir". Sugere a condição do pedido e mostra
+        // o quadro do orçamento de origem como referência.
+        $formaSugerida = self::FORMA_DA_CONDICAO[$pedido->condicao_pagamento ?? ''] ?? null;
+        $quadroOrcamento = null;
+        if ($pedido->orcamento && $pedido->orcamento->parcelas) {
+            $configLoja = \App\Models\ConfiguracaoLoja::daUnidade($pedido->empresa_id, $pedido->unidade_id);
+            $frete = (float) $pedido->orcamento->frete_valor;
+            $quadroOrcamento = app(\App\Services\OrcamentoPagamentoService::class)->simular(
+                (float) $pedido->orcamento->total - $frete,
+                $frete,
+                (int) $pedido->orcamento->parcelas,
+                (float) $pedido->orcamento->desconto_avista_percentual,
+                $configLoja,
+            );
+        }
+        $formasFaturar = self::FORMAS_FATURAR;
+
+        return view('app.pedidos.show', compact('pedido', 'fiscalPedido', 'formaSugerida', 'quadroOrcamento', 'formasFaturar'));
     }
 
     public function edit(Pedido $pedido)
@@ -376,10 +394,32 @@ class PedidoController extends Controller
      * (NFC-e) ou nota fiscal (NF-e mod. 55 — "nota grande"). Gera uma Venda
      * (tipo 'pedido') que carrega o documento e alimenta os relatórios.
      */
+    /** Formas aceitas no Faturar — as mesmas chaves do PDV (o fiscal mapeia). */
+    private const FORMAS_FATURAR = [
+        'dinheiro'       => 'Dinheiro',
+        'pix'            => 'PIX',
+        'cartao_debito'  => 'Cartão de débito',
+        'cartao_credito' => 'Cartão de crédito',
+        'boleto'         => 'Boleto',
+        'transferencia'  => 'Transferência',
+    ];
+
+    /** Condição de pagamento do pedido → forma sugerida no Faturar. */
+    private const FORMA_DA_CONDICAO = [
+        'a_vista' => 'dinheiro',
+        'pix'     => 'pix',
+        'cartao'  => 'cartao_credito',
+        'boleto'  => 'boleto',
+    ];
+
     public function faturar(Request $request, Pedido $pedido)
     {
         $request->validate([
-            'documento' => 'required|in:nenhum,recibo,cupom_fiscal,nota_fiscal',
+            'documento'       => 'required|in:nenhum,recibo,cupom_fiscal,nota_fiscal',
+            'forma_pagamento' => 'required|in:' . implode(',', array_keys(self::FORMAS_FATURAR)),
+            'parcelas'        => 'nullable|integer|min:1|max:24',
+        ], [
+            'forma_pagamento.required' => 'Escolha a forma de pagamento.',
         ]);
 
         if ($pedido->status->value !== 'confirmado') {
@@ -408,12 +448,13 @@ class PedidoController extends Controller
             }
         }
 
-        $venda = DB::transaction(function () use ($pedido) {
+        $formaPagamento = $request->forma_pagamento;
+        $parcelas = $formaPagamento === 'cartao_credito' ? max(1, (int) $request->input('parcelas', 1)) : null;
+
+        $venda = DB::transaction(function () use ($pedido, $formaPagamento, $parcelas) {
             $ultimoNumero = Venda::withoutGlobalScopes()
                 ->where('empresa_id', $pedido->empresa_id)
                 ->max('numero');
-
-            $formaPagamento = $pedido->condicao_pagamento ?: 'a_definir';
 
             $venda = Venda::create([
                 'empresa_id'          => $pedido->empresa_id,
@@ -427,7 +468,13 @@ class PedidoController extends Controller
                 'desconto_valor'      => $pedido->desconto_valor ?? 0,
                 'total'               => $pedido->total,
                 'forma_pagamento'     => $formaPagamento,
-                'pagamento_detalhes'  => [['forma' => $formaPagamento, 'valor' => (float) $pedido->total]],
+                // O total é o do pedido: a forma só é registrada (não aplica
+                // desconto à vista nem juros — isso fica no orçamento/pedido).
+                'pagamento_detalhes'  => [array_filter([
+                    'forma'    => $formaPagamento,
+                    'valor'    => (float) $pedido->total,
+                    'parcelas' => $parcelas,
+                ], fn ($v) => $v !== null)],
                 'troco'               => 0,
                 'status'              => StatusVenda::Concluida,
                 'tipo'                => 'pedido',

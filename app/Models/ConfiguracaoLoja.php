@@ -46,6 +46,7 @@ class ConfiguracaoLoja extends Model
         'orcamento_email',
         'orcamento_site',
         'orcamento_condicoes',
+        'orcamento_observacoes',
         'orcamento_rodape',
         'orcamento_parcelas',
         // Trocas (03/09/2026)

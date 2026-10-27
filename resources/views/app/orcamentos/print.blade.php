@@ -182,7 +182,7 @@
     <table class="rodape-tab">
         <tr>
             <td style="padding-right:18px;">
-                @if(filled($orcamento->observacoes_externas))
+                @if($orcamento->imprimir_observacoes && filled($orcamento->observacoes_externas))
                     <div class="caixa">
                         <div class="rotulo">Observações</div>
                         <div class="texto">{{ $orcamento->observacoes_externas }}</div>

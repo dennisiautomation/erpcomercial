@@ -5835,6 +5835,60 @@ DONA DOURO (2.282) com o campo de busca, listagem de movimentações 200, log se
 
 ---
 
+## DK: Faturar pede a forma de pagamento + observações com texto pronto e caixinha "imprimir" (27/10/2026)
+
+Pedidos do Wellington (DK) de 26–27/10 (WhatsApp, áudios transcritos). Branch `dk-faturar-obs-cpf-27out` sobre a
+`main` = produção (`b875d32`).
+
+**1. "Não tem permissão" ao emitir (Isa / Maria Isanara, user 59)** — sem código. Ela estava num perfil sem o módulo
+`notas_fiscais` (vendedor/caixa) e o "Emitir NFC-e" da venda dava 403. O Wellington mudou ela para **gerente**
+em 27/10 10:42 (activity_log 43502, causer 30). Gerente tem orçamentos, pedidos, vendas e `notas_fiscais` criar.
+O 403 do vídeo é o `CheckPermission` (texto "Você não tem permissão para acessar este recurso").
+
+**2. Faturar o pedido pede a forma de pagamento** (`PedidoController::faturar` + modal em `pedidos/show`):
+- Antes a venda saía com `forma_pagamento = condicao_pagamento ?: 'a_definir'` — as 3 vendas de pedido da DK de
+  27/10 (3331–3333) estão `a_definir`, e a NFC-e mandava forma `99`.
+- Agora o modal tem **Forma de pagamento** (obrigatória: dinheiro, PIX, débito, crédito, boleto, transferência —
+  as chaves do PDV, `FORMAS_FATURAR`) e **parcelas** (só no crédito, 1–12; vêm com as do orçamento). Sugere a
+  condição do pedido (`FORMA_DA_CONDICAO`: pix→PIX, cartão→crédito, à vista→dinheiro, boleto).
+- Mostra o **valor da venda** (= total do pedido) e, se o pedido veio de orçamento com quadro, "O orçamento previa:
+  Dinheiro/PIX R$ X · Cartão Nx de R$ Y".
+- **O total NÃO muda com a forma**: não aplica o desconto à vista nem juros (isso fica no orçamento/pedido). Só
+  registra `forma_pagamento` e `pagamento_detalhes = [{forma, valor, parcelas?}]`. NFC-e passa a sair com o código
+  certo (PIX 17, crédito 03…). Nada novo no caixa nem em contas a receber.
+
+**3. Observações para o cliente com texto pronto + caixinha** (migration `2026_10_27_120000`):
+- `configuracoes_loja.orcamento_observacoes` (texto, até 2000) em Configurações da Loja → Impressão do Orçamento,
+  logo abaixo das condições. Orçamento **novo** já vem com ele em "Observações para o Cliente".
+- `orcamentos.imprimir_observacoes` (default **1** — orçamentos antigos continuam saindo igual). Caixinha
+  "Imprimir as observações no orçamento" no criar/editar (hidden 0 + checkbox 1). Desmarcada: texto fica salvo,
+  não sai na folha, e o detalhe mostra o selo "não sai no impresso".
+
+**4. Cliente sem CPF** — sem código: já existe `empresas.exige_documento_cadastro` (Admin → Empresas → editar →
+"Exigir CPF/CNPJ no cadastro"). Na DK está **ligada** (1). Desligar faz o CPF ficar "(opcional)" em clientes **e
+fornecedores**; CPF preenchido pela metade continua barrado; NF-e continua exigindo cliente completo.
+
+**5. Corrigir nome de produtos em lote (ALAA → ALÇA)** — pedido de novo em 26/10; segue descartado (25/10).
+
+### Validação (27/10, ambiente descartável: `main` na 8096 × branch na 8097, mesmo banco com o seed demo)
+- `scripts/validar-dk-faturar-obs-27out.sh`: **54/54 ✅** — 27 telas × dono/vendedor/caixa com o mesmo código HTTP;
+  orçamento gravado pelo código de produção sai com observações; texto pronto salva, form antigo salva, >2000 recusa;
+  orçamento novo vem preenchido e marcado; marcada/desmarcada/editar; Faturar sem forma ou com forma inventada
+  recusa sem faturar; PIX grava `pix`, crédito 3x grava parcelas; NFC-e 17/03; sugestão pela condição; quadro do
+  orçamento no modal; log sem ERROR.
+- Item 4 conferido no mesmo ambiente: com a chave ligada, cliente sem CPF não nasce; desligada, nasce com NULL.
+- `php -l` nos 6 PHP + 214 views compiladas: 0 erro.
+- ⚠️ Ambiente: a imagem `erp-com-app:latest` NÃO tem os tars de 25/10 — o "antes" tem que receber o código da
+  `main` (`git archive main app resources routes config database`), senão a regressão compara com código velho.
+
+### Deploy (quando o Dennis mandar)
+Tag `erp-com-app:pre-dk-faturar-obs-<data>` + backup dos 10 arquivos que existem → tar dos 11 (10 + migration) →
+md5 → `migrate --force` (1) → `route:cache` + `view:cache` → `php -l` nas views compiladas → USR2.
+Depois: Wellington preenche o texto em Configurações da Loja; chave do CPF desligada no admin (se o Dennis quiser).
+**Rollback:** arquivos do backup + `migrate:rollback --step=1` + caches + USR2.
+
+---
+
 ## Armadilhas conhecidas
 
 1. **EmpresaScope recursão**: `auth()->user()` dentro do scope chama User model que tem o scope → loop infinito. Scopes têm flag `static $applying`. Não remover.
@@ -6427,6 +6481,9 @@ Lote de correções na branch `fix/auditoria-bugs-mai2026`, após varredura de s
    "Sai de" do PDV (opção da loja).
 3. ~~Trocar nomes em massa (ALAA → ALÇA)~~ — descartado pelo Dennis em 25/10.
 4. Configuração fiscal da Matriz da DK para as NFes Recebidas sincronizarem (configuração, não código).
+5. **27/10:** Faturar com forma de pagamento + observações com texto pronto/caixinha na branch
+   `dk-faturar-obs-cpf-27out` (54/54 ✅), **NÃO em produção, NÃO pushada**. CPF opcional = desligar a chave da DK no
+   admin. Isa já é gerente (Wellington mudou). Ver a seção de 27/10.
 
 
 ### Segurança PHP 8.4.27 — CVE-2026-109618/109619 (23/10/2026)

@@ -138,6 +138,34 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
+                    {{-- Forma de pagamento (27/10/2026): a venda e a NFC-e saíam "a definir". --}}
+                    <label class="form-label fw-semibold mb-1" for="faturarForma">Forma de pagamento <span class="text-danger">*</span></label>
+                    <div class="row g-2 mb-2">
+                        <div class="col">
+                            <select name="forma_pagamento" id="faturarForma" class="form-select" required>
+                                <option value="" @selected(! old('forma_pagamento', $formaSugerida))>Selecione...</option>
+                                @foreach($formasFaturar as $val => $label)
+                                    <option value="{{ $val }}" @selected(old('forma_pagamento', $formaSugerida) === $val)>{{ $label }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="col-4" id="faturarParcelasBox" style="display:none">
+                            <select name="parcelas" id="faturarParcelas" class="form-select" aria-label="Parcelas">
+                                @for($p = 1; $p <= 12; $p++)
+                                    <option value="{{ $p }}" @selected((int) old('parcelas', $pedido->orcamento?->parcelas ?? 1) === $p)>{{ $p }}x</option>
+                                @endfor
+                            </select>
+                        </div>
+                    </div>
+                    <div class="small text-muted mb-3">
+                        Valor da venda: <strong>R$ {{ number_format($pedido->total, 2, ',', '.') }}</strong> (total do pedido).
+                        @if($quadroOrcamento)
+                            <br>O orçamento previa: Dinheiro/PIX <strong>R$ {{ number_format($quadroOrcamento['avista'], 2, ',', '.') }}</strong>
+                            · Cartão <strong>{{ $quadroOrcamento['parcelas'] }}x de R$ {{ number_format($quadroOrcamento['valor_parcela'], 2, ',', '.') }}</strong>
+                            (total R$ {{ number_format($quadroOrcamento['cartao_total'], 2, ',', '.') }}).
+                        @endif
+                    </div>
+
                     <p class="text-muted mb-3">O estoque será baixado automaticamente. Qual documento deseja emitir?</p>
 
                     <div class="list-group">
@@ -192,6 +220,16 @@
             </form>
         </div>
     </div>
+    <script>
+    (function () {
+        var forma = document.getElementById('faturarForma');
+        var box = document.getElementById('faturarParcelasBox');
+        if (!forma || !box) return;
+        function mostrar() { box.style.display = forma.value === 'cartao_credito' ? '' : 'none'; }
+        forma.addEventListener('change', mostrar);
+        mostrar();
+    })();
+    </script>
     @endif
 @endif
 

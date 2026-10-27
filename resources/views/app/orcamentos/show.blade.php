@@ -281,7 +281,11 @@
                         @if($orcamento->observacoes_externas)
                             <div class="col-md-6">
                                 <div class="bg-info bg-opacity-10 rounded-3 p-3">
-                                    <h6 class="text-muted mb-2"><i class="bi bi-envelope me-1"></i> Para o Cliente</h6>
+                                    <h6 class="text-muted mb-2"><i class="bi bi-envelope me-1"></i> Para o Cliente
+                                        @unless($orcamento->imprimir_observacoes)
+                                            <span class="badge bg-secondary fw-normal ms-1">não sai no impresso</span>
+                                        @endunless
+                                    </h6>
                                     <p class="mb-0">{{ $orcamento->observacoes_externas }}</p>
                                 </div>
                             </div>

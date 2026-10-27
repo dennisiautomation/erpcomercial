@@ -156,6 +156,7 @@ class ConfiguracaoLojaController extends Controller
             'orcamento_email'              => 'nullable|email|max:150',
             'orcamento_site'               => 'nullable|string|max:150',
             'orcamento_condicoes'          => 'nullable|string|max:5000',
+            'orcamento_observacoes'        => 'nullable|string|max:2000',
             'orcamento_rodape'             => 'nullable|string|max:2000',
             // Trocas (03/09/2026)
             'troca_prazo_dias'           => 'required|integer|min:0|max:3650',

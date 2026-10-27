@@ -953,6 +953,15 @@
         </div>
 
         <div class="mb-3">
+            <label for="orcamento_observacoes" class="form-label fw-semibold">Observações para o cliente (texto pronto)</label>
+            <textarea name="orcamento_observacoes" id="orcamento_observacoes" rows="4" data-contador="2000"
+                      class="form-control @error('orcamento_observacoes') is-invalid @enderror"
+                      placeholder="Ex.: Produto com garantia de 90 dias. Entrega em até 2 dias úteis após a confirmação do pagamento.">{{ old('orcamento_observacoes', $config->orcamento_observacoes) }}</textarea>
+            <div class="form-text d-flex justify-content-between gap-2 flex-wrap"><span>Vem preenchido em "Observações para o Cliente" de cada orçamento novo. No orçamento, o vendedor pode mudar o texto e marcar se ele sai ou não no impresso.</span><span class="text-muted" data-contador-de="orcamento_observacoes"></span></div>
+            @error('orcamento_observacoes') <div class="invalid-feedback">{{ $message }}</div> @enderror
+        </div>
+
+        <div class="mb-3">
             <label for="orcamento_parcelas" class="form-label fw-semibold">Formas de pagamento calculadas na folha</label>
             <div class="input-group" style="max-width:22rem;">
                 <span class="input-group-text">Cartão em até</span>
