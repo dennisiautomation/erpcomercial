@@ -289,6 +289,10 @@
                     $notaViva = $venda->notasFiscais->first(fn ($n) => in_array(
                         $n->status->value, ['autorizada', 'pendente', 'contingencia'], true
                     ));
+                    // NFC-e (modelo 65) só vale dentro do estado: cliente de outra UF só tem NF-e.
+                    $ufLoja = strtoupper($venda->unidade?->uf ?: $venda->unidade?->empresa?->uf ?: '');
+                    $clienteOutraUf = $venda->cliente?->uf && $ufLoja
+                        && strtoupper($venda->cliente->uf) !== $ufLoja;
                 @endphp
                 @if($venda->notasFiscais->count())
                     {{-- Show existing notas --}}
@@ -327,12 +331,14 @@
                             do produto) e emita de novo.
                         </div>
                         <div class="d-flex gap-2">
+                            @unless($clienteOutraUf)
                             <form method="POST" action="{{ route('app.notas-fiscais.emitir-nfce', $venda) }}">
                                 @csrf
                                 <button class="btn btn-erp-primary" data-confirm="Emitir NFC-e novamente para esta venda?">
                                     <i class="bi bi-arrow-repeat me-1"></i> Emitir NFC-e novamente
                                 </button>
                             </form>
+                            @endunless
                             <form method="POST" action="{{ route('app.notas-fiscais.emitir-nfe', $venda) }}">
                                 @csrf
                                 <button class="btn btn-erp-outline" data-confirm="Emitir NF-e (modelo 55) para esta venda?">
@@ -351,13 +357,21 @@
                                 <i class="bi bi-file-earmark-text me-1"></i> Emitir NF-e (DANFE)
                             </button>
                         </form>
+                        @unless($clienteOutraUf)
                         <form method="POST" action="{{ route('app.notas-fiscais.emitir-nfce', $venda) }}">
                             @csrf
                             <button class="btn btn-erp-outline" data-confirm="Emitir NFC-e para esta venda?">
                                 <i class="bi bi-receipt me-1"></i> Emitir NFC-e
                             </button>
                         </form>
+                        @endunless
                     </div>
+                    @if($clienteOutraUf)
+                        <p class="text-muted small mt-2 mb-0">
+                            <i class="bi bi-info-circle me-1"></i>
+                            Cliente de <strong>{{ strtoupper($venda->cliente->uf) }}</strong>: venda para outra UF sai só como NF-e (NFC-e não vale fora do estado).
+                        </p>
+                    @endif
                 @endif
             </div>
         </div>

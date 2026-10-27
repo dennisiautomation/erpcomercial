@@ -443,7 +443,9 @@ class NFeService
                 'tipo_documento' => '1',
                 'local_destino' => $builder->localDestino($ufDestino),
                 'finalidade_emissao' => $dadosAdicionais['finalidade_emissao'] ?? '1',
-                'consumidor_final' => $dadosAdicionais['consumidor_final'] ?? '0',
+                // indFinal: sem IE (indicador 9) a SEFAZ exige consumidor final = 1
+                // ("Operacao com nao contribuinte deve indicar operacao com consumidor final", DK 27/10/2026).
+                'consumidor_final' => $dadosAdicionais['consumidor_final'] ?? ($cliente?->ie ? '0' : '1'),
                 'presenca_comprador' => $dadosAdicionais['presenca_comprador'] ?? '1',
                 'indicador_intermediario' => $dadosAdicionais['indicador_intermediario'] ?? '0',
                 'modelo' => '55',

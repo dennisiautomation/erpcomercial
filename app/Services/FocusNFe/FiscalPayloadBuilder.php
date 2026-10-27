@@ -129,6 +129,15 @@ class FiscalPayloadBuilder
                 . 'e preencha na Configuração Fiscal.';
         }
 
+        // NFC-e (modelo 65) só existe para operação interna: cliente de outra UF cai na
+        // rejeição "NFC-e para operacao interestadual" (DK 27/10/2026). Barramos antes.
+        $cliente = $venda->cliente;
+        if ($cliente && $this->localDestino($cliente->uf) !== '1') {
+            $erros[] = "Cliente {$cliente->nome_razao_social} é de {$cliente->uf} e a loja emite por "
+                . strtoupper($this->unidade->uf ?: $this->empresa->uf ?: '?')
+                . ': NFC-e não vale para outra UF — emita NF-e (modelo 55).';
+        }
+
         foreach ($venda->itens as $idx => $item) {
             $ncm = $item->snapshot_ncm ?: $item->produto?->ncm;
             if (! $ncm || $ncm === '00000000') {
@@ -278,7 +287,7 @@ class FiscalPayloadBuilder
         $valorDesconto = (float) ($item->desconto_valor ?? 0);
 
         $ncm = $item->fiscal('ncm', '00000000');
-        $cfop = $item->fiscal('cfop', '5102');
+        $cfop = $this->cfopParaDestino((string) $item->fiscal('cfop', '5102'), $item->venda?->cliente);
         $cstCsosn = $item->fiscal('cst_csosn', '102');
         $origem = $item->fiscal('origem', '0');
         $cstPis = $item->fiscal('cst_pis', '99');
@@ -546,6 +555,39 @@ class FiscalPayloadBuilder
             $total += round($valorBruto * ($perc / 100), 2);
         }
         return round($total, 2);
+    }
+
+    // ─── CFOP por destino ───────────────────────────────────────────────
+
+    /**
+     * CFOP 5xxx é operação interna; venda para outra UF tem que sair como 6xxx (e o
+     * inverso, se o produto estiver cadastrado com 6xxx numa venda dentro do estado).
+     * Para não contribuinte (sem IE) o par é 5101/5102 → 6107/6108; com IE, 6101/6102.
+     * DK 27/10/2026: produto 5102 numa venda PI→MA — a SEFAZ rejeitou e a troca foi feita à mão.
+     */
+    public function cfopParaDestino(string $cfop, ?\App\Models\Cliente $cliente): string
+    {
+        $cfop = trim($cfop);
+        if (strlen($cfop) !== 4) {
+            return $cfop;
+        }
+        $destino = $this->localDestino($cliente?->uf);
+        $contribuinte = (bool) $this->digits($cliente?->ie ?? '');
+
+        if ($destino === '2' && $cfop[0] === '5') {
+            if (! $contribuinte && in_array($cfop, ['5101', '5102'], true)) {
+                return $cfop === '5101' ? '6107' : '6108';
+            }
+            return '6' . substr($cfop, 1);
+        }
+        if ($destino === '1' && $cfop[0] === '6') {
+            if (in_array($cfop, ['6107', '6108'], true)) {
+                return $cfop === '6107' ? '5101' : '5102';
+            }
+            return '5' . substr($cfop, 1);
+        }
+
+        return $cfop;
     }
 
     // ─── Local destino (1/2/3) ──────────────────────────────────────────
