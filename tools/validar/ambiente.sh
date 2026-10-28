@@ -129,7 +129,7 @@ subir)
   fi
   # garantias: nenhum worker/cron, .env de produção fora
   docker exec "$NOME-app" sh -c 'pgrep -f "queue:work|schedule:work" >/dev/null' && { cor 31 "queue/schedule RODANDO no ambiente de validação — abortando"; exit 1; }
-  docker exec "$NOME-app" sh -c 'grep -q "DB_HOST=mysql" /var/www/.env && ! grep -q "erp-com-mysql" /var/www/.env' || { cor 31 ".env do app de validação aponta para fora do descartável — abortando"; exit 1; }
+  docker exec "$NOME-app" sh -c 'grep -qE "^DB_HOST=\"?mysql\"?$" /var/www/.env && ! grep -q "erp-com-mysql" /var/www/.env' || { cor 31 ".env do app de validação aponta para fora do descartável — abortando"; exit 1; }
   rm -f "$OUT/app.env" "$OUT/antes.env"
   cor 32 "   $NOME-app pronto em http://127.0.0.1:$PORTA (imagem $(docker inspect "$NOME-app" --format '{{.Image}}' | cut -c8-19)) · mysql $NOME-mysql (erp/erp erp_teste) · sem queue/schedule · integrações mortas"
   ;;
