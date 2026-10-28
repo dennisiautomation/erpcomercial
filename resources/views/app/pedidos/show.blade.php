@@ -25,9 +25,15 @@
                 <i class="bi bi-pencil me-1"></i> Editar
             </a>
         @endif
-        <button type="button" class="btn btn-outline-secondary" onclick="window.print()">
-            <i class="bi bi-printer me-1"></i> Imprimir
-        </button>
+        <a href="{{ route('app.pedidos.imprimir', $pedido) }}" target="_blank" rel="noopener" class="btn btn-outline-secondary">
+            <i class="bi bi-printer me-1"></i> Imprimir pedido
+        </a>
+        @if($pedido->venda)
+            {{-- Faturado: o recibo/cupom da venda (térmica) também sai daqui --}}
+            <a href="{{ route('app.vendas.recibo', $pedido->venda) }}?print=1" target="_blank" rel="noopener" class="btn btn-outline-secondary">
+                <i class="bi bi-receipt me-1"></i> Recibo da venda
+            </a>
+        @endif
         <a href="{{ route('app.pedidos.index') }}" class="btn btn-outline-secondary">
             <i class="bi bi-arrow-left me-1"></i> Voltar
         </a>
@@ -86,7 +92,7 @@
     <div class="card border-0 shadow-sm mb-4 border-start border-4 border-primary">
         <div class="card-body py-3">
             <div class="d-flex align-items-center gap-3 flex-wrap">
-                <span class="text-muted fw-semibold"><i class="bi bi-signpost-split me-1"></i> Acoes:</span>
+                <span class="text-muted fw-semibold"><i class="bi bi-signpost-split me-1"></i> Ações:</span>
 
                 @if($pedido->status->value === 'rascunho')
                     <form method="POST" action="{{ route('app.pedidos.update-status', $pedido) }}" class="d-inline">
@@ -119,7 +125,7 @@
                 <form method="POST" action="{{ route('app.pedidos.update-status', $pedido) }}" class="d-inline">
                     @csrf
                     <input type="hidden" name="status" value="cancelado">
-                    <button type="submit" class="btn btn-outline-danger" data-confirm="Cancelar este pedido? Esta acao nao pode ser desfeita.">
+                    <button type="submit" class="btn btn-outline-danger" data-confirm="Cancelar este pedido? Esta ação não pode ser desfeita.">
                         <i class="bi bi-x-circle me-1"></i> Cancelar Pedido
                     </button>
                 </form>
@@ -160,20 +166,20 @@
                     <div class="small text-muted mb-3">
                         Valor da venda: <strong>R$ {{ number_format($pedido->total, 2, ',', '.') }}</strong> (total do pedido).
                         @if($quadroOrcamento)
-                            <br>O orçamento previa: Dinheiro/PIX <strong>R$ {{ number_format($quadroOrcamento['avista'], 2, ',', '.') }}</strong>
+                            <br>O orçamento prévia: Dinheiro/PIX <strong>R$ {{ number_format($quadroOrcamento['avista'], 2, ',', '.') }}</strong>
                             · Cartão <strong>{{ $quadroOrcamento['parcelas'] }}x de R$ {{ number_format($quadroOrcamento['valor_parcela'], 2, ',', '.') }}</strong>
                             (total R$ {{ number_format($quadroOrcamento['cartao_total'], 2, ',', '.') }}).
                         @endif
                     </div>
 
-                    <p class="text-muted mb-3">O estoque será baixado automaticamente. Qual documento deseja emitir?</p>
+                    <p class="text-muted mb-3">O estoque será baixado e a venda entra no seu caixa aberto desta loja. Qual documento deseja emitir?</p>
 
                     <div class="list-group">
                         <label class="list-group-item d-flex gap-2 align-items-start">
                             <input class="form-check-input mt-1" type="radio" name="documento" value="recibo" checked>
                             <span>
-                                <strong>Recibo</strong>
-                                <div class="text-muted small">Comprovante não fiscal, pronto para impressão.</div>
+                                <strong>Pedido impresso (folha A4)</strong>
+                                <div class="text-muted small">Sem valor fiscal. Abre a folha do pedido pronta para imprimir; o cupom térmico fica disponível na venda gerada.</div>
                             </span>
                         </label>
                         <label class="list-group-item d-flex gap-2 align-items-start {{ $fiscalPedido['nfce_ok'] ? '' : 'bg-light' }}">
@@ -238,12 +244,12 @@
     <div class="col-lg-6">
         <div class="card border-0 shadow-sm h-100">
             <div class="card-header bg-transparent fw-semibold">
-                <i class="bi bi-info-circle me-1"></i> Informacoes do Pedido
+                <i class="bi bi-info-circle me-1"></i> Informações do Pedido
             </div>
             <div class="card-body">
                 <div class="row g-3">
                     <div class="col-6">
-                        <small class="text-muted d-block">Numero</small>
+                        <small class="text-muted d-block">Número</small>
                         <span class="fw-bold">#{{ $pedido->numero }}</span>
                     </div>
                     <div class="col-6">
@@ -253,6 +259,10 @@
                     <div class="col-6">
                         <small class="text-muted d-block">Cond. Pagamento</small>
                         <span>{{ ucfirst(str_replace('_', ' ', $pedido->condicao_pagamento ?? '-')) }}</span>
+                    </div>
+                    <div class="col-6">
+                        <small class="text-muted d-block">Loja de saída</small>
+                        <span><i class="bi bi-shop me-1"></i>{{ $pedido->unidade->nome ?? '-' }}</span>
                     </div>
                     <div class="col-6">
                         <small class="text-muted d-block">Canal da venda</small>
@@ -270,7 +280,7 @@
                         <div class="col-12">
                             <small class="text-muted d-block">Origem</small>
                             <a href="{{ route('app.orcamentos.show', $pedido->orcamento) }}" class="fw-semibold text-decoration-none">
-                                <i class="bi bi-link-45deg me-1"></i>Orcamento #{{ $pedido->orcamento->numero }}
+                                <i class="bi bi-link-45deg me-1"></i>Orçamento #{{ $pedido->orcamento->numero }}
                             </a>
                         </div>
                     @endif
@@ -332,9 +342,9 @@
                     <thead class="bg-light">
                         <tr>
                             <th class="ps-3" style="width:5%">#</th>
-                            <th>Descricao</th>
+                            <th>Descrição</th>
                             <th class="text-center" style="width:10%">Qtd</th>
-                            <th class="text-end" style="width:12%">Preco Unit.</th>
+                            <th class="text-end" style="width:12%">Preço Unit.</th>
                             <th class="text-center" style="width:10%">Desc.</th>
                             <th class="text-end" style="width:12%">Desc. R$</th>
                             <th class="text-end pe-3" style="width:12%">Total</th>
@@ -349,7 +359,7 @@
                                     @if($item->produto)
                                         <small class="text-muted">Cod: {{ $item->produto->codigo_interno ?? '-' }}</small>
                                     @elseif($item->servico)
-                                        <small class="text-info"><i class="bi bi-tools me-1"></i>Servico</small>
+                                        <small class="text-info"><i class="bi bi-tools me-1"></i>Serviço</small>
                                     @endif
                                 </td>
                                 <td class="text-center">{{ number_format($item->quantidade, 3, ',', '.') }}</td>
@@ -416,7 +426,7 @@
         <div class="col-12">
             <div class="card border-0 shadow-sm">
                 <div class="card-header bg-transparent fw-semibold">
-                    <i class="bi bi-chat-text me-1"></i> Observacoes
+                    <i class="bi bi-chat-text me-1"></i> Observações
                 </div>
                 <div class="card-body">
                     <div class="row g-4">

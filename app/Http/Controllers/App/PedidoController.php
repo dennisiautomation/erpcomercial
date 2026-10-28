@@ -7,6 +7,7 @@ use App\Enums\StatusPedido;
 use App\Enums\StatusVenda;
 use App\Enums\TipoMovimentacaoEstoque;
 use App\Http\Controllers\Controller;
+use App\Models\AdquirenteTaxa;
 use App\Models\ConfiguracaoFiscal;
 use App\Models\ContaReceber;
 use App\Models\EstoqueMovimentacao;
@@ -21,6 +22,7 @@ use App\Models\VendaItem;
 use App\Services\FocusNFe\FocusNFeClient;
 use App\Services\FocusNFe\NFCeService;
 use App\Services\FocusNFe\NFeService;
+use App\Services\LancamentoCaixaService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -172,7 +174,7 @@ class PedidoController extends Controller
 
     public function show(Pedido $pedido)
     {
-        $pedido->load(['cliente', 'vendedor', 'itens.produto', 'itens.servico', 'orcamento', 'venda']);
+        $pedido->load(['cliente', 'vendedor', 'itens.produto', 'itens.servico', 'orcamento', 'venda', 'unidade']);
 
         // Prontidão fiscal da unidade do pedido — o modal de faturamento
         // mostra o que falta para NFC-e/NF-e em vez de falhar depois.
@@ -368,6 +370,7 @@ class PedidoController extends Controller
                     'empresa_id'      => $pedido->empresa_id,
                     'unidade_id'      => $pedido->unidade_id,
                     'cliente_id'      => $pedido->cliente_id,
+                    'pedido_id'       => $pedido->id,
                     'descricao'       => "Pedido #{$pedido->numero}",
                     'valor'           => $pedido->total,
                     'vencimento'      => now()->addDays(30),
@@ -451,7 +454,16 @@ class PedidoController extends Controller
         $formaPagamento = $request->forma_pagamento;
         $parcelas = $formaPagamento === 'cartao_credito' ? max(1, (int) $request->input('parcelas', 1)) : null;
 
-        $venda = DB::transaction(function () use ($pedido, $formaPagamento, $parcelas) {
+        // Caixa (28/10/2026, DK Med): a venda do pedido entra no caixa aberto de
+        // quem fatura, na loja DO PEDIDO — como no PDV. Sem caixa aberto, não
+        // fatura: era assim que as vendas de pedido sumiam do fechamento.
+        $caixaSvc = app(LancamentoCaixaService::class);
+        $caixa = $caixaSvc->caixaAbertoDoUsuario((int) $pedido->unidade_id, (int) auth()->id());
+        if (! $caixa) {
+            return back()->with('error', 'Abra o caixa nesta loja antes de faturar: a venda do pedido entra no caixa, como no PDV.');
+        }
+
+        $venda = DB::transaction(function () use ($pedido, $formaPagamento, $parcelas, $caixa, $caixaSvc) {
             $ultimoNumero = Venda::withoutGlobalScopes()
                 ->where('empresa_id', $pedido->empresa_id)
                 ->max('numero');
@@ -462,6 +474,7 @@ class PedidoController extends Controller
                 'pedido_id'           => $pedido->id,
                 'cliente_id'          => $pedido->cliente_id,
                 'vendedor_id'         => $pedido->vendedor_id ?? auth()->id(),
+                'caixa_id'            => $caixa->id,
                 'numero'              => $ultimoNumero ? $ultimoNumero + 1 : 1,
                 'subtotal'            => $pedido->subtotal,
                 'desconto_percentual' => $pedido->desconto_percentual ?? 0,
@@ -498,6 +511,11 @@ class PedidoController extends Controller
             // Estoque sai como faturamento do pedido (mesma origem de antes)
             $this->baixarEstoquePedido($pedido);
 
+            // Entrada no caixa (uma por forma, com venda_id: o cancelamento estorna
+            // por ele) + baixa da conta a receber aberta na confirmação.
+            $caixaSvc->lancarVenda($venda, $caixa, $venda->pagamento_detalhes, (int) auth()->id());
+            $this->baixarContaReceberDoPedido($pedido, $venda, $formaPagamento, $parcelas);
+
             $pedido->update(['status' => StatusPedido::Faturado]);
 
             return $venda;
@@ -506,8 +524,10 @@ class PedidoController extends Controller
         // Emissão fora da transaction: falha fiscal não desfaz o faturamento
         switch ($documento) {
             case 'recibo':
-                return redirect()->route('app.vendas.recibo', $venda)
-                    ->with('success', "Pedido #{$pedido->numero} faturado! Recibo pronto para impressão.");
+                // Folha A4 do pedido (28/10/2026): antes abria o cupom térmico de
+                // 80mm, e a DK Med voltava ao orçamento para ter um impresso decente.
+                return redirect()->route('app.pedidos.imprimir', $pedido)
+                    ->with('success', "Pedido #{$pedido->numero} faturado! Pedido pronto para impressão.");
 
             case 'cupom_fiscal':
                 try {
@@ -552,6 +572,158 @@ class PedidoController extends Controller
 
         return redirect()->route('app.pedidos.show', $pedido)
             ->with('success', "Pedido #{$pedido->numero} faturado com sucesso!");
+    }
+
+    /**
+     * Pedido / protocolo de entrega em A4 (28/10/2026, DK Med). Antes o "Imprimir"
+     * mandava a tela do sistema para o papel e o faturar abria o cupom térmico;
+     * quem queria um impresso decente voltava ao orçamento — e saía "ORÇAMENTO".
+     *
+     * Não é a folha do orçamento com outro título: cabeçalho enxuto (nome, CNPJ,
+     * telefone, logo pequena), bloco "Entregar para", coluna de conferência,
+     * situação do pagamento e canhoto de recebimento destacável. Nome/CNPJ/logo
+     * vêm de `cabecalhoOrcamento()` da loja DONA do pedido; o resto do cabeçalho
+     * do orçamento (endereço comercial, site, condições, rodapé) fica de fora.
+     */
+    public function imprimir(Pedido $pedido)
+    {
+        $pedido->load(['cliente', 'vendedor', 'itens.produto', 'itens.servico', 'orcamento', 'venda', 'unidade']);
+
+        $empresa = \App\Models\Empresa::find($pedido->empresa_id);
+        $unidade = \App\Models\Unidade::withoutGlobalScopes()->find($pedido->unidade_id);
+        $configLoja = \App\Models\ConfiguracaoLoja::daUnidade($pedido->empresa_id, $pedido->unidade_id);
+        $cabecalho = $configLoja->cabecalhoOrcamento($empresa, $unidade);
+
+        // Forma de pagamento: a da venda, se já faturou; senão a condição do pedido.
+        $pagamento = null;
+        if ($pedido->venda) {
+            $detalhe = collect($pedido->venda->pagamento_detalhes ?? [])->first() ?? [];
+            $forma = $pedido->venda->forma_pagamento;
+            $pagamento = self::FORMAS_FATURAR[$forma] ?? ucfirst(str_replace('_', ' ', (string) $forma));
+            if (! empty($detalhe['parcelas']) && (int) $detalhe['parcelas'] > 1) {
+                $pagamento .= ' em ' . (int) $detalhe['parcelas'] . 'x';
+            }
+        } elseif ($pedido->condicao_pagamento) {
+            $pagamento = self::CONDICOES_LABELS[$pedido->condicao_pagamento]
+                ?? ucfirst(str_replace('_', ' ', $pedido->condicao_pagamento));
+        }
+
+        // Telefone da loja: o informado para impressos, senão o da unidade/empresa
+        $telefone = $configLoja->orcamento_telefone ?: ($unidade?->telefone ?: $empresa?->telefone);
+        $telefone = filled($telefone) ? \App\Models\ConfiguracaoLoja::formatarTelefone($telefone) : null;
+
+        // Situação do pagamento: o entregador precisa saber se cobra ou não.
+        // Cartão já foi pago na maquininha (o pendente é recebível da adquirente).
+        if ($pedido->venda) {
+            $formaVenda = (string) $pedido->venda->forma_pagamento;
+            $aReceber = in_array($formaVenda, ['cartao_credito', 'cartao_debito'], true)
+                ? 0.0
+                : round((float) ContaReceber::withoutGlobalScopes()
+                    ->where('venda_id', $pedido->venda->id)
+                    ->whereIn('status', ['pendente', 'vencida'])
+                    ->get()
+                    ->sum(fn ($c) => (float) $c->valor - (float) $c->valor_pago), 2);
+            $situacao = $aReceber > 0.005
+                ? ['texto' => 'A receber', 'valor' => $aReceber]
+                : ['texto' => 'Pago', 'valor' => null];
+        } else {
+            $situacao = ['texto' => 'A pagar', 'valor' => (float) $pedido->total];
+        }
+
+        // Entrega por app (Uber): entregador e rastreio, quando houver
+        $entrega = \App\Models\PedidoEntrega::where('pedido_id', $pedido->id)->latest('id')->first();
+
+        return view('app.pedidos.print', compact('pedido', 'cabecalho', 'telefone', 'pagamento', 'situacao', 'entrega'));
+    }
+
+    /** Rótulos das condições de pagamento do pedido (as chaves do select de criar/editar). */
+    private const CONDICOES_LABELS = [
+        'a_vista'   => 'À vista',
+        'pix'       => 'PIX',
+        'cartao'    => 'Cartão',
+        'boleto'    => 'Boleto',
+        '30_dias'       => '30 dias',
+        '30_60_dias'    => '30/60 dias',
+        '30_60_90_dias' => '30/60/90 dias',
+    ];
+
+    /**
+     * Baixa a conta a receber aberta na confirmação do pedido (28/10/2026).
+     *
+     * Até aqui ela ficava pendente para sempre: o faturar não a tocava. Cartão
+     * com regra de adquirente vira recebível previsto (D+prazo, líquido da taxa,
+     * parcelas a cada 30 dias) — a mesma regra do PDV; as demais formas ficam
+     * pagas na hora. Sem conta (pedido confirmado pela API do agente), nasce
+     * uma já paga, como na venda de balcão.
+     */
+    private function baixarContaReceberDoPedido(Pedido $pedido, Venda $venda, string $forma, ?int $parcelas): void
+    {
+        $conta = ContaReceber::withoutGlobalScopes()
+            ->where('empresa_id', $pedido->empresa_id)
+            ->where('pedido_id', $pedido->id)
+            ->where('status', 'pendente')
+            ->orderBy('id')
+            ->first();
+
+        $total = (float) $venda->total;
+        $parcelas = max(1, (int) ($parcelas ?? 1));
+        $formaLabel = ucfirst(str_replace('_', ' ', $forma));
+        $regra = in_array($forma, ['cartao_credito', 'cartao_debito'], true)
+            ? AdquirenteTaxa::paraPagamento((int) $pedido->empresa_id, $forma, $parcelas)
+            : null;
+
+        $base = [
+            'empresa_id'      => $pedido->empresa_id,
+            'unidade_id'      => $pedido->unidade_id,
+            'cliente_id'      => $pedido->cliente_id,
+            'venda_id'        => $venda->id,
+            'pedido_id'       => $pedido->id,
+            'forma_pagamento' => $forma,
+        ];
+
+        if ($regra) {
+            $valorParcela = round($total / $parcelas, 2);
+            $acumulado = 0;
+            for ($i = 1; $i <= $parcelas; $i++) {
+                $valorEsta = $i === $parcelas ? round($total - $acumulado, 2) : $valorParcela;
+                $acumulado = round($acumulado + $valorEsta, 2);
+
+                $dados = $base + [
+                    'descricao'          => "Pedido #{$pedido->numero} - {$formaLabel} {$i}/{$parcelas} ({$regra->nome})",
+                    'valor'              => $valorEsta,
+                    'valor_pago'         => 0,
+                    'vencimento'         => now()->addDays($regra->prazo_dias + 30 * ($i - 1)),
+                    'pago_em'            => null,
+                    'adquirente_taxa_id' => $regra->id,
+                    'taxa_percentual'    => $regra->taxa_percentual,
+                    'valor_liquido'      => round($valorEsta * (1 - ((float) $regra->taxa_percentual) / 100), 2),
+                    'parcela'            => $i,
+                    'total_parcelas'     => $parcelas,
+                    'status'             => 'pendente',
+                ];
+
+                if ($i === 1 && $conta) {
+                    $conta->update($dados);
+                } else {
+                    ContaReceber::create($dados);
+                }
+            }
+
+            return;
+        }
+
+        $dados = $base + [
+            'descricao'      => "Pedido #{$pedido->numero} - {$formaLabel}",
+            'valor'          => $total,
+            'valor_pago'     => $total,
+            'vencimento'     => now(),
+            'pago_em'        => now(),
+            'parcela'        => 1,
+            'total_parcelas' => 1,
+            'status'         => 'paga',
+        ];
+
+        $conta ? $conta->update($dados) : ContaReceber::create($dados);
     }
 
     /** Baixa o estoque dos itens do pedido (chamado no faturamento). */

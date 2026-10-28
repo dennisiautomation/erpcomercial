@@ -183,7 +183,7 @@ class OrcamentoController extends Controller
 
     public function show(Orcamento $orcamento)
     {
-        $orcamento->load(['cliente', 'vendedor', 'itens.produto', 'itens.servico', 'pedido']);
+        $orcamento->load(['cliente', 'vendedor', 'itens.produto', 'itens.servico', 'pedido', 'unidade']);
 
         $configLoja = \App\Models\ConfiguracaoLoja::daUnidade($orcamento->empresa_id, $orcamento->unidade_id);
         $pagamento = $this->quadroPagamento($orcamento, $configLoja);

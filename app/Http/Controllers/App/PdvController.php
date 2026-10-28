@@ -687,7 +687,7 @@ class PdvController extends Controller
                 return $venda;
             });
 
-            $venda->load(['itens.produto', 'cliente', 'vendedor', 'empresa']);
+            $venda->load(['itens.produto', 'cliente', 'vendedor', 'empresa', 'unidade']);
 
             // Vale usado nesta venda (para o modal e o cupom)
             $valeUsado = collect($venda->pagamento_detalhes ?? [])->firstWhere('forma', 'vale');
@@ -957,7 +957,7 @@ class PdvController extends Controller
             ->where('empresa_id', session('empresa_id'))
             ->where('unidade_id', session('unidade_id'))
             ->findOrFail($venda);
-        $venda->load(['itens.produto', 'cliente', 'vendedor', 'empresa']);
+        $venda->load(['itens.produto', 'cliente', 'vendedor', 'empresa', 'unidade']);
 
         $notaFiscal = null;
         if ($request->query('tipo') === 'fiscal') {

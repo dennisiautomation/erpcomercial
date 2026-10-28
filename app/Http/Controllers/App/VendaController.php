@@ -15,6 +15,7 @@ use App\Models\Devolucao;
 use App\Models\MovimentacaoCaixa;
 use App\Models\Produto;
 use App\Scopes\UnidadeScope;
+use App\Services\LancamentoCaixaService;
 use App\Services\SaldoEstoque;
 use App\Models\User;
 use App\Models\Vale;
@@ -145,8 +146,16 @@ class VendaController extends Controller
             'observacoes'            => 'nullable|string|max:1000',
         ]);
 
+        // Caixa (28/10/2026): a venda de balcão também entra no caixa aberto de
+        // quem vende, como o PDV — antes nascia sem caixa e sumia do fechamento.
+        $caixaSvc = app(LancamentoCaixaService::class);
+        $caixa = $caixaSvc->caixaAbertoDoUsuario((int) session('unidade_id'), (int) auth()->id());
+        if (! $caixa) {
+            return back()->withInput()->with('error', 'Abra o caixa antes de registrar a venda: ela entra no caixa, como no PDV.');
+        }
+
         try {
-            $venda = DB::transaction(function () use ($request) {
+            $venda = DB::transaction(function () use ($request, $caixa, $caixaSvc) {
                 $empresaId = session('empresa_id');
                 $unidadeId = session('unidade_id');
 
@@ -193,6 +202,7 @@ class VendaController extends Controller
                     'unidade_id'          => $unidadeId,
                     'cliente_id'          => $request->cliente_id,
                     'vendedor_id'         => $request->vendedor_id ?? auth()->id(),
+                    'caixa_id'            => $caixa->id,
                     'numero'              => $numero,
                     'subtotal'            => $subtotal,
                     'desconto_percentual' => 0,
@@ -234,6 +244,9 @@ class VendaController extends Controller
                         );
                     }
                 }
+
+                // Entrada no caixa, uma por forma (aqui é uma só), com venda_id
+                $caixaSvc->lancarVenda($venda, $caixa, $venda->pagamento_detalhes, (int) auth()->id());
 
                 // Create ContaReceber
                 ContaReceber::create([
@@ -295,7 +308,7 @@ class VendaController extends Controller
     /** Recibo/cupom imprimível da venda (com dados fiscais quando houver NFC-e). */
     public function recibo(Venda $venda)
     {
-        $venda->load(['itens.produto', 'cliente', 'vendedor', 'empresa']);
+        $venda->load(['itens.produto', 'cliente', 'vendedor', 'empresa', 'unidade']);
 
         $notaFiscal = $venda->notasFiscais()
             ->where('tipo', 'nfce')

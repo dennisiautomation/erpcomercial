@@ -171,6 +171,8 @@ class ConfiguracaoLoja extends Model
         return [
             'nome'     => $empresa->nome_fantasia ?: $empresa->razao_social,
             'razao'    => $empresa->nome_fantasia && $empresa->razao_social !== $empresa->nome_fantasia ? $empresa->razao_social : null,
+            // Loja de saída (28/10/2026, DK Med): a folha dizia só a empresa
+            'loja'     => filled($unidade?->nome) ? $unidade->nome : null,
             'cnpj'     => self::formatarDocumento($unidade?->cnpj ?: $empresa->cnpj),
             'logo'     => $logo ? asset('storage/' . $logo) : null,
             'endereco' => $endereco,

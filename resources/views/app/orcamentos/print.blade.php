@@ -37,6 +37,7 @@
         .cab .empresa h1 { font-size: 19px; letter-spacing: .2px; color: #111827; }
         .cab .empresa .razao { font-size: 10.5px; color: #6b7280; margin-top: 1px; }
         .cab .empresa .linha { font-size: 11px; color: #374151; margin-top: 2px; }
+        .cab .empresa .loja { font-size: 11px; color: #111827; font-weight: bold; margin-top: 3px; }
         .cab .contatos { text-align: right; font-size: 11px; color: #374151; line-height: 1.55; white-space: nowrap; }
 
         .titulo { margin-top: 12px; border-top: 3px solid #111827; }
@@ -99,6 +100,7 @@
             <td class="empresa">
                 <h1>{{ $cabecalho['nome'] }}</h1>
                 @if($cabecalho['razao'])<div class="razao">{{ $cabecalho['razao'] }}</div>@endif
+                @if($cabecalho['loja'] ?? null)<div class="loja">Loja: {{ $cabecalho['loja'] }}</div>@endif
                 @if($cabecalho['cnpj'])<div class="linha">CNPJ {{ $cabecalho['cnpj'] }}</div>@endif
                 @foreach($cabecalho['endereco'] as $linha)
                     <div class="linha">{{ $linha }}</div>
