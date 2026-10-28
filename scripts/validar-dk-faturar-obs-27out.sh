@@ -75,6 +75,11 @@ st=$(post "$BASE" "$VEND" /app/orcamentos/$n/edit /app/orcamentos/$n "_method=PU
 check "editar e marcar → volta a sair na folha" "$(curl -s -b "$VEND" "$BASE/app/orcamentos/$n/imprimir" | grep -q OBS-NAO && echo 1)" "$st"
 
 echo "== 6. Faturar pede a forma de pagamento"
+# 28/10/2026 (integracao-28out): faturar pedido passou a EXIGIR caixa aberto do usuário na loja do pedido
+# (a venda entra no caixa). Abrir o caixa do vendedor e do dono antes de faturar (no código antigo é inócuo).
+CAIXA_MAX=$(sql "select coalesce(max(id),0) from caixas")
+post "$BASE" "$VEND" /app/caixa/abrir /app/caixa/abrir "valor_abertura=50" >/dev/null
+post "$BASE" "$DONO" /app/caixa/abrir /app/caixa/abrir "valor_abertura=50" >/dev/null
 fatura_pedido() { # cookiejar orcamento_id → id do pedido confirmado
     post "$BASE" "$1" /app/orcamentos/$2 /app/orcamentos/$2/converter "" >/dev/null
     local p; p=$(sql "select id from pedidos where orcamento_id=$2")
@@ -114,6 +119,7 @@ check "condição 'cartão' do pedido → crédito já selecionado" "$(echo "$pg
 check "orçamento com quadro → modal mostra 'O orçamento previa' PIX 1.139,81 e 6x" "$(echo "$pg" | grep -q 'O orçamento previa' && echo "$pg" | grep -q '1.139,81' && echo "$pg" | grep -q '6x de R' && echo 1)"
 check "parcelas vêm com as 6x do orçamento" "$(echo "$pg" | grep -q 'value="6" selected' && echo 1)"
 
+sql "delete from caixas where id>$CAIXA_MAX"   # 28/10: fecha o que este roteiro abriu (estado igual ao do antes para o smoke)
 echo "== 7. Log sem erro novo"
 e=$(docker exec "$APP_CT" sh -c 'grep -c "production.ERROR\|local.ERROR" /var/www/storage/logs/laravel.log 2>/dev/null || echo 0')
 check "laravel.log sem ERROR" "$([ "$e" = 0 ] && echo 1)" "$e"

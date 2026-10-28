@@ -3,7 +3,7 @@
 @section('title', 'Fluxo de Caixa')
 
 @section('content')
-<x-erp.page-header title="Fluxo de Caixa" subtitle="Análise as entradas e saídas do período" icon="graph-up" />
+<x-erp.page-header title="Fluxo de Caixa" subtitle="Analise as entradas e saídas do período" icon="graph-up" />
 
 {{-- Date Filter --}}
 <x-erp.filter-bar :action="route('app.financeiro.fluxo-caixa')">

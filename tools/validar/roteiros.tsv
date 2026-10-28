@@ -10,3 +10,4 @@ validar-entrada-nfe.sh	auto		23/10 Entrada por NF-e: XML da nota de compra → c
 validar-busca-movimentacao.py	auto		25/10 Nova Movimentação de Estoque busca o produto enquanto digita (Playwright python no container mcr.microsoft.com/playwright/python, --network host)
 validar-unificacao-25out.sh	manual		25/10 unificação das branches: compara commits fixos (ac0d83a) e exige ROTAS= lista de rotas — valeu para aquela branch; o smoke × perfis do validar.sh cobre a regressão de telas
 validar-treinamento.sh	manual		20/10 treinamento (vídeo de 300 MB em pedaços): porta 8099 e container erp-trein-app fixos, gera 300 MB aleatórios — rodar à mão quando mexer no upload de treinamento
+validar-integracao-28out.sh	auto-antes		28/10 integracao-28out (Mel): pedido A4 + venda de pedido/balcão no caixa + loja de saída + preço na lista + abas/SRI/responsivo (mesmo banco, produção em ANTES; prints em OUT/prints)

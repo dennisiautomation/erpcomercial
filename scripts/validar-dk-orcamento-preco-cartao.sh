@@ -55,8 +55,9 @@ for regra in cartao_maior por_parte; do
 done
 check "acréscimo 8% no crédito continua: 299,90 → 323,89" "$(echo "$b" | grep -q 'credito=323.89' && echo 1)" "$b"
 sql "update configuracoes_loja set regra_preco_split='cartao_maior'"
-a=$(etiqueta "$ANTES" "$DA" | limpa | md5sum); b=$(etiqueta "$BASE" "$DONO" | limpa | md5sum)
-check "etiqueta idêntica antes × depois" "$([ "$a" = "$b" ] && echo 1)"
+# 28/10 (integracao-28out): título da etiqueta acentuado ("Impressão") — normalizado para comparar
+a=$(etiqueta "$ANTES" "$DA" | limpa | sed 's/Impressao/Impressão/g' | md5sum); b=$(etiqueta "$BASE" "$DONO" | limpa | sed 's/Impressao/Impressão/g' | md5sum)
+check "etiqueta idêntica antes × depois (fora o acento de Impressão)" "$([ "$a" = "$b" ] && echo 1)"
 r=$(docker exec "$APP_CT" php artisan tinker --execute='$s=app(App\Services\TabelaPrecoService::class);$c=App\Models\ConfiguracaoLoja::withoutGlobalScopes()->first();foreach([["pix"],["cartao_credito"],["boleto"],["crediario"],["pix","cartao_debito"],[]] as $f) echo $s->modalidadeDosPagamentos($f,$c)," ";' 2>/dev/null | tr -d '\n')
 check "modalidades na regra de sempre: pix→PIX, crédito, boleto/crediário→PIX, split→débito" "$([ "$r" = "dinheiro_pix credito dinheiro_pix dinheiro_pix debito dinheiro_pix " ] && echo 1)" "$r"
 st=$(salvar_cfg "$DONO" "regra_preco_split=por_parte&percentual_debito=3&percentual_credito=8&max_parcelas=6&padrao_impressao=recibo&orcamento_endereco=loja&troca_prazo_dias=30&troca_sobra=vale&troca_vale_validade_dias=90")
@@ -165,9 +166,10 @@ check "converter em pedido leva a entrega (50) e o total (2950)" "$([ "$row" = $
 O2=$(orc "parcelas=30")
 check "30 parcelas é recusado" "$([ "$(sql 'select count(*) from orcamentos')" = 1 ] && echo 1)" "$O2"
 O3=$(orc "frete_valor=0")
-texto() { limpa | tr '\n' ' ' | sed -E 's#<style>.*</style>##; s/[[:space:]]+/ /g; s/> </></g'; }
+# 28/10 (integracao-28out): a folha ganhou a linha "Loja: X" (loja de saída) — retirada para comparar
+texto() { limpa | tr '\n' ' ' | sed -E 's#<style>.*</style>##; s#<div class="loja">Loja: [^<]*</div>##g; s/[[:space:]]+/ /g; s/> </></g'; }
 a=$(curl -s -b "$DA" "$ANTES/app/orcamentos/$O3/imprimir" | texto | md5sum); b=$(curl -s -b "$DONO" "$BASE/app/orcamentos/$O3/imprimir" | texto | md5sum)
-check "orçamento sem entrega e sem parcelas: folha igual à de produção (fora o CSS novo)" "$([ "$a" = "$b" ] && echo 1)"
+check "orçamento sem entrega e sem parcelas: folha igual à de produção (fora o CSS novo e a linha Loja)" "$([ "$a" = "$b" ] && echo 1)"
 sql "update configuracoes_loja set orcamento_parcelas=NULL"
 pg=$(curl -s -b "$DONO" "$BASE/app/orcamentos/create" | tr "\n" " ")
 check "loja sem 'orçamento em Nx': novo orçamento vem com 'Não mostrar'" "$(echo "$pg" | grep -q '<option value="" selected\|<option value="">Não mostrar' && ! echo "$pg" | grep -q '<option value="[0-9]*" selected' && echo 1)"

@@ -166,7 +166,7 @@
                     <div class="small text-muted mb-3">
                         Valor da venda: <strong>R$ {{ number_format($pedido->total, 2, ',', '.') }}</strong> (total do pedido).
                         @if($quadroOrcamento)
-                            <br>O orçamento prévia: Dinheiro/PIX <strong>R$ {{ number_format($quadroOrcamento['avista'], 2, ',', '.') }}</strong>
+                            <br>O orçamento previa: Dinheiro/PIX <strong>R$ {{ number_format($quadroOrcamento['avista'], 2, ',', '.') }}</strong>
                             · Cartão <strong>{{ $quadroOrcamento['parcelas'] }}x de R$ {{ number_format($quadroOrcamento['valor_parcela'], 2, ',', '.') }}</strong>
                             (total R$ {{ number_format($quadroOrcamento['cartao_total'], 2, ',', '.') }}).
                         @endif
