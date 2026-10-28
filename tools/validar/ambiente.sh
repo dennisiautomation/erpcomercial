@@ -23,7 +23,7 @@ esperar_http() { local url=$1 n=${2:-60} c=000; for i in $(seq 1 "$n"); do c=$(c
 app_env() { # <nome> <porta> → variáveis do app (um -e por linha)
   local NOME=$1 PORTA=$2
   cat <<ENV
-APP_NAME=ERP Validacao
+APP_NAME=${VAL_APP_NAME:-ERP Validacao}
 APP_ENV=production
 APP_KEY=$APP_KEY
 APP_DEBUG=true
