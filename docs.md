@@ -7185,6 +7185,9 @@ traz o entrypoint corrigido.
 4. **Caminho rápido**: `impacto.sh` termina com "Etapas recomendadas" (só docs/ferramental → `--so=lint,roteiros`; só views →
    `--so=lint,roteiros,smoke` + `ONLY=`; PHP de app/ ou migration → completa); `antes/` reaproveitado por imagem no ar;
    roteiro da feature testado em ambiente próprio antes da rodada oficial. Registrado em `tools/README.md` e `CLAUDE.md`.
+**Pós-deploy (19:05 BRT, `validar.sh erp-com-app:latest pos-deploy` com `VAL_APP_NAME=ERP-Validacao`, porque a imagem no ar ainda
+tem o entrypoint antigo):** roteiro da feature **104 ✅ / 0 ❌**, orçamento 58/0, smoke **569 ✅ / 4 ❌** (pré-existentes), 0 ❌ novos,
+0 mudança de acesso, produção intocada ✅. O `deploy.sh` de 18:32 morreu no 502 antes da rodada dele, por isso ela foi rodada à mão.
 Rollback desta entrega, se precisar: `docker tag erp-com-app:pre-integracao-28out-20261028 erp-com-app:latest` +
 `up -d --no-build app` + `migrate:rollback --step=1` (a imagem antiga tem o `.env` dentro).
 
