@@ -2,6 +2,7 @@
 # Portão de deploy do ERP Comercial (28/10/2026) — a ÚNICA forma de subir uma imagem (regra do Dennis, 28/10).
 #
 #   tools/deploy.sh <branch> --conferir        só confere (não muda nada) — é o que o Claude roda
+#   tools/deploy.sh <branch> --rotulo <nome>   usa /home/ubuntu/erp-validacao/<nome>/ (quando o validar.sh rodou com --rotulo)
 #   tools/deploy.sh <branch>                   confere, guarda a imagem do ar, sobe a validada e roda a rodada pós-deploy (Dennis / root)
 #   tools/deploy.sh <branch> --aceitar-acesso  quando a mudança de acesso de perfil apontada pelo smoke É o pedido (documentar no docs.md)
 #
@@ -23,11 +24,11 @@ PROD_DIR=${PROD_DIR:-/root/erp}
 PORTA_PROD=${PORTA_PROD:-8091}
 BRANCH=${1:-}; CONFERIR=0; ACEITA=0
 shift || true
-for a in "$@"; do case "$a" in --conferir) CONFERIR=1;; --aceitar-acesso) ACEITA=1;; *) echo "opção desconhecida: $a"; exit 2;; esac; done
+ROTULO_OPT=""; while [ $# -gt 0 ]; do case "$1" in --conferir) CONFERIR=1;; --aceitar-acesso) ACEITA=1;; --rotulo) ROTULO_OPT=$2; shift;; *) echo "opção desconhecida: $1"; exit 2;; esac; shift; done
 cor() { printf '\033[%sm%s\033[0m\n' "$1" "$2"; }
 die() { cor 31 "✋ DEPLOY BLOQUEADO: $*"; exit 1; }
 [ -n "$BRANCH" ] || die "uso: tools/deploy.sh <branch> [--conferir] [--aceitar-acesso]"
-ROTULO=$(echo "$BRANCH" | tr '/' '_')
+ROTULO=${ROTULO_OPT:-$(echo "$BRANCH" | tr '/' '_')}   # --rotulo: quando o validar.sh rodou com --rotulo (ex.: deploy só de infra da mesma branch)
 DEPOIS=$OUTBASE/$ROTULO/depois/relatorio.md; ANTES=$OUTBASE/$ROTULO/antes/relatorio.md
 
 # 1) relatório depois (com baseline antes e as 4 etapas)
@@ -54,9 +55,9 @@ NOAR=$(docker inspect erp-com-app --format '{{.Image}}' | cut -d: -f2 | cut -c1-
 # 3) código da branch = código validado
 HEAD=$(git -C "$REPO" rev-parse --verify "$BRANCH^{commit}" 2>/dev/null) || die "branch $BRANCH não existe neste repo"
 if [ "$HEAD" != "$VALIDADO" ]; then
-  DIFF=$(git -C "$REPO" diff --name-only "$VALIDADO" "$HEAD" -- . ':(exclude)*.md' ':(exclude)docs/**' 2>/dev/null)
+  DIFF=$(git -C "$REPO" diff --name-only "$VALIDADO" "$HEAD" -- . ':(exclude)*.md' ':(exclude)docs/**' ':(exclude)tools/**' 2>/dev/null)   # tools/ não roda dentro da imagem
   [ -z "$DIFF" ] || die "código mudou depois da validação (${VALIDADO:0:7} → ${HEAD:0:7}): $(echo "$DIFF" | tr '\n' ' ') — tools/build.sh + validar depois de novo"
-  cor 33 "commit validado ${VALIDADO:0:7} ≠ ponta ${HEAD:0:7}, só documentação mudou — ok"
+  cor 33 "commit validado ${VALIDADO:0:7} ≠ ponta ${HEAD:0:7}, só documentação/ferramental mudou — ok"
 fi
 
 # 4) resultado
@@ -68,7 +69,7 @@ if [ "$ACESSO" != 0 ] && [ "$ACEITA" != 1 ]; then grep '^  - ACESSO' "$DEPOIS" |
 grep -q 'Produção intocada.*⚠' "$DEPOIS" && cor 33 "⚠ contagem da produção mudou durante a rodada (uso normal?) — ver producao-diff.txt"
 PHP=$(sed -nE 's/^- PHPUnit[^*]*\*\*([0-9]+ ✅ \/ [0-9]+ ❌)\*\*.*/\1/p' "$DEPOIS"); SMK=$(sed -nE 's/^- Smoke \(puppeteer[^*]*\*\*([0-9]+ ✅ \/ [0-9]+ ❌)\*\*.*/\1/p' "$DEPOIS")
 cor 32 "✅ rotina conferida: $BRANCH @${HEAD:0:7} · imagem $IMG (no ar: $NOAR) · phpunit $PHP · smoke $SMK · 0 ❌ novos · $ACESSO mudança(s) de acesso"
-[ "$CONFERIR" = 1 ] && { echo "   (--conferir: nada foi alterado; o deploy é do Dennis: sudo tools/deploy.sh $BRANCH)"; exit 0; }
+[ "$CONFERIR" = 1 ] && { echo "   (--conferir: nada foi alterado; o deploy é do Dennis: sudo tools/deploy.sh $BRANCH${ROTULO_OPT:+ --rotulo $ROTULO_OPT})"; exit 0; }
 
 # ---------------------------------------------------------------- deploy (Dennis / root)
 [ -f "$PROD_DIR/docker-compose.prod.yml" ] || die "$PROD_DIR/docker-compose.prod.yml não encontrado (PROD_DIR=…)"
