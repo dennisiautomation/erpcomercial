@@ -6,7 +6,12 @@ cd /var/www
 # Garante .env presente — em produção o docker-compose injeta via env_file
 if [ ! -f .env ] && [ -n "$APP_KEY" ]; then
     echo "[entrypoint] gerando .env a partir de variáveis do ambiente"
-    env | grep -E '^(APP_|DB_|REDIS_|CACHE_|SESSION_|QUEUE_|MAIL_|FOCUS_)' > .env
+    # 28/10/2026: valores com espaço (APP_NAME=ERP Comercial) derrubaram o boot — "Failed to parse dotenv file".
+    # Grava cada valor entre aspas duplas (escapando \ e ") — o Laravel lê igual; sem espaço ou com, nunca mais quebra.
+    env | grep -E '^(APP_|DB_|REDIS_|CACHE_|SESSION_|QUEUE_|MAIL_|FOCUS_)' | while IFS= read -r linha; do
+        k=${linha%%=*}; v=${linha#*=}; v=${v//\\/\\\\}; v=${v//\"/\\\"}
+        printf '%s="%s"\n' "$k" "$v"
+    done > .env
 fi
 
 # APP_KEY obrigatória — se não veio, gera e avisa (uma vez)
@@ -21,8 +26,8 @@ until php -r "try { new PDO('mysql:host=$DB_HOST;port=${DB_PORT:-3306};dbname=$D
 done
 echo "[entrypoint] MySQL ok"
 
-# Migrations + cache de config/rotas/views
-php artisan migrate --force
+# Migrations + cache de config/rotas/views (SKIP_MIGRATE=1 = canário do tools/deploy.sh: só prova que a imagem sobe)
+if [ "${SKIP_MIGRATE:-0}" = 1 ]; then echo "[entrypoint] SKIP_MIGRATE=1 — sem migrate (canário)"; else php artisan migrate --force; fi
 php artisan config:cache
 php artisan route:cache
 php artisan view:cache

@@ -68,6 +68,24 @@ cor 32 "✅ rotina conferida: $BRANCH @${HEAD:0:7} · imagem $IMG (no ar: $NOAR)
 PRE=erp-com-app:pre-$ROTULO-$(date +%Y%m%d); docker image inspect "$PRE" >/dev/null 2>&1 && PRE=$PRE-$(date +%H%M)
 docker tag "$NOAR" "$PRE" || die "docker tag de rollback falhou"
 cor 33 "rollback: $PRE (= $NOAR)"
+
+# ---------------------------------------------------------------- canário (28/10/2026): a imagem nova sobe do MESMO jeito que a
+# produção (mesmo env_file, mesma rede, mesmo entrypoint, sem migrate) numa porta de teste; só mexe no ar se /login der 200.
+# Veio do incidente de 28/10: build limpo sem .env dentro + APP_NAME com espaço no env_file = 502 em laço, que o validar.sh
+# (que apaga o .env e injeta variáveis limpas) não via.
+NET=$(docker inspect erp-com-app --format '{{range $k, $v := .NetworkSettings.Networks}}{{$k}} {{end}}' 2>/dev/null | awk '{print $1}')
+[ -n "$NET" ] || die "não achei a rede do erp-com-app para o canário"
+docker rm -f erp-com-canario >/dev/null 2>&1 || true
+cor 33 "canário: subindo $IMG como erp-com-canario (rede $NET, env_file de produção, SKIP_MIGRATE=1) em 127.0.0.1:${PORTA_CANARIO:-8098}…"
+docker run -d --name erp-com-canario --network "$NET" --env-file "$PROD_DIR/.env" -e SKIP_MIGRATE=1 \
+  -p "127.0.0.1:${PORTA_CANARIO:-8098}:80" "$IMG" >/dev/null || die "canário não subiu (docker run falhou)"
+CAN=000; for i in $(seq 1 40); do CAN=$(curl -s -m 10 -o /dev/null -w '%{http_code}' "http://127.0.0.1:${PORTA_CANARIO:-8098}/login" || true); [ "$CAN" = 200 ] && break; sleep 3; done
+if [ "$CAN" != 200 ]; then
+  cor 31 "canário respondeu $CAN — a imagem NÃO sobe como a produção sobe. Últimas linhas do log:"; docker logs --tail 15 erp-com-canario 2>&1 | sed 's/^/   /'
+  docker rm -f erp-com-canario >/dev/null 2>&1; die "canário reprovado: produção INTOCADA (continua $NOAR)"
+fi
+docker rm -f erp-com-canario >/dev/null 2>&1; cor 32 "canário ok: /login 200 em $(( i * 3 )) s — pode trocar"
+
 docker tag "$IMG" erp-com-app:latest || die "docker tag latest falhou"
 T0=$(date -u +%Y-%m-%dT%H:%M:%S)
 LOG_ANTES=$(docker exec erp-com-app sh -c 'stat -c %s /var/www/storage/logs/laravel.log 2>/dev/null || echo 0')
@@ -79,6 +97,13 @@ sleep 10
 AGORA=$(docker inspect erp-com-app --format '{{.Image}}' | cut -d: -f2 | cut -c1-12)
 [ "$AGORA" = "$IMG" ] || die "container subiu com $AGORA, esperado $IMG — confira (rollback: $PRE)"
 HTTP=000; for i in $(seq 1 30); do HTTP=$(curl -s -m 15 -o /dev/null -w '%{http_code}' "http://127.0.0.1:$PORTA_PROD/login" || true); [ "$HTTP" = 200 ] && break; sleep 3; done
+if [ "$HTTP" != 200 ]; then   # 28/10/2026: rollback AUTOMÁTICO — ninguém espera decisão com o ar caído
+  cor 31 "/login respondeu $HTTP em 90 s — ROLLBACK automático para $PRE"; docker logs --tail 15 erp-com-app 2>&1 | sed 's/^/   /'
+  docker tag "$PRE" erp-com-app:latest && (cd "$PROD_DIR" && DEPLOY_VALIDADO=1 docker compose -f docker-compose.prod.yml up -d --no-build app)
+  sleep 10; RB=$(curl -s -m 15 -o /dev/null -w '%{http_code}' "http://127.0.0.1:$PORTA_PROD/login" || true)
+  echo "$(date '+%d/%m/%Y %H:%M') $BRANCH ${HEAD:0:7} $NOAR -> $IMG FALHOU login=$HTTP · rollback automático para $PRE · login=$RB" >> "$LOG"
+  die "deploy desfeito: produção de volta em $PRE (/login $RB). Se a migration rodou, confira: docker exec erp-com-app php artisan migrate:status"
+fi
 cor 33 "no ar: $AGORA · /login $HTTP · aguardando 60 s para ler o log…"; sleep 60
 ERROS=$( { docker logs --since "$T0" erp-com-app 2>&1; docker exec erp-com-app sh -c "tail -c +$((LOG_ANTES + 1)) /var/www/storage/logs/laravel.log 2>/dev/null"; } | grep -E 'production\.(ERROR|CRITICAL|EMERGENCY)|PHP Fatal|\[error\]' | cut -c1-200)
 N_ERROS=$(printf '%s' "$ERROS" | grep -c . || true)

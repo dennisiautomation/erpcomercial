@@ -162,6 +162,20 @@ if any(f in ('docker/prod/Dockerfile', 'docker-compose.prod.yml', 'docker/prod/p
 if 'docs.md' not in todos: alertas.append('🟡 docs.md não está no diff: a entrega exige docs.md no MESMO commit.')
 
 rotulo = BRANCH.replace('/', '_')
+# 28/10/2026 — caminho RÁPIDO (pedido do Dennis depois de 2 rodadas de 25 min): quais etapas a mudança realmente pede.
+# phpunit completo e smoke de TODAS as telas só quando há PHP de app/ ou migration; só views/CSS/JS/scripts/tools/docs = lint +
+# roteiros + smoke SÓ das telas tocadas (ONLY=) × perfis. O antes é por imagem no ar: se já existe para a mesma imagem, reaproveitar.
+_app = [f for f in todos if f.startswith(('app/', 'routes/', 'config/', 'database/', 'bootstrap/')) and f.endswith('.php')]
+_views = [f for f in todos if f.startswith('resources/views/')]
+_soarq = [f for f in todos if f.endswith(('.md', '.txt')) or f.startswith(('tools/', 'scripts/', 'docs/', '.impeccable/'))]
+if len(_app) == 0 and len(_views) == 0 and len(_soarq) == len(todos):
+    rapido = 'só ferramental/documentação: `validar.sh <img> depois --so=lint,roteiros` (minutos). Sem build se não há código de app.'
+elif len(_app) == 0 and migrations == []:
+    _only = ','.join(sorted({'/app/' + v.split('/')[2].replace('.blade.php', '').replace('.', '/') for v in _views if v.count('/') >= 3} )[:12]) or '/app/dashboard'
+    rapido = (f'sem PHP de app/ nem migration: `validar.sh <img> depois --so=lint,roteiros,smoke` com `ONLY={_only}` '
+              '(smoke só das telas tocadas × 7 perfis, ~2 min) — suíte completa fica para a próxima mudança de código.')
+else:
+    rapido = 'tem PHP de app/ ou migration: rodada completa (phpunit + lint + roteiros + smoke) — ~25 min.'
 L = [f'# Impacto — {BRANCH} @{br_c[:7]} × produção {PROD} @{prod_c[:7]}', '',
      f'{len(todos)} arquivo(s) no diff ({len(novos)} novos) · base {base[:7]} · branch {atras} commit(s) atrás da produção', '',
      '## Arquivos', ''] + [f'- {s} {f}' for s, f in arquivos] + ['', '## Alertas', ''] + ([f'- {a}' for a in alertas] or ['- nenhum']) + ['',
@@ -174,7 +188,8 @@ L = [f'# Impacto — {BRANCH} @{br_c[:7]} × produção {PROD} @{prod_c[:7]}', '
      '## Webhooks e integrações', ''] + ([f'- {k}: ' + ', '.join(v) for k, v in integ.items()] + [f'- webhook: {w}' for w in webhooks] or ['- nenhuma integração externa tocada']) + ['',
      '## Perfis', ''] + [f'- {p}: {n} rota(s) direta(s)' for p, n in sorted(__import__("collections").Counter(x for _, _, _, ps in r_dir for x in ps.split(', ')).items())] + ['',
      '## Empresas atingidas (produção, só leitura)', ''] + atingidas() + ['',
-     'Próximo passo: tools/validar/validar.sh <imagem-no-ar> antes → tools/build.sh → tools/validar/validar.sh <imagem-nova> depois → tools/deploy.sh <branch> --conferir.']
+     '## Etapas recomendadas (caminho rápido)', '', f'- {rapido}', '- `antes` é por imagem no ar: reaproveite /home/ubuntu/erp-validacao/<rotulo>/antes/ se a imagem no ar não mudou (copie a pasta para o rótulo novo).', '',
+     'Próximo passo: tools/validar/validar.sh <imagem-no-ar> antes → tools/build.sh → tools/validar/validar.sh <imagem-nova> depois → tools/deploy.sh <branch> --conferir (o deploy.sh sobe um CANÁRIO com o env_file de produção antes de trocar e faz rollback sozinho se /login não voltar).']
 txt = '\n'.join(L)
 print(txt)
 out = Path('/home/ubuntu/erp-validacao') / rotulo; out.mkdir(parents=True, exist_ok=True)

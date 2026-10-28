@@ -16,6 +16,11 @@ tools/validar/validar.sh erp-com-app:<rotulo>-<data> depois   # passos 3-4 — t
 tools/deploy.sh <branch> --conferir                       # o Claude confere o portão (não muda nada)
 sudo tools/deploy.sh <branch>                             # passo 5-6 — DENNIS: rollback tag, :latest, compose up, login/log, pós-deploy, deploys.log
 ```
+**Caminho rápido (28/10/2026):** o `impacto.sh` diz as etapas. Só ferramental/docs → `--so=lint,roteiros`; só views/CSS/JS
+(sem PHP de app/, sem migration) → `--so=lint,roteiros,smoke` + `ONLY=<telas tocadas>` (~2 min); PHP de app/ ou migration →
+rodada completa. `antes/` é por imagem no ar (reaproveitar). O `deploy.sh` sobe um **canário** com o env_file de produção antes
+de trocar e faz **rollback sozinho** se `/login` não voltar. O entrypoint grava o `.env` com aspas (incidente de 28/10: 502).
+
 Hook `tools/hooks/bloquear-deploy-direto.sh` (instalar com `tools/hooks/instalar.sh`) barra `docker compose … up`, `docker build`
 e `docker tag … erp-com-app:<tag>` fora desses scripts. Roteiro novo da feature: `scripts/validar-<tema>-<data>.sh` aceitando
 `BASE/ANTES/DB_CT/APP_CT/OUT`, registrado em `tools/validar/roteiros.tsv`.

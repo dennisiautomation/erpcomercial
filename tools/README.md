@@ -16,6 +16,12 @@ tools/deploy.sh <branch> --conferir                     # 4. o Claude confere o 
 sudo tools/deploy.sh <branch>                           # 5. Dennis: rollback tag + :latest + compose up + login/log + pós-deploy
 ```
 
+**Caminho rápido (28/10/2026):** o `impacto.sh` termina com "Etapas recomendadas": só ferramental/docs → `--so=lint,roteiros`
+(minutos); só views/CSS/JS sem PHP de app/ e sem migration → `--so=lint,roteiros,smoke` com `ONLY=<telas tocadas>` (~2 min);
+PHP de app/ ou migration → rodada completa (~25 min). O `antes/` é **por imagem no ar**: se ela não mudou, copie a pasta
+`antes/` do rótulo anterior em vez de rodar de novo. Teste o roteiro da feature num ambiente próprio
+(`tools/validar/ambiente.sh subir <img> dev 8111 <out> <img-no-ar> 8112`) antes da rodada oficial — errar ali custa minutos.
+
 O roteiro **da feature** (`scripts/validar-<tema>-<data>.sh antes|depois`) continua obrigatório — ele prova o pedido; o
 `validar.sh` prova que o resto não quebrou. Para ele entrar na regressão das próximas entregas, acrescente uma linha em
 `tools/validar/roteiros.tsv` (aceitando `BASE`, `ANTES`, `DB_CT`, `APP_CT`, `OUT`, `XML`).
@@ -63,6 +69,11 @@ Guarda a imagem no ar como `erp-com-app:pre-<rotulo>-<data>` (regra: nunca deixa
 moveria a tag `:latest` antes da validação). `:latest` só é movida pelo `deploy.sh`.
 
 ## `tools/deploy.sh <branch> [--conferir] [--aceitar-acesso]`
+
+**Canário e rollback automático (28/10/2026, depois do 502):** antes de mover `:latest`, o script sobe a imagem nova como
+`erp-com-canario` do MESMO jeito que a produção sobe (mesma rede, `--env-file $PROD_DIR/.env`, mesmo entrypoint, `SKIP_MIGRATE=1`)
+em `127.0.0.1:8098` e exige `/login` 200 (até 120 s); reprovou = produção intocada, log do canário na tela. Depois do `up`, se
+`/login` não voltar 200 em 90 s, o próprio script volta a tag `pre-*` e sobe de novo (linha `FALHOU` no `deploys.log`).
 
 Recusa (✋) se: não há `antes/` e `depois/relatorio.md`; faltou etapa; a imagem do relatório sumiu ou já está no ar; o código
 da branch mudou depois da validação (só `*.md` pode); `TOTAL ❌ NOVOS ≠ 0`; mudança de acesso sem `--aceitar-acesso`.
