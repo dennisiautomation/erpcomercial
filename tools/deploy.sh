@@ -84,10 +84,15 @@ cor 33 "rollback: $PRE (= $NOAR)"
 NET=$(docker inspect erp-com-app --format '{{range $k, $v := .NetworkSettings.Networks}}{{$k}} {{end}}' 2>/dev/null | awk '{print $1}')
 [ -n "$NET" ] || die "não achei a rede do erp-com-app para o canário"
 docker rm -f erp-com-canario >/dev/null 2>&1 || true
-cor 33 "canário: subindo $IMG como erp-com-canario (rede $NET, env_file de produção, SKIP_MIGRATE=1) em 127.0.0.1:${PORTA_CANARIO:-8098}…"
+# porta: a primeira livre a partir de 8098 (28/10 à noite a 8098 era do jl-man-app e o canário não subiu) — PORTA_CANARIO força uma
+PC=${PORTA_CANARIO:-8098}; while ss -ltn | grep -qE ":$PC "; do PC=$((PC+1)); done
+# supervisord só com php-fpm + nginx: o canário NUNCA roda queue:work/schedule:work contra a produção (o conf é o do validador)
+SUPV=$REPO/tools/validar/supervisord-val.conf; [ -f "$SUPV" ] || die "$SUPV não existe (supervisord do canário)"
+cor 33 "canário: subindo $IMG como erp-com-canario (rede $NET, env_file de produção, SKIP_MIGRATE=1, sem fila/cron) em 127.0.0.1:$PC…"
 docker run -d --name erp-com-canario --network "$NET" --env-file "$PROD_DIR/.env" -e SKIP_MIGRATE=1 \
-  -p "127.0.0.1:${PORTA_CANARIO:-8098}:80" "$IMG" >/dev/null || die "canário não subiu (docker run falhou)"
-CAN=000; for i in $(seq 1 40); do CAN=$(curl -s -m 10 -o /dev/null -w '%{http_code}' "http://127.0.0.1:${PORTA_CANARIO:-8098}/login" || true); [ "$CAN" = 200 ] && break; sleep 3; done
+  -v "$SUPV:/etc/supervisor/conf.d/supervisord.conf:ro" \
+  -p "127.0.0.1:$PC:80" "$IMG" >/dev/null || die "canário não subiu (docker run falhou)"
+CAN=000; for i in $(seq 1 40); do CAN=$(curl -s -m 10 -o /dev/null -w '%{http_code}' "http://127.0.0.1:$PC/login" || true); [ "$CAN" = 200 ] && break; sleep 3; done
 if [ "$CAN" != 200 ]; then
   cor 31 "canário respondeu $CAN — a imagem NÃO sobe como a produção sobe. Últimas linhas do log:"; docker logs --tail 15 erp-com-canario 2>&1 | sed 's/^/   /'
   docker rm -f erp-com-canario >/dev/null 2>&1; die "canário reprovado: produção INTOCADA (continua $NOAR)"
