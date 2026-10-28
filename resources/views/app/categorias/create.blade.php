@@ -28,7 +28,7 @@
                 @error('parent_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
             </div>
             <div class="col-md-12">
-                <label for="descricao" class="form-label">Descricao</label>
+                <label for="descricao" class="form-label">Descrição</label>
                 <textarea name="descricao" id="descricao" class="form-control @error('descricao') is-invalid @enderror" rows="3">{{ old('descricao') }}</textarea>
                 @error('descricao') <div class="invalid-feedback">{{ $message }}</div> @enderror
             </div>

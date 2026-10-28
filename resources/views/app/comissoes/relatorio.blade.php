@@ -1,9 +1,9 @@
 @extends('layouts.app')
 
-@section('title', 'Relatorio de Comissoes')
+@section('title', 'Relatório de Comissões')
 
 @section('content')
-<x-erp.page-header title="Relatorio de Comissoes" icon="file-earmark-bar-graph">
+<x-erp.page-header title="Relatório de Comissões" icon="file-earmark-bar-graph">
     <a href="{{ route('app.comissoes.index') }}" class="btn btn-erp-outline">
         <i class="bi bi-arrow-left me-1"></i> Voltar
     </a>
@@ -12,7 +12,7 @@
 {{-- Filters --}}
 <x-erp.filter-bar :action="route('app.comissoes.relatorio')">
     <div class="col-md-4">
-        <label for="data_inicio" class="form-label">Data Inicio</label>
+        <label for="data_inicio" class="form-label">Data Início</label>
         <input type="date" name="data_inicio" id="data_inicio" class="form-control" value="{{ $dataInicio }}">
     </div>
     <div class="col-md-4">
@@ -37,10 +37,10 @@
                 Vendas: R$ {{ number_format($totalVendas, 2, ',', '.') }}
             </span>
             <span class="badge bg-success-subtle text-success fs-6">
-                Comissoes: R$ {{ number_format($totalComissoes, 2, ',', '.') }}
+                Comissões: R$ {{ number_format($totalComissoes, 2, ',', '.') }}
             </span>
             <span class="badge bg-secondary-subtle text-secondary fs-6">
-                Media: {{ number_format($mediaPercentual, 1, ',', '.') }}%
+                Média: {{ number_format($mediaPercentual, 1, ',', '.') }}%
             </span>
         </div>
 
@@ -74,7 +74,7 @@
                         <th>Venda</th>
                         <th class="text-end">Valor Venda</th>
                         <th class="text-end">%</th>
-                        <th class="text-end">Comissao</th>
+                        <th class="text-end">Comissão</th>
                         <th>Status</th>
                         <th>Data</th>
                     </tr>
@@ -106,7 +106,7 @@
     </x-erp.card>
 @empty
     <x-erp.card>
-        <x-erp.empty-state icon="file-earmark-bar-graph" title="Nenhuma comissao no periodo selecionado" />
+        <x-erp.empty-state icon="file-earmark-bar-graph" title="Nenhuma comissão no período selecionado" />
     </x-erp.card>
 @endforelse
 @endsection

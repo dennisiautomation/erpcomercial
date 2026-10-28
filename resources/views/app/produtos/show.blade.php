@@ -15,7 +15,7 @@
 {{-- Subtitle info --}}
 <div class="mb-3">
     <small class="text-muted">
-        Codigo: <code>{{ $produto->codigo_interno }}</code>
+        Código: <code>{{ $produto->codigo_interno }}</code>
         @if($produto->sku)
             | SKU: <code>{{ $produto->sku }}</code>
         @endif
@@ -48,9 +48,9 @@
 <div class="row g-4 mb-4">
     {{-- Precos --}}
     <div class="col-md-4">
-        <x-erp.card title="Precos" icon="currency-dollar" class="h-100">
+        <x-erp.card title="Preços" icon="currency-dollar" class="h-100">
             <div class="mb-3">
-                <small class="text-muted d-block">Preco de Custo</small>
+                <small class="text-muted d-block">Preço de Custo</small>
                 <span class="fs-5">R$ {{ number_format($produto->preco_custo ?? 0, 2, ',', '.') }}</span>
             </div>
             <div class="mb-3">
@@ -58,7 +58,7 @@
                 <span class="fs-5">{{ number_format($produto->markup ?? 0, 2, ',', '.') }}%</span>
             </div>
             <div class="mb-3">
-                <small class="text-muted d-block">Preco de Venda</small>
+                <small class="text-muted d-block">Preço de Venda</small>
                 <span class="fs-4 fw-bold text-success">R$ {{ number_format($produto->preco_venda, 2, ',', '.') }}</span>
             </div>
             @php
@@ -127,7 +127,7 @@
                 </div>
             </div>
             <hr>
-            <h6 class="text-muted mb-2"><i class="bi bi-percent me-1"></i> Aliquotas</h6>
+            <h6 class="text-muted mb-2"><i class="bi bi-percent me-1"></i> Alíquotas</h6>
             <div class="row g-2">
                 <div class="col-6">
                     <div class="d-flex justify-content-between border-bottom pb-1 mb-1">
@@ -183,7 +183,7 @@
                 </div>
             @endif
             <div class="mb-3">
-                <small class="text-muted d-block">Estoque Minimo</small>
+                <small class="text-muted d-block">Estoque Mínimo</small>
                 <span class="fs-5 fw-bold">{{ $produto->estoque_minimo !== null ? number_format($produto->estoque_minimo, 0, ',', '.') : '-' }}</span>
                 <small class="text-muted ms-1">{{ $produto->unidade_medida }}</small>
             </div>
@@ -200,7 +200,7 @@
             @if($produto->descricao_detalhada)
                 <hr>
                 <div>
-                    <small class="text-muted d-block mb-1">Descricao Detalhada</small>
+                    <small class="text-muted d-block mb-1">Descrição Detalhada</small>
                     <span>{{ $produto->descricao_detalhada }}</span>
                 </div>
             @endif
@@ -298,7 +298,7 @@
 @endif
 
 {{-- Movimentacoes de Estoque --}}
-<x-erp.card title="Ultimas Movimentacoes de Estoque" icon="arrow-left-right">
+<x-erp.card title="Últimas Movimentações de Estoque" icon="arrow-left-right">
     <div class="d-flex justify-content-end mb-2">
         <span class="badge bg-secondary">{{ $produto->estoqueMovimentacoes->count() }} registro(s)</span>
     </div>
@@ -311,7 +311,7 @@
                     <th class="text-end">Quantidade</th>
                     <th class="text-end">Estoque Anterior</th>
                     <th class="text-end">Estoque Posterior</th>
-                    <th>Observacoes</th>
+                    <th>Observações</th>
                 </tr>
             </thead>
             <tbody>
@@ -333,7 +333,7 @@
                 @empty
                     <tr>
                         <td colspan="6">
-                            <x-erp.empty-state icon="check-circle" title="Nenhuma movimentacao registrada" />
+                            <x-erp.empty-state icon="check-circle" title="Nenhuma movimentação registrada" />
                         </td>
                     </tr>
                 @endforelse

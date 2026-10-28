@@ -27,7 +27,7 @@
             </div>
 
             <div class="col-md-6">
-                <label for="descricao" class="form-label">Descricao <span class="text-danger">*</span></label>
+                <label for="descricao" class="form-label">Descrição <span class="text-danger">*</span></label>
                 <input type="text" name="descricao" id="descricao" class="form-control @error('descricao') is-invalid @enderror" value="{{ old('descricao', $contrato->descricao) }}" required>
                 @error('descricao') <div class="invalid-feedback">{{ $message }}</div> @enderror
             </div>
@@ -64,7 +64,7 @@
             </div>
 
             <div class="col-md-3">
-                <label for="inicio" class="form-label">Data Inicio <span class="text-danger">*</span></label>
+                <label for="inicio" class="form-label">Data Início <span class="text-danger">*</span></label>
                 <input type="date" name="inicio" id="inicio" class="form-control @error('inicio') is-invalid @enderror" value="{{ old('inicio', $contrato->inicio?->format('Y-m-d')) }}" required>
                 @error('inicio') <div class="invalid-feedback">{{ $message }}</div> @enderror
             </div>
@@ -76,7 +76,7 @@
             </div>
 
             <div class="col-12">
-                <label for="observacoes" class="form-label">Observacoes</label>
+                <label for="observacoes" class="form-label">Observações</label>
                 <textarea name="observacoes" id="observacoes" class="form-control @error('observacoes') is-invalid @enderror" rows="3">{{ old('observacoes', $contrato->observacoes) }}</textarea>
                 @error('observacoes') <div class="invalid-feedback">{{ $message }}</div> @enderror
             </div>

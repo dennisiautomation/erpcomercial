@@ -44,11 +44,11 @@
                 <table class="erp-table">
                     <thead>
                         <tr>
-                            <th>Codigo</th>
+                            <th>Código</th>
                             <th>Nome</th>
-                            <th>Descricao</th>
+                            <th>Descrição</th>
                             <th>Status</th>
-                            <th class="text-end">Acoes</th>
+                            <th class="text-end">Ações</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -69,7 +69,7 @@
                                         <a href="{{ route('app.centros-custo.edit', $centro) }}" class="btn btn-sm btn-outline-primary" title="Editar">
                                             <i class="bi bi-pencil"></i>
                                         </a>
-                                        <form method="POST" action="{{ route('app.centros-custo.destroy', $centro) }}" class="d-inline" data-confirm="Confirma a exclusao?">
+                                        <form method="POST" action="{{ route('app.centros-custo.destroy', $centro) }}" class="d-inline" data-confirm="Confirma a exclusão?">
                                             @csrf
                                             @method('DELETE')
                                             <button type="submit" class="btn btn-sm btn-outline-danger" title="Excluir">

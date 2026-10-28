@@ -11,8 +11,8 @@
 
 <x-erp.filter-bar :action="route('app.auditoria.index')">
     <div class="col-md-2">
-        <label class="form-label small fw-semibold">Tipo</label>
-        <select name="tipo" class="form-select form-select-sm">
+        <label for="campo-tipo" class="form-label small fw-semibold">Tipo</label>
+        <select id="campo-tipo" name="tipo" class="form-select form-select-sm">
             <option value="">Todos</option>
             @foreach($tiposDisponiveis as $t)
                 <option value="{{ $t }}" @selected(request('tipo') === $t)>{{ $t }}</option>
@@ -20,8 +20,8 @@
         </select>
     </div>
     <div class="col-md-2">
-        <label class="form-label small fw-semibold">Evento</label>
-        <select name="evento" class="form-select form-select-sm">
+        <label for="campo-evento" class="form-label small fw-semibold">Evento</label>
+        <select id="campo-evento" name="evento" class="form-select form-select-sm">
             <option value="">Todos</option>
             <option value="created" @selected(request('evento') === 'created')>Criado</option>
             <option value="updated" @selected(request('evento') === 'updated')>Alterado</option>
@@ -30,8 +30,8 @@
         </select>
     </div>
     <div class="col-md-3">
-        <label class="form-label small fw-semibold">Usuário</label>
-        <select name="user_id" class="form-select form-select-sm">
+        <label for="campo-user_id" class="form-label small fw-semibold">Usuário</label>
+        <select id="campo-user_id" name="user_id" class="form-select form-select-sm">
             <option value="">Todos</option>
             @foreach($usuarios as $u)
                 <option value="{{ $u->id }}" @selected((string) request('user_id') === (string) $u->id)>{{ $u->name }}</option>
@@ -39,12 +39,12 @@
         </select>
     </div>
     <div class="col-md-2">
-        <label class="form-label small fw-semibold">De</label>
-        <input type="date" name="desde" value="{{ request('desde') }}" class="form-control form-control-sm">
+        <label for="campo-desde" class="form-label small fw-semibold">De</label>
+        <input id="campo-desde" type="date" name="desde" value="{{ request('desde') }}" class="form-control form-control-sm">
     </div>
     <div class="col-md-2">
-        <label class="form-label small fw-semibold">Até</label>
-        <input type="date" name="ate" value="{{ request('ate') }}" class="form-control form-control-sm">
+        <label for="campo-ate" class="form-label small fw-semibold">Até</label>
+        <input id="campo-ate" type="date" name="ate" value="{{ request('ate') }}" class="form-control form-control-sm">
     </div>
     <div class="col-md-1 d-flex align-items-end">
         <button type="submit" class="btn btn-sm btn-primary w-100">Filtrar</button>

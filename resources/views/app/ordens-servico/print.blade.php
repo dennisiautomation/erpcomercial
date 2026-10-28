@@ -59,7 +59,7 @@
     {{-- OS Info Bar --}}
     <div class="os-info">
         <div>
-            <div class="label">OS Numero</div>
+            <div class="label">OS Número</div>
             <div class="value">#{{ $ordemServico->numero }}</div>
         </div>
         <div>
@@ -104,7 +104,7 @@
                 <div class="value">{{ $ordemServico->equipamento }}</div>
             </div>
             <div class="info-item">
-                <div class="label">Tecnico Responsavel</div>
+                <div class="label">Tecnico Responsável</div>
                 <div class="value">{{ $ordemServico->tecnico->name ?? '-' }}</div>
             </div>
             <div class="info-item full-width">
@@ -122,9 +122,9 @@
             <thead>
                 <tr>
                     <th>Tipo</th>
-                    <th>Descricao</th>
+                    <th>Descrição</th>
                     <th class="text-center">Qtd</th>
-                    <th class="text-right">Preco Unit.</th>
+                    <th class="text-right">Preço Unit.</th>
                     <th class="text-right">Total</th>
                 </tr>
             </thead>
@@ -147,7 +147,7 @@
     @if($configLoja->os_mostrar_valores)
     <div class="totals">
         <div class="line"><span>Produtos:</span> <span>R$ {{ number_format($ordemServico->valor_produtos, 2, ',', '.') }}</span></div>
-        <div class="line"><span>Servicos:</span> <span>R$ {{ number_format($ordemServico->valor_servicos, 2, ',', '.') }}</span></div>
+        <div class="line"><span>Serviços:</span> <span>R$ {{ number_format($ordemServico->valor_servicos, 2, ',', '.') }}</span></div>
         @if($ordemServico->desconto > 0)
             <div class="line"><span>Desconto:</span> <span>- R$ {{ number_format($ordemServico->desconto, 2, ',', '.') }}</span></div>
         @endif
@@ -183,7 +183,7 @@
             <div class="line">Cliente</div>
         </div>
         <div class="signature-line">
-            <div class="line">Tecnico Responsavel</div>
+            <div class="line">Tecnico Responsável</div>
         </div>
     </div>
     @endif

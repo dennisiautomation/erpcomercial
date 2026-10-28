@@ -26,13 +26,14 @@
 <div class="row g-4">
     <div class="col-md-6">
         <x-erp.card title="Dados do Boleto" icon="info-circle">
+            <div class="table-responsive">
             <table class="table table-borderless mb-0">
                 <tr>
                     <th width="40%">Cliente</th>
                     <td>{{ $boleto->cliente->nome_razao_social ?? '-' }}</td>
                 </tr>
                 <tr>
-                    <th>Nosso Numero</th>
+                    <th>Nosso Número</th>
                     <td>{{ $boleto->nosso_numero ?? '-' }}</td>
                 </tr>
                 <tr>
@@ -40,7 +41,7 @@
                     <td><code>{{ $boleto->linha_digitavel ?? '-' }}</code></td>
                 </tr>
                 <tr>
-                    <th>Codigo de Barras</th>
+                    <th>Código de Barras</th>
                     <td><code>{{ $boleto->codigo_barras ?? '-' }}</code></td>
                 </tr>
                 <tr>
@@ -48,10 +49,12 @@
                     <td>{{ $boleto->banco ?? '-' }}</td>
                 </tr>
             </table>
+            </div>
         </x-erp.card>
     </div>
     <div class="col-md-6">
         <x-erp.card title="Valores e Status" icon="cash-stack">
+            <div class="table-responsive">
             <table class="table table-borderless mb-0">
                 <tr>
                     <th width="40%">Valor</th>
@@ -86,6 +89,7 @@
                 </tr>
                 @endif
             </table>
+            </div>
 
             @if($boleto->url_boleto)
             <hr>
@@ -96,7 +100,7 @@
 
             @if($boleto->observacoes)
             <hr>
-            <p class="mb-0 text-muted"><strong>Observacoes:</strong> {{ $boleto->observacoes }}</p>
+            <p class="mb-0 text-muted"><strong>Observações:</strong> {{ $boleto->observacoes }}</p>
             @endif
         </x-erp.card>
     </div>

@@ -1,7 +1,7 @@
 @php $p = $plano ?? null; @endphp
 
 <div class="card shadow-sm mb-4">
-    <div class="card-header"><h6 class="mb-0">Informacoes Basicas</h6></div>
+    <div class="card-header"><h6 class="mb-0">Informações Basicas</h6></div>
     <div class="card-body">
         <div class="row g-3">
             <div class="col-md-4">
@@ -31,7 +31,7 @@
                 </div>
             </div>
             <div class="col-12">
-                <label for="descricao" class="form-label">Descricao</label>
+                <label for="descricao" class="form-label">Descrição</label>
                 <textarea class="form-control @error('descricao') is-invalid @enderror"
                           id="descricao" name="descricao" rows="2">{{ old('descricao', $p?->descricao) }}</textarea>
                 @error('descricao') <div class="invalid-feedback">{{ $message }}</div> @enderror
@@ -41,17 +41,17 @@
 </div>
 
 <div class="card shadow-sm mb-4">
-    <div class="card-header"><h6 class="mb-0">Precos</h6></div>
+    <div class="card-header"><h6 class="mb-0">Preços</h6></div>
     <div class="card-body">
         <div class="row g-3">
             <div class="col-md-4">
-                <label for="preco_mensal" class="form-label">Preco Mensal (R$) <span class="text-danger">*</span></label>
+                <label for="preco_mensal" class="form-label">Preço Mensal (R$) <span class="text-danger">*</span></label>
                 <input type="number" step="0.01" class="form-control @error('preco_mensal') is-invalid @enderror"
                        id="preco_mensal" name="preco_mensal" value="{{ old('preco_mensal', $p?->preco_mensal ?? '0.00') }}" min="0" required>
                 @error('preco_mensal') <div class="invalid-feedback">{{ $message }}</div> @enderror
             </div>
             <div class="col-md-4">
-                <label for="preco_anual" class="form-label">Preco Anual (R$) <span class="text-danger">*</span></label>
+                <label for="preco_anual" class="form-label">Preço Anual (R$) <span class="text-danger">*</span></label>
                 <input type="number" step="0.01" class="form-control @error('preco_anual') is-invalid @enderror"
                        id="preco_anual" name="preco_anual" value="{{ old('preco_anual', $p?->preco_anual ?? '0.00') }}" min="0" required>
                 @error('preco_anual') <div class="invalid-feedback">{{ $message }}</div> @enderror
@@ -77,7 +77,7 @@
                 @error('max_unidades') <div class="invalid-feedback">{{ $message }}</div> @enderror
             </div>
             <div class="col-md-3">
-                <label for="max_usuarios" class="form-label">Max. Usuarios <span class="text-danger">*</span></label>
+                <label for="max_usuarios" class="form-label">Max. Usuários <span class="text-danger">*</span></label>
                 <input type="number" class="form-control @error('max_usuarios') is-invalid @enderror"
                        id="max_usuarios" name="max_usuarios" value="{{ old('max_usuarios', $p?->max_usuarios ?? 3) }}" min="1" required>
                 @error('max_usuarios') <div class="invalid-feedback">{{ $message }}</div> @enderror

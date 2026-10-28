@@ -11,12 +11,12 @@
 
 <x-erp.filter-bar :action="route('app.fornecedores.index')">
     <div class="col-md-5">
-        <label class="form-label">Buscar</label>
-        <input type="text" name="busca" class="form-control" placeholder="Razao social, nome fantasia, CPF/CNPJ ou e-mail..." value="{{ request('busca') }}">
+        <label for="campo-busca" class="form-label">Buscar</label>
+        <input id="campo-busca" type="text" name="busca" class="form-control" placeholder="Razão social, nome fantasia, CPF/CNPJ ou e-mail..." value="{{ request('busca') }}">
     </div>
     <div class="col-md-3">
-        <label class="form-label">UF</label>
-        <select name="uf" class="form-select">
+        <label for="campo-uf" class="form-label">UF</label>
+        <select id="campo-uf" name="uf" class="form-select">
             <option value="">Todos</option>
             @foreach(['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'] as $sigla)
                 <option value="{{ $sigla }}" {{ request('uf') === $sigla ? 'selected' : '' }}>{{ $sigla }}</option>
@@ -29,11 +29,11 @@
     <thead>
         <tr>
             <th>CPF/CNPJ</th>
-            <th>Razao Social / Nome Fantasia</th>
+            <th>Razão Social / Nome Fantasia</th>
             <th>Cidade/UF</th>
             <th>Telefone</th>
             <th>E-mail</th>
-            <th class="text-center" style="width:150px;">Acoes</th>
+            <th class="text-center" style="width:150px;">Ações</th>
         </tr>
     </thead>
     <tbody>

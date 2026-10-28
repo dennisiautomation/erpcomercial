@@ -1,6 +1,6 @@
 @extends('admin.onboarding.layout', ['step' => 4])
 
-@section('title', 'Onboarding - Configuracao Fiscal')
+@section('title', 'Onboarding - Configuração Fiscal')
 
 @push('styles')
 <style>

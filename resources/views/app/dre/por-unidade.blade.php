@@ -12,7 +12,7 @@
 {{-- Filters --}}
 <x-erp.filter-bar :action="route('app.dre.por-unidade')">
     <div class="col-md-4">
-        <label for="data_inicio" class="form-label">Data Inicio</label>
+        <label for="data_inicio" class="form-label">Data Início</label>
         <input type="date" name="data_inicio" id="data_inicio" class="form-control" value="{{ $dataInicio }}">
     </div>
     <div class="col-md-4">
@@ -46,7 +46,7 @@
             <table class="erp-table">
                 <thead>
                     <tr>
-                        <th>Descricao</th>
+                        <th>Descrição</th>
                         @foreach($dresPorUnidade as $item)
                             <th class="text-end">{{ $item['unidade']->nome }}</th>
                         @endforeach

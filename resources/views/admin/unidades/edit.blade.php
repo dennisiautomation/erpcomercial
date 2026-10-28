@@ -53,7 +53,7 @@
                     @enderror
                 </div>
                 <div class="col-md-3">
-                    <label for="ie" class="form-label">Inscricao Estadual</label>
+                    <label for="ie" class="form-label">Inscrição Estadual</label>
                     <input type="text" class="form-control @error('ie') is-invalid @enderror"
                            id="ie" name="ie" value="{{ old('ie', $unidade->ie) }}">
                     @error('ie')
@@ -61,7 +61,7 @@
                     @enderror
                 </div>
                 <div class="col-md-3">
-                    <label for="im" class="form-label">Inscricao Municipal</label>
+                    <label for="im" class="form-label">Inscrição Municipal</label>
                     <input type="text" class="form-control @error('im') is-invalid @enderror"
                            id="im" name="im" value="{{ old('im', $unidade->im) }}">
                     @error('im')
@@ -84,7 +84,7 @@
     {{-- Endereco --}}
     <div class="card shadow-sm mb-4">
         <div class="card-header bg-white">
-            <h6 class="mb-0"><i class="bi bi-geo-alt me-2"></i>Endereco</h6>
+            <h6 class="mb-0"><i class="bi bi-geo-alt me-2"></i>Endereço</h6>
         </div>
         <div class="card-body">
             <div class="row g-3">
@@ -111,7 +111,7 @@
                     @enderror
                 </div>
                 <div class="col-md-3">
-                    <label for="numero" class="form-label">Numero</label>
+                    <label for="numero" class="form-label">Número</label>
                     <input type="text" class="form-control @error('numero') is-invalid @enderror"
                            id="numero" name="numero" value="{{ old('numero', $unidade->numero) }}">
                     @error('numero')
@@ -161,7 +161,7 @@
     {{-- Botoes --}}
     <div class="d-flex gap-2">
         <button type="submit" class="btn btn-primary">
-            <i class="bi bi-check-lg me-1"></i> Salvar Alteracoes
+            <i class="bi bi-check-lg me-1"></i> Salvar Alterações
         </button>
         <a href="{{ route('admin.empresas.show', $empresa) }}" class="btn btn-outline-secondary">Cancelar</a>
     </div>

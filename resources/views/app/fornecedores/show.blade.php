@@ -16,7 +16,7 @@
                 <strong><code>{{ $fornecedore->cpf_cnpj }}</code></strong>
             </div>
             <div class="mb-2">
-                <small class="text-muted d-block">Razao Social</small>
+                <small class="text-muted d-block">Razão Social</small>
                 <strong>{{ $fornecedore->razao_social }}</strong>
             </div>
             <div class="mb-2">
@@ -31,7 +31,7 @@
     </div>
 
     <div class="col-md-4">
-        <x-erp.card title="Endereco" icon="geo-alt">
+        <x-erp.card title="Endereço" icon="geo-alt">
             @if($fornecedore->logradouro)
                 <p class="mb-1">
                     <i class="bi bi-geo-alt text-muted me-1"></i>
@@ -48,7 +48,7 @@
                     <p class="mb-0 ms-4"><span class="badge bg-light text-dark">CEP: {{ $fornecedore->cep }}</span></p>
                 @endif
             @else
-                <p class="text-muted mb-0"><i class="bi bi-info-circle me-1"></i>Endereco nao informado</p>
+                <p class="text-muted mb-0"><i class="bi bi-info-circle me-1"></i>Endereço não informado</p>
             @endif
         </x-erp.card>
     </div>
@@ -82,13 +82,13 @@
     </div>
 </div>
 
-<x-erp.card title="Ultimas Contas a Pagar" icon="wallet2">
+<x-erp.card title="Últimas Contas a Pagar" icon="wallet2">
     <span class="badge bg-secondary float-end">{{ $fornecedore->contasPagar->count() }} registro(s)</span>
     <div class="table-responsive mt-3">
         <table class="erp-table">
             <thead>
                 <tr>
-                    <th>Descricao</th>
+                    <th>Descrição</th>
                     <th>Vencimento</th>
                     <th class="text-end">Valor</th>
                     <th class="text-center">Status</th>

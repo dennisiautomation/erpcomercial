@@ -1,9 +1,9 @@
 @extends('layouts.app')
 
-@section('title', 'Nova Venda (Balcao)')
+@section('title', 'Nova Venda (Balcão)')
 
 @section('content')
-<x-erp.page-header title="Nova Venda (Balcao)" subtitle="Registre uma venda de balcao" icon="cart-plus">
+<x-erp.page-header title="Nova Venda (Balcão)" subtitle="Registre uma venda de balcão" icon="cart-plus">
     <a href="{{ route('app.vendas.index') }}" class="btn btn-erp-outline"><i class="bi bi-arrow-left me-1"></i>Voltar</a>
 </x-erp.page-header>
 
@@ -23,8 +23,8 @@
                 <small class="form-text text-muted">Opcional. Busque pelo nome ou documento.</small>
             </div>
             <div class="col-md-6">
-                <label class="form-label">Vendedor</label>
-                <select name="vendedor_id" class="form-select @error('vendedor_id') is-invalid @enderror">
+                <label for="campo-vendedor_id" class="form-label">Vendedor</label>
+                <select id="campo-vendedor_id" name="vendedor_id" class="form-select @error('vendedor_id') is-invalid @enderror">
                     <option value="">-- Selecione --</option>
                     @foreach($vendedores as $v)
                         <option value="{{ $v->id }}" {{ old('vendedor_id') == $v->id ? 'selected' : '' }}>{{ $v->name }}</option>
@@ -38,8 +38,8 @@
     <x-erp.form-section title="Itens da Venda" icon="box-seam">
         <div class="row g-3 mb-3">
             <div class="col-md-6">
-                <label class="form-label">Adicionar Produto</label>
-                <input type="text" id="produto_search" class="form-control" placeholder="Buscar produto por nome, codigo..." data-autocomplete="{{ route('app.search.produtos') }}" autocomplete="off">
+                <label for="produto_search" class="form-label">Adicionar Produto</label>
+                <input type="text" id="produto_search" class="form-control" placeholder="Buscar produto por nome, código..." data-autocomplete="{{ route('app.search.produtos') }}" autocomplete="off">
                 <div id="produto_results" class="list-group position-absolute w-100" style="z-index:1050;max-height:200px;overflow-y:auto;display:none;"></div>
             </div>
         </div>
@@ -50,7 +50,7 @@
                     <tr>
                         <th style="width:40%">Produto</th>
                         <th style="width:12%">Qtd</th>
-                        <th style="width:15%">Preco Unit.</th>
+                        <th style="width:15%">Preço Unit.</th>
                         <th style="width:13%">Desconto</th>
                         <th style="width:15%">Total</th>
                         <th style="width:5%"></th>
@@ -71,22 +71,22 @@
     <x-erp.form-section title="Pagamento" icon="credit-card">
         <div class="row g-3">
             <div class="col-md-4">
-                <label class="form-label required">Forma de Pagamento <span class="text-danger">*</span></label>
-                <select name="forma_pagamento" class="form-select @error('forma_pagamento') is-invalid @enderror" required>
+                <label for="campo-forma_pagamento" class="form-label required">Forma de Pagamento <span class="text-danger">*</span></label>
+                <select id="campo-forma_pagamento" name="forma_pagamento" class="form-select @error('forma_pagamento') is-invalid @enderror" required>
                     <option value="">Selecione</option>
                     <option value="dinheiro" {{ old('forma_pagamento') === 'dinheiro' ? 'selected' : '' }}>Dinheiro</option>
-                    <option value="cartao_credito" {{ old('forma_pagamento') === 'cartao_credito' ? 'selected' : '' }}>Cartao de Credito</option>
-                    <option value="cartao_debito" {{ old('forma_pagamento') === 'cartao_debito' ? 'selected' : '' }}>Cartao de Debito</option>
+                    <option value="cartao_credito" {{ old('forma_pagamento') === 'cartao_credito' ? 'selected' : '' }}>Cartão de Crédito</option>
+                    <option value="cartao_debito" {{ old('forma_pagamento') === 'cartao_debito' ? 'selected' : '' }}>Cartão de Débito</option>
                     <option value="pix" {{ old('forma_pagamento') === 'pix' ? 'selected' : '' }}>PIX</option>
                     <option value="boleto" {{ old('forma_pagamento') === 'boleto' ? 'selected' : '' }}>Boleto</option>
                     <option value="crediario" {{ old('forma_pagamento') === 'crediario' ? 'selected' : '' }}>Crediario</option>
-                    <option value="transferencia" {{ old('forma_pagamento') === 'transferencia' ? 'selected' : '' }}>Transferencia</option>
+                    <option value="transferencia" {{ old('forma_pagamento') === 'transferencia' ? 'selected' : '' }}>Transferência</option>
                     <option value="vale" {{ old('forma_pagamento') === 'vale' ? 'selected' : '' }}>Vale</option>
                 </select>
                 @error('forma_pagamento') <div class="invalid-feedback">{{ $message }}</div> @enderror
             </div>
             <div class="col-md-4">
-                <label class="form-label">Desconto (R$)</label>
+                <label for="descontoGeral" class="form-label">Desconto (R$)</label>
                 <div class="input-group">
                     <span class="input-group-text">R$</span>
                     <input type="number" name="desconto_valor" id="descontoGeral" class="form-control @error('desconto_valor') is-invalid @enderror" value="{{ old('desconto_valor', '0.00') }}" step="0.01" min="0">
@@ -94,8 +94,8 @@
                 @error('desconto_valor') <div class="invalid-feedback">{{ $message }}</div> @enderror
             </div>
             <div class="col-md-4">
-                <label class="form-label">Observacoes</label>
-                <input type="text" name="observacoes" class="form-control @error('observacoes') is-invalid @enderror" value="{{ old('observacoes') }}" placeholder="Observacoes opcionais">
+                <label for="campo-observacoes" class="form-label">Observações</label>
+                <input id="campo-observacoes" type="text" name="observacoes" class="form-control @error('observacoes') is-invalid @enderror" value="{{ old('observacoes') }}" placeholder="Observações opcionais">
                 @error('observacoes') <div class="invalid-feedback">{{ $message }}</div> @enderror
             </div>
         </div>

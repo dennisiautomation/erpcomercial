@@ -7,9 +7,10 @@
     <title>@yield('title', 'ERP Comercial')</title>
 
     <!-- Bootstrap 5.3 CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
     <!-- Bootstrap Icons -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet" integrity="sha384-XGjxtQfXaH2tnPFa9x+ruJTuLE3Aa6LhHSWRr1XeTyhezb4abCG4ccI5AkVDxqC+" crossorigin="anonymous">
     <!-- ERP Design System -->
     <link href="{{ asset('css/erp.css') }}" rel="stylesheet">
 
@@ -26,20 +27,20 @@
             --sidebar-bg: #1e293b;
             --sidebar-bg-darker: #0f172a;
             --sidebar-hover: rgba(255, 255, 255, 0.06);
-            --sidebar-active: rgba(99, 102, 241, 0.25);
+            --sidebar-active: rgba(79, 70, 229, 0.3);
             --sidebar-active-border: #818cf8;
             --sidebar-text: rgba(255, 255, 255, 0.55);
             --sidebar-text-hover: rgba(255, 255, 255, 0.85);
             --sidebar-text-active: #ffffff;
-            --sidebar-heading: rgba(255, 255, 255, 0.35);
+            --sidebar-heading: rgba(255, 255, 255, 0.5);
             --sidebar-divider: rgba(255, 255, 255, 0.06);
             --topbar-height: 56px;
             --topbar-bg: #ffffff;
             --topbar-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
             --body-bg: #f1f5f9;
-            --accent: #6366f1;
+            --accent: #4f46e5;
             --accent-light: #818cf8;
-            --pdv-bg: linear-gradient(135deg, #6366f1, #8b5cf6);
+            --pdv-bg: linear-gradient(135deg, #4f46e5, #7c3aed);
             --transition-speed: 0.2s;
         }
 
@@ -51,7 +52,7 @@
         body {
             background-color: var(--body-bg);
             overflow-x: hidden;
-            font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
         }
 
         /* Scrollbar styling */
@@ -119,7 +120,7 @@
         }
 
         .sidebar-heading {
-            font-size: 0.65rem;
+            font-size: 0.6875rem;
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 0.08em;
@@ -139,7 +140,7 @@
             display: flex;
             align-items: center;
             gap: 0.625rem;
-            transition: all var(--transition-speed) ease;
+            transition: background-color var(--transition-speed) ease, color var(--transition-speed) ease, border-color var(--transition-speed) ease;
             position: relative;
             text-decoration: none;
             border: 1px solid transparent;
@@ -154,7 +155,7 @@
         .sidebar .nav-link.active {
             color: var(--sidebar-text-active);
             background: var(--sidebar-active);
-            border-color: rgba(99, 102, 241, 0.15);
+            border-color: rgba(79, 70, 229, 0.2);
         }
 
         .sidebar .nav-link.active::before {
@@ -273,7 +274,7 @@
             border-radius: 6px;
             text-decoration: none;
             color: var(--sidebar-text);
-            transition: all var(--transition-speed) ease;
+            transition: background-color var(--transition-speed) ease, color var(--transition-speed) ease, border-color var(--transition-speed) ease;
         }
 
         .sidebar-user:hover {
@@ -329,7 +330,6 @@
             inset: 0;
             background: rgba(15, 23, 42, 0.6);
             z-index: 1035;
-            backdrop-filter: blur(2px);
             transition: opacity 0.3s ease;
         }
 
@@ -405,7 +405,7 @@
             font-weight: 500;
             color: #475569;
             cursor: pointer;
-            transition: all var(--transition-speed) ease;
+            transition: background-color var(--transition-speed) ease, color var(--transition-speed) ease, border-color var(--transition-speed) ease;
             text-decoration: none;
             white-space: nowrap;
         }
@@ -437,7 +437,7 @@
             border: none;
             color: #64748b;
             cursor: pointer;
-            transition: all var(--transition-speed) ease;
+            transition: background-color var(--transition-speed) ease, color var(--transition-speed) ease, border-color var(--transition-speed) ease;
         }
 
         .topbar-icon-btn:hover {
@@ -469,7 +469,7 @@
             border: 1px solid transparent;
             border-radius: 8px;
             cursor: pointer;
-            transition: all var(--transition-speed) ease;
+            transition: background-color var(--transition-speed) ease, color var(--transition-speed) ease, border-color var(--transition-speed) ease;
             text-decoration: none;
             color: #334155;
         }
@@ -513,7 +513,7 @@
             font-size: 0.8125rem;
             padding: 0.45rem 0.75rem;
             color: #475569;
-            transition: all 0.15s ease;
+            transition: background-color 0.15s ease, color 0.15s ease;
         }
 
         .dropdown-item:hover {
@@ -659,7 +659,7 @@
                         <a class="nav-link {{ request()->routeIs('admin.usuarios.*') ? 'active' : '' }}"
                            href="{{ route('admin.usuarios.index') }}">
                             <i class="bi bi-people nav-icon"></i>
-                            <span class="nav-text">Usuarios</span>
+                            <span class="nav-text">Usuários</span>
                         </a>
                     </li>
                     <li class="nav-item">
@@ -689,7 +689,7 @@
                         <a class="nav-link {{ request()->routeIs('admin.demonstracoes.*') ? 'active' : '' }}"
                            href="{{ route('admin.demonstracoes.index') }}">
                             <i class="bi bi-calendar-check nav-icon"></i>
-                            <span class="nav-text">Demonstracoes</span>
+                            <span class="nav-text">Demonstrações</span>
                         </a>
                     </li>
                     <li class="nav-item">
@@ -769,11 +769,11 @@
                                 </li>
                                 <li class="nav-item">
                                     <a class="nav-link {{ request()->routeIs('app.servicos.*') ? 'active' : '' }}"
-                                       href="{{ route('app.servicos.index') }}">Servicos</a>
+                                       href="{{ route('app.servicos.index') }}">Serviços</a>
                                 </li>
                                 <li class="nav-item">
                                     <a class="nav-link {{ request()->routeIs('app.funcionarios.*') ? 'active' : '' }}"
-                                       href="{{ route('app.funcionarios.index') }}">Funcionarios</a>
+                                       href="{{ route('app.funcionarios.index') }}">Funcionários</a>
                                 </li>
                                 <li class="nav-item">
                                     <a class="nav-link {{ request()->routeIs('app.etiquetas.*') ? 'active' : '' }}"
@@ -798,7 +798,7 @@
                             <ul class="nav flex-column submenu">
                                 <li class="nav-item">
                                     <a class="nav-link {{ request()->routeIs('app.orcamentos.*') ? 'active' : '' }}"
-                                       href="{{ route('app.orcamentos.index') }}">Orcamentos</a>
+                                       href="{{ route('app.orcamentos.index') }}">Orçamentos</a>
                                 </li>
                                 <li class="nav-item">
                                     <a class="nav-link {{ request()->routeIs('app.pedidos.*') ? 'active' : '' }}"
@@ -810,7 +810,7 @@
                                 </li>
                                 <li class="nav-item">
                                     <a class="nav-link {{ request()->routeIs('app.ordens-servico.*') ? 'active' : '' }}"
-                                       href="{{ route('app.ordens-servico.index') }}">Ordens de Servico</a>
+                                       href="{{ route('app.ordens-servico.index') }}">Ordens de Serviço</a>
                                 </li>
                                 @if(\App\Http\Middleware\CheckPermission::canUser(auth()->user(), 'trocas', 'ver'))
                                 <li class="nav-item">
@@ -855,7 +855,7 @@
                             <ul class="nav flex-column submenu">
                                 <li class="nav-item">
                                     <a class="nav-link {{ request()->routeIs('app.movimentacoes.*') ? 'active' : '' }}"
-                                       href="{{ route('app.movimentacoes.index') }}">Movimentacoes</a>
+                                       href="{{ route('app.movimentacoes.index') }}">Movimentações</a>
                                 </li>
                                 @if(\App\Http\Middleware\CheckPermission::canUser(auth()->user(), 'estoque', 'criar'))
                                 <li class="nav-item">
@@ -865,7 +865,7 @@
                                 @endif
                                 <li class="nav-item">
                                     <a class="nav-link {{ request()->routeIs('app.transferencias.*') ? 'active' : '' }}"
-                                       href="{{ route('app.transferencias.index') }}">Transferencias</a>
+                                       href="{{ route('app.transferencias.index') }}">Transferências</a>
                                 </li>
                                 <li class="nav-item">
                                     <a class="nav-link {{ request()->routeIs('app.comodatos.*') ? 'active' : '' }}"
@@ -910,7 +910,7 @@
                                 </li>
                                 <li class="nav-item">
                                     <a class="nav-link {{ request()->routeIs('app.conciliacao.*') ? 'active' : '' }}"
-                                       href="{{ route('app.conciliacao.index') }}">Conciliacao</a>
+                                       href="{{ route('app.conciliacao.index') }}">Conciliação</a>
                                 </li>
                                 <li class="nav-item">
                                     <a class="nav-link {{ request()->routeIs('app.contratos.*') ? 'active' : '' }}"
@@ -958,7 +958,7 @@
                                 @if(\App\Http\Middleware\CheckPermission::canUser(auth()->user(), 'configuracoes_fiscais', 'ver'))
                                 <li class="nav-item">
                                     <a class="nav-link {{ request()->routeIs('app.configuracao-fiscal.*') ? 'active' : '' }}"
-                                       href="{{ route('app.configuracao-fiscal.edit') }}">Configuracao Fiscal</a>
+                                       href="{{ route('app.configuracao-fiscal.edit') }}">Configuração Fiscal</a>
                                 </li>
                                 @endif
                             </ul>
@@ -966,14 +966,14 @@
                     </li>
 
                     {{-- ---- Relatorios ---- --}}
-                    <li class="sidebar-heading">Relatorios</li>
+                    <li class="sidebar-heading">Relatórios</li>
                     <li class="nav-item">
                         <a class="nav-link nav-toggle {{ request()->routeIs('app.relatorios.*', 'app.dre.*', 'app.comissoes.*') ? '' : 'collapsed' }}"
                            data-bs-toggle="collapse" href="#menuRelatorios" role="button"
                            aria-expanded="{{ request()->routeIs('app.relatorios.*', 'app.dre.*', 'app.comissoes.*') ? 'true' : 'false' }}"
                            aria-controls="menuRelatorios">
                             <i class="bi bi-bar-chart-line nav-icon"></i>
-                            <span class="nav-text">Relatorios</span>
+                            <span class="nav-text">Relatórios</span>
                             <i class="bi bi-chevron-right toggle-icon"></i>
                         </a>
                         <div class="collapse {{ request()->routeIs('app.relatorios.*', 'app.dre.*', 'app.comissoes.*') ? 'show' : '' }}" id="menuRelatorios">
@@ -1000,7 +1000,7 @@
                                 </li>
                                 <li class="nav-item">
                                     <a class="nav-link {{ request()->routeIs('app.comissoes.*') ? 'active' : '' }}"
-                                       href="{{ route('app.comissoes.index') }}">Comissoes</a>
+                                       href="{{ route('app.comissoes.index') }}">Comissões</a>
                                 </li>
                             </ul>
                         </div>
@@ -1015,14 +1015,14 @@
                             // Centros de Custo, mas o menu escondia os links assim mesmo.
                             $podeVer = fn (string $modulo) => \App\Http\Middleware\CheckPermission::canUser(auth()->user(), $modulo, 'ver');
                         @endphp
-                        <li class="sidebar-heading">Gestao</li>
+                        <li class="sidebar-heading">Gestão</li>
                         <li class="nav-item">
                             <a class="nav-link nav-toggle {{ request()->routeIs('app.multilojas.*', 'app.plano-contas.*', 'app.centros-custo.*', 'app.configuracoes.*', 'app.integracao.*', 'app.lojas.*', 'app.empresa.*') ? '' : 'collapsed' }}"
                                data-bs-toggle="collapse" href="#menuGestao" role="button"
                                aria-expanded="{{ request()->routeIs('app.multilojas.*', 'app.plano-contas.*', 'app.centros-custo.*', 'app.configuracoes.*', 'app.integracao.*', 'app.lojas.*', 'app.empresa.*') ? 'true' : 'false' }}"
                                aria-controls="menuGestao">
                                 <i class="bi bi-gear nav-icon"></i>
-                                <span class="nav-text">Gestao</span>
+                                <span class="nav-text">Gestão</span>
                                 <i class="bi bi-chevron-right toggle-icon"></i>
                             </a>
                             <div class="collapse {{ request()->routeIs('app.multilojas.*', 'app.plano-contas.*', 'app.centros-custo.*', 'app.configuracoes.*', 'app.integracao.*', 'app.lojas.*', 'app.empresa.*') ? 'show' : '' }}" id="menuGestao">
@@ -1221,13 +1221,13 @@
                 @if(!auth()->user()->is_admin)
                 <div class="dropdown">
                     <button class="topbar-icon-btn dropdown-toggle" type="button" id="notificacoesDropdown"
-                            data-bs-toggle="dropdown" data-bs-auto-close="true" aria-expanded="false" title="Notificacoes">
+                            data-bs-toggle="dropdown" data-bs-auto-close="true" aria-expanded="false" title="Notificações">
                         <i class="bi bi-bell"></i>
                         <span class="topbar-badge d-none" id="notificacaoBadge"></span>
                     </button>
                     <div class="dropdown-menu dropdown-menu-end shadow" style="min-width: 340px; max-width: 400px;" aria-labelledby="notificacoesDropdown">
                         <div class="d-flex justify-content-between align-items-center px-3 py-2 border-bottom">
-                            <h6 class="mb-0 fw-bold" style="font-size:0.875rem;">Notificacoes</h6>
+                            <h6 class="mb-0 fw-bold" style="font-size:0.875rem;">Notificações</h6>
                             <form method="POST" action="{{ route('app.notificacoes.todas-lidas') }}" id="formMarcarTodasLidas">
                                 @csrf
                                 <button type="submit" class="btn btn-link btn-sm text-decoration-none p-0" style="font-size:0.75rem;">
@@ -1321,9 +1321,7 @@
     </div>
 
     <!-- Bootstrap 5.3 JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    <!-- Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
     <!-- ERP Core Intelligence -->
     {{-- cache-busting pela data do arquivo: navegador pega o JS novo a cada deploy --}}
     <script src="{{ asset('js/erp-core.js') }}?v={{ @filemtime(public_path('js/erp-core.js')) ?: '1' }}"></script>

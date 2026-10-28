@@ -1,16 +1,16 @@
 @extends('layouts.app')
 
-@section('title', 'Servicos')
+@section('title', 'Serviços')
 
 @section('content')
 <div class="fade-in">
 <div class="page-header">
     <div>
-        <h4><i class="bi bi-tools me-2"></i>Servicos</h4>
-        <div class="subtitle">Gerencie os servicos prestados</div>
+        <h4><i class="bi bi-tools me-2"></i>Serviços</h4>
+        <div class="subtitle">Gerencie os serviços prestados</div>
     </div>
     <a href="{{ route('app.servicos.create') }}" class="btn btn-erp btn-erp-primary">
-        <i class="bi bi-plus-lg me-1"></i> Novo Servico
+        <i class="bi bi-plus-lg me-1"></i> Novo Serviço
     </a>
 </div>
 
@@ -63,7 +63,7 @@
         <div class="col-md-5">
             <div class="input-group">
                 <span class="input-group-text"><i class="bi bi-search"></i></span>
-                <input type="text" name="busca" class="form-control" placeholder="Buscar por descricao ou codigo..." value="{{ request('busca') }}">
+                <input type="text" name="busca" class="form-control" placeholder="Buscar por descrição ou código..." value="{{ request('busca') }}">
             </div>
         </div>
         <div class="col-md-3">
@@ -92,13 +92,13 @@
         <table class="erp-table">
             <thead>
                 <tr>
-                    <th>Codigo</th>
-                    <th>Descricao</th>
-                    <th class="text-end">Valor Padrao</th>
+                    <th>Código</th>
+                    <th>Descrição</th>
+                    <th class="text-end">Valor Padrão</th>
                     <th>Cod. Municipal</th>
                     <th>ISS (%)</th>
                     <th class="text-center">Status</th>
-                    <th class="text-center" style="width: 130px;">Acoes</th>
+                    <th class="text-center" style="width: 130px;">Ações</th>
                 </tr>
             </thead>
             <tbody>
@@ -120,7 +120,7 @@
                                     <i class="bi bi-pencil"></i>
                                 </a>
                                 <form method="POST" action="{{ route('app.servicos.destroy', $servico) }}" class="d-inline"
-                                      data-confirm="Tem certeza que deseja excluir este servico?">
+                                      data-confirm="Tem certeza que deseja excluir este serviço?">
                                     @csrf
                                     @method('DELETE')
                                     <button type="submit" class="btn btn-sm btn-outline-danger" title="Excluir">
@@ -135,7 +135,7 @@
                         <td colspan="7">
                             <div class="empty-state">
                                 <i class="bi bi-tools d-block"></i>
-                                <h5>Nenhum servico encontrado</h5>
+                                <h5>Nenhum serviço encontrado</h5>
                             </div>
                         </td>
                     </tr>

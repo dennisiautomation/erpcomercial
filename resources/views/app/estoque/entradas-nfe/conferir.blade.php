@@ -145,8 +145,8 @@
                 <div class="card-header"><i class="bi bi-boxes me-1"></i> Estoque e custo</div>
                 <div class="card-body">
                     @if($estoques->count() > 1)
-                        <label class="form-label fw-semibold">Em qual estoque a mercadoria entra</label>
-                        <select name="estoque_id" class="form-select mb-3" required>
+                        <label for="campo-estoque_id" class="form-label fw-semibold">Em qual estoque a mercadoria entra</label>
+                        <select id="campo-estoque_id" name="estoque_id" class="form-select mb-3" required>
                             @foreach($estoques as $e)
                                 <option value="{{ $e->id }}" @selected((int) old('estoque_id', $entrada->estoque_id) === $e->id)>{{ $e->nome }}</option>
                             @endforeach

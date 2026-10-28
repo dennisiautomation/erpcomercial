@@ -4,16 +4,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - ERP Comercial</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet" integrity="sha384-XGjxtQfXaH2tnPFa9x+ruJTuLE3Aa6LhHSWRr1XeTyhezb4abCG4ccI5AkVDxqC+" crossorigin="anonymous">
 
     {{-- PWA: manifest + ícones (instalar o ERP como aplicativo) --}}
     <x-erp.pwa-head />
     <style>
         :root {
-            --primary: #2563eb;
-            --primary-dark: #1d4ed8;
-            --primary-light: #3b82f6;
+            --primary: #4f46e5;
+            --primary-dark: #4338ca;
+            --primary-light: #818cf8;
             --surface: rgba(255, 255, 255, 0.12);
             --surface-hover: rgba(255, 255, 255, 0.18);
         }
@@ -41,7 +42,6 @@
             filter: blur(80px);
             opacity: 0.15;
             z-index: 0;
-            animation: float 20s ease-in-out infinite;
         }
         body::before {
             width: 600px;
@@ -56,7 +56,6 @@
             background: #7c3aed;
             bottom: -150px;
             left: -100px;
-            animation-delay: -10s;
         }
 
         @keyframes float {
@@ -122,7 +121,7 @@
             align-items: center;
             justify-content: center;
             margin-bottom: 1rem;
-            box-shadow: 0 8px 24px rgba(37, 99, 235, 0.35);
+            box-shadow: 0 8px 24px rgba(79, 70, 229, 0.35);
         }
         .brand-icon i {
             font-size: 1.75rem;
@@ -213,7 +212,7 @@
         .input-wrapper input:focus {
             border-color: var(--primary-light);
             background: rgba(255, 255, 255, 0.09);
-            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.35);
         }
         .input-wrapper input:focus ~ i.field-icon {
             color: var(--primary-light);
@@ -297,13 +296,13 @@
             justify-content: center;
             gap: 0.5rem;
             transition: all 0.25s ease;
-            box-shadow: 0 4px 16px rgba(37, 99, 235, 0.3);
+            box-shadow: 0 4px 16px rgba(79, 70, 229, 0.3);
             position: relative;
             overflow: hidden;
         }
         .btn-login:hover:not(:disabled) {
             transform: translateY(-1px);
-            box-shadow: 0 8px 24px rgba(37, 99, 235, 0.4);
+            box-shadow: 0 8px 24px rgba(79, 70, 229, 0.4);
             background: linear-gradient(135deg, var(--primary-light), var(--primary));
         }
         .btn-login:active:not(:disabled) {
@@ -347,6 +346,11 @@
             .brand h1 {
                 font-size: 1.35rem;
             }
+        }
+            :focus-visible { outline: 2px solid var(--primary-light); outline-offset: 3px; border-radius: 6px; }
+        .input-wrapper input:focus-visible { outline: none; }
+        @media (prefers-reduced-motion: reduce) {
+            .login-wrapper, .alert, .erp-alert { animation: none !important; }
         }
     </style>
 </head>

@@ -1,23 +1,22 @@
 @extends('layouts.app')
 
-@section('title', 'Novo Orcamento')
+@section('title', 'Novo Orçamento')
 
 @section('content')
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <div>
-        <h4 class="mb-1"><i class="bi bi-file-earmark-plus me-2"></i>Novo Orcamento</h4>
+<x-erp.page-header title="Novo Orçamento" icon="file-earmark-plus">
+    <x-slot:breadcrumb>
         <nav aria-label="breadcrumb">
-            <ol class="breadcrumb mb-0 small">
-                <li class="breadcrumb-item"><a href="{{ route('app.dashboard') }}">Dashboard</a></li>
-                <li class="breadcrumb-item"><a href="{{ route('app.orcamentos.index') }}">Orcamentos</a></li>
-                <li class="breadcrumb-item active">Novo</li>
-            </ol>
-        </nav>
-    </div>
+                    <ol class="breadcrumb mb-0 small">
+                        <li class="breadcrumb-item"><a href="{{ route('app.dashboard') }}">Dashboard</a></li>
+                        <li class="breadcrumb-item"><a href="{{ route('app.orcamentos.index') }}">Orçamentos</a></li>
+                        <li class="breadcrumb-item active">Novo</li>
+                    </ol>
+                </nav>
+    </x-slot:breadcrumb>
     <a href="{{ route('app.orcamentos.index') }}" class="btn btn-outline-secondary">
-        <i class="bi bi-arrow-left me-1"></i> Voltar
-    </a>
-</div>
+            <i class="bi bi-arrow-left me-1"></i> Voltar
+        </a>
+</x-erp.page-header>
 
 @if($errors->any())
     <div class="alert alert-danger alert-dismissible fade show" role="alert">
@@ -78,8 +77,8 @@
                 </div>
                 <div class="card-body">
                     <div class="mb-3">
-                        <label class="form-label small fw-semibold">Vendedor</label>
-                        <select name="vendedor_id" class="form-select">
+                        <label for="campo-vendedor_id" class="form-label small fw-semibold">Vendedor</label>
+                        <select id="campo-vendedor_id" name="vendedor_id" class="form-select">
                             <option value="">Selecione...</option>
                             @foreach($vendedores as $v)
                                 <option value="{{ $v->id }}" {{ old('vendedor_id') == $v->id ? 'selected' : '' }}>
@@ -89,8 +88,8 @@
                         </select>
                     </div>
                     <div class="mb-0">
-                        <label class="form-label small fw-semibold">Validade <span class="text-danger">*</span></label>
-                        <input type="date" name="validade_ate" class="form-control @error('validade_ate') is-invalid @enderror"
+                        <label for="campo-validade_ate" class="form-label small fw-semibold">Validade <span class="text-danger">*</span></label>
+                        <input id="campo-validade_ate" type="date" name="validade_ate" class="form-control @error('validade_ate') is-invalid @enderror"
                                value="{{ old('validade_ate', now()->addDays(30)->format('Y-m-d')) }}" required>
                         @error('validade_ate')
                             <div class="invalid-feedback">{{ $message }}</div>
@@ -104,7 +103,7 @@
         <div class="col-12">
             <div class="card border-0 shadow-sm">
                 <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
-                    <span class="fw-semibold"><i class="bi bi-list-ul me-1"></i> Itens do Orcamento</span>
+                    <span class="fw-semibold"><i class="bi bi-list-ul me-1"></i> Itens do Orçamento</span>
                     <button type="button" class="btn btn-success btn-sm" id="btnAddItem">
                         <i class="bi bi-plus-lg me-1"></i> Adicionar Item
                     </button>
@@ -115,12 +114,12 @@
                             <thead class="bg-light">
                                 <tr>
                                     <th class="ps-3" style="width:5%">#</th>
-                                    <th style="width:35%">Produto / Servico</th>
+                                    <th style="width:35%">Produto / Serviço</th>
                                     <th style="width:12%">Quantidade</th>
-                                    <th style="width:15%">Preco Unit. (R$)</th>
+                                    <th style="width:15%">Preço Unit. (R$)</th>
                                     <th style="width:10%">Desc. (%)</th>
                                     <th style="width:15%" class="text-end">Total (R$)</th>
-                                    <th style="width:8%" class="text-center pe-3">Acao</th>
+                                    <th style="width:8%" class="text-center pe-3">Ação</th>
                                 </tr>
                             </thead>
                             <tbody id="itensBody">
@@ -130,7 +129,7 @@
                     </div>
                     <div id="itensVazio" class="text-center py-4 text-muted" style="display:none;">
                         <i class="bi bi-inbox fs-3 d-block mb-1"></i>
-                        Clique em "Adicionar Item" para incluir produtos ou servicos.
+                        Clique em "Adicionar Item" para incluir produtos ou serviços.
                     </div>
                 </div>
                 @error('itens')
@@ -145,17 +144,17 @@
         <div class="col-lg-6">
             <div class="card border-0 shadow-sm h-100">
                 <div class="card-header bg-transparent fw-semibold">
-                    <i class="bi bi-chat-text me-1"></i> Observacoes
+                    <i class="bi bi-chat-text me-1"></i> Observações
                 </div>
                 <div class="card-body">
                     <div class="mb-3">
-                        <label class="form-label small fw-semibold">Observacoes Internas</label>
-                        <textarea name="observacoes_internas" class="form-control" rows="3"
-                                  placeholder="Notas internas (nao visiveis para o cliente)...">{{ old('observacoes_internas') }}</textarea>
+                        <label for="campo-observacoes_internas" class="form-label small fw-semibold">Observações Internas</label>
+                        <textarea id="campo-observacoes_internas" name="observacoes_internas" class="form-control" rows="3"
+                                  placeholder="Notas internas (não visiveis para o cliente)...">{{ old('observacoes_internas') }}</textarea>
                     </div>
                     <div class="mb-0">
-                        <label class="form-label small fw-semibold">Observacoes para o Cliente</label>
-                        <textarea name="observacoes_externas" class="form-control" rows="3"
+                        <label for="campo-observacoes_externas" class="form-label small fw-semibold">Observações para o Cliente</label>
+                        <textarea id="campo-observacoes_externas" name="observacoes_externas" class="form-control" rows="3"
                                   placeholder="Prazo de entrega, garantia, recado para o cliente...">{{ old('observacoes_externas', $observacoesPadrao) }}</textarea>
                         @if(filled($observacoesPadrao))
                             <div class="form-text">Vem com o texto padrão da loja (Configurações da Loja → Impressão do Orçamento). Pode mudar só neste orçamento.</div>
@@ -168,8 +167,8 @@
                         </div>
                     </div>
                     <div class="mt-3 mb-0">
-                        <label class="form-label small fw-semibold">Condições de pagamento e entrega</label>
-                        <textarea name="condicoes" class="form-control @error('condicoes') is-invalid @enderror" rows="3" maxlength="5000"
+                        <label for="campo-condicoes" class="form-label small fw-semibold">Condições de pagamento e entrega</label>
+                        <textarea id="campo-condicoes" name="condicoes" class="form-control @error('condicoes') is-invalid @enderror" rows="3" maxlength="5000"
                                   placeholder="{{ $condicoesPadrao ? 'Em branco: sai o padrão da loja — ' . \Illuminate\Support\Str::limit($condicoesPadrao, 80) : 'Ex.: Cartão em até 6x. À vista 7% de desconto. Entrega em 2 dias úteis.' }}">{{ old('condicoes', $condicoesPadrao) }}</textarea>
                         <div class="form-text">Sai no orçamento impresso, ao lado do total. O texto padrão fica em Configurações da Loja → Impressão do Orçamento.</div>
                         @error('condicoes') <div class="invalid-feedback">{{ $message }}</div> @enderror
@@ -191,7 +190,7 @@
                     </div>
                     <div class="row g-2 mb-3">
                         <div class="col-6">
-                            <label class="form-label small fw-semibold">Desconto (%)</label>
+                            <label for="descontoPerc" class="form-label small fw-semibold">Desconto (%)</label>
                             <div class="input-group input-group-sm">
                                 <input type="number" name="desconto_percentual" id="descontoPerc"
                                        class="form-control" step="0.01" min="0" max="100" value="{{ old('desconto_percentual', 0) }}">
@@ -199,7 +198,7 @@
                             </div>
                         </div>
                         <div class="col-6">
-                            <label class="form-label small fw-semibold">Desconto (R$)</label>
+                            <label for="descontoValor" class="form-label small fw-semibold">Desconto (R$)</label>
                             <div class="input-group input-group-sm">
                                 <span class="input-group-text">R$</span>
                                 <input type="number" name="desconto_valor" id="descontoValor"
@@ -220,7 +219,7 @@
                     Cancelar
                 </a>
                 <button type="submit" class="btn btn-primary btn-lg">
-                    <i class="bi bi-check-lg me-1"></i> Salvar Orcamento
+                    <i class="bi bi-check-lg me-1"></i> Salvar Orçamento
                 </button>
             </div>
         </div>

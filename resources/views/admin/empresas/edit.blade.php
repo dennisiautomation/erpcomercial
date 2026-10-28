@@ -89,7 +89,7 @@
                             @enderror
                         </div>
                         <div class="col-md-7">
-                            <label for="razao_social" class="form-label">Razao Social <span class="required-dot">*</span></label>
+                            <label for="razao_social" class="form-label">Razão Social <span class="required-dot">*</span></label>
                             <input type="text" class="form-control @error('razao_social') is-invalid @enderror"
                                    id="razao_social" name="razao_social" value="{{ old('razao_social', $empresa->razao_social) }}" required>
                             @error('razao_social')
@@ -105,7 +105,7 @@
                             @enderror
                         </div>
                         <div class="col-md-3">
-                            <label for="ie" class="form-label">Inscricao Estadual</label>
+                            <label for="ie" class="form-label">Inscrição Estadual</label>
                             <input type="text" class="form-control @error('ie') is-invalid @enderror"
                                    id="ie" name="ie" value="{{ old('ie', $empresa->ie) }}">
                             @error('ie')
@@ -113,7 +113,7 @@
                             @enderror
                         </div>
                         <div class="col-md-4">
-                            <label for="im" class="form-label">Inscricao Municipal</label>
+                            <label for="im" class="form-label">Inscrição Municipal</label>
                             <input type="text" class="form-control @error('im') is-invalid @enderror"
                                    id="im" name="im" value="{{ old('im', $empresa->im) }}">
                             @error('im')
@@ -127,7 +127,7 @@
             {{-- Endereco --}}
             <div class="card section-card shadow-sm mb-4">
                 <div class="card-header">
-                    <h6 class="mb-0"><i class="bi bi-geo-alt me-2 text-danger"></i>Endereco</h6>
+                    <h6 class="mb-0"><i class="bi bi-geo-alt me-2 text-danger"></i>Endereço</h6>
                 </div>
                 <div class="card-body">
                     <div class="row g-3">
@@ -155,7 +155,7 @@
                             @enderror
                         </div>
                         <div class="col-md-3">
-                            <label for="numero" class="form-label">Numero</label>
+                            <label for="numero" class="form-label">Número</label>
                             <input type="text" class="form-control @error('numero') is-invalid @enderror"
                                    id="numero" name="numero" value="{{ old('numero', $empresa->numero) }}">
                             @error('numero')
@@ -236,7 +236,7 @@
             {{-- Regime, Plano e Status --}}
             <div class="card section-card shadow-sm mb-4">
                 <div class="card-header">
-                    <h6 class="mb-0"><i class="bi bi-gear me-2 text-secondary"></i>Configuracoes</h6>
+                    <h6 class="mb-0"><i class="bi bi-gear me-2 text-secondary"></i>Configurações</h6>
                 </div>
                 <div class="card-body">
                     <div class="mb-3">
@@ -314,8 +314,8 @@
                     <div id="cortesia-extras" class="mt-4 {{ $regimeAtual === 'padrao' ? 'd-none' : '' }}">
                         <div class="row g-3">
                             <div class="col-md-6">
-                                <label class="form-label">Motivo / contexto <span class="text-muted">(obrigatório)</span></label>
-                                <input type="text" name="cortesia_motivo"
+                                <label for="campo-cortesia_motivo" class="form-label">Motivo / contexto <span class="text-muted">(obrigatório)</span></label>
+                                <input id="campo-cortesia_motivo" type="text" name="cortesia_motivo"
                                        class="form-control @error('cortesia_motivo') is-invalid @enderror"
                                        value="{{ old('cortesia_motivo', $empresa->cortesia_motivo) }}"
                                        placeholder="Ex: amigo do dono, parceria com X, beta tester, contrato anual..."
@@ -332,14 +332,14 @@
                                 };
                             @endphp
                             <div class="col-md-3">
-                                <label class="form-label">Concedida em</label>
-                                <input type="date" name="cortesia_concedida_em"
+                                <label for="campo-cortesia_concedida_em" class="form-label">Concedida em</label>
+                                <input id="campo-cortesia_concedida_em" type="date" name="cortesia_concedida_em"
                                        class="form-control"
                                        value="{{ old('cortesia_concedida_em', $fmtDate($empresa->cortesia_concedida_em, now()->format('Y-m-d'))) }}">
                             </div>
                             <div class="col-md-3">
-                                <label class="form-label">Revisar em <span class="text-muted small">(opcional)</span></label>
-                                <input type="date" name="cortesia_revisar_em"
+                                <label for="campo-cortesia_revisar_em" class="form-label">Revisar em <span class="text-muted small">(opcional)</span></label>
+                                <input id="campo-cortesia_revisar_em" type="date" name="cortesia_revisar_em"
                                        class="form-control"
                                        value="{{ old('cortesia_revisar_em', $fmtDate($empresa->cortesia_revisar_em)) }}">
                             </div>
@@ -370,7 +370,7 @@
                     @php $periodicidade = old('cobranca_periodicidade', $empresa->cobranca_periodicidade); @endphp
                     <div class="row g-3">
                         <div class="col-md-3">
-                            <label class="form-label">Periodicidade</label>
+                            <label for="cobranca_periodicidade" class="form-label">Periodicidade</label>
                             <select name="cobranca_periodicidade" id="cobranca_periodicidade" class="form-select">
                                 <option value="">— sem cobrança direta —</option>
                                 <option value="mensal" {{ $periodicidade === 'mensal' ? 'selected' : '' }}>Mensal</option>
@@ -378,22 +378,22 @@
                             </select>
                         </div>
                         <div class="col-md-3 cobranca-campo" data-quando="mensal anual">
-                            <label class="form-label">Valor (R$)</label>
-                            <input type="number" step="0.01" min="0" name="cobranca_valor"
+                            <label for="campo-cobranca_valor" class="form-label">Valor (R$)</label>
+                            <input id="campo-cobranca_valor" type="number" step="0.01" min="0" name="cobranca_valor"
                                    class="form-control @error('cobranca_valor') is-invalid @enderror"
                                    value="{{ old('cobranca_valor', $empresa->cobranca_valor) }}" placeholder="0,00">
                             @error('cobranca_valor')<div class="invalid-feedback">{{ $message }}</div>@enderror
                         </div>
                         <div class="col-md-3 cobranca-campo" data-quando="mensal">
-                            <label class="form-label">Dia do vencimento</label>
-                            <input type="number" min="1" max="28" name="cobranca_dia_vencimento"
+                            <label for="campo-cobranca_dia_vencimento" class="form-label">Dia do vencimento</label>
+                            <input id="campo-cobranca_dia_vencimento" type="number" min="1" max="28" name="cobranca_dia_vencimento"
                                    class="form-control @error('cobranca_dia_vencimento') is-invalid @enderror"
                                    value="{{ old('cobranca_dia_vencimento', $empresa->cobranca_dia_vencimento) }}" placeholder="ex.: 10">
                             @error('cobranca_dia_vencimento')<div class="invalid-feedback">{{ $message }}</div>@enderror
                         </div>
                         <div class="col-md-3 cobranca-campo" data-quando="anual">
-                            <label class="form-label">Próxima renovação</label>
-                            <input type="date" name="cobranca_proxima_renovacao"
+                            <label for="campo-cobranca_proxima_renovacao" class="form-label">Próxima renovação</label>
+                            <input id="campo-cobranca_proxima_renovacao" type="date" name="cobranca_proxima_renovacao"
                                    class="form-control @error('cobranca_proxima_renovacao') is-invalid @enderror"
                                    value="{{ old('cobranca_proxima_renovacao', $empresa->cobranca_proxima_renovacao?->format('Y-m-d')) }}">
                             @error('cobranca_proxima_renovacao')<div class="invalid-feedback">{{ $message }}</div>@enderror
@@ -402,17 +402,17 @@
 
                     <div class="row g-3 mt-1 cobranca-campo" data-quando="mensal anual">
                         <div class="col-md-4">
-                            <label class="form-label">Geração da fatura</label>
+                            <label for="campo-cobranca_geracao" class="form-label">Geração da fatura</label>
                             @php $geracao = old('cobranca_geracao', $empresa->cobranca_geracao ?? 'automatica'); @endphp
-                            <select name="cobranca_geracao" class="form-select">
+                            <select id="campo-cobranca_geracao" name="cobranca_geracao" class="form-select">
                                 <option value="automatica" {{ $geracao === 'automatica' ? 'selected' : '' }}>Automática (todo ciclo)</option>
                                 <option value="manual" {{ $geracao === 'manual' ? 'selected' : '' }}>Manual (eu gero quando quiser)</option>
                             </select>
                         </div>
                         <div class="col-md-4">
-                            <label class="form-label">Tolerância após o vencimento</label>
+                            <label for="campo-cobranca_tolerancia_dias" class="form-label">Tolerância após o vencimento</label>
                             <div class="input-group">
-                                <input type="number" min="0" max="90" name="cobranca_tolerancia_dias"
+                                <input id="campo-cobranca_tolerancia_dias" type="number" min="0" max="90" name="cobranca_tolerancia_dias"
                                        class="form-control"
                                        value="{{ old('cobranca_tolerancia_dias', $empresa->cobranca_tolerancia_dias ?? 5) }}">
                                 <span class="input-group-text">dias</span>
@@ -587,7 +587,7 @@
             {{-- Observacoes --}}
             <div class="card section-card shadow-sm mb-4">
                 <div class="card-header">
-                    <h6 class="mb-0"><i class="bi bi-chat-text me-2 text-warning"></i>Observacoes</h6>
+                    <h6 class="mb-0"><i class="bi bi-chat-text me-2 text-warning"></i>Observações</h6>
                 </div>
                 <div class="card-body">
                     <textarea class="form-control @error('observacoes') is-invalid @enderror"
@@ -618,7 +618,7 @@
     <div class="btn-actions">
         <div class="d-flex gap-2">
             <button type="submit" class="btn btn-primary px-4">
-                <i class="bi bi-check-lg me-1"></i> Salvar Alteracoes
+                <i class="bi bi-check-lg me-1"></i> Salvar Alterações
             </button>
             <a href="{{ route('admin.empresas.show', $empresa) }}" class="btn btn-outline-secondary">Cancelar</a>
         </div>

@@ -203,15 +203,11 @@
 
 @section('content')
 {{-- Header --}}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <div>
-        <h4 class="fw-bold mb-1"><i class="bi bi-person-plus me-2"></i>Novo Cliente</h4>
-        <p class="text-muted mb-0 small">Siga os passos para cadastrar um novo cliente</p>
-    </div>
+<x-erp.page-header title="Novo Cliente" icon="person-plus" subtitle="Siga os passos para cadastrar um novo cliente">
     <a href="{{ route('app.clientes.index') }}" class="btn btn-outline-secondary rounded-pill px-3">
-        <i class="bi bi-arrow-left me-1"></i> Voltar
-    </a>
-</div>
+            <i class="bi bi-arrow-left me-1"></i> Voltar
+        </a>
+</x-erp.page-header>
 
 {{-- Progress Indicator --}}
 <div class="wizard-progress" id="wizardProgress">
@@ -232,7 +228,7 @@
     <div class="step-item">
         <div class="step-circle" data-step="3">
             3
-            <span class="step-label">Endereco</span>
+            <span class="step-label">Endereço</span>
         </div>
     </div>
     <div class="step-item"><div class="step-line" data-line="3"></div></div>
@@ -262,7 +258,7 @@
                     <div class="wizard-option {{ old('tipo_pessoa') === 'pf' ? 'selected' : '' }}" data-type="pf" onclick="selectType('pf')">
                         <div class="text-center p-4 p-md-5">
                             <i class="bi bi-person" style="font-size:3rem;color:var(--primary)"></i>
-                            <h4 class="mt-3">Pessoa Fisica</h4>
+                            <h4 class="mt-3">Pessoa Física</h4>
                             <p class="text-muted mb-0">Cliente individual com CPF</p>
                         </div>
                     </div>
@@ -271,7 +267,7 @@
                     <div class="wizard-option {{ old('tipo_pessoa') === 'pj' ? 'selected' : '' }}" data-type="pj" onclick="selectType('pj')">
                         <div class="text-center p-4 p-md-5">
                             <i class="bi bi-building" style="font-size:3rem;color:var(--primary)"></i>
-                            <h4 class="mt-3">Pessoa Juridica</h4>
+                            <h4 class="mt-3">Pessoa Jurídica</h4>
                             <p class="text-muted mb-0">Empresa com CNPJ</p>
                         </div>
                     </div>
@@ -336,11 +332,11 @@
 
                 {{-- IE (PJ only) --}}
                 <div class="col-md-6 campos-pj" style="display:none;">
-                    <label for="ie" class="form-label">Inscricao Estadual</label>
+                    <label for="ie" class="form-label">Inscrição Estadual</label>
                     <input type="text" name="ie" id="ie"
                            class="form-control @error('ie') is-invalid @enderror"
                            value="{{ old('ie') }}"
-                           placeholder="Isento ou numero">
+                           placeholder="Isento ou número">
                     @error('ie')
                         <div class="text-danger small mt-1">{{ $message }}</div>
                     @enderror
@@ -352,7 +348,7 @@
              STEP 3 — Endereco
              ═══════════════════════════════════════════════════ --}}
         <div class="wizard-step" data-step="3">
-            <h5 class="step-title">Endereco</h5>
+            <h5 class="step-title">Endereço</h5>
             <p class="step-subtitle">Digite o CEP para preencher automaticamente</p>
 
             <div class="row g-3">
@@ -382,7 +378,7 @@
                 </div>
 
                 <div class="col-md-3">
-                    <label for="numero" class="form-label">Numero</label>
+                    <label for="numero" class="form-label">Número</label>
                     <input type="text" name="numero" id="numero"
                            class="form-control @error('numero') is-invalid @enderror"
                            value="{{ old('numero') }}">
@@ -441,7 +437,7 @@
              ═══════════════════════════════════════════════════ --}}
         <div class="wizard-step" data-step="4">
             <h5 class="step-title">Contato</h5>
-            <p class="step-subtitle">Como voce se comunica com esse cliente?</p>
+            <p class="step-subtitle">Como você se comunica com esse cliente?</p>
 
             <div class="row g-3">
                 <div class="col-md-6">
@@ -489,7 +485,7 @@
 
                 <div class="col-md-6">
                     <label for="limite_credito" class="form-label">
-                        Limite de Credito <span class="text-muted fw-normal">(opcional)</span>
+                        Limite de Crédito <span class="text-muted fw-normal">(opcional)</span>
                     </label>
                     <div class="input-group">
                         <span class="input-group-text bg-white fw-semibold">R$</span>
@@ -517,11 +513,11 @@
 
                 <div class="col-12">
                     <label for="observacoes" class="form-label">
-                        Observacoes <span class="text-muted fw-normal">(opcional)</span>
+                        Observações <span class="text-muted fw-normal">(opcional)</span>
                     </label>
                     <textarea name="observacoes" id="observacoes"
                               class="form-control @error('observacoes') is-invalid @enderror"
-                              rows="2" placeholder="Informacoes adicionais sobre o cliente...">{{ old('observacoes') }}</textarea>
+                              rows="2" placeholder="Informações adicionais sobre o cliente...">{{ old('observacoes') }}</textarea>
                     @error('observacoes')
                         <div class="text-danger small mt-1">{{ $message }}</div>
                     @enderror
@@ -538,7 +534,7 @@
             </button>
             <div id="navSpacer"></div>
             <button type="button" class="btn btn-primary rounded-pill" id="btnAvancar" onclick="goToStep(currentStep + 1)">
-                Avancar <i class="bi bi-arrow-right ms-1"></i>
+                Avançar <i class="bi bi-arrow-right ms-1"></i>
             </button>
             <button type="submit" class="btn btn-success rounded-pill" id="btnSalvar" style="display:none;">
                 <i class="bi bi-check-lg me-1"></i> Salvar Cliente

@@ -1,9 +1,9 @@
 @extends('layouts.app')
 
-@section('title', 'Detalhes da Transferencia')
+@section('title', 'Detalhes da Transferência')
 
 @section('content')
-<x-erp.page-header title="Transferencia #{{ $transferencia->id }}" subtitle="Solicitada em {{ $transferencia->created_at->format('d/m/Y \a\s H:i') }}" icon="truck">
+<x-erp.page-header title="Transferência #{{ $transferencia->id }}" subtitle="Solicitada em {{ $transferencia->created_at->format('d/m/Y \a\s H:i') }}" icon="truck">
     <a href="{{ route('app.transferencias.index') }}" class="btn btn-erp-outline">
         <i class="bi bi-arrow-left me-1"></i> Voltar
     </a>
@@ -55,7 +55,8 @@
 <div class="row g-4 mt-1">
     <div class="col-lg-8">
         {{-- General Info --}}
-        <x-erp.card title="Informacoes Gerais" icon="info-circle">
+        <x-erp.card title="Informações Gerais" icon="info-circle">
+            <div class="table-responsive">
             <table class="table table-borderless mb-0">
                 <tr>
                     <th width="40%">Unidade Origem</th>
@@ -75,15 +76,16 @@
                 </tr>
                 @if($transferencia->observacoes)
                 <tr>
-                    <th>Observacoes</th>
+                    <th>Observações</th>
                     <td>{{ $transferencia->observacoes }}</td>
                 </tr>
                 @endif
             </table>
+            </div>
         </x-erp.card>
 
         {{-- Items --}}
-        <x-erp.card title="Itens da Transferencia" icon="box-seam" class="mt-4">
+        <x-erp.card title="Itens da Transferência" icon="box-seam" class="mt-4">
             <div class="d-flex justify-content-end mb-2">
                 <span class="badge bg-primary rounded-pill">{{ $transferencia->itens->count() }} {{ $transferencia->itens->count() === 1 ? 'item' : 'itens' }}</span>
             </div>
@@ -115,18 +117,18 @@
 
         {{-- Action buttons --}}
         @if($transferencia->status === 'solicitada')
-        <x-erp.card title="Acoes" icon="lightning" class="mt-4">
+        <x-erp.card title="Ações" icon="lightning" class="mt-4">
             <div class="d-flex gap-2">
                 <form method="POST" action="{{ route('app.transferencias.aprovar', $transferencia) }}"
-                    data-confirm="Confirma a aprovacao desta transferencia? O estoque sera movimentado automaticamente.">
+                    data-confirm="Confirma a aprovação desta transferência? O estoque sera movimentado automaticamente.">
                     @csrf
                     @method('PATCH')
                     <button type="submit" class="btn btn-success btn-lg">
-                        <i class="bi bi-check-circle me-1"></i> Aprovar Transferencia
+                        <i class="bi bi-check-circle me-1"></i> Aprovar Transferência
                     </button>
                 </form>
                 <form method="POST" action="{{ route('app.transferencias.cancelar', $transferencia) }}"
-                    data-confirm="Confirma o cancelamento desta transferencia?">
+                    data-confirm="Confirma o cancelamento desta transferência?">
                     @csrf
                     @method('PATCH')
                     <button type="submit" class="btn btn-outline-danger btn-lg">
@@ -140,13 +142,13 @@
 
     {{-- Sidebar --}}
     <div class="col-lg-4">
-        <x-erp.card title="Historico" icon="clock-history">
+        <x-erp.card title="Histórico" icon="clock-history">
             <div class="d-flex align-items-start mb-3">
                 <div class="rounded-circle bg-primary bg-opacity-10 p-2 me-3" style="min-width:36px;height:36px;display:flex;align-items:center;justify-content:center;">
                     <i class="bi bi-send text-primary small"></i>
                 </div>
                 <div>
-                    <div class="fw-semibold small">Solicitacao criada</div>
+                    <div class="fw-semibold small">Solicitação criada</div>
                     <div class="text-muted small">{{ $transferencia->created_at->format('d/m/Y H:i') }}</div>
                     <div class="text-muted small">por {{ $transferencia->solicitante->name ?? '-' }}</div>
                 </div>

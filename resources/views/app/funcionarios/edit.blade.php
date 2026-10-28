@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Editar Funcionario')
+@section('title', 'Editar Funcionário')
 
 @push('styles')
 <style>
@@ -90,7 +90,7 @@
 {{-- Header --}}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
-        <h4 class="fw-bold mb-1"><i class="bi bi-pencil-square me-2"></i>Editar Funcionario</h4>
+        <h4 class="fw-bold mb-1"><i class="bi bi-pencil-square me-2"></i>Editar Funcionário</h4>
         <p class="text-muted mb-0 small">{{ $funcionario->name }}</p>
     </div>
     <a href="{{ route('app.funcionarios.index') }}" class="btn btn-outline-secondary rounded-pill px-3">
@@ -109,7 +109,7 @@
     </div>
     <div class="step-item"><div class="step-line" data-line="2"></div></div>
     <div class="step-item">
-        <div class="step-circle" data-step="3">3<span class="step-label">Configuracao</span></div>
+        <div class="step-circle" data-step="3">3<span class="step-label">Configuração</span></div>
     </div>
 </div>
 
@@ -123,7 +123,7 @@
         {{-- STEP 1 — Dados Pessoais --}}
         <div class="wizard-step active" data-step="1">
             <h5 class="step-title">Dados Pessoais</h5>
-            <p class="step-subtitle">Informacoes pessoais do funcionario</p>
+            <p class="step-subtitle">Informações pessoais do funcionário</p>
 
             <div class="row g-3">
                 <div class="col-md-6">
@@ -203,7 +203,7 @@
                     <div class="perfil-option {{ old('perfil', $funcionario->perfil?->value) === 'vendedor' ? 'selected' : '' }}" data-perfil="vendedor" onclick="selectPerfil('vendedor')">
                         <i class="bi bi-bag perfil-icon d-block"></i>
                         <h6>Vendedor</h6>
-                        <p>Registra vendas e orcamentos</p>
+                        <p>Registra vendas e orçamentos</p>
                     </div>
                 </div>
                 <div class="col-6 col-md-4">
@@ -217,14 +217,14 @@
                     <div class="perfil-option {{ old('perfil', $funcionario->perfil?->value) === 'financeiro' ? 'selected' : '' }}" data-perfil="financeiro" onclick="selectPerfil('financeiro')">
                         <i class="bi bi-graph-up perfil-icon d-block"></i>
                         <h6>Financeiro</h6>
-                        <p>Gerencia contas e relatorios</p>
+                        <p>Gerencia contas e relatórios</p>
                     </div>
                 </div>
                 <div class="col-6 col-md-4">
                     <div class="perfil-option {{ old('perfil', $funcionario->perfil?->value) === 'consulta' ? 'selected' : '' }}" data-perfil="consulta" onclick="selectPerfil('consulta')">
                         <i class="bi bi-eye perfil-icon d-block"></i>
                         <h6>Consulta</h6>
-                        <p>Apenas visualizacao</p>
+                        <p>Apenas visualização</p>
                     </div>
                 </div>
             </div>
@@ -234,12 +234,12 @@
 
         {{-- STEP 3 — Configuracao --}}
         <div class="wizard-step" data-step="3">
-            <h5 class="step-title">Configuracao</h5>
-            <p class="step-subtitle">Comissao, status e unidades de acesso</p>
+            <h5 class="step-title">Configuração</h5>
+            <p class="step-subtitle">Comissão, status e unidades de acesso</p>
 
             <div class="row g-3">
                 <div class="col-md-5">
-                    <label for="comissao_percentual" class="form-label">Comissao (%)</label>
+                    <label for="comissao_percentual" class="form-label">Comissão (%)</label>
                     <div class="input-group">
                         <input type="number" name="comissao_percentual" id="comissao_percentual"
                                class="form-control @error('comissao_percentual') is-invalid @enderror"
@@ -261,7 +261,7 @@
                 <div class="col-12 mt-3">
                     <label class="form-label fw-semibold mb-3">Unidade(s) de Acesso</label>
                     @if($unidades->isEmpty())
-                        <p class="text-muted">Nenhuma unidade disponivel</p>
+                        <p class="text-muted">Nenhuma unidade disponível</p>
                     @else
                         @php $funcUnidades = $funcionario->unidades->pluck('id')->toArray(); @endphp
                         <div class="row g-2">
@@ -291,10 +291,10 @@
             </button>
             <div id="navSpacer"></div>
             <button type="button" class="btn btn-primary rounded-pill" id="btnAvancar" onclick="goToStep(currentStep + 1)">
-                Avancar <i class="bi bi-arrow-right ms-1"></i>
+                Avançar <i class="bi bi-arrow-right ms-1"></i>
             </button>
             <button type="submit" class="btn btn-success rounded-pill" id="btnSalvar" style="display:none;">
-                <i class="bi bi-check-lg me-1"></i> Atualizar Funcionario
+                <i class="bi bi-check-lg me-1"></i> Atualizar Funcionário
             </button>
         </div>
 

@@ -158,15 +158,11 @@
 
 @section('content')
 {{-- Header --}}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <div>
-        <h4 class="fw-bold mb-1"><i class="bi bi-truck me-2"></i>Novo Fornecedor</h4>
-        <p class="text-muted mb-0 small">Siga os passos para cadastrar um novo fornecedor</p>
-    </div>
+<x-erp.page-header title="Novo Fornecedor" icon="truck" subtitle="Siga os passos para cadastrar um novo fornecedor">
     <a href="{{ route('app.fornecedores.index') }}" class="btn btn-outline-secondary rounded-pill px-3">
-        <i class="bi bi-arrow-left me-1"></i> Voltar
-    </a>
-</div>
+            <i class="bi bi-arrow-left me-1"></i> Voltar
+        </a>
+</x-erp.page-header>
 
 {{-- Progress Indicator --}}
 <div class="wizard-progress" id="wizardProgress">
@@ -180,7 +176,7 @@
     <div class="step-item">
         <div class="step-circle" data-step="2">
             2
-            <span class="step-label">Endereco</span>
+            <span class="step-label">Endereço</span>
         </div>
     </div>
     <div class="step-item"><div class="step-line" data-line="2"></div></div>
@@ -224,11 +220,11 @@
                 </div>
 
                 <div class="col-md-7">
-                    <label for="razao_social" class="form-label required-dot">Razao Social</label>
+                    <label for="razao_social" class="form-label required-dot">Razão Social</label>
                     <input type="text" name="razao_social" id="razao_social"
                            class="form-control @error('razao_social') is-invalid @enderror"
                            value="{{ old('razao_social', request('razao_social')) }}"
-                           placeholder="Razao social ou nome completo" required>
+                           placeholder="Razão social ou nome completo" required>
                     @error('razao_social')
                         <div class="text-danger small mt-1">{{ $message }}</div>
                     @enderror
@@ -252,7 +248,7 @@
              STEP 2 — Endereco
              ═══════════════════════════════════════════════════ --}}
         <div class="wizard-step" data-step="2">
-            <h5 class="step-title">Endereco</h5>
+            <h5 class="step-title">Endereço</h5>
             <p class="step-subtitle">Digite o CEP para preencher automaticamente</p>
 
             <div class="row g-3">
@@ -282,7 +278,7 @@
                 </div>
 
                 <div class="col-md-3">
-                    <label for="numero" class="form-label">Numero</label>
+                    <label for="numero" class="form-label">Número</label>
                     <input type="text" name="numero" id="numero"
                            class="form-control @error('numero') is-invalid @enderror"
                            value="{{ old('numero') }}" placeholder="123">
@@ -341,7 +337,7 @@
              ═══════════════════════════════════════════════════ --}}
         <div class="wizard-step" data-step="3">
             <h5 class="step-title">Contato e Condicoes</h5>
-            <p class="step-subtitle">Informacoes de contato e condicoes comerciais</p>
+            <p class="step-subtitle">Informações de contato e condicoes comerciais</p>
 
             <div class="row g-3">
                 <div class="col-md-12">
@@ -406,7 +402,7 @@
             </button>
             <div id="navSpacer"></div>
             <button type="button" class="btn btn-primary rounded-pill" id="btnAvancar" onclick="goToStep(currentStep + 1)">
-                Avancar <i class="bi bi-arrow-right ms-1"></i>
+                Avançar <i class="bi bi-arrow-right ms-1"></i>
             </button>
             <button type="submit" class="btn btn-success rounded-pill" id="btnSalvar" style="display:none;">
                 <i class="bi bi-check-lg me-1"></i> Salvar Fornecedor

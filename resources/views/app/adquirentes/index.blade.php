@@ -16,37 +16,37 @@
     <form method="POST" action="{{ route('app.adquirentes.store') }}" class="row g-2 align-items-end erp-form">
         @csrf
         <div class="col-md-3">
-            <label class="form-label">Adquirente / máquina</label>
-            <input type="text" name="nome" class="form-control @error('nome') is-invalid @enderror"
+            <label for="campo-nome" class="form-label">Adquirente / máquina</label>
+            <input id="campo-nome" type="text" name="nome" class="form-control @error('nome') is-invalid @enderror"
                    placeholder="Stone, Cielo, PagSeguro..." value="{{ old('nome') }}" required>
         </div>
         <div class="col-md-2">
-            <label class="form-label">Forma</label>
-            <select name="forma" class="form-select" required>
+            <label for="campo-forma" class="form-label">Forma</label>
+            <select id="campo-forma" name="forma" class="form-select" required>
                 @foreach($formas as $valor => $label)
                     <option value="{{ $valor }}" @selected(old('forma') === $valor)>{{ $label }}</option>
                 @endforeach
             </select>
         </div>
         <div class="col-md-1">
-            <label class="form-label">Parc. de</label>
-            <input type="number" name="parcelas_de" class="form-control" min="1" max="24" value="{{ old('parcelas_de', 1) }}" required>
+            <label for="campo-parcelas_de" class="form-label">Parc. de</label>
+            <input id="campo-parcelas_de" type="number" name="parcelas_de" class="form-control" min="1" max="24" value="{{ old('parcelas_de', 1) }}" required>
         </div>
         <div class="col-md-1">
-            <label class="form-label">até</label>
-            <input type="number" name="parcelas_ate" class="form-control" min="1" max="24" value="{{ old('parcelas_ate', 1) }}" required>
+            <label for="campo-parcelas_ate" class="form-label">até</label>
+            <input id="campo-parcelas_ate" type="number" name="parcelas_ate" class="form-control" min="1" max="24" value="{{ old('parcelas_ate', 1) }}" required>
         </div>
         <div class="col-md-2">
-            <label class="form-label">Taxa (%)</label>
-            <input type="number" name="taxa_percentual" step="0.01" min="0" max="100" class="form-control" value="{{ old('taxa_percentual', '0.00') }}" required>
+            <label for="campo-taxa_percentual" class="form-label">Taxa (%)</label>
+            <input id="campo-taxa_percentual" type="number" name="taxa_percentual" step="0.01" min="0" max="100" class="form-control" value="{{ old('taxa_percentual', '0.00') }}" required>
         </div>
         <div class="col-md-2">
-            <label class="form-label">Prazo (D+)</label>
-            <input type="number" name="prazo_dias" min="0" max="365" class="form-control" value="{{ old('prazo_dias', 1) }}" required>
+            <label for="campo-prazo_dias" class="form-label">Prazo (D+)</label>
+            <input id="campo-prazo_dias" type="number" name="prazo_dias" min="0" max="365" class="form-control" value="{{ old('prazo_dias', 1) }}" required>
         </div>
         <div class="col-md-1">
             <input type="hidden" name="ativo" value="1">
-            <button type="submit" class="btn btn-primary w-100"><i class="bi bi-plus-lg"></i></button>
+            <button type="submit" class="btn btn-primary w-100" aria-label="Adicionar"><i class="bi bi-plus-lg" aria-hidden="true"></i></button>
         </div>
         @error('parcelas_ate')<div class="col-12 text-danger small">{{ $message }}</div>@enderror
     </form>

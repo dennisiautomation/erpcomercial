@@ -34,7 +34,7 @@
             <div class="empty-state">
                 <i class="bi bi-diagram-3 d-block"></i>
                 <h5>Nenhuma conta cadastrada</h5>
-                <p>Crie a primeira conta para comecar.</p>
+                <p>Crie a primeira conta para começar.</p>
                 <a href="{{ route('app.plano-contas.create') }}" class="btn btn-erp btn-erp-primary btn-sm">
                     <i class="bi bi-plus-lg me-1"></i> Cadastrar Primeira Conta
                 </a>
@@ -44,12 +44,12 @@
                 <table class="erp-table">
                     <thead>
                         <tr>
-                            <th>Codigo</th>
+                            <th>Código</th>
                             <th>Nome</th>
                             <th>Tipo</th>
                             <th>Natureza</th>
                             <th>Status</th>
-                            <th class="text-end">Acoes</th>
+                            <th class="text-end">Ações</th>
                         </tr>
                     </thead>
                     <tbody>

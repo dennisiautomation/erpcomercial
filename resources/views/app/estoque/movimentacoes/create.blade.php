@@ -1,9 +1,9 @@
 @extends('layouts.app')
 
-@section('title', 'Nova Movimentacao de Estoque')
+@section('title', 'Nova Movimentação de Estoque')
 
 @section('content')
-<x-erp.page-header title="Nova Movimentacao de Estoque" subtitle="Registre entradas, ajustes, perdas ou bonificacoes — varios itens de uma vez" icon="plus-circle">
+<x-erp.page-header title="Nova Movimentação de Estoque" subtitle="Registre entradas, ajustes, perdas ou bonificacoes — varios itens de uma vez" icon="plus-circle">
     <a href="{{ route('app.movimentacoes.index') }}" class="btn btn-erp-outline">
         <i class="bi bi-arrow-left me-1"></i> Voltar
     </a>
@@ -14,7 +14,7 @@
         <form method="POST" action="{{ route('app.movimentacoes.store') }}" id="form-movimentacao">
             @csrf
 
-            <x-erp.form-section title="Tipo de Movimentacao" icon="arrow-left-right">
+            <x-erp.form-section title="Tipo de Movimentação" icon="arrow-left-right">
                 <div class="row g-2" id="tipo-cards">
                     <div class="col-6 col-md-3">
                         <input type="radio" name="tipo" value="entrada" id="tipo-entrada" class="btn-check" {{ old('tipo', 'entrada') == 'entrada' ? 'checked' : '' }} required>
@@ -75,7 +75,7 @@
             </x-erp.form-section>
             @endif
 
-            <x-erp.form-section title="Itens da Movimentacao" icon="box-seam">
+            <x-erp.form-section title="Itens da Movimentação" icon="box-seam">
                 <div class="d-flex justify-content-end mb-3">
                     <button type="button" class="btn btn-success btn-sm" id="btn-add-item">
                         <i class="bi bi-plus-lg me-1"></i> Adicionar Item
@@ -96,12 +96,12 @@
                                     <div class="busca-produto" data-name="itens[0][produto_id]"></div>
                                 </div>
                                 <div class="col-md-2">
-                                    <label class="form-label small fw-semibold text-muted">Quantidade</label>
-                                    <input type="number" name="itens[0][quantidade]" class="form-control" step="0.001" min="0.001" placeholder="0,000" required>
+                                    <label for="campo-itens-0-quantidade" class="form-label small fw-semibold text-muted">Quantidade</label>
+                                    <input id="campo-itens-0-quantidade" type="number" name="itens[0][quantidade]" class="form-control" step="0.001" min="0.001" placeholder="0,000" required>
                                 </div>
                                 <div class="col-md-2">
-                                    <label class="form-label small fw-semibold text-muted">Custo Unit. (R$)</label>
-                                    <input type="number" name="itens[0][custo_unitario]" class="form-control" step="0.01" min="0" placeholder="0,00">
+                                    <label for="campo-itens-0-custo_unitario" class="form-label small fw-semibold text-muted">Custo Unit. (R$)</label>
+                                    <input id="campo-itens-0-custo_unitario" type="number" name="itens[0][custo_unitario]" class="form-control" step="0.01" min="0" placeholder="0,00">
                                 </div>
                                 <div class="col-md-2 d-flex align-items-end">
                                     <button type="button" class="btn btn-outline-danger btn-sm btn-remove-item" disabled>
@@ -178,21 +178,21 @@
                 </x-erp.form-section>
             </div>
 
-            <x-erp.form-section title="Observacoes" icon="chat-text">
+            <x-erp.form-section title="Observações" icon="chat-text">
                 <div class="mb-4">
-                    <label for="observacoes" class="form-label fw-semibold">Observacoes</label>
+                    <label for="observacoes" class="form-label fw-semibold">Observações</label>
                     <textarea name="observacoes" id="observacoes" rows="3"
                         class="form-control @error('observacoes') is-invalid @enderror"
-                        placeholder="Motivo da movimentacao, nota do fornecedor, referencia, etc.">{{ old('observacoes') }}</textarea>
+                        placeholder="Motivo da movimentação, nota do fornecedor, referência, etc.">{{ old('observacoes') }}</textarea>
                     @error('observacoes')
                         <div class="invalid-feedback">{{ $message }}</div>
                     @enderror
-                    <div class="form-text">Maximo 500 caracteres — vale para todos os itens</div>
+                    <div class="form-text">Máximo 500 caracteres — vale para todos os itens</div>
                 </div>
 
                 <div class="d-flex gap-2">
                     <button type="submit" class="btn btn-erp-primary btn-lg px-4">
-                        <i class="bi bi-check-lg me-1"></i> Registrar Movimentacao
+                        <i class="bi bi-check-lg me-1"></i> Registrar Movimentação
                     </button>
                     <a href="{{ route('app.movimentacoes.index') }}" class="btn btn-erp-outline btn-lg">Cancelar</a>
                 </div>
@@ -202,7 +202,7 @@
 
     {{-- Side help --}}
     <div class="col-lg-3">
-        <x-erp.card title="Tipos de Movimentacao" icon="question-circle">
+        <x-erp.card title="Tipos de Movimentação" icon="question-circle">
             <div class="mb-3">
                 <span class="badge bg-success rounded-pill me-1">Entrada</span>
                 <small class="text-muted">Adiciona produtos ao estoque (compras, recebimentos)</small>
@@ -217,10 +217,10 @@
             </div>
             <div class="mb-3">
                 <span class="badge bg-info text-dark rounded-pill me-1">Bonificacao</span>
-                <small class="text-muted">Saida para brindes ou amostras</small>
+                <small class="text-muted">Saída para brindes ou amostras</small>
             </div>
             <hr>
-            <small class="text-muted">Adicione quantos itens precisar — todos entram de uma vez, no mesmo tipo de movimentacao.</small>
+            <small class="text-muted">Adicione quantos itens precisar — todos entram de uma vez, no mesmo tipo de movimentação.</small>
         </x-erp.card>
     </div>
 </div>

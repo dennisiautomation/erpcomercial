@@ -1,9 +1,9 @@
 @extends('layouts.app')
 
-@section('title', 'Notificacoes')
+@section('title', 'Notificações')
 
 @section('content')
-<x-erp.page-header title="Notificacoes">
+<x-erp.page-header title="Notificações">
     @if($notificacoes->where('lida', false)->count() > 0)
         <form method="POST" action="{{ route('app.notificacoes.todas-lidas') }}">
             @csrf
@@ -60,8 +60,8 @@
         @empty
             <x-erp.empty-state
                 icon="bell-slash"
-                title="Nenhuma notificacao"
-                description="Voce nao tem notificacoes no momento."
+                title="Nenhuma notificação"
+                description="Você não tem notificações no momento."
             />
         @endforelse
     </div>

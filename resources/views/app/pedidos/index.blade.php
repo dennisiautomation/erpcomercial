@@ -3,20 +3,19 @@
 @section('title', 'Pedidos')
 
 @section('content')
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <div>
-        <h4 class="mb-1"><i class="bi bi-cart-check me-2"></i>Pedidos</h4>
+<x-erp.page-header title="Pedidos" icon="cart-check">
+    <x-slot:breadcrumb>
         <nav aria-label="breadcrumb">
-            <ol class="breadcrumb mb-0 small">
-                <li class="breadcrumb-item"><a href="{{ route('app.dashboard') }}">Dashboard</a></li>
-                <li class="breadcrumb-item active">Pedidos</li>
-            </ol>
-        </nav>
-    </div>
+                    <ol class="breadcrumb mb-0 small">
+                        <li class="breadcrumb-item"><a href="{{ route('app.dashboard') }}">Dashboard</a></li>
+                        <li class="breadcrumb-item active">Pedidos</li>
+                    </ol>
+                </nav>
+    </x-slot:breadcrumb>
     <a href="{{ route('app.pedidos.create') }}" class="btn btn-primary">
-        <i class="bi bi-plus-lg me-1"></i> Novo Pedido
-    </a>
-</div>
+            <i class="bi bi-plus-lg me-1"></i> Novo Pedido
+        </a>
+</x-erp.page-header>
 
 {{-- Stats Cards --}}
 <div class="row g-3 mb-4">
@@ -130,15 +129,15 @@
     <div class="card-body py-3">
         <form method="GET" class="row g-2 align-items-end">
             <div class="col-md-3">
-                <label class="form-label small fw-semibold mb-1">Buscar</label>
+                <label for="campo-busca" class="form-label small fw-semibold mb-1">Buscar</label>
                 <div class="input-group input-group-sm">
                     <span class="input-group-text bg-transparent"><i class="bi bi-search"></i></span>
-                    <input type="text" name="busca" class="form-control" placeholder="Numero ou cliente..." value="{{ request('busca') }}">
+                    <input id="campo-busca" type="text" name="busca" class="form-control" placeholder="Número ou cliente..." value="{{ request('busca') }}">
                 </div>
             </div>
             <div class="col-md-2">
-                <label class="form-label small fw-semibold mb-1">Status</label>
-                <select name="status" class="form-select form-select-sm">
+                <label for="campo-status" class="form-label small fw-semibold mb-1">Status</label>
+                <select id="campo-status" name="status" class="form-select form-select-sm">
                     <option value="">Todos</option>
                     @foreach(\App\Enums\StatusPedido::cases() as $status)
                         <option value="{{ $status->value }}" {{ request('status') === $status->value ? 'selected' : '' }}>
@@ -148,12 +147,12 @@
                 </select>
             </div>
             <div class="col-md-2">
-                <label class="form-label small fw-semibold mb-1">Data Inicio</label>
-                <input type="date" name="data_inicio" class="form-control form-control-sm" value="{{ request('data_inicio') }}">
+                <label for="campo-data_inicio" class="form-label small fw-semibold mb-1">Data Início</label>
+                <input id="campo-data_inicio" type="date" name="data_inicio" class="form-control form-control-sm" value="{{ request('data_inicio') }}">
             </div>
             <div class="col-md-2">
-                <label class="form-label small fw-semibold mb-1">Data Fim</label>
-                <input type="date" name="data_fim" class="form-control form-control-sm" value="{{ request('data_fim') }}">
+                <label for="campo-data_fim" class="form-label small fw-semibold mb-1">Data Fim</label>
+                <input id="campo-data_fim" type="date" name="data_fim" class="form-control form-control-sm" value="{{ request('data_fim') }}">
             </div>
             <div class="col-md-3 d-flex gap-1">
                 <button type="submit" class="btn btn-primary btn-sm flex-fill">
@@ -173,14 +172,14 @@
         <table class="table table-hover align-middle mb-0">
             <thead>
                 <tr class="bg-light">
-                    <th class="ps-3" style="width:80px">Numero</th>
+                    <th class="ps-3" style="width:80px">Número</th>
                     <th>Data</th>
                     <th>Cliente</th>
                     <th>Vendedor</th>
                     <th class="text-center">Itens</th>
                     <th class="text-end">Total</th>
                     <th class="text-center">Status</th>
-                    <th class="text-center pe-3" style="width:160px">Acoes</th>
+                    <th class="text-center pe-3" style="width:160px">Ações</th>
                 </tr>
             </thead>
             <tbody>

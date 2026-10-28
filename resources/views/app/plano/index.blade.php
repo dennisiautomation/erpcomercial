@@ -3,21 +3,20 @@
 @section('title', 'Meu Plano')
 
 @section('content')
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h4 class="mb-0"><i class="bi bi-credit-card-2-front me-2"></i>Meu Plano</h4>
+<x-erp.page-header title="Meu Plano" icon="credit-card-2-front">
     <a href="{{ route('app.plano.comparar') }}" class="btn btn-outline-primary">
-        <i class="bi bi-arrow-left-right me-1"></i> Comparar Planos
-    </a>
-</div>
+            <i class="bi bi-arrow-left-right me-1"></i> Comparar Planos
+        </a>
+</x-erp.page-header>
 
 {{-- Trial Banner --}}
 @if($empresa->em_trial && $empresa->isTrialActive())
     <div class="alert alert-warning d-flex align-items-center mb-4">
         <i class="bi bi-clock-history fs-4 me-3"></i>
         <div>
-            <strong>Periodo de avaliacao</strong> &mdash;
+            <strong>Período de avaliação</strong> &mdash;
             Restam <strong>{{ $empresa->diasRestantesTrial() }}</strong> dias no seu trial.
-            <a href="{{ route('app.plano.comparar') }}">Assine agora</a> para nao perder acesso.
+            <a href="{{ route('app.plano.comparar') }}">Assine agora</a> para não perder acesso.
         </div>
     </div>
 @endif
@@ -40,7 +39,7 @@
                     <div class="fw-bold fs-5">R$ {{ number_format($planoAtual->preco_mensal, 2, ',', '.') }}</div>
                 </div>
                 <div class="col-md-4">
-                    <small class="text-muted">Tipo de Cobranca</small>
+                    <small class="text-muted">Tipo de Cobrança</small>
                     <div class="fw-bold">{{ ucfirst($empresa->tipo_cobranca) }}</div>
                 </div>
                 <div class="col-md-4">
@@ -51,7 +50,7 @@
                         @elseif($empresa->isAssinaturaAtiva())
                             <span class="badge bg-success">Ativo</span>
                             @if($empresa->assinatura_fim)
-                                <small class="text-muted ms-1">ate {{ $empresa->assinatura_fim->format('d/m/Y') }}</small>
+                                <small class="text-muted ms-1">até {{ $empresa->assinatura_fim->format('d/m/Y') }}</small>
                             @endif
                         @else
                             <span class="badge bg-danger">Expirado</span>

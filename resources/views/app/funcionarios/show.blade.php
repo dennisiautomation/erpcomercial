@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Detalhes do Funcionario')
+@section('title', 'Detalhes do Funcionário')
 
 @section('content')
 <x-erp.page-header title="{{ $funcionario->name }}" icon="person-fill">
@@ -23,7 +23,7 @@
                 <strong>Perfil:</strong>
                 <span class="badge bg-primary">{{ $funcionario->perfil?->label() ?? '-' }}</span>
             </p>
-            <p class="mb-1"><strong>Comissao:</strong> {{ $funcionario->comissao_percentual ? number_format($funcionario->comissao_percentual, 2, ',', '.') . '%' : '-' }}</p>
+            <p class="mb-1"><strong>Comissão:</strong> {{ $funcionario->comissao_percentual ? number_format($funcionario->comissao_percentual, 2, ',', '.') . '%' : '-' }}</p>
             <p class="mb-0">
                 <strong>Status:</strong>
                 <x-erp.status-badge :status="$funcionario->status" />
@@ -47,6 +47,6 @@
 
 <div class="text-muted small">
     Cadastrado em {{ $funcionario->created_at->format('d/m/Y H:i') }}
-    | Ultima atualizacao: {{ $funcionario->updated_at->format('d/m/Y H:i') }}
+    | Última atualização: {{ $funcionario->updated_at->format('d/m/Y H:i') }}
 </div>
 @endsection

@@ -77,8 +77,8 @@
                 </div>
                 <div class="card-body">
                     <div class="mb-3">
-                        <label class="form-label small fw-semibold">Vendedor</label>
-                        <select name="vendedor_id" class="form-select">
+                        <label for="campo-vendedor_id" class="form-label small fw-semibold">Vendedor</label>
+                        <select id="campo-vendedor_id" name="vendedor_id" class="form-select">
                             <option value="">Selecione...</option>
                             @foreach($vendedores as $v)
                                 <option value="{{ $v->id }}" {{ $pedido->vendedor_id == $v->id ? 'selected' : '' }}>{{ $v->name }}</option>
@@ -86,16 +86,16 @@
                         </select>
                     </div>
                     <div class="mb-0">
-                        <label class="form-label small fw-semibold">Condicao de Pagamento</label>
-                        <select name="condicao_pagamento" class="form-select">
+                        <label for="campo-condicao_pagamento" class="form-label small fw-semibold">Condicao de Pagamento</label>
+                        <select id="campo-condicao_pagamento" name="condicao_pagamento" class="form-select">
                             <option value="">Selecione...</option>
                             @foreach(['a_vista' => 'A Vista', '30_dias' => '30 Dias', '30_60_dias' => '30/60 Dias', '30_60_90_dias' => '30/60/90 Dias', 'cartao' => 'Cartao', 'boleto' => 'Boleto', 'pix' => 'PIX'] as $val => $label)
                                 <option value="{{ $val }}" {{ $pedido->condicao_pagamento === $val ? 'selected' : '' }}>{{ $label }}</option>
                             @endforeach
                         </select>
                         <div class="mt-2">
-                            <label class="form-label small fw-semibold">Canal da venda</label>
-                            <select name="canal" class="form-select">
+                            <label for="campo-canal" class="form-label small fw-semibold">Canal da venda</label>
+                            <select id="campo-canal" name="canal" class="form-select">
                                 @foreach(\App\Enums\CanalVenda::opcoes() as $val => $label)
                                     <option value="{{ $val }}" {{ old('canal', $pedido->canal?->value ?? 'presencial') === $val ? 'selected' : '' }}>{{ $label }}</option>
                                 @endforeach
@@ -122,12 +122,12 @@
                             <thead class="bg-light">
                                 <tr>
                                     <th class="ps-3" style="width:5%">#</th>
-                                    <th style="width:35%">Produto / Servico</th>
+                                    <th style="width:35%">Produto / Serviço</th>
                                     <th style="width:12%">Quantidade</th>
-                                    <th style="width:15%">Preco Unit. (R$)</th>
+                                    <th style="width:15%">Preço Unit. (R$)</th>
                                     <th style="width:10%">Desc. (%)</th>
                                     <th style="width:15%" class="text-end">Total (R$)</th>
-                                    <th style="width:8%" class="text-center pe-3">Acao</th>
+                                    <th style="width:8%" class="text-center pe-3">Ação</th>
                                 </tr>
                             </thead>
                             <tbody id="itensBody"></tbody>
@@ -135,7 +135,7 @@
                     </div>
                     <div id="itensVazio" class="text-center py-4 text-muted" style="display:none;">
                         <i class="bi bi-inbox fs-3 d-block mb-1"></i>
-                        Clique em "Adicionar Item" para incluir produtos ou servicos.
+                        Clique em "Adicionar Item" para incluir produtos ou serviços.
                     </div>
                 </div>
             </div>
@@ -145,18 +145,18 @@
         <div class="col-lg-6">
             <div class="card border-0 shadow-sm h-100">
                 <div class="card-header bg-transparent fw-semibold">
-                    <i class="bi bi-chat-text me-1"></i> Observacoes
+                    <i class="bi bi-chat-text me-1"></i> Observações
                 </div>
                 <div class="card-body">
                     <div class="mb-3">
-                        <label class="form-label small fw-semibold">Observacoes Internas</label>
-                        <textarea name="observacoes_internas" class="form-control" rows="3"
+                        <label for="campo-observacoes_internas" class="form-label small fw-semibold">Observações Internas</label>
+                        <textarea id="campo-observacoes_internas" name="observacoes_internas" class="form-control" rows="3"
                                   placeholder="Notas internas...">{{ $pedido->observacoes_internas }}</textarea>
                     </div>
                     <div class="mb-0">
-                        <label class="form-label small fw-semibold">Observacoes para o Cliente</label>
-                        <textarea name="observacoes_externas" class="form-control" rows="3"
-                                  placeholder="Instrucoes de entrega...">{{ $pedido->observacoes_externas }}</textarea>
+                        <label for="campo-observacoes_externas" class="form-label small fw-semibold">Observações para o Cliente</label>
+                        <textarea id="campo-observacoes_externas" name="observacoes_externas" class="form-control" rows="3"
+                                  placeholder="Instruções de entrega...">{{ $pedido->observacoes_externas }}</textarea>
                     </div>
                 </div>
             </div>
@@ -175,7 +175,7 @@
                     </div>
                     <div class="row g-2 mb-3">
                         <div class="col-6">
-                            <label class="form-label small fw-semibold">Desconto (%)</label>
+                            <label for="descontoPerc" class="form-label small fw-semibold">Desconto (%)</label>
                             <div class="input-group input-group-sm">
                                 <input type="number" name="desconto_percentual" id="descontoPerc"
                                        class="form-control" step="0.01" min="0" max="100" value="{{ $pedido->desconto_percentual ?? 0 }}">
@@ -183,7 +183,7 @@
                             </div>
                         </div>
                         <div class="col-6">
-                            <label class="form-label small fw-semibold">Desconto (R$)</label>
+                            <label for="descontoValor" class="form-label small fw-semibold">Desconto (R$)</label>
                             <div class="input-group input-group-sm">
                                 <span class="input-group-text">R$</span>
                                 <input type="number" name="desconto_valor" id="descontoValor"

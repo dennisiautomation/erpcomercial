@@ -38,8 +38,8 @@
 
 <x-erp.filter-bar :action="route('app.nfes-recebidas.index')">
     <div class="col-md-3">
-        <label class="form-label small fw-semibold">Status</label>
-        <select name="status" class="form-select form-select-sm">
+        <label for="campo-status" class="form-label small fw-semibold">Status</label>
+        <select id="campo-status" name="status" class="form-select form-select-sm">
             <option value="">Todas</option>
             <option value="pendente" @selected(request('status') === 'pendente')>Pendentes de manifestação</option>
             <option value="manifestada" @selected(request('status') === 'manifestada')>Já manifestadas</option>
@@ -49,16 +49,16 @@
         </select>
     </div>
     <div class="col-md-3">
-        <label class="form-label small fw-semibold">Emitente (nome ou CNPJ)</label>
-        <input type="text" name="emitente" value="{{ request('emitente') }}" class="form-control form-control-sm">
+        <label for="campo-emitente" class="form-label small fw-semibold">Emitente (nome ou CNPJ)</label>
+        <input id="campo-emitente" type="text" name="emitente" value="{{ request('emitente') }}" class="form-control form-control-sm">
     </div>
     <div class="col-md-2">
-        <label class="form-label small fw-semibold">De</label>
-        <input type="date" name="desde" value="{{ request('desde') }}" class="form-control form-control-sm">
+        <label for="campo-desde" class="form-label small fw-semibold">De</label>
+        <input id="campo-desde" type="date" name="desde" value="{{ request('desde') }}" class="form-control form-control-sm">
     </div>
     <div class="col-md-2">
-        <label class="form-label small fw-semibold">Até</label>
-        <input type="date" name="ate" value="{{ request('ate') }}" class="form-control form-control-sm">
+        <label for="campo-ate" class="form-label small fw-semibold">Até</label>
+        <input id="campo-ate" type="date" name="ate" value="{{ request('ate') }}" class="form-control form-control-sm">
     </div>
     <div class="col-md-2 d-flex align-items-end">
         <button type="submit" class="btn btn-sm btn-primary w-100">Filtrar</button>
@@ -191,8 +191,8 @@
                     </div>
 
                     <div data-requer-justificativa style="display:none;">
-                        <label class="form-label fw-semibold">Justificativa <small class="text-muted fw-normal">(mínimo 15 caracteres)</small></label>
-                        <textarea name="justificativa" class="form-control" rows="3" minlength="15" maxlength="255"
+                        <label for="campo-justificativa" class="form-label fw-semibold">Justificativa <small class="text-muted fw-normal">(mínimo 15 caracteres)</small></label>
+                        <textarea id="campo-justificativa" name="justificativa" class="form-control" rows="3" minlength="15" maxlength="255"
                                   placeholder="Descreva o motivo da manifestação"></textarea>
                         <div class="form-text">Obrigatória para "Operação Não Realizada" e "Desconhecimento".</div>
                     </div>

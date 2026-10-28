@@ -3,12 +3,11 @@
 @section('title', 'Nova Conta')
 
 @section('content')
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h4 class="mb-0"><i class="bi bi-plus-circle me-2"></i>Nova Conta</h4>
+<x-erp.page-header title="Nova Conta" icon="plus-circle">
     <a href="{{ route('app.plano-contas.index') }}" class="btn btn-outline-secondary">
-        <i class="bi bi-arrow-left me-1"></i> Voltar
-    </a>
-</div>
+            <i class="bi bi-arrow-left me-1"></i> Voltar
+        </a>
+</x-erp.page-header>
 
 <div class="row">
     <div class="col-lg-8">
@@ -34,7 +33,7 @@
 
                     <div class="row">
                         <div class="col-md-4 mb-3">
-                            <label for="codigo" class="form-label">Codigo <span class="text-danger">*</span></label>
+                            <label for="codigo" class="form-label">Código <span class="text-danger">*</span></label>
                             <input type="text" name="codigo" id="codigo" class="form-control @error('codigo') is-invalid @enderror"
                                    value="{{ old('codigo') }}" placeholder="Ex: 1.1.1" required>
                             @error('codigo')
@@ -94,9 +93,9 @@
                 <h6 class="mb-0"><i class="bi bi-info-circle me-1"></i> Dicas</h6>
             </div>
             <div class="card-body small text-muted">
-                <p><strong>Sintetica:</strong> Conta de grupo que agrupa subcontas. Nao recebe lancamentos diretamente.</p>
-                <p><strong>Analitica:</strong> Conta que recebe lancamentos financeiros.</p>
-                <p class="mb-0"><strong>Codigo:</strong> Use hierarquia com pontos (ex: 1, 1.1, 1.1.1).</p>
+                <p><strong>Sintetica:</strong> Conta de grupo que agrupa subcontas. Não recebe lançamentos diretamente.</p>
+                <p><strong>Analitica:</strong> Conta que recebe lançamentos financeiros.</p>
+                <p class="mb-0"><strong>Código:</strong> Use hierarquia com pontos (ex: 1, 1.1, 1.1.1).</p>
             </div>
         </div>
     </div>

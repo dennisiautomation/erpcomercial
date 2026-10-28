@@ -49,9 +49,9 @@
     </div>
     <div class="col-6 col-lg-3">
         @if($diferenca === null)
-            <x-erp.stat-card icon="hourglass-split" color="secondary" value="—" label="Diferenca (aguarda fechamento)" />
+            <x-erp.stat-card icon="hourglass-split" color="secondary" value="—" label="Diferença (aguarda fechamento)" />
         @elseif(abs($diferenca) < 0.02)
-            <x-erp.stat-card icon="check-circle" color="success" value="Confere" label="Diferenca" />
+            <x-erp.stat-card icon="check-circle" color="success" value="Confere" label="Diferença" />
         @elseif($diferenca > 0)
             <x-erp.stat-card icon="exclamation-triangle" color="warning"
                 :value="'+ R$ ' . number_format($diferenca, 2, ',', '.')" label="Sobra no fechamento" />

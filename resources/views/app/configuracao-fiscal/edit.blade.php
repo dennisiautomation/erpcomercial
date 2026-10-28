@@ -1,11 +1,10 @@
 @extends('layouts.app')
 
-@section('title', 'Configuracao Fiscal')
+@section('title', 'Configuração Fiscal')
 
 @section('content')
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h4 class="mb-0"><i class="bi bi-gear me-2"></i>Configuracao Fiscal</h4>
-</div>
+<x-erp.page-header title="Configuração Fiscal" icon="gear">
+</x-erp.page-header>
 
 @if(($lojasMesmoCnpj ?? collect())->isNotEmpty())
     <div class="alert alert-info d-flex align-items-start gap-2 mb-4">
@@ -44,8 +43,8 @@
                 @csrf
                 @method('PUT')
                 <div class="col-md-5">
-                    <label class="form-label small fw-semibold">Regime</label>
-                    <select name="regime_tributario" class="form-select">
+                    <label for="campo-regime_tributario" class="form-label small fw-semibold">Regime</label>
+                    <select id="campo-regime_tributario" name="regime_tributario" class="form-select">
                         @foreach(\App\Enums\RegimeTributario::cases() as $regime)
                             <option value="{{ $regime->value }}"
                                 {{ ($empresaAtual?->regime_tributario?->value ?? '') === $regime->value ? 'selected' : '' }}>
@@ -79,7 +78,7 @@
     @method('PUT')
 
     <div class="erp-card">
-        <div class="card-header"><i class="bi bi-shield-check me-2"></i>Configuracao Fiscal</div>
+        <div class="card-header"><i class="bi bi-shield-check me-2"></i>Configuração Fiscal</div>
         <div class="card-body">
 
             {{-- Pergunta principal --}}
@@ -95,7 +94,7 @@
                     <input type="radio" name="emissao_fiscal_ativa" value="0" id="fiscal_nao"
                            class="form-check-input" {{ !old('emissao_fiscal_ativa', $config->emissao_fiscal_ativa) ? 'checked' : '' }}
                            onchange="document.getElementById('fiscal-config').classList.add('d-none')">
-                    <label for="fiscal_nao" class="form-check-label fw-bold">Nao, apenas recibos</label>
+                    <label for="fiscal_nao" class="form-check-label fw-bold">Não, apenas recibos</label>
                 </div>
             </div>
 
@@ -122,7 +121,7 @@
                                    {{ old('tipo_cupom_pdv', $config->tipo_cupom_pdv ?? 'nao_fiscal') !== 'fiscal' ? 'checked' : '' }}>
                             <div class="erp-card p-3 text-center cursor-pointer" style="border: 2px solid transparent">
                                 <i class="bi bi-file-text fs-2 text-secondary"></i>
-                                <h6 class="mt-2 mb-1">Recibo (Nao Fiscal)</h6>
+                                <h6 class="mt-2 mb-1">Recibo (Não Fiscal)</h6>
                                 <small class="text-muted">Comprovante interno sem valor fiscal</small>
                             </div>
                         </label>
@@ -269,9 +268,9 @@
                         </div>
                     @else
                         <div class="col-md-8">
-                            <label class="form-label fw-semibold">Token Focus NFe</label>
+                            <label for="campo-focus_token" class="form-label fw-semibold">Token Focus NFe</label>
                             <div class="input-group">
-                                <input type="password" name="focus_token" class="form-control @error('focus_token') is-invalid @enderror"
+                                <input id="campo-focus_token" type="password" name="focus_token" class="form-control @error('focus_token') is-invalid @enderror"
                                        value="{{ old('focus_token', $config->focus_token) }}" id="tokenInput"
                                        placeholder="Cole aqui o token da Focus NFe">
                                 <button type="button" class="btn btn-outline-secondary" onclick="togglePassword('tokenInput')">
@@ -289,8 +288,8 @@
                         </div>
                     @endif
                     <div class="col-md-4">
-                        <label class="form-label fw-semibold">Ambiente</label>
-                        <select name="ambiente" class="form-select @error('ambiente') is-invalid @enderror">
+                        <label for="campo-ambiente" class="form-label fw-semibold">Ambiente</label>
+                        <select id="campo-ambiente" name="ambiente" class="form-select @error('ambiente') is-invalid @enderror">
                             <option value="homologacao" {{ old('ambiente', $config->ambiente ?? 'homologacao') === 'homologacao' ? 'selected' : '' }}>Homologação (testes)</option>
                             <option value="producao" {{ old('ambiente', $config->ambiente) === 'producao' ? 'selected' : '' }}>Produção (real)</option>
                         </select>
@@ -425,8 +424,8 @@
                                 </script>
                             </div>
                             <div class="col-md-3">
-                                <label class="form-label small fw-semibold">Senha</label>
-                                <input type="password" name="certificado_senha" form="formCertificado" class="form-control" autocomplete="off">
+                                <label for="campo-certificado_senha" class="form-label small fw-semibold">Senha</label>
+                                <input id="campo-certificado_senha" type="password" name="certificado_senha" form="formCertificado" class="form-control" autocomplete="off">
                                 <div class="form-text">Senha definida na emissão do certificado.</div>
                             </div>
                             <div class="col-md-2 d-flex align-items-end">
@@ -492,11 +491,11 @@
                     <div class="card-body {{ old('emite_nfe', $config->emite_nfe ?? false) ? '' : 'd-none' }}" id="nfe_campos">
                         <div class="row g-3">
                             <div class="col-md-4">
-                                <label class="form-label fw-semibold">
+                                <label for="campo-serie_nfe" class="form-label fw-semibold">
                                     Série NF-e
                                     <span class="badge bg-danger bg-opacity-10 text-danger small ms-1">★ obrigatório</span>
                                 </label>
-                                <input type="text" name="serie_nfe" class="form-control @error('serie_nfe') is-invalid @enderror"
+                                <input id="campo-serie_nfe" type="text" name="serie_nfe" class="form-control @error('serie_nfe') is-invalid @enderror"
                                        value="{{ old('serie_nfe', $config->serie_nfe ?? '1') }}" placeholder="1">
                                 @error('serie_nfe')<div class="invalid-feedback">{{ $message }}</div>@enderror
                             </div>
@@ -528,31 +527,31 @@
                     <div class="card-body {{ old('emite_nfce', $config->emite_nfce ?? false) ? '' : 'd-none' }}" id="nfce_campos">
                         <div class="row g-3">
                             <div class="col-md-3">
-                                <label class="form-label fw-semibold">
+                                <label for="campo-serie_nfce" class="form-label fw-semibold">
                                     Série NFC-e
                                     <span class="badge bg-danger bg-opacity-10 text-danger small ms-1">★ obrigatório</span>
                                 </label>
-                                <input type="text" name="serie_nfce" class="form-control @error('serie_nfce') is-invalid @enderror"
+                                <input id="campo-serie_nfce" type="text" name="serie_nfce" class="form-control @error('serie_nfce') is-invalid @enderror"
                                        value="{{ old('serie_nfce', $config->serie_nfce ?? '1') }}" placeholder="1">
                                 @error('serie_nfce')<div class="invalid-feedback">{{ $message }}</div>@enderror
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label fw-semibold">
+                                <label for="campo-csc_nfce" class="form-label fw-semibold">
                                     CSC (Código de Segurança SEFAZ)
                                     <span class="badge bg-danger bg-opacity-10 text-danger small ms-1">★ obrigatório</span>
                                     <x-erp.fiscal-tooltip field="csc" />
                                 </label>
-                                <input type="text" name="csc_nfce" class="form-control @error('csc_nfce') is-invalid @enderror"
+                                <input id="campo-csc_nfce" type="text" name="csc_nfce" class="form-control @error('csc_nfce') is-invalid @enderror"
                                        value="{{ old('csc_nfce', $config->csc_nfce) }}" placeholder="Obtido no portal SEFAZ do seu estado (ex: e-CAC)">
                                 @error('csc_nfce')<div class="invalid-feedback">{{ $message }}</div>@enderror
                                 <small class="form-text">Sem CSC + ID, a SEFAZ rejeita NFC-e mesmo em homologação.</small>
                             </div>
                             <div class="col-md-3">
-                                <label class="form-label fw-semibold">
+                                <label for="campo-csc_id_nfce" class="form-label fw-semibold">
                                     ID CSC
                                     <span class="badge bg-danger bg-opacity-10 text-danger small ms-1">★ obrigatório</span>
                                 </label>
-                                <input type="text" name="csc_id_nfce" class="form-control @error('csc_id_nfce') is-invalid @enderror"
+                                <input id="campo-csc_id_nfce" type="text" name="csc_id_nfce" class="form-control @error('csc_id_nfce') is-invalid @enderror"
                                        value="{{ old('csc_id_nfce', $config->csc_id_nfce) }}" placeholder="1">
                                 @error('csc_id_nfce')<div class="invalid-feedback">{{ $message }}</div>@enderror
                             </div>
@@ -645,24 +644,24 @@
                     <div class="card-body {{ old('emite_nfse', $config->emite_nfse ?? false) ? '' : 'd-none' }}" id="nfse_campos">
                         <div class="row g-3">
                             <div class="col-md-3">
-                                <label class="form-label fw-semibold">Série RPS</label>
-                                <input type="text" name="serie_nfse" class="form-control @error('serie_nfse') is-invalid @enderror"
+                                <label for="campo-serie_nfse" class="form-label fw-semibold">Série RPS</label>
+                                <input id="campo-serie_nfse" type="text" name="serie_nfse" class="form-control @error('serie_nfse') is-invalid @enderror"
                                        value="{{ old('serie_nfse', $config->serie_nfse ?? '1') }}" placeholder="1">
                                 @error('serie_nfse')<div class="invalid-feedback">{{ $message }}</div>@enderror
                             </div>
                             <div class="col-md-3">
-                                <label class="form-label fw-semibold">Item LC 116 <x-erp.fiscal-tooltip field="item_lc116" /></label>
-                                <input type="text" name="nfse_item_lista_servico" class="form-control"
+                                <label for="campo-nfse_item_lista_servico" class="form-label fw-semibold">Item LC 116 <x-erp.fiscal-tooltip field="item_lc116" /></label>
+                                <input id="campo-nfse_item_lista_servico" type="text" name="nfse_item_lista_servico" class="form-control"
                                        value="{{ old('nfse_item_lista_servico', $config->nfse_item_lista_servico) }}" placeholder="01.01">
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label fw-semibold">Código de Tributação Municipal</label>
-                                <input type="text" name="nfse_codigo_tributacao" class="form-control"
+                                <label for="campo-nfse_codigo_tributacao" class="form-label fw-semibold">Código de Tributação Municipal</label>
+                                <input id="campo-nfse_codigo_tributacao" type="text" name="nfse_codigo_tributacao" class="form-control"
                                        value="{{ old('nfse_codigo_tributacao', $config->nfse_codigo_tributacao) }}" placeholder="Conforme prefeitura">
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label fw-semibold">Regime Especial</label>
-                                <select name="nfse_regime_especial" class="form-select">
+                                <label for="campo-nfse_regime_especial" class="form-label fw-semibold">Regime Especial</label>
+                                <select id="campo-nfse_regime_especial" name="nfse_regime_especial" class="form-select">
                                     <option value="">Nenhum</option>
                                     @foreach(['microempresa_municipal' => 'Microempresa Municipal', 'estimativa' => 'Estimativa', 'sociedade_profissionais' => 'Sociedade de Profissionais', 'cooperativa' => 'Cooperativa', 'mei' => 'MEI', 'me_epp' => 'ME / EPP'] as $v => $l)
                                         <option value="{{ $v }}" {{ old('nfse_regime_especial', $config->nfse_regime_especial) === $v ? 'selected' : '' }}>{{ $l }}</option>
@@ -798,8 +797,8 @@
                                         </label>
                                     </div>
                                 @endif
-                                <label class="form-label small mt-2">Alíquota padrão (%)</label>
-                                <input type="number" step="0.0001" min="0" max="100" name="ibs_aliquota_padrao"
+                                <label for="campo-ibs_aliquota_padrao" class="form-label small mt-2">Alíquota padrão (%)</label>
+                                <input id="campo-ibs_aliquota_padrao" type="number" step="0.0001" min="0" max="100" name="ibs_aliquota_padrao"
                                        class="form-control form-control-sm"
                                        value="{{ old('ibs_aliquota_padrao', $config->ibs_aliquota_padrao ?? '') }}"
                                        placeholder="0,1 (teste 2026)">
@@ -823,8 +822,8 @@
                                         </label>
                                     </div>
                                 @endif
-                                <label class="form-label small mt-2">Alíquota padrão (%)</label>
-                                <input type="number" step="0.0001" min="0" max="100" name="cbs_aliquota_padrao"
+                                <label for="campo-cbs_aliquota_padrao" class="form-label small mt-2">Alíquota padrão (%)</label>
+                                <input id="campo-cbs_aliquota_padrao" type="number" step="0.0001" min="0" max="100" name="cbs_aliquota_padrao"
                                        class="form-control form-control-sm"
                                        value="{{ old('cbs_aliquota_padrao', $config->cbs_aliquota_padrao ?? '') }}"
                                        placeholder="0,9 (teste 2026)">
@@ -900,32 +899,32 @@
                         </div>
                         <div class="row g-3">
                             <div class="col-md-4">
-                                <label class="form-label">CNPJ/CPF <span class="text-danger">*</span></label>
-                                <input type="text" name="responsavel_tecnico_cnpj" data-mask="cnpj"
+                                <label for="campo-responsavel_tecnico_cnpj" class="form-label">CNPJ/CPF <span class="text-danger">*</span></label>
+                                <input id="campo-responsavel_tecnico_cnpj" type="text" name="responsavel_tecnico_cnpj" data-mask="cnpj"
                                        class="form-control @error('responsavel_tecnico_cnpj') is-invalid @enderror"
                                        value="{{ old('responsavel_tecnico_cnpj', $config->responsavel_tecnico_cnpj) }}"
                                        placeholder="00.000.000/0000-00" maxlength="18">
                                 @error('responsavel_tecnico_cnpj')<div class="invalid-feedback">{{ $message }}</div>@enderror
                             </div>
                             <div class="col-md-8">
-                                <label class="form-label">Nome do contato <span class="text-danger">*</span></label>
-                                <input type="text" name="responsavel_tecnico_nome"
+                                <label for="campo-responsavel_tecnico_nome" class="form-label">Nome do contato <span class="text-danger">*</span></label>
+                                <input id="campo-responsavel_tecnico_nome" type="text" name="responsavel_tecnico_nome"
                                        class="form-control @error('responsavel_tecnico_nome') is-invalid @enderror"
                                        value="{{ old('responsavel_tecnico_nome', $config->responsavel_tecnico_nome) }}"
                                        maxlength="60">
                                 @error('responsavel_tecnico_nome')<div class="invalid-feedback">{{ $message }}</div>@enderror
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label">E-mail <span class="text-danger">*</span></label>
-                                <input type="email" name="responsavel_tecnico_email"
+                                <label for="campo-responsavel_tecnico_email" class="form-label">E-mail <span class="text-danger">*</span></label>
+                                <input id="campo-responsavel_tecnico_email" type="email" name="responsavel_tecnico_email"
                                        class="form-control @error('responsavel_tecnico_email') is-invalid @enderror"
                                        value="{{ old('responsavel_tecnico_email', $config->responsavel_tecnico_email) }}"
                                        maxlength="60">
                                 @error('responsavel_tecnico_email')<div class="invalid-feedback">{{ $message }}</div>@enderror
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label">Telefone <span class="text-danger">*</span></label>
-                                <input type="text" name="responsavel_tecnico_telefone" data-mask="telefone"
+                                <label for="campo-responsavel_tecnico_telefone" class="form-label">Telefone <span class="text-danger">*</span></label>
+                                <input id="campo-responsavel_tecnico_telefone" type="text" name="responsavel_tecnico_telefone" data-mask="telefone"
                                        class="form-control @error('responsavel_tecnico_telefone') is-invalid @enderror"
                                        value="{{ old('responsavel_tecnico_telefone', $config->responsavel_tecnico_telefone) }}"
                                        maxlength="14">

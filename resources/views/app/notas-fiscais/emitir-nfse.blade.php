@@ -3,12 +3,11 @@
 @section('title', 'Emitir NFS-e')
 
 @section('content')
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h4 class="mb-0"><i class="bi bi-file-earmark-plus me-2"></i>Emitir NFS-e</h4>
+<x-erp.page-header title="Emitir NFS-e" icon="file-earmark-plus">
     <a href="{{ route('app.notas-fiscais.index') }}" class="btn btn-outline-secondary">
-        <i class="bi bi-arrow-left me-1"></i> Voltar
-    </a>
-</div>
+            <i class="bi bi-arrow-left me-1"></i> Voltar
+        </a>
+</x-erp.page-header>
 
 <form method="POST" action="{{ route('app.notas-fiscais.emitir-nfse.store') }}" id="form-nfse">
     @csrf
@@ -17,12 +16,12 @@
         {{-- Dados do Servico --}}
         <div class="col-md-8">
             <div class="card">
-                <div class="card-header"><i class="bi bi-tools me-1"></i> Dados do Servico</div>
+                <div class="card-header"><i class="bi bi-tools me-1"></i> Dados do Serviço</div>
                 <div class="card-body">
                     <div class="row g-3">
                         <div class="col-md-12">
-                            <label class="form-label">Cliente <span class="text-danger">*</span></label>
-                            <select name="cliente_id" class="form-select @error('cliente_id') is-invalid @enderror" required>
+                            <label for="campo-cliente_id" class="form-label">Cliente <span class="text-danger">*</span></label>
+                            <select id="campo-cliente_id" name="cliente_id" class="form-select @error('cliente_id') is-invalid @enderror" required>
                                 <option value="">Selecione o cliente...</option>
                                 @foreach(\App\Models\Cliente::where('empresa_id', session('empresa_id'))->orderBy('nome_razao_social')->get() as $cliente)
                                     <option value="{{ $cliente->id }}" {{ old('cliente_id') == $cliente->id ? 'selected' : '' }}>
@@ -36,16 +35,16 @@
                         </div>
 
                         <div class="col-md-12">
-                            <label class="form-label">Descricao / Discriminacao do Servico <span class="text-danger">*</span></label>
-                            <textarea name="descricao" class="form-control @error('descricao') is-invalid @enderror" rows="4" required placeholder="Descreva o servico prestado...">{{ old('descricao') }}</textarea>
+                            <label for="campo-descricao" class="form-label">Descrição / Discriminacao do Serviço <span class="text-danger">*</span></label>
+                            <textarea id="campo-descricao" name="descricao" class="form-control @error('descricao') is-invalid @enderror" rows="4" required placeholder="Descreva o serviço prestado...">{{ old('descricao') }}</textarea>
                             @error('descricao')
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
                         </div>
 
                         <div class="col-md-4">
-                            <label class="form-label">Valor do Servico (R$) <span class="text-danger">*</span></label>
-                            <input type="number" name="valor_servico" class="form-control @error('valor_servico') is-invalid @enderror"
+                            <label for="campo-valor_servico" class="form-label">Valor do Serviço (R$) <span class="text-danger">*</span></label>
+                            <input id="campo-valor_servico" type="number" name="valor_servico" class="form-control @error('valor_servico') is-invalid @enderror"
                                    step="0.01" min="0.01" required value="{{ old('valor_servico') }}" placeholder="0,00">
                             @error('valor_servico')
                                 <div class="invalid-feedback">{{ $message }}</div>
@@ -53,8 +52,8 @@
                         </div>
 
                         <div class="col-md-4">
-                            <label class="form-label">Aliquota ISS (%) <span class="text-danger">*</span></label>
-                            <input type="number" name="aliquota_iss" class="form-control @error('aliquota_iss') is-invalid @enderror"
+                            <label for="campo-aliquota_iss" class="form-label">Alíquota ISS (%) <span class="text-danger">*</span></label>
+                            <input id="campo-aliquota_iss" type="number" name="aliquota_iss" class="form-control @error('aliquota_iss') is-invalid @enderror"
                                    step="0.01" min="0" max="100" required value="{{ old('aliquota_iss') }}" placeholder="0,00">
                             @error('aliquota_iss')
                                 <div class="invalid-feedback">{{ $message }}</div>
@@ -62,7 +61,7 @@
                         </div>
 
                         <div class="col-md-4">
-                            <label class="form-label">Valor ISS (R$)</label>
+                            <label for="valor_iss_display" class="form-label">Valor ISS (R$)</label>
                             <input type="text" class="form-control" id="valor_iss_display" readonly disabled placeholder="Calculado automaticamente">
                         </div>
                     </div>
@@ -75,13 +74,14 @@
             <div class="card border-primary">
                 <div class="card-header bg-primary text-white"><i class="bi bi-eye me-1"></i> Resumo</div>
                 <div class="card-body">
+                    <div class="table-responsive">
                     <table class="table table-borderless table-sm mb-0">
                         <tr>
-                            <th class="text-muted">Valor Servico:</th>
+                            <th class="text-muted">Valor Serviço:</th>
                             <td class="text-end" id="preview-valor">R$ 0,00</td>
                         </tr>
                         <tr>
-                            <th class="text-muted">Aliquota ISS:</th>
+                            <th class="text-muted">Alíquota ISS:</th>
                             <td class="text-end" id="preview-aliquota">0,00%</td>
                         </tr>
                         <tr>
@@ -93,6 +93,7 @@
                             <td class="text-end fw-bold text-success fs-5" id="preview-liquido">R$ 0,00</td>
                         </tr>
                     </table>
+                    </div>
                 </div>
             </div>
 

@@ -3,17 +3,17 @@
 @section('title', 'Conciliacao - ' . $conciliacao->banco)
 
 @section('content')
-<x-erp.page-header title="Conciliacao - {{ $conciliacao->banco }}" icon="bank">
+<x-erp.page-header title="Conciliação - {{ $conciliacao->banco }}" icon="bank">
     @if($conciliacao->status !== 'concluida')
     <form action="{{ route('app.conciliacao.auto', $conciliacao) }}" method="POST" class="d-inline">
         @csrf
-        <button type="submit" class="btn btn-info" data-confirm="Executar conciliacao automatica?">
+        <button type="submit" class="btn btn-info" data-confirm="Executar conciliação automática?">
             <i class="bi bi-magic me-1"></i> Auto-Conciliar
         </button>
     </form>
     <form action="{{ route('app.conciliacao.finalizar', $conciliacao) }}" method="POST" class="d-inline">
         @csrf
-        <button type="submit" class="btn btn-success" data-confirm="Finalizar esta conciliacao?">
+        <button type="submit" class="btn btn-success" data-confirm="Finalizar esta conciliação?">
             <i class="bi bi-check-circle me-1"></i> Finalizar
         </button>
     </form>
@@ -28,7 +28,7 @@
     <div class="col-md-3">
         <x-erp.card>
             <div class="text-center">
-                <div class="text-muted small">Periodo</div>
+                <div class="text-muted small">Período</div>
                 <div class="fw-bold">{{ $conciliacao->periodo_inicio?->format('d/m/Y') }} - {{ $conciliacao->periodo_fim?->format('d/m/Y') }}</div>
             </div>
         </x-erp.card>
@@ -36,7 +36,7 @@
     <div class="col-md-3">
         <x-erp.card>
             <div class="text-center">
-                <div class="text-muted small">Agencia / Conta</div>
+                <div class="text-muted small">Agência / Conta</div>
                 <div class="fw-bold">{{ $conciliacao->agencia ?? '-' }} / {{ $conciliacao->conta ?? '-' }}</div>
             </div>
         </x-erp.card>
@@ -73,11 +73,11 @@
                     <thead class="sticky-top">
                         <tr>
                             <th>Data</th>
-                            <th>Descricao</th>
+                            <th>Descrição</th>
                             <th>Valor</th>
                             <th>Tipo</th>
                             <th>Status</th>
-                            <th width="80">Acao</th>
+                            <th width="80">Ação</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -122,7 +122,7 @@
                 <table class="erp-table">
                     <thead class="sticky-top">
                         <tr>
-                            <th>Descricao</th>
+                            <th>Descrição</th>
                             <th>Valor</th>
                             <th>Vencimento</th>
                         </tr>
@@ -149,7 +149,7 @@
                 <table class="erp-table">
                     <thead class="sticky-top">
                         <tr>
-                            <th>Descricao</th>
+                            <th>Descrição</th>
                             <th>Valor</th>
                             <th>Vencimento</th>
                         </tr>
@@ -181,7 +181,7 @@
             <form action="{{ route('app.conciliacao.conciliar', $extrato) }}" method="POST">
                 @csrf
                 <div class="modal-header">
-                    <h5 class="modal-title">Conciliar Lancamento</h5>
+                    <h5 class="modal-title">Conciliar Lançamento</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
@@ -195,8 +195,8 @@
 
                     @if($extrato->tipo === 'credito')
                     <div class="mb-3">
-                        <label class="form-label">Vincular a Conta a Receber</label>
-                        <select name="conta_receber_id" class="form-select">
+                        <label for="campo-conta_receber_id" class="form-label">Vincular a Conta a Receber</label>
+                        <select id="campo-conta_receber_id" name="conta_receber_id" class="form-select">
                             <option value="">Selecione...</option>
                             @foreach($contasReceber as $cr)
                                 <option value="{{ $cr->id }}">
@@ -207,8 +207,8 @@
                     </div>
                     @else
                     <div class="mb-3">
-                        <label class="form-label">Vincular a Conta a Pagar</label>
-                        <select name="conta_pagar_id" class="form-select">
+                        <label for="campo-conta_pagar_id" class="form-label">Vincular a Conta a Pagar</label>
+                        <select id="campo-conta_pagar_id" name="conta_pagar_id" class="form-select">
                             <option value="">Selecione...</option>
                             @foreach($contasPagar as $cp)
                                 <option value="{{ $cp->id }}">

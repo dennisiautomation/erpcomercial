@@ -77,7 +77,7 @@
                             @enderror
                         </div>
                         <div class="col-md-7">
-                            <label for="razao_social" class="form-label">Razao Social <span class="required-dot">*</span></label>
+                            <label for="razao_social" class="form-label">Razão Social <span class="required-dot">*</span></label>
                             <input type="text" class="form-control @error('razao_social') is-invalid @enderror"
                                    id="razao_social" name="razao_social" value="{{ old('razao_social') }}" required>
                             @error('razao_social')
@@ -93,7 +93,7 @@
                             @enderror
                         </div>
                         <div class="col-md-3">
-                            <label for="ie" class="form-label">Inscricao Estadual</label>
+                            <label for="ie" class="form-label">Inscrição Estadual</label>
                             <input type="text" class="form-control @error('ie') is-invalid @enderror"
                                    id="ie" name="ie" value="{{ old('ie') }}">
                             @error('ie')
@@ -101,7 +101,7 @@
                             @enderror
                         </div>
                         <div class="col-md-4">
-                            <label for="im" class="form-label">Inscricao Municipal</label>
+                            <label for="im" class="form-label">Inscrição Municipal</label>
                             <input type="text" class="form-control @error('im') is-invalid @enderror"
                                    id="im" name="im" value="{{ old('im') }}">
                             @error('im')
@@ -115,7 +115,7 @@
             {{-- Endereco --}}
             <div class="card section-card shadow-sm mb-4">
                 <div class="card-header">
-                    <h6 class="mb-0"><i class="bi bi-geo-alt me-2 text-danger"></i>Endereco</h6>
+                    <h6 class="mb-0"><i class="bi bi-geo-alt me-2 text-danger"></i>Endereço</h6>
                 </div>
                 <div class="card-body">
                     <div class="row g-3">
@@ -143,7 +143,7 @@
                             @enderror
                         </div>
                         <div class="col-md-3">
-                            <label for="numero" class="form-label">Numero</label>
+                            <label for="numero" class="form-label">Número</label>
                             <input type="text" class="form-control @error('numero') is-invalid @enderror"
                                    id="numero" name="numero" value="{{ old('numero') }}">
                             @error('numero')
@@ -224,7 +224,7 @@
             {{-- Regime, Plano e Status --}}
             <div class="card section-card shadow-sm mb-4">
                 <div class="card-header">
-                    <h6 class="mb-0"><i class="bi bi-gear me-2 text-secondary"></i>Configuracoes</h6>
+                    <h6 class="mb-0"><i class="bi bi-gear me-2 text-secondary"></i>Configurações</h6>
                 </div>
                 <div class="card-body">
                     <div class="mb-3">
@@ -294,7 +294,7 @@
             {{-- Observacoes --}}
             <div class="card section-card shadow-sm mb-4">
                 <div class="card-header">
-                    <h6 class="mb-0"><i class="bi bi-chat-text me-2 text-warning"></i>Observacoes</h6>
+                    <h6 class="mb-0"><i class="bi bi-chat-text me-2 text-warning"></i>Observações</h6>
                 </div>
                 <div class="card-body">
                     <textarea class="form-control @error('observacoes') is-invalid @enderror"

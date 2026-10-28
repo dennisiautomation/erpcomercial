@@ -64,7 +64,7 @@
                 <div class="input-group input-group-sm">
                     <span class="input-group-text bg-white"><i class="bi bi-search text-muted"></i></span>
                     <input type="text" class="form-control" id="search" name="search"
-                           placeholder="Razao social, nome fantasia ou CNPJ..."
+                           placeholder="Razão social, nome fantasia ou CNPJ..."
                            value="{{ request('search') }}">
                 </div>
             </div>
@@ -125,8 +125,8 @@
                         <th>Plano</th>
                         <th>Status</th>
                         <th class="text-center">Unidades</th>
-                        <th class="text-center">Usuarios</th>
-                        <th class="text-end pe-3">Acoes</th>
+                        <th class="text-center">Usuários</th>
+                        <th class="text-end pe-3">Ações</th>
                     </tr>
                 </thead>
                 <tbody>

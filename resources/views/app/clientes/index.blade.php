@@ -61,30 +61,25 @@
 
 @section('content')
 {{-- Header --}}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <div>
-        <h4 class="fw-bold mb-1"><i class="bi bi-people me-2"></i>Clientes</h4>
-        <p class="text-muted mb-0 small">Gerencie sua base de clientes</p>
-    </div>
-    <div class="d-flex gap-2">
-        <a href="{{ route('app.export.clientes') }}" class="btn btn-erp-outline">
-            <i class="bi bi-file-earmark-spreadsheet me-1"></i> Exportar
-        </a>
-        <div class="btn-group">
-            <button data-import="{{ route('app.import.clientes') }}" class="btn btn-erp-outline"
-                    title="Envie a planilha preenchida (.xlsx ou .csv)">
-                <i class="bi bi-upload me-1"></i> Importar planilha
-            </button>
-            <a href="{{ route('app.import.template', 'clientes') }}" class="btn btn-erp-outline"
-               title="Baixa o modelo em Excel (.xlsx) com as colunas certas e exemplos">
-                <i class="bi bi-file-earmark-excel me-1"></i> Modelo Excel
-            </a>
-        </div>
-        <a href="{{ route('app.clientes.create') }}" class="btn btn-primary rounded-pill px-4">
-            <i class="bi bi-plus-lg me-1"></i> Novo Cliente
+<x-erp.page-header title="Clientes" icon="people" subtitle="Gerencie sua base de clientes">
+    <a href="{{ route('app.export.clientes') }}" class="btn btn-erp-outline">
+        <i class="bi bi-file-earmark-spreadsheet me-1"></i> Exportar
+    </a>
+    <div class="btn-group">
+        <button data-import="{{ route('app.import.clientes') }}" class="btn btn-erp-outline"
+                title="Envie a planilha preenchida (.xlsx ou .csv)">
+            <i class="bi bi-upload me-1"></i> Importar planilha
+        </button>
+        <a href="{{ route('app.import.template', 'clientes') }}" class="btn btn-erp-outline"
+           title="Baixa o modelo em Excel (.xlsx) com as colunas certas e exemplos">
+            <i class="bi bi-file-earmark-excel me-1"></i> Modelo Excel
         </a>
     </div>
-</div>
+    <a href="{{ route('app.clientes.create') }}" class="btn btn-primary rounded-pill px-4">
+        <i class="bi bi-plus-lg me-1"></i> Novo Cliente
+    </a>
+
+</x-erp.page-header>
 
 {{-- Counter Cards --}}
 <div class="row g-3 mb-4">
@@ -143,8 +138,8 @@
             <div class="col-md-2">
                 <select name="tipo_pessoa" class="form-select">
                     <option value="">Tipo</option>
-                    <option value="pf" {{ request('tipo_pessoa') === 'pf' ? 'selected' : '' }}>Pessoa Fisica</option>
-                    <option value="pj" {{ request('tipo_pessoa') === 'pj' ? 'selected' : '' }}>Pessoa Juridica</option>
+                    <option value="pf" {{ request('tipo_pessoa') === 'pf' ? 'selected' : '' }}>Pessoa Física</option>
+                    <option value="pj" {{ request('tipo_pessoa') === 'pj' ? 'selected' : '' }}>Pessoa Jurídica</option>
                 </select>
             </div>
             <div class="col-md-2">
@@ -174,7 +169,7 @@
                         <th class="py-3 fw-semibold text-muted small text-uppercase">Cidade/UF</th>
                         <th class="py-3 fw-semibold text-muted small text-uppercase">Contato</th>
                         <th class="py-3 fw-semibold text-muted small text-uppercase text-center">Status</th>
-                        <th class="py-3 fw-semibold text-muted small text-uppercase text-center pe-4" style="width: 140px;">Acoes</th>
+                        <th class="py-3 fw-semibold text-muted small text-uppercase text-center pe-4" style="width: 140px;">Ações</th>
                     </tr>
                 </thead>
                 <tbody>

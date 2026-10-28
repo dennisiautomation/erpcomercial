@@ -98,8 +98,8 @@
                 <form method="POST" action="{{ route('app.integracao.store') }}">
                     @csrf
                     <div class="mb-3">
-                        <label class="form-label">Nome</label>
-                        <input type="text" name="nome" class="form-control" value="Gersen" maxlength="80">
+                        <label for="campo-nome" class="form-label">Nome</label>
+                        <input id="campo-nome" type="text" name="nome" class="form-control" value="Gersen" maxlength="80">
                         <small class="text-muted">Identifica quem usa o token (ex.: Gersen).</small>
                     </div>
                     <button type="submit" class="btn btn-erp-primary w-100">

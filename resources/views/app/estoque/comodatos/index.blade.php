@@ -32,8 +32,8 @@
 {{-- Filters --}}
 <x-erp.filter-bar :action="route('app.comodatos.index')">
     <div class="col-md-3">
-        <label class="form-label fw-semibold small text-muted">Situação</label>
-        <select name="situacao" class="form-select">
+        <label for="campo-situacao" class="form-label fw-semibold small text-muted">Situação</label>
+        <select id="campo-situacao" name="situacao" class="form-select">
             <option value="em_aberto" {{ $situacao == 'em_aberto' ? 'selected' : '' }}>Ainda fora</option>
             <option value="atrasado" {{ $situacao == 'atrasado' ? 'selected' : '' }}>Só atrasadas</option>
             <option value="devolvido" {{ $situacao == 'devolvido' ? 'selected' : '' }}>Já voltaram</option>
@@ -42,8 +42,8 @@
         </select>
     </div>
     <div class="col-md-3">
-        <label class="form-label fw-semibold small text-muted">Com quem</label>
-        <input type="text" name="responsavel" class="form-control"
+        <label for="campo-responsavel" class="form-label fw-semibold small text-muted">Com quem</label>
+        <input id="campo-responsavel" type="text" name="responsavel" class="form-control"
                value="{{ request('responsavel') }}" placeholder="Nome ou @">
     </div>
     <div class="col-auto">
@@ -173,8 +173,8 @@
                         </small>
                     </p>
                     <div class="mb-3">
-                        <label class="form-label fw-semibold">Quanto voltou</label>
-                        <input type="number" name="quantidade" class="form-control"
+                        <label for="campo-quantidade" class="form-label fw-semibold">Quanto voltou</label>
+                        <input id="campo-quantidade" type="number" name="quantidade" class="form-control"
                                step="0.001" min="0.001"
                                max="{{ $comodato->quantidade_pendente }}"
                                value="{{ $comodato->quantidade_pendente }}" required>
@@ -184,8 +184,8 @@
                         </div>
                     </div>
                     <div class="mb-0">
-                        <label class="form-label fw-semibold">Observações</label>
-                        <textarea name="observacoes" rows="2" class="form-control"
+                        <label for="campo-observacoes" class="form-label fw-semibold">Observações</label>
+                        <textarea id="campo-observacoes" name="observacoes" rows="2" class="form-control"
                                   placeholder="Estado da peça, avaria, etc."></textarea>
                     </div>
                 </div>

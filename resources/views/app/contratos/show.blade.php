@@ -24,13 +24,14 @@
 <div class="row g-4">
     <div class="col-md-6">
         <x-erp.card title="Dados do Contrato" icon="info-circle">
+            <div class="table-responsive">
             <table class="table table-borderless mb-0">
                 <tr>
                     <th width="40%">Cliente</th>
                     <td>{{ $contrato->cliente->nome_razao_social ?? '-' }}</td>
                 </tr>
                 <tr>
-                    <th>Descricao</th>
+                    <th>Descrição</th>
                     <td>{{ $contrato->descricao }}</td>
                 </tr>
                 <tr>
@@ -42,17 +43,19 @@
                     <td><span class="badge bg-info text-dark">{{ ucfirst($contrato->periodicidade) }}</span></td>
                 </tr>
             </table>
+            </div>
         </x-erp.card>
     </div>
     <div class="col-md-6">
-        <x-erp.card title="Vigencia" icon="calendar-range">
+        <x-erp.card title="Vigência" icon="calendar-range">
+            <div class="table-responsive">
             <table class="table table-borderless mb-0">
                 <tr>
                     <th width="40%">Status</th>
                     <td><x-erp.status-badge :status="$contrato->status" /></td>
                 </tr>
                 <tr>
-                    <th>Inicio</th>
+                    <th>Início</th>
                     <td>{{ $contrato->inicio?->format('d/m/Y') }}</td>
                 </tr>
                 <tr>
@@ -64,21 +67,22 @@
                     <td>{{ $contrato->proximo_faturamento?->format('d/m/Y') ?? '-' }}</td>
                 </tr>
             </table>
+            </div>
             @if($contrato->observacoes)
             <hr>
-            <p class="mb-0 text-muted"><strong>Observacoes:</strong> {{ $contrato->observacoes }}</p>
+            <p class="mb-0 text-muted"><strong>Observações:</strong> {{ $contrato->observacoes }}</p>
             @endif
         </x-erp.card>
     </div>
 </div>
 
 {{-- Payment History --}}
-<x-erp.card title="Historico de Faturamentos" icon="receipt" class="mt-4">
+<x-erp.card title="Histórico de Faturamentos" icon="receipt" class="mt-4">
     <div class="table-responsive">
         <table class="erp-table">
             <thead>
                 <tr>
-                    <th>Descricao</th>
+                    <th>Descrição</th>
                     <th>Valor</th>
                     <th>Vencimento</th>
                     <th>Status</th>
@@ -112,11 +116,11 @@
         <table class="erp-table">
             <thead>
                 <tr>
-                    <th>Nosso Numero</th>
+                    <th>Nosso Número</th>
                     <th>Valor</th>
                     <th>Vencimento</th>
                     <th>Status</th>
-                    <th>Acoes</th>
+                    <th>Ações</th>
                 </tr>
             </thead>
             <tbody>

@@ -34,16 +34,16 @@
 
     <x-erp.filter-bar :action="route('app.relatorios.estoque-cego')">
         <div class="col-md-3">
-            <label class="form-label fw-semibold small text-muted">Loja</label>
-            <select name="unidade_id" class="form-select">
+            <label for="campo-unidade_id" class="form-label fw-semibold small text-muted">Loja</label>
+            <select id="campo-unidade_id" name="unidade_id" class="form-select">
                 @foreach($lojas as $l)
                     <option value="{{ $l->id }}" {{ $lojaId === $l->id ? 'selected' : '' }}>{{ $l->nome }}</option>
                 @endforeach
             </select>
         </div>
         <div class="col-md-3">
-            <label class="form-label fw-semibold small text-muted">Categoria</label>
-            <select name="categoria_id" class="form-select">
+            <label for="campo-categoria_id" class="form-label fw-semibold small text-muted">Categoria</label>
+            <select id="campo-categoria_id" name="categoria_id" class="form-select">
                 <option value="">Todas</option>
                 @foreach($categorias as $c)
                     <option value="{{ $c->id }}" {{ (int) request('categoria_id') === $c->id ? 'selected' : '' }}>{{ $c->nome }}</option>
@@ -51,8 +51,8 @@
             </select>
         </div>
         <div class="col-md-3">
-            <label class="form-label fw-semibold small text-muted">Buscar</label>
-            <input type="text" name="busca" class="form-control" value="{{ request('busca') }}"
+            <label for="campo-busca" class="form-label fw-semibold small text-muted">Buscar</label>
+            <input id="campo-busca" type="text" name="busca" class="form-control" value="{{ request('busca') }}"
                    placeholder="SKU, código ou descrição">
         </div>
         @if($estoques->count() > 1)

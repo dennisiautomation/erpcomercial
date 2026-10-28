@@ -3,12 +3,11 @@
 @section('title', 'Multilojas - Comparar Unidades')
 
 @section('content')
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h4 class="mb-0"><i class="bi bi-bar-chart me-2"></i>Comparar Unidades</h4>
+<x-erp.page-header title="Comparar Unidades" icon="bar-chart">
     <a href="{{ route('app.multilojas.index') }}" class="btn btn-outline-secondary">
-        <i class="bi bi-arrow-left me-1"></i> Voltar
-    </a>
-</div>
+            <i class="bi bi-arrow-left me-1"></i> Voltar
+        </a>
+</x-erp.page-header>
 
 {{-- Filters --}}
 <div class="card shadow-sm mb-4">
@@ -16,13 +15,13 @@
         <form method="GET" action="{{ route('app.multilojas.comparar') }}">
             <div class="row g-3 align-items-end">
                 <div class="col-md-3">
-                    <label class="form-label fw-semibold">Data Inicio</label>
-                    <input type="date" name="data_inicio" class="form-control"
+                    <label for="campo-data_inicio" class="form-label fw-semibold">Data Início</label>
+                    <input id="campo-data_inicio" type="date" name="data_inicio" class="form-control"
                            value="{{ $dataInicio->format('Y-m-d') }}">
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label fw-semibold">Data Fim</label>
-                    <input type="date" name="data_fim" class="form-control"
+                    <label for="campo-data_fim" class="form-label fw-semibold">Data Fim</label>
+                    <input id="campo-data_fim" type="date" name="data_fim" class="form-control"
                            value="{{ $dataFim->format('Y-m-d') }}">
                 </div>
                 <div class="col-md-4">
@@ -104,7 +103,7 @@
                         </tr>
                         {{-- Ticket Medio --}}
                         <tr>
-                            <td class="fw-semibold"><i class="bi bi-graph-up me-1"></i> Ticket Medio</td>
+                            <td class="fw-semibold"><i class="bi bi-graph-up me-1"></i> Ticket Médio</td>
                             @foreach($comparacao as $dados)
                                 <td class="text-center">
                                     <span class="fw-bold {{ $dados['ticket_medio'] == $maxTicket && $maxTicket > 0 ? 'text-success' : '' }}">
@@ -118,7 +117,7 @@
                         </tr>
                         {{-- Devolucoes --}}
                         <tr>
-                            <td class="fw-semibold"><i class="bi bi-arrow-return-left me-1"></i> Devolucoes/Cancelamentos</td>
+                            <td class="fw-semibold"><i class="bi bi-arrow-return-left me-1"></i> Devoluções/Cancelamentos</td>
                             @foreach($comparacao as $dados)
                                 <td class="text-center">
                                     <span class="{{ $dados['devolucoes'] > 0 ? 'text-danger fw-bold' : '' }}">
@@ -140,7 +139,7 @@
     @if(count($comparacao) >= 2)
         <div class="card shadow-sm mt-4">
             <div class="card-header bg-white">
-                <h6 class="mb-0"><i class="bi bi-percent me-2"></i>Diferenca Percentual (em relacao a melhor unidade)</h6>
+                <h6 class="mb-0"><i class="bi bi-percent me-2"></i>Diferença Percentual (em relacao a melhor unidade)</h6>
             </div>
             <div class="card-body">
                 <div class="row g-3">
@@ -172,11 +171,11 @@
     @endif
 @elseif(!empty($unidadesSelecionadas))
     <div class="alert alert-info">
-        <i class="bi bi-info-circle me-1"></i> Nenhum dado encontrado para o periodo selecionado.
+        <i class="bi bi-info-circle me-1"></i> Nenhum dado encontrado para o período selecionado.
     </div>
 @else
     <div class="alert alert-secondary">
-        <i class="bi bi-info-circle me-1"></i> Selecione as unidades e o periodo para comparar.
+        <i class="bi bi-info-circle me-1"></i> Selecione as unidades e o período para comparar.
     </div>
 @endif
 @endsection

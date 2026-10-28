@@ -31,10 +31,10 @@
                 </div>
 
                 <div class="mb-4">
-                    <label for="descricao" class="form-label fw-semibold">Descricao <span class="text-danger">*</span></label>
+                    <label for="descricao" class="form-label fw-semibold">Descrição <span class="text-danger">*</span></label>
                     <input type="text" name="descricao" id="descricao"
                         class="form-control @error('descricao') is-invalid @enderror"
-                        value="{{ old('descricao') }}" placeholder="Ex: Venda de produtos, Servico prestado..." required>
+                        value="{{ old('descricao') }}" placeholder="Ex: Venda de produtos, Serviço prestado..." required>
                     @error('descricao')
                         <div class="invalid-feedback">{{ $message }}</div>
                     @enderror
@@ -103,10 +103,10 @@
                 </div>
 
                 <div class="mb-4">
-                    <label for="observacoes" class="form-label fw-semibold">Observacoes</label>
+                    <label for="observacoes" class="form-label fw-semibold">Observações</label>
                     <textarea name="observacoes" id="observacoes" rows="3"
                         class="form-control @error('observacoes') is-invalid @enderror"
-                        placeholder="Informacoes adicionais...">{{ old('observacoes') }}</textarea>
+                        placeholder="Informações adicionais...">{{ old('observacoes') }}</textarea>
                     @error('observacoes')
                         <div class="invalid-feedback">{{ $message }}</div>
                     @enderror
@@ -128,7 +128,7 @@
     <div class="col-lg-5">
         <div id="parcelas-preview" class="erp-card d-none sticky-top" style="top: 1rem;">
             <div class="card-header bg-primary text-white border-0">
-                <h6 class="mb-0 fw-bold"><i class="bi bi-list-ol me-1"></i> Previa das Parcelas</h6>
+                <h6 class="mb-0 fw-bold"><i class="bi bi-list-ol me-1"></i> Prévia das Parcelas</h6>
             </div>
             <div class="card-body p-0">
                 <div class="table-responsive">
@@ -155,7 +155,7 @@
         <div id="parcelas-placeholder" class="erp-card">
             <div class="card-body text-center py-5">
                 <i class="bi bi-calculator fs-1 text-muted opacity-25 d-block mb-3"></i>
-                <p class="text-muted mb-0">Preencha o valor, numero de parcelas e<br>primeiro vencimento para visualizar.</p>
+                <p class="text-muted mb-0">Preencha o valor, número de parcelas e<br>primeiro vencimento para visualizar.</p>
             </div>
         </div>
     </div>

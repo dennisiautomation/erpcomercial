@@ -1,14 +1,14 @@
 @extends('admin.onboarding.layout', ['step' => 3])
 
-@section('title', 'Onboarding - Usuario Dono')
+@section('title', 'Onboarding - Usuário Dono')
 
 @section('step-content')
 <div class="row justify-content-center">
     <div class="col-lg-8">
         <div class="card shadow-sm border-0">
             <div class="card-header bg-white py-3">
-                <h5 class="mb-0 fw-bold"><i class="bi bi-person-badge me-2"></i>Usuario Dono</h5>
-                <p class="text-muted mb-0 small mt-1">Crie o usuario principal (Dono) que administrara a empresa</p>
+                <h5 class="mb-0 fw-bold"><i class="bi bi-person-badge me-2"></i>Usuário Dono</h5>
+                <p class="text-muted mb-0 small mt-1">Crie o usuário principal (Dono) que administrara a empresa</p>
             </div>
             <div class="card-body p-4">
                 <form method="POST" action="{{ route('admin.onboarding.step3.store') }}" class="erp-form">
@@ -76,7 +76,7 @@
                             <i class="bi bi-arrow-left me-1"></i> Voltar
                         </a>
                         <button type="submit" class="btn btn-primary">
-                            Proximo: Fiscal <i class="bi bi-arrow-right ms-1"></i>
+                            Próximo: Fiscal <i class="bi bi-arrow-right ms-1"></i>
                         </button>
                     </div>
                 </form>

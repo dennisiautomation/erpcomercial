@@ -17,15 +17,15 @@
 <div class="filter-bar">
     <form method="GET" action="{{ route('app.funcionarios.index') }}" class="row g-3 align-items-end erp-form">
         <div class="col-md-4">
-            <label class="form-label">Buscar</label>
+            <label for="campo-busca" class="form-label">Buscar</label>
             <div class="input-group">
                 <span class="input-group-text"><i class="bi bi-search"></i></span>
-                <input type="text" name="busca" class="form-control" placeholder="Nome, e-mail ou CPF..." value="{{ request('busca') }}">
+                <input id="campo-busca" type="text" name="busca" class="form-control" placeholder="Nome, e-mail ou CPF..." value="{{ request('busca') }}">
             </div>
         </div>
         <div class="col-md-3">
-            <label class="form-label">Perfil</label>
-            <select name="perfil" class="form-select">
+            <label for="campo-perfil" class="form-label">Perfil</label>
+            <select id="campo-perfil" name="perfil" class="form-select">
                 <option value="">Todos</option>
                 @foreach(\App\Enums\Perfil::cases() as $p)
                     <option value="{{ $p->value }}" {{ request('perfil') === $p->value ? 'selected' : '' }}>{{ $p->label() }}</option>
@@ -33,8 +33,8 @@
             </select>
         </div>
         <div class="col-md-2">
-            <label class="form-label">Status</label>
-            <select name="status" class="form-select">
+            <label for="campo-status" class="form-label">Status</label>
+            <select id="campo-status" name="status" class="form-select">
                 <option value="">Todos</option>
                 <option value="ativo" {{ request('status') === 'ativo' ? 'selected' : '' }}>Ativo</option>
                 <option value="inativo" {{ request('status') === 'inativo' ? 'selected' : '' }}>Inativo</option>

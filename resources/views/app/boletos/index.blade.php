@@ -48,7 +48,7 @@
         <div class="stat-card">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
-                    <div class="stat-label">Pago no Mes</div>
+                    <div class="stat-label">Pago no Mês</div>
                     <div class="stat-value" style="color: var(--success);">R$ {{ number_format($totalPago, 2, ',', '.') }}</div>
                 </div>
                 <div class="stat-icon success">
@@ -63,8 +63,8 @@
 <div class="filter-bar">
     <form method="GET" class="row g-3 erp-form">
         <div class="col-md-2">
-            <label class="form-label">Status</label>
-            <select name="status" class="form-select">
+            <label for="campo-status" class="form-label">Status</label>
+            <select id="campo-status" name="status" class="form-select">
                 <option value="">Todos</option>
                 <option value="pendente" @selected(request('status') == 'pendente')>Pendente</option>
                 <option value="pago" @selected(request('status') == 'pago')>Pago</option>
@@ -73,8 +73,8 @@
             </select>
         </div>
         <div class="col-md-3">
-            <label class="form-label">Cliente</label>
-            <select name="cliente_id" class="form-select">
+            <label for="campo-cliente_id" class="form-label">Cliente</label>
+            <select id="campo-cliente_id" name="cliente_id" class="form-select">
                 <option value="">Todos</option>
                 @foreach($clientes as $cliente)
                     <option value="{{ $cliente->id }}" @selected(request('cliente_id') == $cliente->id)>{{ $cliente->nome_razao_social }}</option>
@@ -82,12 +82,12 @@
             </select>
         </div>
         <div class="col-md-2">
-            <label class="form-label">Vencimento De</label>
-            <input type="date" name="vencimento_inicio" class="form-control" value="{{ request('vencimento_inicio') }}">
+            <label for="campo-vencimento_inicio" class="form-label">Vencimento De</label>
+            <input id="campo-vencimento_inicio" type="date" name="vencimento_inicio" class="form-control" value="{{ request('vencimento_inicio') }}">
         </div>
         <div class="col-md-2">
-            <label class="form-label">Vencimento Ate</label>
-            <input type="date" name="vencimento_fim" class="form-control" value="{{ request('vencimento_fim') }}">
+            <label for="campo-vencimento_fim" class="form-label">Vencimento Até</label>
+            <input id="campo-vencimento_fim" type="date" name="vencimento_fim" class="form-control" value="{{ request('vencimento_fim') }}">
         </div>
         <div class="col-md-3 d-flex align-items-end">
             <button type="submit" class="btn btn-erp btn-erp-primary w-100">
@@ -103,12 +103,12 @@
         <table class="erp-table">
             <thead>
                 <tr>
-                    <th>Nosso Numero</th>
+                    <th>Nosso Número</th>
                     <th>Cliente</th>
                     <th>Valor</th>
                     <th>Vencimento</th>
                     <th>Status</th>
-                    <th width="180">Acoes</th>
+                    <th width="180">Ações</th>
                 </tr>
             </thead>
             <tbody>
@@ -184,25 +184,25 @@
                         </select>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Descricao <span class="text-danger">*</span></label>
-                        <input type="text" name="descricao" class="form-control" required>
+                        <label for="campo-descricao" class="form-label">Descrição <span class="text-danger">*</span></label>
+                        <input id="campo-descricao" type="text" name="descricao" class="form-control" required>
                     </div>
                     <div class="row g-3">
                         <div class="col-6">
-                            <label class="form-label">Valor Total <span class="text-danger">*</span></label>
+                            <label for="campo-valor" class="form-label">Valor Total <span class="text-danger">*</span></label>
                             <div class="input-group">
                                 <span class="input-group-text">R$</span>
-                                <input type="number" name="valor" class="form-control" step="0.01" min="0.01" required>
+                                <input id="campo-valor" type="number" name="valor" class="form-control" step="0.01" min="0.01" required>
                             </div>
                         </div>
                         <div class="col-6">
-                            <label class="form-label">Parcelas <span class="text-danger">*</span></label>
-                            <input type="number" name="parcelas" class="form-control" min="2" max="48" required>
+                            <label for="campo-parcelas" class="form-label">Parcelas <span class="text-danger">*</span></label>
+                            <input id="campo-parcelas" type="number" name="parcelas" class="form-control" min="2" max="48" required>
                         </div>
                     </div>
                     <div class="mt-3">
-                        <label class="form-label">Primeiro Vencimento <span class="text-danger">*</span></label>
-                        <input type="date" name="primeiro_vencimento" class="form-control" required>
+                        <label for="campo-primeiro_vencimento" class="form-label">Primeiro Vencimento <span class="text-danger">*</span></label>
+                        <input id="campo-primeiro_vencimento" type="date" name="primeiro_vencimento" class="form-control" required>
                     </div>
                 </div>
                 <div class="modal-footer">

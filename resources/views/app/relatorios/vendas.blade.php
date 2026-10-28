@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Relatorio de Vendas')
+@section('title', 'Relatório de Vendas')
 
 @push('styles')
 <style>
@@ -95,8 +95,8 @@
 
 <div class="d-flex justify-content-between align-items-center mb-4 d-print-none">
     <div>
-        <h4 class="mb-1"><i class="bi bi-bar-chart-line me-2"></i>Relatorio de Vendas</h4>
-        <p class="text-muted mb-0 small">{{ $lojaNome }} · Periodo: {{ $dataInicio->format('d/m/Y') }} a {{ $dataFim->format('d/m/Y') }}</p>
+        <h4 class="mb-1"><i class="bi bi-bar-chart-line me-2"></i>Relatório de Vendas</h4>
+        <p class="text-muted mb-0 small">{{ $lojaNome }} · Período: {{ $dataInicio->format('d/m/Y') }} a {{ $dataFim->format('d/m/Y') }}</p>
     </div>
     <button class="btn btn-outline-secondary btn-sm" onclick="window.print()">
         <i class="bi bi-printer me-1"></i> Imprimir
@@ -108,17 +108,17 @@
     <div class="card-body py-3">
         <form method="GET" class="row g-3 align-items-end">
             <div class="col-md-2">
-                <label class="form-label small fw-semibold">Data Inicio</label>
-                <input type="date" name="data_inicio" class="form-control form-control-sm" value="{{ $dataInicio->format('Y-m-d') }}">
+                <label for="campo-data_inicio" class="form-label small fw-semibold">Data Início</label>
+                <input id="campo-data_inicio" type="date" name="data_inicio" class="form-control form-control-sm" value="{{ $dataInicio->format('Y-m-d') }}">
             </div>
             <div class="col-md-2">
-                <label class="form-label small fw-semibold">Data Fim</label>
-                <input type="date" name="data_fim" class="form-control form-control-sm" value="{{ $dataFim->format('Y-m-d') }}">
+                <label for="campo-data_fim" class="form-label small fw-semibold">Data Fim</label>
+                <input id="campo-data_fim" type="date" name="data_fim" class="form-control form-control-sm" value="{{ $dataFim->format('Y-m-d') }}">
             </div>
             @if(isset($lojas) && $lojas->count() > 1)
             <div class="col-md-2">
-                <label class="form-label small fw-semibold">Loja</label>
-                <select name="loja" class="form-select form-select-sm">
+                <label for="campo-loja" class="form-label small fw-semibold">Loja</label>
+                <select id="campo-loja" name="loja" class="form-select form-select-sm">
                     <option value="todas" @selected(empty($lojaFiltro) && request()->filled('loja'))>Todas as lojas</option>
                     @foreach($lojas as $loja)
                         <option value="{{ $loja->id }}" @selected((int) ($lojaFiltro ?? 0) === $loja->id)>{{ $loja->nome }}</option>
@@ -127,17 +127,17 @@
             </div>
             @endif
             <div class="col-md-2">
-                <label class="form-label small fw-semibold">Origem</label>
-                <select name="origem" class="form-select form-select-sm">
+                <label for="campo-origem" class="form-label small fw-semibold">Origem</label>
+                <select id="campo-origem" name="origem" class="form-select form-select-sm">
                     <option value="">Todas</option>
                     <option value="vendas" @selected(request('origem') === 'vendas')>Vendas (PDV/balcão)</option>
                     <option value="pedidos" @selected(request('origem') === 'pedidos')>Pedidos faturados</option>
                 </select>
             </div>
             <div class="col-md-2">
-                <label class="form-label small fw-semibold">Vendedor</label>
+                <label for="campo-vendedor_id" class="form-label small fw-semibold">Vendedor</label>
                 {{-- Lista de quem vende (mesma do F3 do PDV) — antes pedia o ID numérico --}}
-                <select name="vendedor_id" class="form-select form-select-sm">
+                <select id="campo-vendedor_id" name="vendedor_id" class="form-select form-select-sm">
                     <option value="">Todos</option>
                     @foreach($vendedores ?? [] as $v)
                         <option value="{{ $v->id }}" @selected(($vendedorId ?? null) === $v->id)>{{ $v->name }}</option>
@@ -145,7 +145,7 @@
                 </select>
             </div>
             <div class="col-md-2">
-                <label class="form-label small fw-semibold">Cliente</label>
+                <label for="clienteFiltroBusca" class="form-label small fw-semibold">Cliente</label>
                 {{-- Autocomplete do erp-core (o mesmo de Pedidos); o id vai no hidden --}}
                 <div class="position-relative">
                     <input type="text" class="form-control form-control-sm" id="clienteFiltroBusca"
@@ -251,7 +251,7 @@
                             <td class="text-end text-muted">{{ $totalPorForma > 0 ? number_format($f['valor'] / $totalPorForma * 100, 1, ',', '.') : '0,0' }}%</td>
                         </tr>
                         @empty
-                        <tr><td colspan="4" class="text-center text-muted py-3">Sem dados no periodo.</td></tr>
+                        <tr><td colspan="4" class="text-center text-muted py-3">Sem dados no período.</td></tr>
                         @endforelse
                     </tbody>
                     @if($porForma->isNotEmpty())
@@ -301,7 +301,7 @@
                             <td class="text-end text-muted">{{ $faturamento > 0 ? number_format($vd['faturamento'] / $faturamento * 100, 1, ',', '.') : '0,0' }}%</td>
                         </tr>
                         @empty
-                        <tr><td colspan="6" class="text-center text-muted py-3">Sem dados no periodo.</td></tr>
+                        <tr><td colspan="6" class="text-center text-muted py-3">Sem dados no período.</td></tr>
                         @endforelse
                     </tbody>
                 </table>
@@ -378,7 +378,7 @@
                         </tr>
                         @empty
                         <tr>
-                            <td colspan="4" class="text-center text-muted py-4">Sem dados no periodo.</td>
+                            <td colspan="4" class="text-center text-muted py-4">Sem dados no período.</td>
                         </tr>
                         @endforelse
                     </tbody>
@@ -418,7 +418,7 @@
                         </tr>
                         @empty
                         <tr>
-                            <td colspan="4" class="text-center text-muted py-4">Sem dados no periodo.</td>
+                            <td colspan="4" class="text-center text-muted py-4">Sem dados no período.</td>
                         </tr>
                         @endforelse
                     </tbody>
@@ -431,7 +431,7 @@
 {{-- Vendas Table --}}
 <div class="card shadow-sm mb-4 rel-vendas-tabela">
     <div class="card-header bg-white d-flex justify-content-between align-items-center">
-        <h6 class="mb-0 fw-semibold"><i class="bi bi-list-ul me-1"></i>Vendas no Periodo</h6>
+        <h6 class="mb-0 fw-semibold"><i class="bi bi-list-ul me-1"></i>Vendas no Período</h6>
         <span class="badge bg-secondary">{{ $vendas->count() }} registro(s)</span>
     </div>
     <div class="table-responsive">
@@ -439,7 +439,7 @@
             <thead class="table-light">
                 <tr>
                     <th>Data</th>
-                    <th>Numero</th>
+                    <th>Número</th>
                     @if($mostraLoja)<th>Loja</th>@endif
                     <th>Cliente</th>
                     <th>Vendedor</th>
@@ -470,7 +470,7 @@
                 <tr>
                     <td colspan="{{ $mostraLoja ? 8 : 7 }}" class="text-center text-muted py-5">
                         <i class="bi bi-inbox fs-1 d-block mb-2 opacity-50"></i>
-                        Nenhuma venda no periodo selecionado.
+                        Nenhuma venda no período selecionado.
                     </td>
                 </tr>
                 @endforelse
@@ -478,7 +478,7 @@
             @if($vendas->count() > 0)
             <tfoot class="table-light">
                 <tr>
-                    <td colspan="{{ $mostraLoja ? 6 : 5 }}" class="text-end fw-semibold">Total do Periodo ({{ $totalVendas }} vendas):</td>
+                    <td colspan="{{ $mostraLoja ? 6 : 5 }}" class="text-end fw-semibold">Total do Período ({{ $totalVendas }} vendas):</td>
                     <td class="text-end fw-bold">{{ $qtd($pecas) }}</td>
                     <td class="text-end fw-bold text-success text-nowrap">{{ $brl($faturamento) }}</td>
                 </tr>

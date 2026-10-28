@@ -5,8 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>PDV - ERP Comercial</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet" integrity="sha384-XGjxtQfXaH2tnPFa9x+ruJTuLE3Aa6LhHSWRr1XeTyhezb4abCG4ccI5AkVDxqC+" crossorigin="anonymous">
     <style>
         :root {
             --bg-primary: #0f172a;
@@ -17,7 +18,7 @@
             --border-focus: #3b82f6;
             --text-primary: #f1f5f9;
             --text-secondary: #94a3b8;
-            --text-muted: #64748b;
+            --text-muted: #8290a6;
             --accent-blue: #3b82f6;
             --accent-green: #22c55e;
             --accent-red: #ef4444;
@@ -142,7 +143,7 @@
         #searchInput:focus {
             outline: none;
             border-color: var(--accent-blue);
-            box-shadow: 0 0 0 3px rgba(59,130,246,0.15);
+            box-shadow: 0 0 0 3px rgba(59,130,246,0.35);
         }
         #searchInput::placeholder { color: var(--text-muted); }
 
@@ -197,7 +198,7 @@
             font-size: 0.72rem;
             text-transform: uppercase;
             letter-spacing: 1px;
-            color: var(--text-muted);
+            color: #cbd5e1;
             position: sticky;
             top: 0;
             z-index: 2;
@@ -254,7 +255,7 @@
             font-weight: 700;
             font-size: 1rem;
         }
-        .qty-control input:focus { outline: none; }
+        .qty-control input:focus { outline: none; box-shadow: inset 0 0 0 2px var(--accent-blue); border-radius: 4px; }
 
         .btn-remove-item {
             background: none;
@@ -264,7 +265,7 @@
             font-size: 1.1rem;
             padding: 4px;
             border-radius: 6px;
-            transition: all 0.15s;
+            transition: background-color 0.15s, border-color 0.15s, color 0.15s, box-shadow 0.15s, transform 0.15s;
         }
         .btn-remove-item:hover { background: rgba(239,68,68,0.15); }
 
@@ -388,7 +389,7 @@
             font-size: 0.82rem;
             font-weight: 600;
             text-align: center;
-            transition: all 0.15s;
+            transition: background-color 0.15s, border-color 0.15s, color 0.15s, box-shadow 0.15s, transform 0.15s;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -472,7 +473,7 @@
             border-radius: 8px;
             cursor: pointer;
             font-weight: 600;
-            transition: all 0.15s;
+            transition: background-color 0.15s, border-color 0.15s, color 0.15s, box-shadow 0.15s, transform 0.15s;
         }
 
         .btn-doc.active {
@@ -490,7 +491,7 @@
             border-radius: 12px;
             font-weight: 700;
             cursor: pointer;
-            transition: all 0.15s;
+            transition: background-color 0.15s, border-color 0.15s, color 0.15s, box-shadow 0.15s, transform 0.15s;
         }
 
         .btn-doc-escolha:hover {
@@ -512,7 +513,7 @@
             font-size: 1.2rem;
             font-weight: 800;
             cursor: pointer;
-            transition: all 0.15s;
+            transition: background-color 0.15s, border-color 0.15s, color 0.15s, box-shadow 0.15s, transform 0.15s;
             text-transform: uppercase;
             letter-spacing: 1.5px;
             margin-top: auto;
@@ -546,15 +547,15 @@
             color: var(--text-muted);
             border-radius: 8px;
             cursor: pointer;
-            font-size: 0.68rem;
+            font-size: 0.75rem;
             text-align: center;
-            transition: all 0.15s;
+            transition: background-color 0.15s, border-color 0.15s, color 0.15s, box-shadow 0.15s, transform 0.15s;
             font-weight: 500;
         }
         .btn-action:hover { background: var(--bg-tertiary); color: var(--text-primary); border-color: var(--accent-blue); }
         .btn-action kbd {
             display: block;
-            font-size: 0.65rem;
+            font-size: 0.6875rem;
             color: var(--text-muted);
             margin-top: 2px;
         }
@@ -568,7 +569,7 @@
             align-items: center;
             padding: 0 16px;
             gap: 16px;
-            font-size: 0.7rem;
+            font-size: 0.75rem;
             color: var(--text-muted);
             border-top: 1px solid var(--border);
             user-select: none;
@@ -578,7 +579,7 @@
             color: var(--text-secondary);
             padding: 1px 6px;
             border-radius: 3px;
-            font-size: 0.65rem;
+            font-size: 0.6875rem;
             border: 1px solid var(--border);
         }
 
@@ -617,7 +618,7 @@
             font-size: 1.05rem;
             font-weight: 700;
             cursor: pointer;
-            transition: all 0.15s;
+            transition: background-color 0.15s, border-color 0.15s, color 0.15s, box-shadow 0.15s, transform 0.15s;
             text-decoration: none;
         }
         .no-caixa-box .btn-open-caixa:hover { background: #2563eb; transform: translateY(-1px); }
@@ -651,7 +652,7 @@
         }
         .modal .form-control:focus, .modal .form-select:focus {
             border-color: var(--accent-blue);
-            box-shadow: 0 0 0 3px rgba(59,130,246,0.15);
+            box-shadow: 0 0 0 3px rgba(59,130,246,0.35);
         }
         .modal .form-label { color: var(--text-secondary); font-weight: 500; font-size: 0.88rem; }
         .btn-close { filter: invert(1) grayscale(1) brightness(2); }
@@ -765,6 +766,33 @@
         }
         .spinner-box .spinner-border { width: 3rem; height: 3rem; }
         .spinner-box p { margin-top: 12px; font-weight: 600; }
+
+        /* ===== FOCO VISÍVEL (teclado) ===== */
+        :focus-visible { outline: 2px solid var(--accent-blue); outline-offset: 2px; border-radius: 6px; }
+        #searchInput:focus-visible, .qty-control input:focus-visible, .modal .form-control:focus-visible, .modal .form-select:focus-visible { outline: none; }
+
+        @media (prefers-reduced-motion: reduce) {
+            .pdv-alert { animation: none; }
+            .btn-finalizar:hover, .no-caixa-box .btn-open-caixa:hover { transform: none; }
+        }
+
+        /* ===== CELULAR E TABLET EM PÉ (< 768px): empilha os painéis ===== */
+        @media (max-width: 767.98px) {
+            html, body { height: auto; overflow: auto; }
+            .pdv-topbar { height: auto; flex-wrap: wrap; padding: 8px 12px; gap: 6px 12px; }
+            .topbar-info { flex-wrap: wrap; gap: 4px 12px; }
+            .pdv-main { flex-direction: column; height: auto; min-height: calc(100vh - 52px); }
+            .pdv-left { flex: none; padding: 10px 10px 0; overflow: visible; }
+            .items-container { flex: none; max-height: 42vh; min-height: 160px; overflow: auto; }
+            .items-table .col-code { display: none; }
+            .items-table .col-qty { width: 104px; }
+            .pdv-right { flex: none; border-left: 0; border-top: 1px solid var(--border); overflow: visible; }
+            #searchInput { font-size: 1rem; padding: 10px 12px 10px 40px; }
+            .summary-total .amount { font-size: 1.9rem; }
+            .btn-finalizar { position: sticky; bottom: 8px; z-index: 5; }
+            /* legenda de atalhos F1-F12 não se aplica ao toque */
+            .pdv-bottombar { display: none; }
+        }
     </style>
 </head>
 <body>
@@ -799,7 +827,7 @@
     @if($configFiscal && $configFiscal->emissao_fiscal_ativa && $configFiscal->tipo_cupom_pdv === 'fiscal')
         <div class="topbar-fiscal fiscal-on"><span class="dot"></span> NFC-e Ativa</div>
     @else
-        <div class="topbar-fiscal fiscal-off"><span class="dot"></span> Nao Fiscal</div>
+        <div class="topbar-fiscal fiscal-off"><span class="dot"></span> Não Fiscal</div>
     @endif
 
     <button type="button" class="topbar-fiscal" style="background:rgba(99,102,241,.18); color:var(--text-primary); border:0; cursor:pointer;" onclick="PDV.abrirReimprimir()" title="Reimprimir recibo ou cupom de uma venda">
@@ -824,7 +852,7 @@
             </div>
             <div class="modal-body">
                 <div class="d-flex align-items-center gap-2 mb-2 flex-wrap">
-                    <label class="form-label mb-0">Dia</label>
+                    <label for="reimprimirData" class="form-label mb-0">Dia</label>
                     <input type="date" class="form-control" id="reimprimirData" style="max-width:190px;" onchange="PDV.carregarReimprimir()">
                     <small style="color:var(--text-muted);">vendas desta loja no dia escolhido</small>
                 </div>
@@ -871,7 +899,7 @@
             <div class="search-input-wrap">
                 <i class="bi bi-upc-scan"></i>
                 <input type="text" id="searchInput"
-                    placeholder="Buscar produto por codigo de barras, codigo interno ou descricao..."
+                    placeholder="Buscar produto por código de barras, código interno ou descrição..."
                     autocomplete="off" {{ !$caixa ? 'disabled' : '' }}>
                 <div class="search-results-dropdown" id="searchDropdown"></div>
             </div>
@@ -896,7 +924,7 @@
             <div class="items-empty" id="itemsEmpty">
                 <i class="bi bi-cart-x"></i>
                 <p>Nenhum item adicionado</p>
-                <div class="shortcut">Pressione <kbd>F1</kbd> ou leia um codigo de barras para iniciar</div>
+                <div class="shortcut">Pressione <kbd>F1</kbd> ou leia um código de barras para iniciar</div>
             </div>
         </div>
     </div>
@@ -929,7 +957,7 @@
         <div class="cliente-section">
             <select id="vendedorSelect" class="form-select" title="Vendedor da venda (F3)"
                     style="background:var(--bg-primary); border:1px solid var(--border); color:var(--text-primary); border-radius:8px; font-size:0.85rem; padding:8px 12px;">
-                <option value="">Vendedor: {{ auth()->user()->name }} (padrao)</option>
+                <option value="">Vendedor: {{ auth()->user()->name }} (padrão)</option>
                 @foreach(($operadores ?? collect()) as $op)
                     <option value="{{ $op->id }}">{{ $op->name }} ({{ $op->perfil }})</option>
                 @endforeach
@@ -971,11 +999,11 @@
             <button class="btn-pay pay-dinheiro" data-forma="dinheiro" title="Dinheiro">
                 <i class="bi bi-cash-stack"></i> Dinheiro
             </button>
-            <button class="btn-pay pay-credito" data-forma="cartao_credito" title="Cartao Credito">
-                <i class="bi bi-credit-card"></i> Credito
+            <button class="btn-pay pay-credito" data-forma="cartao_credito" title="Cartão Crédito">
+                <i class="bi bi-credit-card"></i> Crédito
             </button>
-            <button class="btn-pay pay-debito" data-forma="cartao_debito" title="Cartao Debito">
-                <i class="bi bi-credit-card-2-front"></i> Debito
+            <button class="btn-pay pay-debito" data-forma="cartao_debito" title="Cartão Débito">
+                <i class="bi bi-credit-card-2-front"></i> Débito
             </button>
             <button class="btn-pay pay-pix" data-forma="pix" title="PIX">
                 <i class="bi bi-qr-code"></i> PIX
@@ -986,7 +1014,7 @@
             <button class="btn-pay pay-crediario" data-forma="crediario" title="Crediario / Fiado">
                 <i class="bi bi-journal-text"></i> Crediario
             </button>
-            <button class="btn-pay pay-transferencia" data-forma="transferencia" title="Transferencia / TED">
+            <button class="btn-pay pay-transferencia" data-forma="transferencia" title="Transferência / TED">
                 <i class="bi bi-bank"></i> Transf.
             </button>
             <button class="btn-pay pay-vale" data-forma="vale" title="Vale / Voucher">
@@ -1082,7 +1110,7 @@
                     <div class="fw-bold fs-5 text-success" id="modalPagamentoTotal"></div>
                 </div>
                 <div class="mb-3" id="valorRecebidoWrap">
-                    <label class="form-label">Valor Recebido</label>
+                    <label for="valorRecebido" class="form-label">Valor Recebido</label>
                     <input type="number" class="form-control modal-valor-input" id="valorRecebido"
                         step="0.01" min="0" placeholder="0,00">
                 </div>
@@ -1092,7 +1120,7 @@
                      border-radius:.5rem; background:rgba(255,193,7,.12);
                      border:1px solid rgba(255,193,7,.35); font-size:.9rem;"></div>
                 <div class="mb-3" id="parcelasWrap" style="display:none;">
-                    <label class="form-label">Parcelas</label>
+                    <label for="parcelasSelect" class="form-label">Parcelas</label>
                     <select class="form-select" id="parcelasSelect"
                             style="background:var(--bg-primary); color:var(--text-primary); border-color:var(--border-color, #3a3a48);"></select>
                     <div id="jurosResumo" style="display:none; margin-top:.5rem; padding:.6rem .75rem;
@@ -1150,14 +1178,14 @@
             </div>
             <div class="modal-body">
                 <div class="mb-3">
-                    <label class="form-label">Tipo de Desconto</label>
+                    <label for="descontoTipo" class="form-label">Tipo de Desconto</label>
                     <select class="form-select" id="descontoTipo">
                         <option value="valor">Valor (R$)</option>
                         <option value="percentual">Percentual (%)</option>
                     </select>
                 </div>
                 <div class="mb-3">
-                    <label class="form-label">Valor</label>
+                    <label for="descontoInput" class="form-label">Valor</label>
                     <input type="number" class="form-control modal-valor-input" id="descontoInput"
                         step="0.01" min="0" placeholder="0,00">
                 </div>
@@ -1180,12 +1208,12 @@
             </div>
             <div class="modal-body">
                 <div class="mb-3">
-                    <label class="form-label">Valor</label>
+                    <label for="sangriaValor" class="form-label">Valor</label>
                     <input type="number" class="form-control modal-valor-input" id="sangriaValor"
                         step="0.01" min="0.01" placeholder="0,00">
                 </div>
                 <div class="mb-3">
-                    <label class="form-label">Descricao / Motivo</label>
+                    <label for="sangriaDescricao" class="form-label">Descrição / Motivo</label>
                     <input type="text" class="form-control" id="sangriaDescricao" placeholder="Ex: Pagamento fornecedor">
                 </div>
             </div>
@@ -1209,12 +1237,12 @@
             </div>
             <div class="modal-body">
                 <div class="mb-3">
-                    <label class="form-label">Valor</label>
+                    <label for="suprimentoValor" class="form-label">Valor</label>
                     <input type="number" class="form-control modal-valor-input" id="suprimentoValor"
                         step="0.01" min="0.01" placeholder="0,00">
                 </div>
                 <div class="mb-3">
-                    <label class="form-label">Descricao / Motivo</label>
+                    <label for="suprimentoDescricao" class="form-label">Descrição / Motivo</label>
                     <input type="text" class="form-control" id="suprimentoDescricao" placeholder="Ex: Troco adicional">
                 </div>
             </div>
@@ -1239,10 +1267,10 @@
             <div class="modal-body" style="max-height:70vh; overflow-y:auto;">
                 {{-- Passo 1: achar a venda --}}
                 <div id="trocaPasso1">
-                    <label class="form-label">Qual venda? <small style="color:var(--text-muted);">número da venda, código do cupom (V123) ou nome do cliente — vale venda de qualquer dia e de qualquer loja</small></label>
+                    <label for="trocaBusca" class="form-label">Qual venda? <small style="color:var(--text-muted);">número da venda, código do cupom (V123) ou nome do cliente — vale venda de qualquer dia e de qualquer loja</small></label>
                     <div class="d-flex gap-2">
                         <input type="text" class="form-control" id="trocaBusca" placeholder="Ex.: 158, V158 ou Maria" autocomplete="off">
-                        <button type="button" class="modal-btn-primary" onclick="PDV.buscarVendasTroca()"><i class="bi bi-search"></i></button>
+                        <button type="button" class="modal-btn-primary" onclick="PDV.buscarVendasTroca()" aria-label="Buscar vendas"><i class="bi bi-search" aria-hidden="true"></i></button>
                     </div>
                     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2" style="margin-top:8px;">
                         <small style="color:var(--text-muted);">A peça não foi vendida por este sistema?</small>
@@ -1278,17 +1306,17 @@
 
                     <div class="row g-2 mb-2">
                         <div class="col-md-5">
-                            <label class="form-label">Motivo</label>
+                            <label for="trocaMotivo" class="form-label">Motivo</label>
                             <select class="form-select" id="trocaMotivo"></select>
                         </div>
                         <div class="col-md-7">
-                            <label class="form-label">Detalhe <small style="color:var(--text-muted);">(opcional)</small></label>
+                            <label for="trocaMotivoTexto" class="form-label">Detalhe <small style="color:var(--text-muted);">(opcional)</small></label>
                             <input type="text" class="form-control" id="trocaMotivoTexto" maxlength="500" placeholder="Ex.: veio pequeno, cliente quer o M">
                         </div>
                     </div>
 
                     <div id="trocaEstoqueWrap" style="display:none;" class="mb-2">
-                        <label class="form-label">Em qual estoque a peça entra</label>
+                        <label for="trocaEstoque" class="form-label">Em qual estoque a peça entra</label>
                         <select class="form-select" id="trocaEstoque"></select>
                     </div>
 
@@ -1350,7 +1378,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <label class="form-label">Código do vale <small style="color:var(--text-muted);">(impresso no comprovante da troca)</small></label>
+                <label for="valeCodigo" class="form-label">Código do vale <small style="color:var(--text-muted);">(impresso no comprovante da troca)</small></label>
                 <input type="text" class="form-control modal-valor-input" id="valeCodigo" placeholder="VT-XXXX-XXXX" autocomplete="off" style="text-transform:uppercase; font-size:1.1rem;">
                 <div id="valeInfo" style="display:none; margin-top:10px; font-size:.85rem;"></div>
             </div>
@@ -1372,11 +1400,11 @@
                 <div class="d-flex gap-2">
                     <button type="button" class="btn-doc-escolha" onclick="PDV.decidirSobraTroca(true)">
                         <i class="bi bi-cash-stack d-block fs-3 mb-1"></i> Devolver em dinheiro
-                        <div style="font-size:0.68rem; opacity:0.75;">sai da gaveta agora</div>
+                        <div style="font-size:0.72rem; opacity:0.75;">sai da gaveta agora</div>
                     </button>
                     <button type="button" class="btn-doc-escolha" onclick="PDV.decidirSobraTroca(false)">
                         <i class="bi bi-ticket-perforated d-block fs-3 mb-1"></i> Deixar no vale
-                        <div style="font-size:0.68rem; opacity:0.75;">cliente usa depois</div>
+                        <div style="font-size:0.72rem; opacity:0.75;">cliente usa depois</div>
                     </button>
                 </div>
             </div>
@@ -1395,11 +1423,11 @@
                 <div class="d-flex gap-2">
                     <button type="button" class="btn-doc-escolha" onclick="PDV.corrigirDinheiroMenor()">
                         <i class="bi bi-pencil-square d-block fs-3 mb-1"></i> Corrigir valor
-                        <div style="font-size:0.68rem; opacity:0.75;">voltar e digitar de novo</div>
+                        <div style="font-size:0.72rem; opacity:0.75;">voltar e digitar de novo</div>
                     </button>
                     <button type="button" class="btn-doc-escolha" onclick="PDV.completarDinheiroMenor()">
                         <i class="bi bi-credit-card d-block fs-3 mb-1"></i> Completar com outra forma
-                        <div style="font-size:0.68rem; opacity:0.75;">o dinheiro fica lançado; falta o resto</div>
+                        <div style="font-size:0.72rem; opacity:0.75;">o dinheiro fica lançado; falta o resto</div>
                     </button>
                 </div>
             </div>
@@ -1419,11 +1447,11 @@
                 <div class="d-flex gap-2">
                     <button type="button" id="btnDocCupom" class="btn-doc-escolha" onclick="PDV.confirmarDocumento('cupom_fiscal')">
                         <i class="bi bi-receipt-cutoff d-block fs-3 mb-1"></i> Cupom Fiscal
-                        <div style="font-size:0.68rem; opacity:0.75;">NFC-e na SEFAZ</div>
+                        <div style="font-size:0.72rem; opacity:0.75;">NFC-e na SEFAZ</div>
                     </button>
                     <button type="button" id="btnDocRecibo" class="btn-doc-escolha" onclick="PDV.confirmarDocumento('recibo')">
                         <i class="bi bi-file-text d-block fs-3 mb-1"></i> Recibo
-                        <div style="font-size:0.68rem; opacity:0.75;">Não fiscal</div>
+                        <div style="font-size:0.72rem; opacity:0.75;">Não fiscal</div>
                     </button>
                 </div>
                 <div style="font-size:0.7rem; color:var(--text-muted, #9a9ab0); margin-top:12px;">
@@ -1494,7 +1522,7 @@
 {{-- Print frame --}}
 <iframe id="printFrame"></iframe>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
 <script>
 const PDV = {
     itens: [],

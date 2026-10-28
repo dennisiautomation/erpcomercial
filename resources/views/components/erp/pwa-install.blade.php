@@ -1,99 +1,92 @@
 {{--
     PWA: registro do service worker + convite de instalação.
 
-    Aparece uma vez por navegador (login ou primeira tela depois dele) e some
-    de vez quando o app é instalado. "Agora não" adia por 7 dias. Nunca aparece
-    dentro do app já instalado nem no PDV (o PDV não usa este layout).
+    Convite discreto no canto da tela (não bloqueia a página nem rouba o foco).
+    Só aparece a partir da 3ª tela aberta na sessão, para nunca ser a primeira
+    coisa que o usuário vê. Some de vez quando o app é instalado; "Agora não"
+    adia por 7 dias. Nunca aparece dentro do app já instalado nem no PDV
+    (o PDV não usa este layout).
 --}}
 @if(config('pwa.ativo'))
-<div id="pwaInstalarBackdrop" class="pwa-backdrop" hidden>
-    <div class="pwa-caixa" role="dialog" aria-modal="true" aria-labelledby="pwaInstalarTitulo">
-        <div class="pwa-marca"><i class="bi bi-grid-3x3-gap-fill"></i></div>
-
-        <h2 class="pwa-titulo" id="pwaInstalarTitulo">Instalar o ERP no seu computador</h2>
-
-        <p class="pwa-texto" id="pwaInstalarTexto">
-            Instale o ERP como aplicativo: ele cria o atalho na
-            <strong>área de trabalho</strong>, pode ser fixado na
-            <strong>barra de tarefas</strong> e abre em janela própria, sem a barra do navegador.
-            É o mesmo sistema — nada muda no seu dia a dia.
-        </p>
-
-        <div class="pwa-passos" id="pwaInstalarPassos" hidden>
-            <div class="pwa-passo"><span>1</span> Clique no ícone <i class="bi bi-download"></i> no fim da barra de endereço do navegador.</div>
-            <div class="pwa-passo"><span>2</span> Ou abra o menu <i class="bi bi-three-dots-vertical"></i> do navegador e escolha <strong>Instalar ERP Comercial</strong>.</div>
-        </div>
-
-        <div class="pwa-botoes">
-            <button type="button" class="pwa-btn-ghost" id="pwaInstalarDepois">Agora não</button>
-            <button type="button" class="pwa-btn" id="pwaInstalarAgora">
-                <i class="bi bi-download me-1"></i>Instalar
-            </button>
+<div id="pwaInstalarCaixa" class="pwa-caixa" role="region" aria-labelledby="pwaInstalarTitulo" hidden>
+    <button type="button" class="pwa-fechar" id="pwaInstalarFechar" aria-label="Fechar convite de instalação">
+        <i class="bi bi-x-lg" aria-hidden="true"></i>
+    </button>
+    <div class="pwa-corpo">
+        <div class="pwa-marca" aria-hidden="true"><i class="bi bi-grid-3x3-gap-fill"></i></div>
+        <div class="pwa-conteudo">
+            <h2 class="pwa-titulo" id="pwaInstalarTitulo">Instalar o ERP no computador</h2>
+            <p class="pwa-texto" id="pwaInstalarTexto">
+                Abre em janela própria, com atalho na área de trabalho. Nada muda no seu dia a dia.
+            </p>
+            <div class="pwa-passos" id="pwaInstalarPassos" hidden>
+                <div class="pwa-passo"><span>1</span> Clique no ícone <i class="bi bi-download" aria-hidden="true"></i> no fim da barra de endereço.</div>
+                <div class="pwa-passo"><span>2</span> Ou abra o menu <i class="bi bi-three-dots-vertical" aria-hidden="true"></i> do navegador e escolha <strong>Instalar ERP Comercial</strong>.</div>
+            </div>
+            <div class="pwa-botoes">
+                <button type="button" class="pwa-btn" id="pwaInstalarAgora">
+                    <i class="bi bi-download me-1" aria-hidden="true"></i>Instalar
+                </button>
+                <button type="button" class="pwa-btn-ghost" id="pwaInstalarDepois">Agora não</button>
+            </div>
         </div>
     </div>
 </div>
 
 <style>
-    .pwa-backdrop {
-        position: fixed; inset: 0; z-index: 2000;
-        background: rgba(15, 23, 42, .45);
-        backdrop-filter: blur(3px);
-        display: flex; align-items: center; justify-content: center;
-        padding: 20px;
-        animation: pwaFade .2s ease;
-    }
-    .pwa-backdrop[hidden] { display: none; }
-    @keyframes pwaFade { from { opacity: 0 } to { opacity: 1 } }
-    @keyframes pwaSobe { from { opacity: 0; transform: translateY(12px) scale(.98) } to { opacity: 1; transform: none } }
-
     .pwa-caixa {
-        width: 100%; max-width: 430px;
-        background: #fff; border-radius: 18px;
-        padding: 32px 28px 24px;
-        box-shadow: 0 24px 60px rgba(15, 23, 42, .22);
-        text-align: center;
-        animation: pwaSobe .25s cubic-bezier(.4, 0, .2, 1);
+        position: fixed; right: 16px; bottom: 16px; z-index: 1050;
+        width: calc(100% - 32px); max-width: 400px;
+        background: #fff; border: 1px solid #e2e8f0; border-radius: 14px;
+        padding: 16px 16px 14px;
+        box-shadow: 0 12px 32px rgba(15, 23, 42, .16);
+        animation: pwaSobe .25s cubic-bezier(.2, .7, .2, 1);
     }
-    .pwa-marca {
-        width: 60px; height: 60px; border-radius: 15px;
-        margin: 0 auto 18px;
-        background: linear-gradient(135deg, #6366f1, #8b5cf6);
-        display: flex; align-items: center; justify-content: center;
-        color: #fff; font-size: 1.6rem;
-    }
-    .pwa-titulo { font-size: 1.15rem; font-weight: 700; color: #1e293b; margin: 0 0 10px; }
-    .pwa-texto  { font-size: .9rem; color: #64748b; line-height: 1.55; margin: 0 0 22px; }
-    .pwa-texto strong { color: #475569; }
+    .pwa-caixa[hidden] { display: none; }
+    @keyframes pwaSobe { from { opacity: 0; transform: translateY(10px) } to { opacity: 1; transform: none } }
+    @media (prefers-reduced-motion: reduce) { .pwa-caixa { animation: none; } }
 
-    .pwa-passos { text-align: left; margin: 0 0 22px; }
+    .pwa-fechar {
+        position: absolute; top: 8px; right: 8px;
+        width: 32px; height: 32px; border: 0; border-radius: 8px;
+        background: transparent; color: #64748b; cursor: pointer;
+        display: flex; align-items: center; justify-content: center;
+    }
+    .pwa-fechar:hover { background: #f1f5f9; color: #1e293b; }
+
+    .pwa-corpo { display: flex; gap: 12px; align-items: flex-start; }
+    .pwa-marca {
+        flex: 0 0 40px; width: 40px; height: 40px; border-radius: 10px;
+        background: #4f46e5; color: #fff; font-size: 1.1rem;
+        display: flex; align-items: center; justify-content: center;
+    }
+    .pwa-conteudo { flex: 1; min-width: 0; padding-right: 24px; }
+    .pwa-titulo { font-size: .95rem; font-weight: 700; color: #1e293b; margin: 2px 0 4px; }
+    .pwa-texto  { font-size: .84rem; color: #475569; line-height: 1.5; margin: 0 0 12px; }
+
+    .pwa-passos { margin: 0 0 12px; }
     .pwa-passo {
-        display: flex; gap: 10px; align-items: flex-start;
-        font-size: .85rem; color: #475569; line-height: 1.5;
-        padding: 9px 12px; background: #f8fafc; border-radius: 10px; margin-bottom: 8px;
+        display: flex; gap: 8px; align-items: flex-start;
+        font-size: .82rem; color: #475569; line-height: 1.5;
+        padding: 8px 10px; background: #f8fafc; border-radius: 8px; margin-bottom: 6px;
     }
     .pwa-passo span {
-        flex: 0 0 20px; height: 20px; border-radius: 50%;
-        background: #6366f1; color: #fff;
-        font-size: .72rem; font-weight: 700;
+        flex: 0 0 18px; height: 18px; border-radius: 50%;
+        background: #4f46e5; color: #fff; font-size: .7rem; font-weight: 700;
         display: flex; align-items: center; justify-content: center;
     }
 
-    .pwa-botoes { display: flex; gap: 10px; justify-content: center; }
+    .pwa-botoes { display: flex; gap: 8px; flex-wrap: wrap; }
     .pwa-btn, .pwa-btn-ghost {
-        border: 0; border-radius: 10px; cursor: pointer;
-        padding: 11px 22px; font-size: .92rem; font-weight: 600;
-        transition: background .15s, color .15s;
+        border: 0; border-radius: 8px; cursor: pointer;
+        padding: 8px 14px; font-size: .86rem; font-weight: 600;
+        transition: background-color .15s, color .15s;
     }
-    .pwa-btn { background: #6366f1; color: #fff; }
-    .pwa-btn:hover { background: #4f46e5; }
-    .pwa-btn-ghost { background: transparent; color: #64748b; }
-    .pwa-btn-ghost:hover { background: #f1f5f9; color: #475569; }
-
-    @media (max-width: 420px) {
-        .pwa-caixa { padding: 26px 20px 20px; }
-        .pwa-botoes { flex-direction: column-reverse; }
-        .pwa-btn, .pwa-btn-ghost { width: 100%; }
-    }
+    .pwa-btn { background: #4f46e5; color: #fff; }
+    .pwa-btn:hover { background: #4338ca; }
+    .pwa-btn-ghost { background: transparent; color: #475569; }
+    .pwa-btn-ghost:hover { background: #f1f5f9; color: #1e293b; }
+    .pwa-btn:focus-visible, .pwa-btn-ghost:focus-visible, .pwa-fechar:focus-visible { outline: 2px solid #4f46e5; outline-offset: 2px; }
 </style>
 
 <script>
@@ -101,15 +94,18 @@
     'use strict';
 
     var ADIAR_DIAS   = 7;
+    var TELAS_MINIMAS = 3;              // só convida a partir da 3ª tela da sessão
     var CHAVE_ADIADO = 'erp_pwa_adiado';
     var CHAVE_INST   = 'erp_pwa_instalado';
     var CHAVE_MANUAL = 'erp_pwa_manual_visto';
+    var CHAVE_TELAS  = 'erp_pwa_telas';
 
-    var backdrop = document.getElementById('pwaInstalarBackdrop');
+    var caixa    = document.getElementById('pwaInstalarCaixa');
     var passos   = document.getElementById('pwaInstalarPassos');
     var texto    = document.getElementById('pwaInstalarTexto');
     var btnSim   = document.getElementById('pwaInstalarAgora');
     var btnNao   = document.getElementById('pwaInstalarDepois');
+    var btnX     = document.getElementById('pwaInstalarFechar');
     var evento   = null;   // beforeinstallprompt guardado
     var aberto   = false;
 
@@ -119,6 +115,13 @@
             if (acao === 'set') localStorage.setItem(chave, valor);
         } catch (e) { /* modo restrito: segue sem memória */ }
         return null;
+    }
+    function telasNaSessao() {
+        try {
+            var n = parseInt(sessionStorage.getItem(CHAVE_TELAS) || '0', 10) + 1;
+            sessionStorage.setItem(CHAVE_TELAS, String(n));
+            return n;
+        } catch (e) { return TELAS_MINIMAS; }
     }
 
     function jaInstalado() {
@@ -137,15 +140,17 @@
             && window.matchMedia('(pointer: coarse)').matches;
     }
 
-    /* ---- diálogo ---- */
+    var telas = telasNaSessao();
 
-    function abrir(modo) {                    // modo: 'prompt' | 'manual'
+    /* ---- convite (não modal: a página continua usável e o foco fica onde estava) ---- */
+
+    function abrir(modo, forcado) {           // modo: 'prompt' | 'manual'
         if (aberto || jaInstalado()) return;
+        if (!forcado && telas < TELAS_MINIMAS) return;
 
         if (celular()) {
-            document.getElementById('pwaInstalarTitulo').textContent = 'Instalar o ERP no seu celular';
-            texto.innerHTML = 'Instale o ERP como aplicativo: ele ganha ícone na <strong>tela inicial</strong> '
-                + 'e abre em tela cheia, sem a barra do navegador. É o mesmo sistema — nada muda no seu dia a dia.';
+            document.getElementById('pwaInstalarTitulo').textContent = 'Instalar o ERP no celular';
+            texto.textContent = 'Ganha ícone na tela inicial e abre em tela cheia. Nada muda no seu dia a dia.';
         }
 
         if (modo === 'manual') {
@@ -155,22 +160,23 @@
             ls('set', CHAVE_MANUAL, '1');
         }
 
-        backdrop.hidden = false;
+        caixa.hidden = false;
         aberto = true;
-        (modo === 'manual' ? btnNao : btnSim).focus();
+        if (forcado) btnSim.hidden ? btnNao.focus() : btnSim.focus();   // só quando o usuário pediu pelo menu
     }
 
     function fechar(lembrar) {
-        backdrop.hidden = true;
+        caixa.hidden = true;
         aberto = false;
         if (lembrar) ls('set', CHAVE_ADIADO, String(Date.now()));
     }
 
     btnNao.addEventListener('click', function () { fechar(true); });
+    btnX.addEventListener('click', function () { fechar(true); });
 
     btnSim.addEventListener('click', function () {
         if (!evento) { fechar(true); return; }
-        backdrop.hidden = true;
+        caixa.hidden = true;
         aberto = false;
         evento.prompt();
         evento.userChoice.then(function (escolha) {
@@ -184,11 +190,8 @@
         });
     });
 
-    backdrop.addEventListener('click', function (e) {
-        if (e.target === backdrop) fechar(true);
-    });
     document.addEventListener('keydown', function (e) {
-        if (aberto && e.key === 'Escape') fechar(true);
+        if (aberto && e.key === 'Escape' && caixa.contains(document.activeElement)) fechar(true);
     });
 
     /* ---- item discreto "Instalar aplicativo" no menu do usuário ---- */
@@ -205,7 +208,7 @@
         var alvo = e.target.closest ? e.target.closest('[data-pwa-instalar]') : null;
         if (!alvo) return;
         e.preventDefault();
-        if (evento) { abrir('prompt'); } else { abrir('manual'); }
+        if (evento) { abrir('prompt', true); } else { abrir('manual', true); }
     });
 
     /* ---- ciclo de vida ---- */
@@ -214,7 +217,7 @@
         e.preventDefault();
         evento = e;
         mostrarAtalhoMenu();
-        if (!jaInstalado() && !adiado()) setTimeout(function () { abrir('prompt'); }, 900);
+        if (!jaInstalado() && !adiado()) setTimeout(function () { abrir('prompt'); }, 1500);
     });
 
     window.addEventListener('appinstalled', function () {

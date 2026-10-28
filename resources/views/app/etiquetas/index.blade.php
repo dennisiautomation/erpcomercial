@@ -3,12 +3,8 @@
 @section('title', 'Gerar Etiquetas')
 
 @section('content')
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <div>
-        <h4 class="mb-0"><i class="bi bi-upc me-2"></i>Gerar Etiquetas</h4>
-        <small class="text-muted">Selecione os produtos e gere etiquetas com codigo de barras</small>
-    </div>
-</div>
+<x-erp.page-header title="Gerar Etiquetas" icon="upc" subtitle="Selecione os produtos e gere etiquetas com código de barras">
+</x-erp.page-header>
 
 <form id="formEtiquetas" method="POST" action="{{ route('app.etiquetas.gerar') }}" target="_blank">
     @csrf
@@ -40,7 +36,7 @@
                     <div class="form-check">
                         <input class="form-check-input" type="radio" name="formato" id="formato2x5" value="2x5" checked>
                         <label class="form-check-label" for="formato2x5">
-                            <strong>2 x 5</strong> — 10 etiquetas por pagina (grande)
+                            <strong>2 x 5</strong> — 10 etiquetas por página (grande)
                         </label>
                         {!! $linkEditar('2x5') !!}
                     </div>
@@ -49,7 +45,7 @@
                     <div class="form-check">
                         <input class="form-check-input" type="radio" name="formato" id="formato3x7" value="3x7">
                         <label class="form-check-label" for="formato3x7">
-                            <strong>3 x 7</strong> — 21 etiquetas por pagina (media)
+                            <strong>3 x 7</strong> — 21 etiquetas por página (média)
                         </label>
                         {!! $linkEditar('3x7') !!}
                     </div>
@@ -58,7 +54,7 @@
                     <div class="form-check">
                         <input class="form-check-input" type="radio" name="formato" id="formato4x10" value="4x10">
                         <label class="form-check-label" for="formato4x10">
-                            <strong>4 x 10</strong> — 40 etiquetas por pagina (pequena)
+                            <strong>4 x 10</strong> — 40 etiquetas por página (pequena)
                         </label>
                         {!! $linkEditar('4x10') !!}
                     </div>
@@ -195,27 +191,27 @@
                     </p>
                     <div class="row g-2">
                         <div class="col-md-4">
-                            <label class="form-label small mb-1">Nome do formato <span class="text-danger">*</span></label>
-                            <input type="text" name="nome" form="formNovoFormato" class="form-control form-control-sm"
+                            <label for="campo-nome" class="form-label small mb-1">Nome do formato <span class="text-danger">*</span></label>
+                            <input id="campo-nome" type="text" name="nome" form="formNovoFormato" class="form-control form-control-sm"
                                    maxlength="60" placeholder="Ex.: Elgin 3 colunas" value="{{ old('nome') }}" required>
                         </div>
                         <div class="col-md-2">
-                            <label class="form-label small mb-1">Largura (cm) <span class="text-danger">*</span></label>
+                            <label for="fmtLargura" class="form-label small mb-1">Largura (cm) <span class="text-danger">*</span></label>
                             <input type="text" name="largura_cm" id="fmtLargura" form="formNovoFormato" class="form-control form-control-sm"
                                    inputmode="decimal" placeholder="3,2" value="{{ old('largura_cm') }}" required>
                         </div>
                         <div class="col-md-2">
-                            <label class="form-label small mb-1">Altura (cm) <span class="text-danger">*</span></label>
-                            <input type="text" name="altura_cm" form="formNovoFormato" class="form-control form-control-sm"
+                            <label for="campo-altura_cm" class="form-label small mb-1">Altura (cm) <span class="text-danger">*</span></label>
+                            <input id="campo-altura_cm" type="text" name="altura_cm" form="formNovoFormato" class="form-control form-control-sm"
                                    inputmode="decimal" placeholder="2,5" value="{{ old('altura_cm') }}" required>
                         </div>
                         <div class="col-md-2">
-                            <label class="form-label small mb-1">Colunas <span class="text-danger">*</span></label>
+                            <label for="fmtColunas" class="form-label small mb-1">Colunas <span class="text-danger">*</span></label>
                             <input type="number" name="colunas" id="fmtColunas" form="formNovoFormato" class="form-control form-control-sm"
                                    min="1" max="6" value="{{ old('colunas', 1) }}" required>
                         </div>
                         <div class="col-md-2">
-                            <label class="form-label small mb-1">Espaço entre colunas (cm)</label>
+                            <label for="fmtEspaco" class="form-label small mb-1">Espaço entre colunas (cm)</label>
                             <input type="text" name="espaco_cm" id="fmtEspaco" form="formNovoFormato" class="form-control form-control-sm"
                                    inputmode="decimal" placeholder="0,2" value="{{ old('espaco_cm', '0,2') }}">
                         </div>
@@ -225,7 +221,7 @@
                          impressora encolher, cortar ou girar a etiqueta. --}}
                     <div class="row g-2 mt-2 align-items-end">
                         <div class="col-md-3">
-                            <label class="form-label small mb-1">
+                            <label for="fmtBobina" class="form-label small mb-1">
                                 Largura da bobina (cm)
                                 <i class="bi bi-question-circle text-muted" title="A medida do papel, não da etiqueta. Está nas preferências da impressora, em 'Papel de etiquetas'."></i>
                             </label>
@@ -250,8 +246,8 @@
 
                     <div class="row g-2 mt-2">
                         <div class="col-md-6">
-                            <label class="form-label small mb-1">Arranjo da etiqueta</label>
-                            <select name="estilo" form="formNovoFormato" class="form-select form-select-sm">
+                            <label for="campo-estilo" class="form-label small mb-1">Arranjo da etiqueta</label>
+                            <select id="campo-estilo" name="estilo" form="formNovoFormato" class="form-select form-select-sm">
                                 <option value="padrao" {{ old('estilo') === 'nome_topo' ? '' : 'selected' }}>
                                     Padrão — descrição, barras, preço
                                 </option>
@@ -301,10 +297,10 @@
                             <th style="width: 50px;" class="text-center">
                                 <i class="bi bi-check2-square"></i>
                             </th>
-                            <th style="width: 100px;">Codigo</th>
-                            <th>Descricao</th>
+                            <th style="width: 100px;">Código</th>
+                            <th>Descrição</th>
                             <th style="width: 150px;">Cod. Barras</th>
-                            <th class="text-end" style="width: 120px;">Preco</th>
+                            <th class="text-end" style="width: 120px;">Preço</th>
                             <th class="text-center" style="width: 120px;">Qtd. Etiquetas</th>
                         </tr>
                     </thead>

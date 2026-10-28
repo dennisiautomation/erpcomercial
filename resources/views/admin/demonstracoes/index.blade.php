@@ -3,9 +3,8 @@
 @section('title', 'Demonstrações')
 
 @section('content')
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h4 class="mb-0"><i class="bi bi-calendar-check me-2"></i>Solicitações de demonstração</h4>
-</div>
+<x-erp.page-header title="Solicitações de demonstração" icon="calendar-check">
+</x-erp.page-header>
 
 @if (session('success'))
     <div class="alert alert-success">{{ session('success') }}</div>

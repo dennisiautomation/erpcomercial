@@ -1,11 +1,11 @@
 @php $t = $treinamento ?? null; @endphp
 
 <div class="card shadow-sm mb-4">
-    <div class="card-header"><h6 class="mb-0">Informacoes Basicas</h6></div>
+    <div class="card-header"><h6 class="mb-0">Informações Basicas</h6></div>
     <div class="card-body">
         <div class="row g-3">
             <div class="col-md-6">
-                <label for="titulo" class="form-label">Titulo <span class="text-danger">*</span></label>
+                <label for="titulo" class="form-label">Título <span class="text-danger">*</span></label>
                 <input type="text" class="form-control @error('titulo') is-invalid @enderror"
                        id="titulo" name="titulo" value="{{ old('titulo', $t?->titulo) }}" required>
                 @error('titulo') <div class="invalid-feedback">{{ $message }}</div> @enderror
@@ -41,7 +41,7 @@
                 @error('perfis') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
             </div>
             <div class="col-12">
-                <label for="descricao" class="form-label">Descricao</label>
+                <label for="descricao" class="form-label">Descrição</label>
                 <textarea class="form-control @error('descricao') is-invalid @enderror"
                           id="descricao" name="descricao" rows="2">{{ old('descricao', $t?->descricao) }}</textarea>
                 @error('descricao') <div class="invalid-feedback">{{ $message }}</div> @enderror

@@ -19,15 +19,15 @@
         <x-erp.stat-card icon="exclamation-triangle" color="danger" :value="number_format($totalVencido, 2, ',', '.')" label="Total Vencido" prefix="R$ " />
     </div>
     <div class="col-md-4">
-        <x-erp.stat-card icon="check-circle" color="success" :value="number_format($pagoMes, 2, ',', '.')" label="Pago no Mes" prefix="R$ " />
+        <x-erp.stat-card icon="check-circle" color="success" :value="number_format($pagoMes, 2, ',', '.')" label="Pago no Mês" prefix="R$ " />
     </div>
 </div>
 
 {{-- Filters --}}
 <x-erp.filter-bar :action="route('app.contas-pagar.index')">
     <div class="col-md-2">
-        <label class="form-label fw-semibold small text-muted">Status</label>
-        <select name="status" class="form-select">
+        <label for="campo-status" class="form-label fw-semibold small text-muted">Status</label>
+        <select id="campo-status" name="status" class="form-select">
             <option value="">Todos</option>
             <option value="pendente" {{ request('status') == 'pendente' ? 'selected' : '' }}>Pendente</option>
             <option value="paga" {{ request('status') == 'paga' ? 'selected' : '' }}>Paga</option>
@@ -36,8 +36,8 @@
         </select>
     </div>
     <div class="col-md-3">
-        <label class="form-label fw-semibold small text-muted">Fornecedor</label>
-        <select name="fornecedor_id" class="form-select">
+        <label for="campo-fornecedor_id" class="form-label fw-semibold small text-muted">Fornecedor</label>
+        <select id="campo-fornecedor_id" name="fornecedor_id" class="form-select">
             <option value="">Todos</option>
             @foreach($fornecedores as $fornecedor)
                 <option value="{{ $fornecedor->id }}" {{ request('fornecedor_id') == $fornecedor->id ? 'selected' : '' }}>
@@ -47,12 +47,12 @@
         </select>
     </div>
     <div class="col-md-2">
-        <label class="form-label fw-semibold small text-muted">Vencimento De</label>
-        <input type="date" name="vencimento_inicio" class="form-control" value="{{ request('vencimento_inicio') }}">
+        <label for="campo-vencimento_inicio" class="form-label fw-semibold small text-muted">Vencimento De</label>
+        <input id="campo-vencimento_inicio" type="date" name="vencimento_inicio" class="form-control" value="{{ request('vencimento_inicio') }}">
     </div>
     <div class="col-md-2">
-        <label class="form-label fw-semibold small text-muted">Vencimento Ate</label>
-        <input type="date" name="vencimento_fim" class="form-control" value="{{ request('vencimento_fim') }}">
+        <label for="campo-vencimento_fim" class="form-label fw-semibold small text-muted">Vencimento Até</label>
+        <input id="campo-vencimento_fim" type="date" name="vencimento_fim" class="form-control" value="{{ request('vencimento_fim') }}">
     </div>
     <div class="col-auto">
         <a href="{{ route('app.contas-pagar.index') }}" class="btn btn-erp-outline">
@@ -67,13 +67,13 @@
         <tr>
             <th>#</th>
             <th>Fornecedor</th>
-            <th>Descricao</th>
+            <th>Descrição</th>
             <th>Categoria</th>
             <th class="text-center">Parcela</th>
             <th>Vencimento</th>
             <th class="text-end">Valor</th>
             <th class="text-center">Status</th>
-            <th class="text-center">Acoes</th>
+            <th class="text-center">Ações</th>
         </tr>
     </thead>
     <tbody>
@@ -137,7 +137,7 @@
                         </button>
                     </form>
                     <form method="POST" action="{{ route('app.contas-pagar.destroy', $conta) }}"
-                        data-confirm="Confirma a exclusao desta conta?">
+                        data-confirm="Confirma a exclusão desta conta?">
                         @csrf
                         @method('DELETE')
                         <button type="submit" class="btn btn-sm btn-outline-danger" title="Excluir">

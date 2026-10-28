@@ -1,22 +1,21 @@
 @extends('layouts.app')
 
-@section('title', 'Orcamentos')
+@section('title', 'Orçamentos')
 
 @section('content')
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <div>
-        <h4 class="mb-1"><i class="bi bi-file-earmark-text me-2"></i>Orcamentos</h4>
+<x-erp.page-header title="Orçamentos" icon="file-earmark-text">
+    <x-slot:breadcrumb>
         <nav aria-label="breadcrumb">
-            <ol class="breadcrumb mb-0 small">
-                <li class="breadcrumb-item"><a href="{{ route('app.dashboard') }}">Dashboard</a></li>
-                <li class="breadcrumb-item active">Orcamentos</li>
-            </ol>
-        </nav>
-    </div>
+                    <ol class="breadcrumb mb-0 small">
+                        <li class="breadcrumb-item"><a href="{{ route('app.dashboard') }}">Dashboard</a></li>
+                        <li class="breadcrumb-item active">Orçamentos</li>
+                    </ol>
+                </nav>
+    </x-slot:breadcrumb>
     <a href="{{ route('app.orcamentos.create') }}" class="btn btn-primary">
-        <i class="bi bi-plus-lg me-1"></i> Novo Orcamento
-    </a>
-</div>
+            <i class="bi bi-plus-lg me-1"></i> Novo Orçamento
+        </a>
+</x-erp.page-header>
 
 {{-- Stats Cards --}}
 <div class="row g-3 mb-4">
@@ -95,15 +94,15 @@
     <div class="card-body py-3">
         <form method="GET" class="row g-2 align-items-end">
             <div class="col-md-4">
-                <label class="form-label small fw-semibold mb-1">Buscar</label>
+                <label for="campo-busca" class="form-label small fw-semibold mb-1">Buscar</label>
                 <div class="input-group input-group-sm">
                     <span class="input-group-text bg-transparent"><i class="bi bi-search"></i></span>
-                    <input type="text" name="busca" class="form-control" placeholder="Numero ou cliente..." value="{{ request('busca') }}">
+                    <input id="campo-busca" type="text" name="busca" class="form-control" placeholder="Número ou cliente..." value="{{ request('busca') }}">
                 </div>
             </div>
             <div class="col-md-2">
-                <label class="form-label small fw-semibold mb-1">Status</label>
-                <select name="status" class="form-select form-select-sm">
+                <label for="campo-status" class="form-label small fw-semibold mb-1">Status</label>
+                <select id="campo-status" name="status" class="form-select form-select-sm">
                     <option value="">Todos</option>
                     @foreach(\App\Enums\StatusOrcamento::cases() as $status)
                         <option value="{{ $status->value }}" {{ request('status') === $status->value ? 'selected' : '' }}>
@@ -113,12 +112,12 @@
                 </select>
             </div>
             <div class="col-md-2">
-                <label class="form-label small fw-semibold mb-1">Data Inicio</label>
-                <input type="date" name="data_inicio" class="form-control form-control-sm" value="{{ request('data_inicio') }}">
+                <label for="campo-data_inicio" class="form-label small fw-semibold mb-1">Data Início</label>
+                <input id="campo-data_inicio" type="date" name="data_inicio" class="form-control form-control-sm" value="{{ request('data_inicio') }}">
             </div>
             <div class="col-md-2">
-                <label class="form-label small fw-semibold mb-1">Data Fim</label>
-                <input type="date" name="data_fim" class="form-control form-control-sm" value="{{ request('data_fim') }}">
+                <label for="campo-data_fim" class="form-label small fw-semibold mb-1">Data Fim</label>
+                <input id="campo-data_fim" type="date" name="data_fim" class="form-control form-control-sm" value="{{ request('data_fim') }}">
             </div>
             <div class="col-md-2 d-flex gap-1">
                 <button type="submit" class="btn btn-primary btn-sm flex-fill">
@@ -138,7 +137,7 @@
         <table class="table table-hover align-middle mb-0">
             <thead>
                 <tr class="bg-light">
-                    <th class="ps-3" style="width:80px">Numero</th>
+                    <th class="ps-3" style="width:80px">Número</th>
                     <th>Data</th>
                     <th>Cliente</th>
                     <th>Vendedor</th>
@@ -146,7 +145,7 @@
                     <th class="text-center">Itens</th>
                     <th class="text-end">Total</th>
                     <th class="text-center">Status</th>
-                    <th class="text-center pe-3" style="width:140px">Acoes</th>
+                    <th class="text-center pe-3" style="width:140px">Ações</th>
                 </tr>
             </thead>
             <tbody>
@@ -197,7 +196,7 @@
                                         <i class="bi bi-pencil"></i>
                                     </a>
                                     <form method="POST" action="{{ route('app.orcamentos.destroy', $orcamento) }}" class="d-inline"
-                                          data-confirm="Tem certeza que deseja excluir este orcamento?">
+                                          data-confirm="Tem certeza que deseja excluir este orçamento?">
                                         @csrf
                                         @method('DELETE')
                                         <button type="submit" class="btn btn-outline-danger" title="Excluir">
@@ -213,10 +212,10 @@
                         <td colspan="9" class="text-center py-5">
                             <div class="text-muted">
                                 <i class="bi bi-file-earmark-text fs-1 d-block mb-2"></i>
-                                Nenhum orcamento encontrado.
+                                Nenhum orçamento encontrado.
                             </div>
                             <a href="{{ route('app.orcamentos.create') }}" class="btn btn-sm btn-primary mt-2">
-                                <i class="bi bi-plus-lg me-1"></i> Criar Primeiro Orcamento
+                                <i class="bi bi-plus-lg me-1"></i> Criar Primeiro Orçamento
                             </a>
                         </td>
                     </tr>

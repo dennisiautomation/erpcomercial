@@ -4,8 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Abrir Caixa - PDV</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet" integrity="sha384-XGjxtQfXaH2tnPFa9x+ruJTuLE3Aa6LhHSWRr1XeTyhezb4abCG4ccI5AkVDxqC+" crossorigin="anonymous">
     <style>
         :root {
             --bg-primary: #0f172a;
@@ -91,7 +92,7 @@
         .form-group input:focus {
             outline: none;
             border-color: var(--accent-blue);
-            box-shadow: 0 0 0 3px rgba(59,130,246,0.15);
+            box-shadow: 0 0 0 3px rgba(59,130,246,0.35);
         }
         .form-group .hint {
             font-size: 0.78rem;
@@ -187,6 +188,8 @@
             margin-bottom: 16px;
             text-align: center;
         }
+        :focus-visible { outline: 2px solid var(--accent-blue); outline-offset: 2px; border-radius: 6px; }
+        input:focus-visible, textarea:focus-visible { outline: none; }
     </style>
 </head>
 <body>
@@ -213,13 +216,13 @@
              Enquanto foi campo, a pessoa chutava 2, 3, 4 e cada tentativa
              abandonada queimava mais um número — ver a seção de 09/09 no docs.md. --}}
         <div class="form-group">
-            <label>Valor de Abertura (Troco Inicial)</label>
+            <label for="campo-valor_abertura">Valor de Abertura (Troco Inicial)</label>
             <div class="input-prefix">
                 <span>R$</span>
-                <input type="number" name="valor_abertura" value="{{ old('valor_abertura', '0.00') }}"
+                <input id="campo-valor_abertura" type="number" name="valor_abertura" value="{{ old('valor_abertura', '0.00') }}"
                     step="0.01" min="0" required autofocus>
             </div>
-            <div class="hint">Valor em dinheiro disponivel no caixa</div>
+            <div class="hint">Valor em dinheiro disponível no caixa</div>
             @error('valor_abertura')
                 <div class="error-msg" style="margin-top:6px; margin-bottom:0;">{{ $message }}</div>
             @enderror

@@ -10,6 +10,7 @@
         overflow: hidden;
         transition: transform 0.2s ease, box-shadow 0.2s ease;
     }
+    @media (prefers-reduced-motion: reduce) { .stat-card-gradient:hover { transform: none !important; } }
     .stat-card-gradient:hover {
         transform: translateY(-4px);
         box-shadow: 0 12px 24px rgba(0,0,0,0.12) !important;
@@ -37,39 +38,39 @@
         font-weight: 500;
         text-transform: uppercase;
         letter-spacing: 0.5px;
-        opacity: 0.7;
+        opacity: 1;
     }
     .stat-card-gradient .stat-trend {
         font-size: 0.78rem;
         font-weight: 600;
     }
     .gradient-success {
-        background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+        background: linear-gradient(135deg, #065f46 0%, #047857 100%);
         color: #fff;
     }
     .gradient-success .stat-icon { background: rgba(255,255,255,0.2); color: #fff; }
     .gradient-primary {
-        background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
+        background: linear-gradient(135deg, #4338ca 0%, #4f46e5 100%);
         color: #fff;
     }
     .gradient-primary .stat-icon { background: rgba(255,255,255,0.2); color: #fff; }
     .gradient-info {
-        background: linear-gradient(135deg, #0891b2 0%, #06b6d4 100%);
+        background: linear-gradient(135deg, #155e75 0%, #0e7490 100%);
         color: #fff;
     }
     .gradient-info .stat-icon { background: rgba(255,255,255,0.2); color: #fff; }
     .gradient-warning {
-        background: linear-gradient(135deg, #d97706 0%, #f59e0b 100%);
+        background: linear-gradient(135deg, #92400e 0%, #b45309 100%);
         color: #fff;
     }
     .gradient-warning .stat-icon { background: rgba(255,255,255,0.2); color: #fff; }
     .gradient-danger {
-        background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
+        background: linear-gradient(135deg, #991b1b 0%, #b91c1c 100%);
         color: #fff;
     }
     .gradient-danger .stat-icon { background: rgba(255,255,255,0.2); color: #fff; }
     .gradient-purple {
-        background: linear-gradient(135deg, #7c3aed 0%, #8b5cf6 100%);
+        background: linear-gradient(135deg, #5b21b6 0%, #6d28d9 100%);
         color: #fff;
     }
     .gradient-purple .stat-icon { background: rgba(255,255,255,0.2); color: #fff; }
@@ -228,7 +229,7 @@
                     </div>
                     <div class="flex-grow-1">
                         <h4 class="fw-bold mb-0">Configure seu ERP</h4>
-                        <p class="text-muted mb-0 small">{{ $etapasConcluidas }} de {{ $totalEtapas }} etapas concluidas</p>
+                        <p class="text-muted mb-0 small">{{ $etapasConcluidas }} de {{ $totalEtapas }} etapas concluídas</p>
                     </div>
                     <div class="text-end">
                         <div class="d-flex align-items-center gap-2">
@@ -296,7 +297,7 @@
                 </div>
                 <div>
                     <h6 class="fw-bold text-warning mb-0">{{ $estoqueBaixo }} produto(s)</h6>
-                    <small class="text-muted">com estoque minimo definido</small>
+                    <small class="text-muted">com estoque mínimo definido</small>
                 </div>
                 <a href="{{ route('app.relatorios.estoque') }}" class="btn btn-sm btn-outline-warning ms-auto">Ver</a>
             </div>
@@ -351,7 +352,7 @@
     <div class="col-sm-4">
         <a href="{{ route('app.orcamentos.create') }}" class="quick-action-btn w-100 h-100">
             <i class="bi bi-file-earmark-text text-primary"></i>
-            Novo Orcamento
+            Novo Orçamento
         </a>
     </div>
     <div class="col-sm-4">
@@ -379,7 +380,7 @@
                     @endif
                 </div>
                 <div class="stat-value mb-1">R$ {{ number_format($faturamentoMes, 2, ',', '.') }}</div>
-                <div class="stat-label">Faturamento do Mes</div>
+                <div class="stat-label">Faturamento do Mês</div>
             </div>
         </div>
     </div>
@@ -399,7 +400,7 @@
                     @endif
                 </div>
                 <div class="stat-value mb-1">{{ $totalVendasMes }}</div>
-                <div class="stat-label">Vendas no Mes</div>
+                <div class="stat-label">Vendas no Mês</div>
             </div>
         </div>
     </div>
@@ -413,7 +414,7 @@
                     </div>
                 </div>
                 <div class="stat-value mb-1">R$ {{ number_format($ticketMedio, 2, ',', '.') }}</div>
-                <div class="stat-label">Ticket Medio</div>
+                <div class="stat-label">Ticket Médio</div>
             </div>
         </div>
     </div>
@@ -483,7 +484,7 @@
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
                         <h6 class="fw-bold mb-1">Vendas por Dia</h6>
-                        <small class="text-muted">Faturamento diario do mes atual</small>
+                        <small class="text-muted">Faturamento diário do mês atual</small>
                     </div>
                     <span class="badge bg-primary bg-opacity-10 text-primary px-3 py-2">
                         <i class="bi bi-graph-up me-1"></i> {{ now()->translatedFormat('F') }}
@@ -501,7 +502,7 @@
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
                         <h6 class="fw-bold mb-1">Top 5 Produtos</h6>
-                        <small class="text-muted">Mais vendidos no mes</small>
+                        <small class="text-muted">Mais vendidos no mês</small>
                     </div>
                     <span class="badge bg-warning bg-opacity-10 text-warning px-3 py-2">
                         <i class="bi bi-trophy me-1"></i> Ranking
@@ -512,7 +513,7 @@
                 @if($topProdutos->isEmpty())
                     <div class="d-flex flex-column align-items-center justify-content-center h-100 text-muted py-5">
                         <i class="bi bi-box-seam fs-1 mb-3 opacity-50"></i>
-                        <p class="mb-0">Nenhuma venda registrada no periodo</p>
+                        <p class="mb-0">Nenhuma venda registrada no período</p>
                     </div>
                 @else
                     @foreach($topProdutos as $i => $item)
@@ -539,8 +540,8 @@
 <div class="card shadow-sm border-0" style="border-radius: 16px;">
     <div class="card-header bg-white border-0 pt-4 px-4 pb-3 d-flex justify-content-between align-items-center" style="border-radius: 16px 16px 0 0;">
         <div>
-            <h6 class="fw-bold mb-1">Ultimas Vendas</h6>
-            <small class="text-muted">Movimentacoes mais recentes</small>
+            <h6 class="fw-bold mb-1">Últimas Vendas</h6>
+            <small class="text-muted">Movimentações mais recentes</small>
         </div>
         <a href="{{ route('app.vendas.index') }}" class="btn btn-sm btn-primary rounded-pill px-3">
             Ver todas <i class="bi bi-arrow-right ms-1"></i>
@@ -609,6 +610,7 @@
 @endsection
 
 @push('scripts')
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" integrity="sha384-9nhczxUqK87bcKHh20fSQcTGD4qq5GhayNYSYWqwBkINBhOfQLg/P5HG5lF1urn4" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {

@@ -24,7 +24,7 @@
                 <label for="arquivo_ofx" class="form-label">Arquivo OFX <span class="text-danger">*</span></label>
                 <input type="file" name="arquivo_ofx" id="arquivo_ofx" class="form-control @error('arquivo_ofx') is-invalid @enderror" accept=".ofx,.OFX" required>
                 @error('arquivo_ofx') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                <div class="form-text">Arquivo no formato OFX exportado do seu banco. Tamanho maximo: 5MB.</div>
+                <div class="form-text">Arquivo no formato OFX exportado do seu banco. Tamanho máximo: 5MB.</div>
             </div>
         </div>
 
@@ -39,9 +39,9 @@
 <x-erp.card title="Como funciona" icon="info-circle" class="mt-4">
     <ol class="mb-0">
         <li>Acesse o Internet Banking do seu banco e exporte o extrato no formato OFX.</li>
-        <li>Importe o arquivo aqui. O sistema ira extrair todas as transacoes automaticamente.</li>
-        <li>Na tela de conciliacao, vincule cada transacao a uma conta a pagar ou receber.</li>
-        <li>Use a conciliacao automatica para vincular transacoes por valor e data.</li>
+        <li>Importe o arquivo aqui. O sistema ira extrair todas as transações automaticamente.</li>
+        <li>Na tela de conciliação, vincule cada transação a uma conta a pagar ou receber.</li>
+        <li>Use a conciliação automática para vincular transações por valor e data.</li>
     </ol>
 </x-erp.card>
 @endsection
