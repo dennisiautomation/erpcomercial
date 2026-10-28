@@ -123,7 +123,8 @@ if faz roteiros; then
       *.py) timeout 900 docker run --rm --network host -v "$REPO/scripts:/scripts:ro" -v "$ROUT:/out" mcr.microsoft.com/playwright/python:v1.55.0-noble sh -c "pip install -q playwright==1.55.0 >/dev/null 2>&1; python3 /scripts/$script $BASE /out" > "$log" 2>&1; ex=$? ;;
       *) BASE=$BASE ANTES=$ANTES_URL DB_CT=$DB_CT APP_CT=$APP OUT=$ROUT XML=$RXML timeout 900 bash "$REPO/scripts/$script" $args > "$log" 2>&1; ex=$? ;;
     esac
-    okn=$(grep -c '✅' "$log"); fail=$(grep -c '❌' "$log"); st=ok; { [ "$ex" != 0 ] || [ "$fail" != 0 ]; } && st=falha
+    # só linhas de item: a linha de total ("52 ✅ / 2 ❌") não conta
+    okn=$(grep -c '^✅' "$log"); fail=$(grep -c '^❌' "$log"); st=ok; { [ "$ex" != 0 ] || [ "$fail" != 0 ]; } && st=falha
     printf '%s\t%s\t%s\t%s\texit %s · %s\n' "$script" "$st" "$okn" "$fail" "$ex" "$desc" >> "$OUT/roteiros.tsv"
     printf '   %s %s: %s ✅ / %s ❌ (exit %s)\n' "$([ $st = ok ] && echo ✅ || echo ❌)" "$script" "$okn" "$fail" "$ex"
   done
