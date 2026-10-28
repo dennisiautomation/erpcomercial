@@ -1,5 +1,30 @@
 # ERP Comercial SaaS — Guia para Agentes
 
+## 🔴 OBRIGATÓRIO — rotina de validação em TODA alteração (Dennis, 28/10/2026)
+
+Vale para fix de uma linha, texto, CSS, cron, integração — tudo. Mesmo rigor do JL-ERP (`/root/jl-erp/CLAUDE.md`) e do CRM Vacinas.
+Relatório sem os 6 passos **não sobe**. Os testes são do Claude, não do Dennis nem da equipe: ele só roda deploy e o que exige root.
+Quem abrir sessão ou subagente para mexer aqui **copia esta rotina no briefing** (sessão nova não herda memória). Regra geral do servidor:
+`/home/ubuntu/.claude/CLAUDE.md`.
+
+1. **Impacto antes de codar**, por escrito no plano curto: arquivos, telas (nova e antiga, se há duas), perfis/papéis, rotas de API,
+   crons/filas, webhooks e integrações (WhatsApp, pagamento, fiscal, IA), **clientes/empresas atingidos** e os módulos que dependem do
+   que muda. Mudança de comportamento visível = plano curto (sim/não + 2-3 linhas + "posso fazer?") e OK do Dennis antes.
+2. **Roteiro reexecutável `validar-<tema>-<data>` antes|depois** (✅/❌ por item) em ambiente descartável: cópia/dump de homolog,
+   integrações externas falsas ou desligadas (nunca mensagem a cliente, nunca PIX/nota/órgão externo real), dados fictícios, limpeza
+   conferida no fim. **ANTES** na versão que está no ar tem de reproduzir o defeito (❌).
+3. **DEPOIS** na versão nova: todos ✅, **duas vezes**; tela envolvida = smoke das telas afetadas × perfis (Playwright/puppeteer, print por tela).
+4. **Regressão na mesma versão:** `php artisan test` completo (não só o teste tocado); `php -l` em TODO o PHP tocado + blades compiladas (`view:cache` sozinho não linta); os roteiros das entregas anteriores da mesma área (ver `docs.md`); smoke das telas afetadas × perfis com puppeteer (tela nova E antiga quando as duas existem; print `.png`).
+5. **Deploy é do Dennis.** Antes do build/deploy: guardar a versão do ar (tag `pre-<tema>-<data>` da imagem ou backup de arquivos) e a
+   receita de rollback no `docs.md`. Build SEMPRE com `-f docker-compose.prod.yml`; `docker tag` da imagem do ar como `pre-<feature>-<data>` antes do build.
+6. **DEPOIS DO DEPLOY, sem esperar pedido:** repetir o roteiro `depois` contra a versão que ficou no ar, conferir login/healthcheck,
+   log sem erro novo e o sinal funcional da entrega; registrar no `docs.md` (hora em BRT e UTC, versão, rollback, resultado).
+
+Regras fixas: branch sempre, nunca `git add -A`, `main` só por fast-forward, merge/push quando o Dennis mandar; `docs.md` canônico no
+MESMO commit (pedido, causa, o que mudou, impacto, antes → depois, rollback); banco de produção só leitura (SELECT) — gravar só com
+ordem, backup e contagens antes/depois; horário em BRT; rollback nunca em bloco `bash` com botão Run.
+
+
 ## Visão Geral
 Sistema ERP SaaS multi-tenant para micro/pequenas/médias empresas. Admin (IA365) gerencia a plataforma. Cada empresa tem múltiplas unidades com estoque, caixa e fiscal independentes. Integração fiscal completa via Focus NFe (NFC-e, NF-e, NFS-e + CC-e + manifestação do destinatário). Substituição tributária interestadual.
 
@@ -129,10 +154,7 @@ public/
 - **Venda Balcão**: Fora do PDV, com itens dinâmicos + autocomplete
 - PDV fullscreen dark, atalhos F1-F12, split payment, verificação estoque
 - **Lógica de emissão no PDV**: `emissao_fiscal_ativa && emite_nfce` → emite NFC-e; senão, só cupom/recibo. Cupom/recibo **sempre é impresso**. Falha na NFC-e cai silenciosamente no recibo.
-- **Trocas e devoluções (03/09/2026)**: F6 no PDV (venda de qualquer dia/loja → itens que voltam → bipa o que leva; diferença cobrada, zerada ou vira **vale** `VT-XXXX-XXXX`/dinheiro conforme Configurações da Loja → Trocas); `TrocaService` é o ponto único; `/app/trocas` + `/app/trocas/vales`; módulo `trocas` na matriz. Ver docs.md seção 9n. **09/09**: o F6 também bipa **peça que não está na venda** e **peça sem venda nenhuma** (botão no passo 1; preço de venda atual; `devolucao_itens.venda_item_id` e `devolucoes.venda_id` NULL; regras normais); botão **Reimprimir** no topo do PDV reimprime recibo/cupom de qualquer venda do dia da loja (`pdv/reimprimir/vendas`, `pdv/venda/{id}/recibo`) e o crédito da troca é linha do split — entra em TODO cálculo de restante (armadilha 75, seção 9w).
-- **Acréscimo do cartão por parte (04/09/2026)**: 4ª regra de `configuracoes_loja.regra_preco_split` — `por_parte`. Nela o preço do item **nunca** muda com a forma de pagamento; o acréscimo de débito/crédito incide sobre o **valor pago naquela forma** e vira `acrescimo_forma_valor` em `pagamento_detalhes`, somado por `Venda::outras_despesas` (mesmo caminho dos juros: `vOutro` na NFC-e + linha no cupom). Ordem: acréscimo da forma → juros de parcelamento (é a ordem da maquininha). Preço próprio por produto (`produto_precos`) não vale nessa regra. `TrocaService` devolve o acréscimo junto. Ver docs.md seção própria e armadilha 67
-- Comissões (config por produto/categoria, pagamento em lote)
-- **Dinheiro a menos (07/10/2026)**: pagamento único em dinheiro abaixo do total abre o modal `#modalDinheiroMenor` (Corrigir valor / Completar com outra forma); `finalizarVenda()` recusa a MENOS em qualquer forma e `PdvController::registrarVenda` devolve 422 se `totalPago < total`. Ver docs.md seção 9ab e armadilha 81
+- Devoluções; Comissões (config por produto/categoria, pagamento em lote)
 
 ### Fiscal (Focus NFe — 95% cobertura)
 
@@ -166,8 +188,6 @@ public/
 - `FiscalAutoConfig`: presets CST/CSOSN/alíquotas por regime (Simples/Presumido/Real)
 
 ### Estoque
-- ⚠️ **O saldo é DERIVADO** da última `estoque_movimentacoes.quantidade_posterior` do par (estoque, produto) — não existe coluna de saldo. Carga inicial só entra por `/app/import/estoque` ("completa até o saldo da planilha", idempotente). **A MISS MERLINDA (empresa 4) nunca teve carga: 73 vendas, 817 ajustes manuais e ZERO entradas** — ver docs.md, seção "O estoque da MISS MERLINDA nunca foi carregado"
-- `scripts/reconstruir-saldo-pelo-historico.php` reconstrói saldo pelo histórico (ajuste inteiro vale, milésimo é ruído da roda do mouse, venda desconta). `DRY_RUN=1` simula. Rodar por CLI exige `user_id` explícito (armadilha 69)
 - Movimentações (entrada/saída/ajuste/transferência)
 - Transferências entre unidades (solicitação→aprovação)
 
@@ -192,22 +212,6 @@ public/
 - Trial com dias restantes
 - Feature gating por plano (middleware `plano:feature`)
 - Limites: max_unidades, max_usuarios, max_produtos, max_notas_mes
-
-### Vendedor opera somente o PDV (04/09/2026)
-- `empresas.vendedor_apenas_pdv` (default **false**) tranca o perfil `vendedor` no PDV: continua vendendo, trocando (F6), usando vale e abrindo/fechando o caixa; todo o resto do `/app` **redireciona para `/app/pdv`** (AJAX recebe 403 JSON)
-- Gate único: `CheckPermission::modoPdv($user)` + `CheckPermission::canUser($user, $modulo, $acao)`. **Views devem usar `canUser()`, não `can()`** — `can()` só conhece a matriz estática e não vê o modo PDV
-- A tranca real é de ROTA: `App\Http\Middleware\RestringeVendedorAoPdv`, registrado **por classe** no grupo `/app` em `routes/web.php` (alias exigiria rebuild — armadilha 46). Whitelist: `app.pdv.*` + `app.caixa.abrir|fechar|sangria|suprimento`
-- Liga em `/app/configuracoes` (card "Acesso do vendedor", gravam **dono, gerente e admin** — guarda no SERVIDOR em `ConfiguracaoLojaController::podeMudarAcessoVendedor()`, não no `@disabled`) e em `/admin/empresas/{id}/edit`. Vale para a empresa inteira, não por loja — inclusive quando quem liga é um gerente recortado por loja
-- ⚠️ O menu ainda NÃO pergunta permissão nos 8 blocos fora de Gestão — ver docs.md armadilha 65
-- **Chave irmã `empresas.pdv_vendedores_da_loja`** (default false): o select de vendedor do PDV (F3) passa a listar só quem está vinculado à loja da sessão (`unidade_user`). **Dono e admin aparecem sempre**; quem não tem vínculo nenhum aparece em todas. Filtro em `PdvController::filtrarOperadoresPelaLoja()`. O relatório de vendas monta a mesma lista e ficou de fora de propósito (lá o filtro de loja pode ser "Todas")
-- Vínculo loja↔usuário se ajusta em **Funcionários** (`unidades()->sync`)
-
-### PWA — instalar como aplicativo (03/09/2026)
-- `PwaController` serve `/manifest.webmanifest`, `/sw.js`, `/pwa/{icone}.png` e `/offline` **por rota** — nada em `public/` (o deploy por tar não leva `public/`, armadilha 46)
-- Ícones em `resources/pwa/` = marca **IA / ERP** (regerar: `python3 resources/pwa/gerar-icones.py`; arg `ink` = variante da landing)
-- Convite: `<x-erp.pwa-head />` no `<head>` + `<x-erp.pwa-install />` antes do `</body>` em `layouts/app.blade.php` e `auth/login.blade.php`. **PDV fica de fora** (documento próprio, tela operacional)
-- Service worker: rede primeiro em navegação, **nunca cacheia HTML de `/app` ou `/admin`** (multi-tenant), só estáticos + `/offline`
-- **Kill switch**: `PWA_ATIVO=false` no `.env` → convite some e o `/sw.js` se desregistra nos navegadores. Ver docs.md seção 9o e armadilha 64
 
 ### Funcionalidades Transversais
 - **Reset de senha**, **Busca global** (clientes/produtos/vendas)
@@ -252,9 +256,6 @@ notificacoes: user_id, tipo, titulo, mensagem, url, lida
 7. **VendaItem total é `total`** — NÃO `subtotal`.
 8. **ConfiguracaoFiscal tem unique (empresa_id, unidade_id)** — NÃO usar `updateOrCreate` direto. Usar `where()->first()` + `update()` ou `create()`.
 9. **$user->perfil é enum Perfil** — converter com `->value` antes de usar como string/array key.
-9b. **Menu não é permissão** — esconder `<li>` não impede o usuário de digitar a URL; e o menu fora
-   do bloco Gestão não consulta a matriz, então mostra links que dão 403. Trava vai no middleware
-   da rota; view pergunta a `CheckPermission::canUser()`.
 10. **$errors pode ser null em views standalone** — usar `$errors = $errors ?? new ViewErrorBag()`.
 11. **OrdemServico table = `ordens_servico`** — definir `$table` no model.
 12. **Porta host é 8091** (container escuta em 80; 8091 no `docker-compose.prod.yml`, exposto só em 127.0.0.1 e publicado pelo nginx do host). A porta 8080/8000 da primeira versão não é mais usada.
