@@ -136,7 +136,7 @@
     </div>
     <div class="step-item"><div class="step-line" data-line="1"></div></div>
     <div class="step-item">
-        <div class="step-circle" data-step="2">2<span class="step-label">Endereco</span></div>
+        <div class="step-circle" data-step="2">2<span class="step-label">Endereço</span></div>
     </div>
     <div class="step-item"><div class="step-line" data-line="2"></div></div>
     <div class="step-item">
@@ -172,7 +172,7 @@
                 </div>
 
                 <div class="col-md-7">
-                    <label for="razao_social" class="form-label required-dot">Razao Social</label>
+                    <label for="razao_social" class="form-label required-dot">Razão Social</label>
                     <input type="text" name="razao_social" id="razao_social"
                            class="form-control @error('razao_social') is-invalid @enderror"
                            value="{{ old('razao_social', $fornecedore->razao_social) }}" required>
@@ -192,7 +192,7 @@
 
         {{-- STEP 2 — Endereco --}}
         <div class="wizard-step" data-step="2">
-            <h5 class="step-title">Endereco</h5>
+            <h5 class="step-title">Endereço</h5>
             <p class="step-subtitle">Digite o CEP para preencher automaticamente</p>
 
             <div class="row g-3">
@@ -214,7 +214,7 @@
                     @error('logradouro') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
                 </div>
                 <div class="col-md-3">
-                    <label for="numero" class="form-label">Numero</label>
+                    <label for="numero" class="form-label">Número</label>
                     <input type="text" name="numero" id="numero" class="form-control @error('numero') is-invalid @enderror" value="{{ old('numero', $fornecedore->numero) }}" placeholder="123">
                     @error('numero') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
                 </div>
@@ -249,7 +249,7 @@
         {{-- STEP 3 — Contato e Condicoes --}}
         <div class="wizard-step" data-step="3">
             <h5 class="step-title">Contato e Condicoes</h5>
-            <p class="step-subtitle">Informacoes de contato e condicoes comerciais</p>
+            <p class="step-subtitle">Informações de contato e condicoes comerciais</p>
 
             <div class="row g-3">
                 <div class="col-md-12">
@@ -299,7 +299,7 @@
             </button>
             <div id="navSpacer"></div>
             <button type="button" class="btn btn-primary rounded-pill" id="btnAvancar" onclick="goToStep(currentStep + 1)">
-                Avancar <i class="bi bi-arrow-right ms-1"></i>
+                Avançar <i class="bi bi-arrow-right ms-1"></i>
             </button>
             <button type="submit" class="btn btn-success rounded-pill" id="btnSalvar" style="display:none;">
                 <i class="bi bi-check-lg me-1"></i> Atualizar Fornecedor

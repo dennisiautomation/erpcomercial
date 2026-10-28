@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Relatorio de Estoque')
+@section('title', 'Relatório de Estoque')
 
 @section('content')
 @php
@@ -14,8 +14,8 @@
 
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
-        <h4 class="mb-1"><i class="bi bi-box-seam me-2"></i>Relatorio de Estoque</h4>
-        <p class="text-muted mb-0 small">Posicao atualizada em {{ now()->format('d/m/Y H:i') }}</p>
+        <h4 class="mb-1"><i class="bi bi-box-seam me-2"></i>Relatório de Estoque</h4>
+        <p class="text-muted mb-0 small">Posição atualizada em {{ now()->format('d/m/Y H:i') }}</p>
     </div>
     <button class="btn btn-outline-secondary btn-sm" onclick="window.print()">
         <i class="bi bi-printer me-1"></i> Imprimir
@@ -92,7 +92,7 @@
     <div class="card-header bg-danger bg-opacity-10 d-flex justify-content-between align-items-center">
         <h6 class="mb-0 fw-semibold text-danger">
             <i class="bi bi-exclamation-triangle-fill me-1"></i>
-            Produtos Abaixo do Minimo ({{ $abaixoMinimo->count() }})
+            Produtos Abaixo do Mínimo ({{ $abaixoMinimo->count() }})
         </h6>
         <button class="btn btn-sm btn-outline-danger" type="button" data-bs-toggle="collapse" data-bs-target="#collapseAlertas">
             <i class="bi bi-chevron-down"></i>
@@ -106,9 +106,9 @@
                         <th>Produto</th>
                         <th>Categoria</th>
                         <th class="text-end">Estoque Atual</th>
-                        <th class="text-end">Minimo</th>
+                        <th class="text-end">Mínimo</th>
                         <th class="text-end">Falta</th>
-                        <th class="text-center">Situacao</th>
+                        <th class="text-center">Situação</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -141,7 +141,7 @@
         <ul class="nav nav-tabs card-header-tabs" role="tablist">
             <li class="nav-item" role="presentation">
                 <button class="nav-link active fw-semibold" data-bs-toggle="tab" data-bs-target="#tabPosicao" type="button" role="tab">
-                    <i class="bi bi-table me-1"></i> Posicao de Estoque
+                    <i class="bi bi-table me-1"></i> Posição de Estoque
                 </button>
             </li>
             <li class="nav-item" role="presentation">
@@ -160,9 +160,9 @@
                         <tr>
                             <th>Produto</th>
                             <th>Categoria</th>
-                            <th class="text-end">Preco Custo</th>
+                            <th class="text-end">Preço Custo</th>
                             <th class="text-end">Estoque Atual</th>
-                            <th class="text-end">Minimo</th>
+                            <th class="text-end">Mínimo</th>
                             <th class="text-center">Status</th>
                             <th class="text-center">Curva</th>
                         </tr>
@@ -264,6 +264,7 @@
 @endsection
 
 @push('scripts')
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" integrity="sha384-9nhczxUqK87bcKHh20fSQcTGD4qq5GhayNYSYWqwBkINBhOfQLg/P5HG5lF1urn4" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {

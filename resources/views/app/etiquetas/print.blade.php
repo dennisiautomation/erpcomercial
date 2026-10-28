@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Etiquetas - Impressao</title>
+    <title>Etiquetas - Impressão</title>
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
     @php
         // Formato cadastrado pelo lojista (largura × altura × colunas em etiqueta_formatos).

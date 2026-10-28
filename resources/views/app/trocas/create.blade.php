@@ -16,8 +16,8 @@
     <x-erp.card title="1. Qual venda?" icon="search">
         <form method="GET" action="{{ route('app.trocas.create') }}" class="row g-2 align-items-end">
             <div class="col-md-6">
-                <label class="form-label">Número da venda, código do cupom (V123) ou nome do cliente</label>
-                <input type="text" name="busca" class="form-control" value="{{ request('busca') }}" autofocus placeholder="Ex.: 158, V158 ou Maria">
+                <label for="campo-busca" class="form-label">Número da venda, código do cupom (V123) ou nome do cliente</label>
+                <input id="campo-busca" type="text" name="busca" class="form-control" value="{{ request('busca') }}" autofocus placeholder="Ex.: 158, V158 ou Maria">
             </div>
             <div class="col-md-2"><button class="btn btn-erp-primary w-100"><i class="bi bi-search me-1"></i> Buscar</button></div>
         </form>
@@ -93,14 +93,14 @@
 
             <div class="row g-3 mt-1">
                 <div class="col-md-4">
-                    <label class="form-label fw-semibold">Motivo</label>
-                    <select name="motivo" class="form-select">
+                    <label for="campo-motivo" class="form-label fw-semibold">Motivo</label>
+                    <select id="campo-motivo" name="motivo" class="form-select">
                         @foreach($situacao['motivos'] as $k => $v)<option value="{{ $k }}" @selected(old('motivo') === $k)>{{ $v }}</option>@endforeach
                     </select>
                 </div>
                 <div class="col-md-8">
-                    <label class="form-label fw-semibold">Detalhe <small class="text-muted">(opcional)</small></label>
-                    <input type="text" name="motivo_texto" class="form-control" maxlength="500" value="{{ old('motivo_texto') }}">
+                    <label for="campo-motivo_texto" class="form-label fw-semibold">Detalhe <small class="text-muted">(opcional)</small></label>
+                    <input id="campo-motivo_texto" type="text" name="motivo_texto" class="form-control" maxlength="500" value="{{ old('motivo_texto') }}">
                 </div>
             </div>
         </x-erp.card>
@@ -133,8 +133,8 @@
             </div>
 
             <div class="mt-3">
-                <label class="form-label">Observações <small class="text-muted">(opcional)</small></label>
-                <input type="text" name="observacoes" class="form-control" maxlength="1000" value="{{ old('observacoes') }}">
+                <label for="campo-observacoes" class="form-label">Observações <small class="text-muted">(opcional)</small></label>
+                <input id="campo-observacoes" type="text" name="observacoes" class="form-control" maxlength="1000" value="{{ old('observacoes') }}">
             </div>
         </x-erp.card>
 

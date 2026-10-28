@@ -139,7 +139,7 @@
     <li class="nav-item" role="presentation">
         <button class="nav-link" id="usuarios-tab" data-bs-toggle="tab" data-bs-target="#usuarios"
                 type="button" role="tab">
-            <i class="bi bi-people me-1"></i> Usuarios
+            <i class="bi bi-people me-1"></i> Usuários
             <span class="badge bg-primary bg-opacity-10 text-primary ms-1">{{ $empresa->users->count() }}</span>
         </button>
     </li>
@@ -178,7 +178,7 @@
                                 <div class="detail-value">{{ $empresa->regime_tributario?->label() ?? '-' }}</div>
                             </div>
                             <div class="col-12">
-                                <div class="detail-label">Razao Social</div>
+                                <div class="detail-label">Razão Social</div>
                                 <div class="detail-value">{{ $empresa->razao_social }}</div>
                             </div>
                             <div class="col-12">
@@ -186,11 +186,11 @@
                                 <div class="detail-value">{{ $empresa->nome_fantasia ?? '-' }}</div>
                             </div>
                             <div class="col-6">
-                                <div class="detail-label">Inscricao Estadual</div>
+                                <div class="detail-label">Inscrição Estadual</div>
                                 <div class="detail-value">{{ $empresa->ie ?? '-' }}</div>
                             </div>
                             <div class="col-6">
-                                <div class="detail-label">Inscricao Municipal</div>
+                                <div class="detail-label">Inscrição Municipal</div>
                                 <div class="detail-value">{{ $empresa->im ?? '-' }}</div>
                             </div>
                         </div>
@@ -202,7 +202,7 @@
             <div class="col-lg-6">
                 <div class="card detail-card shadow-sm mb-4">
                     <div class="card-header">
-                        <h6 class="mb-0"><i class="bi bi-geo-alt me-2 text-danger"></i>Endereco</h6>
+                        <h6 class="mb-0"><i class="bi bi-geo-alt me-2 text-danger"></i>Endereço</h6>
                     </div>
                     <div class="card-body">
                         @if($empresa->logradouro)
@@ -215,7 +215,7 @@
                                 @if($empresa->cep) - CEP: {{ $empresa->cep }} @endif
                             </p>
                         @else
-                            <p class="text-muted mb-0">Endereco nao informado.</p>
+                            <p class="text-muted mb-0">Endereço não informado.</p>
                         @endif
                     </div>
                 </div>
@@ -268,12 +268,12 @@
                                 </div>
                             </div>
                             <div class="col-6">
-                                <div class="detail-label">Tipo Cobranca</div>
+                                <div class="detail-label">Tipo Cobrança</div>
                                 <div class="detail-value">{{ ucfirst($empresa->tipo_cobranca ?? '-') }}</div>
                             </div>
                             @if($empresa->em_trial)
                             <div class="col-6">
-                                <div class="detail-label">Trial Inicio</div>
+                                <div class="detail-label">Trial Início</div>
                                 <div class="detail-value">{{ $empresa->trial_inicio ? \Carbon\Carbon::parse($empresa->trial_inicio)->format('d/m/Y') : '-' }}</div>
                             </div>
                             <div class="col-6">
@@ -283,7 +283,7 @@
                             @endif
                             @if($empresa->assinatura_inicio)
                             <div class="col-6">
-                                <div class="detail-label">Assinatura Inicio</div>
+                                <div class="detail-label">Assinatura Início</div>
                                 <div class="detail-value">{{ \Carbon\Carbon::parse($empresa->assinatura_inicio)->format('d/m/Y') }}</div>
                             </div>
                             <div class="col-6">
@@ -300,7 +300,7 @@
         @if($empresa->observacoes)
         <div class="card detail-card shadow-sm mt-4">
             <div class="card-header">
-                <h6 class="mb-0"><i class="bi bi-chat-text me-2 text-warning"></i>Observacoes</h6>
+                <h6 class="mb-0"><i class="bi bi-chat-text me-2 text-warning"></i>Observações</h6>
             </div>
             <div class="card-body">
                 <p class="mb-0" style="white-space: pre-line;">{{ $empresa->observacoes }}</p>
@@ -328,7 +328,7 @@
                                 <th>CNPJ</th>
                                 <th>Cidade / UF</th>
                                 <th>Status</th>
-                                <th class="text-end pe-3">Acoes</th>
+                                <th class="text-end pe-3">Ações</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -389,7 +389,7 @@
     {{-- Tab Usuarios --}}
     <div class="tab-pane fade" id="usuarios" role="tabpanel">
         <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-            <h5 class="fw-semibold mb-0">Usuarios</h5>
+            <h5 class="fw-semibold mb-0">Usuários</h5>
         </div>
 
         <div class="card detail-card shadow-sm">
@@ -430,7 +430,7 @@
                             <tr>
                                 <td colspan="4" class="text-center py-5">
                                     <i class="bi bi-people fs-1 d-block mb-2 opacity-25"></i>
-                                    <p class="text-muted mb-0">Nenhum usuario vinculado a esta empresa.</p>
+                                    <p class="text-muted mb-0">Nenhum usuário vinculado a esta empresa.</p>
                                 </td>
                             </tr>
                             @endforelse
@@ -545,31 +545,31 @@
                         <form method="POST" action="{{ route('admin.empresas.gateway-pix.store', $empresa) }}" enctype="multipart/form-data" class="row g-2 align-items-end">
                             @csrf
                             <div class="col-md-4">
-                                <label class="form-label small mb-1">Client ID</label>
-                                <input type="text" name="client_id" class="form-control form-control-sm"
+                                <label for="campo-client_id" class="form-label small mb-1">Client ID</label>
+                                <input id="campo-client_id" type="text" name="client_id" class="form-control form-control-sm"
                                        placeholder="{{ $gatewayPix?->client_id ? '•••• salvo — preencha p/ trocar' : 'client_id do app Sicredi' }}">
                             </div>
                             <div class="col-md-4">
-                                <label class="form-label small mb-1">Client Secret</label>
-                                <input type="password" name="client_secret" class="form-control form-control-sm"
+                                <label for="campo-client_secret" class="form-label small mb-1">Client Secret</label>
+                                <input id="campo-client_secret" type="password" name="client_secret" class="form-control form-control-sm"
                                        placeholder="{{ $gatewayPix?->client_secret ? '•••• salvo — preencha p/ trocar' : 'client_secret do app Sicredi' }}">
                             </div>
                             <div class="col-md-4">
-                                <label class="form-label small mb-1">Chave PIX da conta</label>
-                                <input type="text" name="chave_pix" class="form-control form-control-sm"
+                                <label for="campo-chave_pix" class="form-label small mb-1">Chave PIX da conta</label>
+                                <input id="campo-chave_pix" type="text" name="chave_pix" class="form-control form-control-sm"
                                        value="{{ $gatewayPix?->chave_pix }}" placeholder="CNPJ, e-mail ou chave aleatória">
                             </div>
                             <div class="col-md-4">
-                                <label class="form-label small mb-1">Certificado mTLS (.cer/.pem) {{ $gatewayPix?->cert_path ? '✓ enviado' : '' }}</label>
-                                <input type="file" name="certificado" class="form-control form-control-sm">
+                                <label for="campo-certificado" class="form-label small mb-1">Certificado mTLS (.cer/.pem) {{ $gatewayPix?->cert_path ? '✓ enviado' : '' }}</label>
+                                <input id="campo-certificado" type="file" name="certificado" class="form-control form-control-sm">
                             </div>
                             <div class="col-md-4">
-                                <label class="form-label small mb-1">Chave privada SEM senha (.key) {{ $gatewayPix?->key_path ? '✓ enviada' : '' }}</label>
-                                <input type="file" name="chave_privada" class="form-control form-control-sm">
+                                <label for="campo-chave_privada" class="form-label small mb-1">Chave privada SEM senha (.key) {{ $gatewayPix?->key_path ? '✓ enviada' : '' }}</label>
+                                <input id="campo-chave_privada" type="file" name="chave_privada" class="form-control form-control-sm">
                             </div>
                             <div class="col-md-2">
-                                <label class="form-label small mb-1">Expiração (s)</label>
-                                <input type="number" name="expiracao_segundos" class="form-control form-control-sm"
+                                <label for="campo-expiracao_segundos" class="form-label small mb-1">Expiração (s)</label>
+                                <input id="campo-expiracao_segundos" type="number" name="expiracao_segundos" class="form-control form-control-sm"
                                        value="{{ $gatewayPix?->expiracao_segundos ?? 86400 }}" min="300" max="604800">
                             </div>
                             <div class="col-md-2">
@@ -672,28 +672,28 @@
                             @csrf
                             <div class="col-12"><div class="small fw-semibold">Pacote padrão — produto sem medida cadastrada</div></div>
                             <div class="col-md-3">
-                                <label class="form-label small mb-1">Altura (cm)</label>
-                                <input type="number" step="0.1" min="1" name="pacote_altura" class="form-control form-control-sm"
+                                <label for="campo-pacote_altura" class="form-label small mb-1">Altura (cm)</label>
+                                <input id="campo-pacote_altura" type="number" step="0.1" min="1" name="pacote_altura" class="form-control form-control-sm"
                                        value="{{ $gatewayMe?->config['pacote_altura'] ?? \App\Services\Entrega\MelhorEnvioService::PACOTE_PADRAO['altura'] }}">
                             </div>
                             <div class="col-md-3">
-                                <label class="form-label small mb-1">Largura (cm)</label>
-                                <input type="number" step="0.1" min="1" name="pacote_largura" class="form-control form-control-sm"
+                                <label for="campo-pacote_largura" class="form-label small mb-1">Largura (cm)</label>
+                                <input id="campo-pacote_largura" type="number" step="0.1" min="1" name="pacote_largura" class="form-control form-control-sm"
                                        value="{{ $gatewayMe?->config['pacote_largura'] ?? \App\Services\Entrega\MelhorEnvioService::PACOTE_PADRAO['largura'] }}">
                             </div>
                             <div class="col-md-3">
-                                <label class="form-label small mb-1">Comprimento (cm)</label>
-                                <input type="number" step="0.1" min="1" name="pacote_comprimento" class="form-control form-control-sm"
+                                <label for="campo-pacote_comprimento" class="form-label small mb-1">Comprimento (cm)</label>
+                                <input id="campo-pacote_comprimento" type="number" step="0.1" min="1" name="pacote_comprimento" class="form-control form-control-sm"
                                        value="{{ $gatewayMe?->config['pacote_comprimento'] ?? \App\Services\Entrega\MelhorEnvioService::PACOTE_PADRAO['comprimento'] }}">
                             </div>
                             <div class="col-md-3">
-                                <label class="form-label small mb-1">Peso (kg)</label>
-                                <input type="number" step="0.01" min="0.01" name="pacote_peso" class="form-control form-control-sm"
+                                <label for="campo-pacote_peso" class="form-label small mb-1">Peso (kg)</label>
+                                <input id="campo-pacote_peso" type="number" step="0.01" min="0.01" name="pacote_peso" class="form-control form-control-sm"
                                        value="{{ $gatewayMe?->config['pacote_peso'] ?? \App\Services\Entrega\MelhorEnvioService::PACOTE_PADRAO['peso'] }}">
                             </div>
                             <div class="col-md-7">
-                                <label class="form-label small mb-1">Serviços permitidos (ids do Melhor Envio, por vírgula)</label>
-                                <input type="text" name="servicos" class="form-control form-control-sm"
+                                <label for="campo-servicos" class="form-label small mb-1">Serviços permitidos (ids do Melhor Envio, por vírgula)</label>
+                                <input id="campo-servicos" type="text" name="servicos" class="form-control form-control-sm"
                                        value="{{ $gatewayMe?->config['servicos'] ?? '' }}" placeholder="vazio = todos · ex.: 1,2 (PAC, SEDEX)">
                             </div>
                             <div class="col-md-5 d-flex flex-wrap gap-3 pb-1">
@@ -742,8 +742,8 @@
                         <form method="POST" action="{{ route('admin.empresas.gateway-asaas.store', $empresa) }}" class="row g-2 align-items-end">
                             @csrf
                             <div class="col-12">
-                                <label class="form-label small mb-1">api_key</label>
-                                <input type="password" name="api_key" class="form-control form-control-sm"
+                                <label for="campo-api_key" class="form-label small mb-1">api_key</label>
+                                <input id="campo-api_key" type="password" name="api_key" class="form-control form-control-sm"
                                        placeholder="{{ $gatewayAsaas?->client_secret ? '•••• salva — preencha p/ trocar' : 'chave de API do Asaas ($aact_...)' }}">
                             </div>
                             <div class="col-auto form-check ms-2 mt-3">
@@ -812,34 +812,34 @@
                                 <div class="form-text">No painel do Uber: <strong>"Client Secret"</strong>.</div>
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label small mb-1">ID do usuário (Customer ID)</label>
-                                <input type="text" name="customer_id" class="form-control form-control-sm"
+                                <label for="campo-customer_id" class="form-label small mb-1">ID do usuário (Customer ID)</label>
+                                <input id="campo-customer_id" type="text" name="customer_id" class="form-control form-control-sm"
                                        value="{{ $gatewayUber?->config['customer_id'] ?? '' }}" placeholder="UUID com traços — ex.: 56d97aa0-8311-…">
                                 <div class="form-text">No painel do Uber: <strong>"ID do usuário"</strong> — o código que aparece na URL <code>/v1/customers/…/deliveries</code>.</div>
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label small mb-1">Faixas de CEP atendidas</label>
-                                <input type="text" name="ceps" class="form-control form-control-sm"
+                                <label for="campo-ceps" class="form-label small mb-1">Faixas de CEP atendidas</label>
+                                <input id="campo-ceps" type="text" name="ceps" class="form-control form-control-sm"
                                        value="{{ $gatewayUber?->config['ceps'] ?? '' }}" placeholder="64000-64099,65630-65639 (vazio = todos)">
                             </div>
                             <div class="col-md-3">
-                                <label class="form-label small mb-1">Seg–sex de</label>
-                                <input type="number" step="0.5" name="hora_inicio" class="form-control form-control-sm"
+                                <label for="campo-hora_inicio" class="form-label small mb-1">Seg–sex de</label>
+                                <input id="campo-hora_inicio" type="number" step="0.5" name="hora_inicio" class="form-control form-control-sm"
                                        value="{{ $gatewayUber?->config['hora_inicio'] ?? 8 }}">
                             </div>
                             <div class="col-md-3">
-                                <label class="form-label small mb-1">até</label>
-                                <input type="number" step="0.5" name="hora_fim" class="form-control form-control-sm"
+                                <label for="campo-hora_fim" class="form-label small mb-1">até</label>
+                                <input id="campo-hora_fim" type="number" step="0.5" name="hora_fim" class="form-control form-control-sm"
                                        value="{{ $gatewayUber?->config['hora_fim'] ?? 16.5 }}">
                             </div>
                             <div class="col-md-3">
-                                <label class="form-label small mb-1">Sáb de</label>
-                                <input type="number" step="0.5" name="hora_inicio_sab" class="form-control form-control-sm"
+                                <label for="campo-hora_inicio_sab" class="form-label small mb-1">Sáb de</label>
+                                <input id="campo-hora_inicio_sab" type="number" step="0.5" name="hora_inicio_sab" class="form-control form-control-sm"
                                        value="{{ $gatewayUber?->config['hora_inicio_sab'] ?? 9 }}">
                             </div>
                             <div class="col-md-3">
-                                <label class="form-label small mb-1">até</label>
-                                <input type="number" step="0.5" name="hora_fim_sab" class="form-control form-control-sm"
+                                <label for="campo-hora_fim_sab" class="form-label small mb-1">até</label>
+                                <input id="campo-hora_fim_sab" type="number" step="0.5" name="hora_fim_sab" class="form-control form-control-sm"
                                        value="{{ $gatewayUber?->config['hora_fim_sab'] ?? 12 }}">
                             </div>
                             <div class="col-auto form-check ms-2 mt-3">
@@ -1071,8 +1071,8 @@
                         <form method="POST" action="{{ route('admin.empresas.integracao-tokens.store', $empresa) }}">
                             @csrf
                             <div class="mb-3">
-                                <label class="form-label detail-label">Nome</label>
-                                <input type="text" name="nome" class="form-control" value="Gersen" maxlength="80">
+                                <label for="campo-nome" class="form-label detail-label">Nome</label>
+                                <input id="campo-nome" type="text" name="nome" class="form-control" value="Gersen" maxlength="80">
                             </div>
                             <button type="submit" class="btn btn-primary w-100">
                                 <i class="bi bi-key me-1"></i> Gerar token
@@ -1152,7 +1152,7 @@
                                 @empty
                                     <tr>
                                         <td colspan="{{ $treinamentos->count() + 2 }}" class="text-center text-muted py-4">
-                                            Nenhum usuario vinculado a esta empresa.
+                                            Nenhum usuário vinculado a esta empresa.
                                         </td>
                                     </tr>
                                 @endforelse

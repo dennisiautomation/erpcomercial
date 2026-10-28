@@ -1,12 +1,12 @@
 @extends('layouts.app')
 
-@section('title', 'Relatorio Financeiro')
+@section('title', 'Relatório Financeiro')
 
 @section('content')
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
-        <h4 class="mb-1"><i class="bi bi-cash-coin me-2"></i>Relatorio Financeiro</h4>
-        <p class="text-muted mb-0 small">Periodo: {{ $dataInicio->format('d/m/Y') }} a {{ $dataFim->format('d/m/Y') }}</p>
+        <h4 class="mb-1"><i class="bi bi-cash-coin me-2"></i>Relatório Financeiro</h4>
+        <p class="text-muted mb-0 small">Período: {{ $dataInicio->format('d/m/Y') }} a {{ $dataFim->format('d/m/Y') }}</p>
     </div>
     <button class="btn btn-outline-secondary btn-sm" onclick="window.print()">
         <i class="bi bi-printer me-1"></i> Imprimir
@@ -18,12 +18,12 @@
     <div class="card-body py-3">
         <form method="GET" class="row g-3 align-items-end">
             <div class="col-md-3">
-                <label class="form-label small fw-semibold">Data Inicio</label>
-                <input type="date" name="data_inicio" class="form-control form-control-sm" value="{{ $dataInicio->format('Y-m-d') }}">
+                <label for="campo-data_inicio" class="form-label small fw-semibold">Data Início</label>
+                <input id="campo-data_inicio" type="date" name="data_inicio" class="form-control form-control-sm" value="{{ $dataInicio->format('Y-m-d') }}">
             </div>
             <div class="col-md-3">
-                <label class="form-label small fw-semibold">Data Fim</label>
-                <input type="date" name="data_fim" class="form-control form-control-sm" value="{{ $dataFim->format('Y-m-d') }}">
+                <label for="campo-data_fim" class="form-label small fw-semibold">Data Fim</label>
+                <input id="campo-data_fim" type="date" name="data_fim" class="form-control form-control-sm" value="{{ $dataFim->format('Y-m-d') }}">
             </div>
             <div class="col-md-3 d-flex gap-2 align-items-end">
                 <button type="submit" class="btn btn-primary btn-sm flex-grow-1">
@@ -113,6 +113,7 @@
                 <i class="bi bi-file-earmark-bar-graph me-1"></i> DRE Simplificado
             </div>
             <div class="card-body">
+                <div class="table-responsive">
                 <table class="table mb-0">
                     <tbody>
                         <tr class="bg-success bg-opacity-10">
@@ -163,6 +164,7 @@
                         @endif
                     </tbody>
                 </table>
+                </div>
             </div>
         </div>
     </div>
@@ -276,6 +278,7 @@
 @endsection
 
 @push('scripts')
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" integrity="sha384-9nhczxUqK87bcKHh20fSQcTGD4qq5GhayNYSYWqwBkINBhOfQLg/P5HG5lF1urn4" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {

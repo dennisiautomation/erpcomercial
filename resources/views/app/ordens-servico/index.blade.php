@@ -1,14 +1,13 @@
 @extends('layouts.app')
 
-@section('title', 'Ordens de Servico')
+@section('title', 'Ordens de Serviço')
 
 @section('content')
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h4 class="mb-0"><i class="bi bi-wrench-adjustable me-2"></i>Ordens de Servico</h4>
+<x-erp.page-header title="Ordens de Serviço" icon="wrench-adjustable">
     <a href="{{ route('app.ordens-servico.create') }}" class="btn btn-primary btn-sm">
-        <i class="bi bi-plus-lg me-1"></i> Nova OS
-    </a>
-</div>
+            <i class="bi bi-plus-lg me-1"></i> Nova OS
+        </a>
+</x-erp.page-header>
 
 {{-- Summary Cards --}}
 <div class="row g-3 mb-4">
@@ -62,7 +61,7 @@
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-start">
                     <div>
-                        <p class="text-muted small mb-1">Concluidas (Mes)</p>
+                        <p class="text-muted small mb-1">Concluídas (Mês)</p>
                         <h3 class="fw-bold mb-0 text-success">{{ $concluidasMes }}</h3>
                     </div>
                     <div class="rounded-3 bg-success bg-opacity-10 p-2">
@@ -81,7 +80,7 @@
             <div class="col-md-5">
                 <div class="input-group input-group-sm">
                     <span class="input-group-text"><i class="bi bi-search"></i></span>
-                    <input type="text" name="busca" class="form-control" placeholder="Buscar por numero, cliente ou equipamento..."
+                    <input type="text" name="busca" class="form-control" placeholder="Buscar por número, cliente ou equipamento..."
                            value="{{ request('busca') }}">
                 </div>
             </div>
@@ -123,14 +122,14 @@
         <table class="table table-hover align-middle mb-0">
             <thead class="table-light">
                 <tr>
-                    <th>Numero</th>
+                    <th>Número</th>
                     <th>Data</th>
                     <th>Cliente</th>
                     <th>Equipamento</th>
                     <th>Tecnico</th>
                     <th class="text-center">Status</th>
                     <th class="text-end">Total</th>
-                    <th class="text-center" style="width: 100px;">Acoes</th>
+                    <th class="text-center" style="width: 100px;">Ações</th>
                 </tr>
             </thead>
             <tbody>
@@ -186,7 +185,7 @@
                     <tr>
                         <td colspan="8" class="text-center text-muted py-5">
                             <i class="bi bi-wrench fs-1 d-block mb-2 opacity-50"></i>
-                            Nenhuma ordem de servico encontrada.
+                            Nenhuma ordem de serviço encontrada.
                         </td>
                     </tr>
                 @endforelse

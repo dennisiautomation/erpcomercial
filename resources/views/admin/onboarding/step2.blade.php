@@ -53,7 +53,7 @@
 
                         {{-- Numero --}}
                         <div class="col-md-3">
-                            <label for="numero" class="form-label fw-semibold">Numero</label>
+                            <label for="numero" class="form-label fw-semibold">Número</label>
                             <input type="text" class="form-control @error('numero') is-invalid @enderror"
                                    id="numero" name="numero" value="{{ old('numero', $empresa->numero) }}">
                             @error('numero')<div class="invalid-feedback">{{ $message }}</div>@enderror
@@ -106,7 +106,7 @@
                             <i class="bi bi-arrow-left me-1"></i> Voltar
                         </a>
                         <button type="submit" class="btn btn-primary">
-                            Proximo: Usuario <i class="bi bi-arrow-right ms-1"></i>
+                            Próximo: Usuário <i class="bi bi-arrow-right ms-1"></i>
                         </button>
                     </div>
                 </form>

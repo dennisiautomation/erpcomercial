@@ -109,8 +109,8 @@
 <div class="alert alert-danger d-flex align-items-center shadow-sm mb-4">
     <i class="bi bi-x-circle fs-4 me-3"></i>
     <div>
-        <strong>Ordem de Servico Cancelada</strong>
-        <span class="d-block small">Esta OS foi cancelada e nao pode mais ser alterada.</span>
+        <strong>Ordem de Serviço Cancelada</strong>
+        <span class="d-block small">Esta OS foi cancelada e não pode mais ser alterada.</span>
     </div>
 </div>
 @endif
@@ -158,7 +158,7 @@
                     </div>
                     @if($ordemServico->observacoes)
                         <div class="col-12">
-                            <label class="text-muted small d-block">Observacoes</label>
+                            <label class="text-muted small d-block">Observações</label>
                             <div class="bg-light rounded-3 p-3">{{ $ordemServico->observacoes }}</div>
                         </div>
                     @endif
@@ -182,9 +182,9 @@
                 <table class="table table-sm align-middle mb-0">
                     <thead class="table-light">
                         <tr>
-                            <th>Descricao</th>
+                            <th>Descrição</th>
                             <th class="text-center" width="80">Qtd</th>
-                            <th class="text-end" width="120">Preco Unit.</th>
+                            <th class="text-end" width="120">Preço Unit.</th>
                             <th class="text-end" width="120">Total</th>
                         </tr>
                     </thead>
@@ -212,16 +212,16 @@
         @if($itensServicos->count() > 0)
         <div class="card shadow-sm mb-4">
             <div class="card-header bg-white fw-semibold d-flex justify-content-between">
-                <span><i class="bi bi-tools me-1"></i> Servicos</span>
+                <span><i class="bi bi-tools me-1"></i> Serviços</span>
                 <span class="badge bg-success bg-opacity-10 text-success">{{ $itensServicos->count() }} item(ns)</span>
             </div>
             <div class="table-responsive">
                 <table class="table table-sm align-middle mb-0">
                     <thead class="table-light">
                         <tr>
-                            <th>Descricao</th>
+                            <th>Descrição</th>
                             <th class="text-center" width="80">Qtd</th>
-                            <th class="text-end" width="120">Preco Unit.</th>
+                            <th class="text-end" width="120">Preço Unit.</th>
                             <th class="text-end" width="120">Total</th>
                         </tr>
                     </thead>
@@ -237,7 +237,7 @@
                     </tbody>
                     <tfoot class="table-light">
                         <tr>
-                            <td colspan="3" class="text-end fw-semibold">Subtotal Servicos:</td>
+                            <td colspan="3" class="text-end fw-semibold">Subtotal Serviços:</td>
                             <td class="text-end fw-bold">R$ {{ number_format($ordemServico->valor_servicos, 2, ',', '.') }}</td>
                         </tr>
                     </tfoot>
@@ -272,7 +272,7 @@
                     <strong>R$ {{ number_format($ordemServico->valor_produtos, 2, ',', '.') }}</strong>
                 </div>
                 <div class="d-flex justify-content-between mb-2">
-                    <span class="text-muted">Servicos:</span>
+                    <span class="text-muted">Serviços:</span>
                     <strong>R$ {{ number_format($ordemServico->valor_servicos, 2, ',', '.') }}</strong>
                 </div>
                 @if($ordemServico->desconto > 0)
@@ -292,7 +292,7 @@
         {{-- Actions --}}
         <div class="card shadow-sm mb-4">
             <div class="card-header bg-white fw-semibold">
-                <i class="bi bi-lightning me-1"></i> Acoes
+                <i class="bi bi-lightning me-1"></i> Ações
             </div>
             <div class="card-body d-grid gap-2">
                 @if(!in_array($ordemServico->status, ['entregue', 'cancelada']))
@@ -314,7 +314,7 @@
                 @if(!in_array($ordemServico->status, ['entregue', 'cancelada']))
                     <hr class="my-1">
                     <form method="POST" action="{{ route('app.ordens-servico.destroy', $ordemServico) }}"
-                          data-confirm="Tem certeza que deseja excluir esta OS? Esta acao e irreversivel.">
+                          data-confirm="Tem certeza que deseja excluir esta OS? Esta ação e irreversivel.">
                         @csrf
                         @method('DELETE')
                         <button type="submit" class="btn btn-outline-danger btn-sm w-100">
@@ -348,7 +348,7 @@
                         </div>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label fw-semibold">Novo Status</label>
+                        <label for="selectNovoStatus" class="form-label fw-semibold">Novo Status</label>
                         <select name="status" class="form-select" id="selectNovoStatus" onchange="toggleLaudo()">
                             @php
                                 $transicoes = [
@@ -364,10 +364,10 @@
                         </select>
                     </div>
                     <div class="mb-3" id="laudoField" style="display: none;">
-                        <label class="form-label fw-semibold">Laudo Tecnico</label>
-                        <textarea name="laudo_tecnico" class="form-control" rows="4"
-                                  placeholder="Descreva o diagnostico e o servico realizado...">{{ $ordemServico->laudo_tecnico }}</textarea>
-                        <small class="text-muted">Obrigatorio ao concluir a OS.</small>
+                        <label for="campo-laudo_tecnico" class="form-label fw-semibold">Laudo Tecnico</label>
+                        <textarea id="campo-laudo_tecnico" name="laudo_tecnico" class="form-control" rows="4"
+                                  placeholder="Descreva o diagnostico e o serviço realizado...">{{ $ordemServico->laudo_tecnico }}</textarea>
+                        <small class="text-muted">Obrigatório ao concluir a OS.</small>
                     </div>
                 </div>
                 <div class="modal-footer">

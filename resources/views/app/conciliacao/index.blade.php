@@ -1,13 +1,13 @@
 @extends('layouts.app')
 
-@section('title', 'Conciliacao Bancaria')
+@section('title', 'Conciliação Bancaria')
 
 @section('content')
 <div class="fade-in">
 <div class="page-header">
     <div>
-        <h4><i class="bi bi-bank me-2"></i>Conciliacao Bancaria</h4>
-        <div class="subtitle">Importe extratos e concilie lancamentos</div>
+        <h4><i class="bi bi-bank me-2"></i>Conciliação Bancaria</h4>
+        <div class="subtitle">Importe extratos e concilie lançamentos</div>
     </div>
     <a href="{{ route('app.conciliacao.create') }}" class="btn btn-erp btn-erp-primary">
         <i class="bi bi-upload me-1"></i> Importar OFX
@@ -20,13 +20,13 @@
             <thead>
                 <tr>
                     <th>Banco</th>
-                    <th>Agencia / Conta</th>
-                    <th>Periodo</th>
-                    <th>Lancamentos</th>
+                    <th>Agência / Conta</th>
+                    <th>Período</th>
+                    <th>Lançamentos</th>
                     <th>Conciliados</th>
                     <th>Status</th>
                     <th>Criado em</th>
-                    <th width="100">Acoes</th>
+                    <th width="100">Ações</th>
                 </tr>
             </thead>
             <tbody>
@@ -70,8 +70,8 @@
                     <td colspan="8">
                         <div class="empty-state">
                             <i class="bi bi-bank d-block"></i>
-                            <h5>Nenhuma conciliacao encontrada</h5>
-                            <p>Importe um arquivo OFX para comecar.</p>
+                            <h5>Nenhuma conciliação encontrada</h5>
+                            <p>Importe um arquivo OFX para começar.</p>
                         </div>
                     </td>
                 </tr>

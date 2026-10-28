@@ -20,14 +20,14 @@
         </nav>
     </div>
     <div class="d-flex gap-2 flex-wrap">
-        @if($venda->status->value === 'concluida' && \App\Http\Middleware\CheckPermission::can(auth()->user()->perfil?->value ?? '', 'trocas', 'criar'))
+        @if($venda->status->value === 'concluída' && \App\Http\Middleware\CheckPermission::can(auth()->user()->perfil?->value ?? '', 'trocas', 'criar'))
             <a href="{{ route('app.trocas.create', ['venda' => $venda->id]) }}" class="btn btn-outline-warning" title="Devolver itens desta venda (sem levar nada agora). Para trocar por outro produto, use o PDV — F6.">
                 <i class="bi bi-arrow-repeat me-1"></i> Trocar / Devolver
             </a>
         @endif
         @if($venda->status->value === 'concluida')
             <form method="POST" action="{{ route('app.vendas.destroy', $venda) }}"
-                  data-confirm="Cancelar esta venda? O estoque sera revertido, as contas a receber serao canceladas e o valor sai do caixa na mesma forma de pagamento (vale volta ao saldo). Devolva o dinheiro ao cliente; PIX e cartao, estorne no banco ou na maquininha.">
+                  data-confirm="Cancelar esta venda? O estoque sera revertido, as contas a receber serao canceladas e o valor sai do caixa na mesma forma de pagamento (vale volta ao saldo). Devolva o dinheiro ao cliente; PIX e cartão, estorne no banco ou na maquininha.">
                 @csrf
                 @method('DELETE')
                 <button type="submit" class="btn btn-danger">
@@ -61,12 +61,12 @@
     <div class="col-lg-6">
         <div class="card border-0 shadow-sm h-100">
             <div class="card-header bg-transparent fw-semibold">
-                <i class="bi bi-info-circle me-1"></i> Informacoes da Venda
+                <i class="bi bi-info-circle me-1"></i> Informações da Venda
             </div>
             <div class="card-body">
                 <div class="row g-3">
                     <div class="col-6">
-                        <small class="text-muted d-block">Numero</small>
+                        <small class="text-muted d-block">Número</small>
                         <span class="fw-bold">#{{ $venda->numero }}</span>
                     </div>
                     <div class="col-6">
@@ -151,9 +151,9 @@
                     <thead class="bg-light">
                         <tr>
                             <th class="ps-3" style="width:5%">#</th>
-                            <th>Descricao</th>
+                            <th>Descrição</th>
                             <th class="text-center" style="width:10%">Qtd</th>
-                            <th class="text-end" style="width:12%">Preco Unit.</th>
+                            <th class="text-end" style="width:12%">Preço Unit.</th>
                             <th class="text-center" style="width:10%">Desc.</th>
                             <th class="text-end" style="width:12%">Desc. R$</th>
                             <th class="text-end pe-3" style="width:12%">Total</th>
@@ -168,7 +168,7 @@
                                     @if($item->produto)
                                         <small class="text-muted">Cod: {{ $item->produto->codigo_interno ?? '-' }}</small>
                                     @elseif($item->servico)
-                                        <small class="text-info"><i class="bi bi-tools me-1"></i>Servico</small>
+                                        <small class="text-info"><i class="bi bi-tools me-1"></i>Serviço</small>
                                     @endif
                                 </td>
                                 <td class="text-center">{{ number_format($item->quantidade, 3, ',', '.') }}</td>
@@ -298,7 +298,7 @@
                     {{-- Show existing notas --}}
                     <div class="table-responsive">
                     <table class="erp-table">
-                        <thead><tr><th>Tipo</th><th>Numero</th><th>Status</th><th>Acoes</th></tr></thead>
+                        <thead><tr><th>Tipo</th><th>Número</th><th>Status</th><th>Ações</th></tr></thead>
                         <tbody>
                         @foreach($venda->notasFiscais as $nota)
                             <tr>
@@ -415,7 +415,7 @@
                     <table class="table table-hover align-middle mb-0">
                         <thead class="bg-light">
                             <tr>
-                                <th class="ps-3">Descricao</th>
+                                <th class="ps-3">Descrição</th>
                                 <th>Forma Pgto</th>
                                 <th>Parcela</th>
                                 <th class="text-end">Valor</th>
@@ -432,7 +432,7 @@
                                         @if($cr->total_parcelas > 1)
                                             <span class="badge bg-light text-dark">{{ $cr->parcela }}/{{ $cr->total_parcelas }}</span>
                                         @else
-                                            <span class="text-muted small">Parcela unica</span>
+                                            <span class="text-muted small">Parcela única</span>
                                         @endif
                                     </td>
                                     <td class="text-end fw-semibold">R$ {{ number_format($cr->valor, 2, ',', '.') }}</td>
@@ -507,7 +507,9 @@ function imprimirRecibo() {
         Cliente: ${venda.cliente?.nome_razao_social || 'Consumidor'}<br>
         Operador: ${venda.vendedor?.name || '-'}</div>
         <div class="line"></div>
+        <div class="table-responsive">
         <table><tr><th>#</th><th>Descrição</th><th style="text-align:right">Qtd</th><th style="text-align:right">Unit</th><th style="text-align:right">Total</th></tr>${itensHtml}</table>
+        </div>
         <div class="line"></div>
         <div>Subtotal: R$ ${parseFloat(venda.subtotal).toFixed(2)}</div>
         ${parseFloat(venda.desconto_valor) > 0 ? '<div>Desconto: -R$ ' + parseFloat(venda.desconto_valor).toFixed(2) + '</div>' : ''}

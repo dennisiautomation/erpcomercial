@@ -17,10 +17,10 @@
 <div class="filter-bar">
     <form method="GET" action="{{ route('app.categorias.index') }}" class="row g-3 align-items-end erp-form">
         <div class="col-md-6">
-            <label class="form-label">Buscar</label>
+            <label for="campo-busca" class="form-label">Buscar</label>
             <div class="input-group">
                 <span class="input-group-text"><i class="bi bi-search"></i></span>
-                <input type="text" name="busca" class="form-control" placeholder="Nome da categoria..." value="{{ request('busca') }}">
+                <input id="campo-busca" type="text" name="busca" class="form-control" placeholder="Nome da categoria..." value="{{ request('busca') }}">
             </div>
         </div>
         <div class="col-md-6 d-flex gap-2">

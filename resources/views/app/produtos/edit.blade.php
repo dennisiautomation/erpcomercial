@@ -43,7 +43,7 @@
                 <div class="wizard-progress-circle">
                     <i class="bi bi-box-seam"></i>
                 </div>
-                <span class="wizard-progress-label">O que voce vende?</span>
+                <span class="wizard-progress-label">O que você vende?</span>
             </div>
             <div class="wizard-progress-step" data-step="2">
                 <div class="wizard-progress-circle">
@@ -75,7 +75,7 @@
                     <div class="wizard-step-icon bg-primary bg-opacity-10 text-primary rounded-circle d-inline-flex align-items-center justify-content-center" style="width:56px;height:56px;">
                         <i class="bi bi-box-seam fs-4"></i>
                     </div>
-                    <h5 class="mt-3 mb-1">O que voce vende?</h5>
+                    <h5 class="mt-3 mb-1">O que você vende?</h5>
                     <p class="text-muted mb-0">Dados basicos do produto</p>
                 </div>
 
@@ -89,7 +89,7 @@
 
                     {{-- Descricao Detalhada --}}
                     <div class="col-12">
-                        <label for="descricao_detalhada" class="form-label">Descricao detalhada <span class="text-muted fw-normal">(opcional)</span></label>
+                        <label for="descricao_detalhada" class="form-label">Descrição detalhada <span class="text-muted fw-normal">(opcional)</span></label>
                         <textarea name="descricao_detalhada" id="descricao_detalhada" class="form-control @error('descricao_detalhada') is-invalid @enderror" rows="2" placeholder="Detalhes adicionais do produto">{{ old('descricao_detalhada', $produto->descricao_detalhada) }}</textarea>
                         @error('descricao_detalhada') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
@@ -147,7 +147,7 @@
 
                     {{-- Preco de Custo + Markup --}}
                     <div class="col-md-3">
-                        <label for="preco_custo" class="form-label">Preco de custo <span class="text-muted fw-normal">(opcional)</span></label>
+                        <label for="preco_custo" class="form-label">Preço de custo <span class="text-muted fw-normal">(opcional)</span></label>
                         <div class="input-group">
                             <span class="input-group-text">R$</span>
                             <input type="text" inputmode="numeric" data-mask="money" name="preco_custo" id="preco_custo" class="form-control @error('preco_custo') is-invalid @enderror" value="{{ old('preco_custo', $produto->preco_custo) }}" placeholder="0,00">
@@ -155,7 +155,7 @@
                         </div>
                     </div>
                     <div class="col-md-3">
-                        <label class="form-label text-muted">Markup</label>
+                        <label for="markup" class="form-label text-muted">Markup</label>
                         <div class="input-group">
                             <input type="number" name="markup" id="markup" class="form-control bg-light" value="{{ old('markup', $produto->markup) }}" step="0.01" min="0" readonly>
                             <span class="input-group-text">%</span>
@@ -254,7 +254,7 @@
                 <div class="row g-3">
                     {{-- Codigo Interno (readonly) --}}
                     <div class="col-md-4">
-                        <label class="form-label text-muted">Codigo interno</label>
+                        <label class="form-label text-muted">Código interno</label>
                         <input type="text" class="form-control bg-light fw-bold" value="{{ $produto->codigo_interno }}" readonly disabled>
                         <div class="form-text">Gerado automaticamente</div>
                     </div>
@@ -262,11 +262,11 @@
                     {{-- Codigo de Barras --}}
                     <div class="col-md-4">
                         <label for="codigo_barras" class="form-label">
-                            <i class="bi bi-upc me-1"></i> Codigo de barras
+                            <i class="bi bi-upc me-1"></i> Código de barras
                         </label>
                         <input type="text" name="codigo_barras" id="codigo_barras" class="form-control @error('codigo_barras') is-invalid @enderror" value="{{ old('codigo_barras', $produto->codigo_barras) }}" placeholder="Escaneie com o leitor ou digite o EAN">
                         @error('codigo_barras') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                        <div class="form-text"><i class="bi bi-info-circle me-1"></i>Escaneie o codigo com leitor de barras ou digite manualmente</div>
+                        <div class="form-text"><i class="bi bi-info-circle me-1"></i>Escaneie o código com leitor de barras ou digite manualmente</div>
                     </div>
 
                     {{-- Fornecedor (opcional) — de quem a loja compra este produto --}}
@@ -300,12 +300,12 @@
                         </label>
                         <input type="text" name="sku" id="sku" class="form-control @error('sku') is-invalid @enderror" value="{{ old('sku', $produto->sku) }}" placeholder="Ex: CAM-AZU-M">
                         @error('sku') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                        <div class="form-text"><i class="bi bi-info-circle me-1"></i>Codigo interno para seu controle. Opcional.</div>
+                        <div class="form-text"><i class="bi bi-info-circle me-1"></i>Código interno para seu controle. Opcional.</div>
                     </div>
 
                     {{-- Foto --}}
                     <div class="col-md-6">
-                        <label class="form-label">
+                        <label for="foto" class="form-label">
                             <i class="bi bi-camera me-1"></i> Foto do produto
                         </label>
                         <input type="file" name="foto" id="foto" class="form-control @error('foto') is-invalid @enderror" accept="image/*">
@@ -325,14 +325,14 @@
                     {{-- Estoque Minimo --}}
                     <div class="col-md-6">
                         <label for="estoque_minimo" class="form-label">
-                            <i class="bi bi-bell me-1"></i> Estoque minimo
+                            <i class="bi bi-bell me-1"></i> Estoque mínimo
                         </label>
                         <div class="input-group">
                             <span class="input-group-text"><i class="bi bi-exclamation-triangle"></i></span>
                             <input type="number" name="estoque_minimo" id="estoque_minimo" class="form-control @error('estoque_minimo') is-invalid @enderror" value="{{ old('estoque_minimo', $produto->estoque_minimo) }}" step="0.001" min="0">
                             @error('estoque_minimo') <div class="invalid-feedback">{{ $message }}</div> @enderror
                         </div>
-                        <div class="form-text"><i class="bi bi-info-circle me-1"></i>Te avisamos quando o estoque ficar abaixo desse numero</div>
+                        <div class="form-text"><i class="bi bi-info-circle me-1"></i>Te avisamos quando o estoque ficar abaixo desse número</div>
                     </div>
 
                     {{-- Peso Bruto / Liquido --}}
@@ -413,7 +413,7 @@
                         <i class="bi bi-file-earmark-text fs-4"></i>
                     </div>
                     <h5 class="mt-3 mb-1">Dados Fiscais</h5>
-                    <p class="text-muted mb-0">Necessarios para emissao de nota fiscal</p>
+                    <p class="text-muted mb-0">Necessarios para emissão de nota fiscal</p>
                 </div>
 
                 @if(!$emiteFiscal)
@@ -422,8 +422,8 @@
                         <div class="mb-3">
                             <i class="bi bi-shield-check text-success" style="font-size:3rem;"></i>
                         </div>
-                        <h6 class="mb-2">Sua empresa nao emite nota fiscal</h6>
-                        <p class="text-muted mb-4">Voce pode pular esta etapa. Se no futuro precisar emitir notas, basta ativar a emissao fiscal nas configuracoes e editar o produto.</p>
+                        <h6 class="mb-2">Sua empresa não emite nota fiscal</h6>
+                        <p class="text-muted mb-4">Você pode pular esta etapa. Se no futuro precisar emitir notas, basta ativar a emissão fiscal nas configurações e editar o produto.</p>
                         <button type="submit" class="btn btn-success btn-lg">
                             <i class="bi bi-check-lg me-1"></i> Atualizar Produto
                         </button>
@@ -445,7 +445,7 @@
                         <div class="col-md-4">
                             <label for="ncm_busca" class="form-label fw-semibold">
                                 NCM
-                                <i class="bi bi-question-circle text-muted ms-1" data-bs-toggle="tooltip" data-bs-placement="top" title="Codigo de 8 digitos que classifica seu produto. Digite pelo menos 2 letras da descrição para buscar."></i>
+                                <i class="bi bi-question-circle text-muted ms-1" data-bs-toggle="tooltip" data-bs-placement="top" title="Código de 8 digitos que classifica seu produto. Digite pelo menos 2 letras da descrição para buscar."></i>
                             </label>
                             <input type="text" id="ncm_busca" class="form-control" value="{{ old('ncm', $produto->ncm) }}"
                                    placeholder="Clique para ver os já usados ou digite (ex: leite, arroz)"
@@ -481,10 +481,10 @@
                             </label>
                             <select name="cst_csosn" id="cst_csosn" class="form-select @error('cst_csosn') is-invalid @enderror">
                                 <option value="">Selecione...</option>
-                                <option value="102" {{ old('cst_csosn', $produto->cst_csosn) == '102' ? 'selected' : '' }}>102 - Tributada sem credito</option>
+                                <option value="102" {{ old('cst_csosn', $produto->cst_csosn) == '102' ? 'selected' : '' }}>102 - Tributada sem crédito</option>
                                 <option value="103" {{ old('cst_csosn', $produto->cst_csosn) == '103' ? 'selected' : '' }}>103 - Isenta de ICMS</option>
                                 <option value="300" {{ old('cst_csosn', $produto->cst_csosn) == '300' ? 'selected' : '' }}>300 - Imune</option>
-                                <option value="400" {{ old('cst_csosn', $produto->cst_csosn) == '400' ? 'selected' : '' }}>400 - Nao tributada</option>
+                                <option value="400" {{ old('cst_csosn', $produto->cst_csosn) == '400' ? 'selected' : '' }}>400 - Não tributada</option>
                                 <option value="500" {{ old('cst_csosn', $produto->cst_csosn) == '500' ? 'selected' : '' }}>500 - ICMS cobrado por ST</option>
                             </select>
                             @else
@@ -497,7 +497,7 @@
                                 <option value="10" {{ old('cst_csosn', $produto->cst_csosn) == '10' ? 'selected' : '' }}>10 - Tributada com ST</option>
                                 <option value="20" {{ old('cst_csosn', $produto->cst_csosn) == '20' ? 'selected' : '' }}>20 - Com reducao de base</option>
                                 <option value="40" {{ old('cst_csosn', $produto->cst_csosn) == '40' ? 'selected' : '' }}>40 - Isenta</option>
-                                <option value="41" {{ old('cst_csosn', $produto->cst_csosn) == '41' ? 'selected' : '' }}>41 - Nao tributada</option>
+                                <option value="41" {{ old('cst_csosn', $produto->cst_csosn) == '41' ? 'selected' : '' }}>41 - Não tributada</option>
                                 <option value="60" {{ old('cst_csosn', $produto->cst_csosn) == '60' ? 'selected' : '' }}>60 - ICMS cobrado por ST anterior</option>
                             </select>
                             @endif
@@ -507,8 +507,8 @@
                         {{-- Aliquotas em Cards --}}
                         <div class="col-12 mt-4">
                             <label class="form-label fw-semibold mb-3">
-                                <i class="bi bi-percent me-1"></i> Aliquotas de impostos
-                                <i class="bi bi-question-circle text-muted ms-1" data-bs-toggle="tooltip" data-bs-placement="top" title="Percentuais de impostos que incidem sobre o produto. Se voce e do Simples Nacional, normalmente ficam zerados."></i>
+                                <i class="bi bi-percent me-1"></i> Alíquotas de impostos
+                                <i class="bi bi-question-circle text-muted ms-1" data-bs-toggle="tooltip" data-bs-placement="top" title="Percentuais de impostos que incidem sobre o produto. Se você e do Simples Nacional, normalmente ficam zerados."></i>
                             </label>
                             <div class="row g-3">
                                 <div class="col-6 col-md-3">
@@ -589,25 +589,25 @@
                                 </div>
                                 <div class="row g-3">
                                     <div class="col-md-3">
-                                        <label class="form-label">CST IBS/CBS</label>
-                                        <input type="text" name="cst_ibs_cbs" maxlength="3" class="form-control" placeholder="000 (padrão)" value="{{ old('cst_ibs_cbs', $produto->cst_ibs_cbs) }}">
+                                        <label for="campo-cst_ibs_cbs" class="form-label">CST IBS/CBS</label>
+                                        <input id="campo-cst_ibs_cbs" type="text" name="cst_ibs_cbs" maxlength="3" class="form-control" placeholder="000 (padrão)" value="{{ old('cst_ibs_cbs', $produto->cst_ibs_cbs) }}">
                                     </div>
                                     <div class="col-md-3">
-                                        <label class="form-label">Classificação (cClassTrib)</label>
-                                        <input type="text" name="classificacao_ibs" maxlength="10" class="form-control" placeholder="000001 (padrão)" value="{{ old('classificacao_ibs', $produto->classificacao_ibs) }}">
+                                        <label for="campo-classificacao_ibs" class="form-label">Classificação (cClassTrib)</label>
+                                        <input id="campo-classificacao_ibs" type="text" name="classificacao_ibs" maxlength="10" class="form-control" placeholder="000001 (padrão)" value="{{ old('classificacao_ibs', $produto->classificacao_ibs) }}">
                                     </div>
                                     <div class="col-md-2">
-                                        <label class="form-label">IBS (%)</label>
-                                        <input type="number" name="ibs_aliquota" step="0.0001" min="0" max="100" class="form-control" placeholder="0,1" value="{{ old('ibs_aliquota', $produto->ibs_aliquota) }}">
+                                        <label for="campo-ibs_aliquota" class="form-label">IBS (%)</label>
+                                        <input id="campo-ibs_aliquota" type="number" name="ibs_aliquota" step="0.0001" min="0" max="100" class="form-control" placeholder="0,1" value="{{ old('ibs_aliquota', $produto->ibs_aliquota) }}">
                                     </div>
                                     <div class="col-md-2">
-                                        <label class="form-label">CBS (%)</label>
-                                        <input type="number" name="cbs_aliquota" step="0.0001" min="0" max="100" class="form-control" placeholder="0,9" value="{{ old('cbs_aliquota', $produto->cbs_aliquota) }}">
+                                        <label for="campo-cbs_aliquota" class="form-label">CBS (%)</label>
+                                        <input id="campo-cbs_aliquota" type="number" name="cbs_aliquota" step="0.0001" min="0" max="100" class="form-control" placeholder="0,9" value="{{ old('cbs_aliquota', $produto->cbs_aliquota) }}">
                                     </div>
                                     @if($configFiscal->is_ativo ?? false)
                                         <div class="col-md-2">
-                                            <label class="form-label">IS (%) <small class="text-muted">seletivo</small></label>
-                                            <input type="number" name="is_aliquota" step="0.0001" min="0" max="100" class="form-control" value="{{ old('is_aliquota', $produto->is_aliquota) }}">
+                                            <label for="campo-is_aliquota" class="form-label">IS (%) <small class="text-muted">seletivo</small></label>
+                                            <input id="campo-is_aliquota" type="number" name="is_aliquota" step="0.0001" min="0" max="100" class="form-control" value="{{ old('is_aliquota', $produto->is_aliquota) }}">
                                         </div>
                                     @endif
                                 </div>

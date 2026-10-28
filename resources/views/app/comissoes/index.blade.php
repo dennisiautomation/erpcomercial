@@ -1,17 +1,17 @@
 @extends('layouts.app')
 
-@section('title', 'Comissoes')
+@section('title', 'Comissões')
 
 @section('content')
 <div class="fade-in">
 <div class="page-header">
     <div>
-        <h4><i class="bi bi-percent me-2"></i>Comissoes</h4>
-        <div class="subtitle">Gerencie comissoes dos vendedores</div>
+        <h4><i class="bi bi-percent me-2"></i>Comissões</h4>
+        <div class="subtitle">Gerencie comissões dos vendedores</div>
     </div>
     <div class="d-flex gap-2">
         <a href="{{ route('app.comissoes.relatorio') }}" class="btn btn-erp btn-erp-outline">
-            <i class="bi bi-file-earmark-bar-graph me-1"></i> Relatorio
+            <i class="bi bi-file-earmark-bar-graph me-1"></i> Relatório
         </a>
         <a href="{{ route('app.comissoes.configurar') }}" class="btn btn-erp btn-erp-outline">
             <i class="bi bi-gear me-1"></i> Configurar
@@ -45,7 +45,7 @@
         <div class="stat-card">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
-                    <div class="stat-label">Pagas no Mes</div>
+                    <div class="stat-label">Pagas no Mês</div>
                     <div class="stat-value" style="color: var(--success);">R$ {{ number_format($pagoMes, 2, ',', '.') }}</div>
                 </div>
                 <div class="stat-icon success">
@@ -58,7 +58,7 @@
         <div class="stat-card">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
-                    <div class="stat-label">Total no Mes</div>
+                    <div class="stat-label">Total no Mês</div>
                     <div class="stat-value" style="color: var(--primary);">R$ {{ number_format($totalMes, 2, ',', '.') }}</div>
                 </div>
                 <div class="stat-icon primary">
@@ -105,7 +105,7 @@
             <input type="date" name="data_inicio" id="data_inicio" class="form-control" value="{{ request('data_inicio') }}">
         </div>
         <div class="col-md-2">
-            <label for="data_fim" class="form-label">Ate</label>
+            <label for="data_fim" class="form-label">Até</label>
             <input type="date" name="data_fim" id="data_fim" class="form-control" value="{{ request('data_fim') }}">
         </div>
         <div class="col-md-3">
@@ -118,7 +118,7 @@
 
 @if($porLoja->count() > 0)
 <div class="erp-card mb-3">
-    <div class="card-header"><span>Comissao por loja (mes atual)</span></div>
+    <div class="card-header"><span>Comissão por loja (mês atual)</span></div>
     <div class="card-body d-flex flex-wrap gap-3">
         @foreach($unidades as $u)
             @if(($porLoja[$u->id] ?? 0) > 0)
@@ -137,9 +137,9 @@
     @csrf
     <div class="erp-card">
         <div class="card-header">
-            <span>Lista de Comissoes</span>
+            <span>Lista de Comissões</span>
             <div class="ms-auto">
-                <button type="submit" class="btn btn-erp btn-erp-success btn-sm" data-confirm="Confirma o pagamento das comissoes selecionadas?">
+                <button type="submit" class="btn btn-erp btn-erp-success btn-sm" data-confirm="Confirma o pagamento das comissões selecionadas?">
                     <i class="bi bi-check2-all me-1"></i> Pagar Selecionadas
                 </button>
             </div>
@@ -157,7 +157,7 @@
                             <th>Venda</th>
                             <th class="text-end">Valor Venda</th>
                             <th class="text-end">%</th>
-                            <th class="text-end">Comissao</th>
+                            <th class="text-end">Comissão</th>
                             <th>Status</th>
                             <th>Data</th>
                         </tr>
@@ -194,7 +194,7 @@
                                 <td colspan="9">
                                     <div class="empty-state">
                                         <i class="bi bi-percent d-block"></i>
-                                        <h5>Nenhuma comissao encontrada</h5>
+                                        <h5>Nenhuma comissão encontrada</h5>
                                     </div>
                                 </td>
                             </tr>

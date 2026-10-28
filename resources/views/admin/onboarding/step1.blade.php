@@ -26,7 +26,7 @@
 
                         {{-- Razao Social --}}
                         <div class="col-md-8">
-                            <label for="razao_social" class="form-label fw-semibold">Razao Social <span class="text-danger">*</span></label>
+                            <label for="razao_social" class="form-label fw-semibold">Razão Social <span class="text-danger">*</span></label>
                             <input type="text" class="form-control @error('razao_social') is-invalid @enderror"
                                    id="razao_social" name="razao_social" value="{{ old('razao_social') }}" required>
                             @error('razao_social')<div class="invalid-feedback">{{ $message }}</div>@enderror
@@ -76,7 +76,7 @@
 
                         {{-- Numero --}}
                         <div class="col-md-3">
-                            <label for="numero" class="form-label fw-semibold">Numero</label>
+                            <label for="numero" class="form-label fw-semibold">Número</label>
                             <input type="text" class="form-control @error('numero') is-invalid @enderror"
                                    id="numero" name="numero" value="{{ old('numero') }}">
                             @error('numero')<div class="invalid-feedback">{{ $message }}</div>@enderror
@@ -154,7 +154,7 @@
                             <i class="bi bi-x-lg me-1"></i> Cancelar
                         </a>
                         <button type="submit" class="btn btn-primary">
-                            Proximo: Unidade <i class="bi bi-arrow-right ms-1"></i>
+                            Próximo: Unidade <i class="bi bi-arrow-right ms-1"></i>
                         </button>
                     </div>
                 </form>

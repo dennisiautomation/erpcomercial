@@ -1,11 +1,11 @@
 @extends('layouts.app')
 
-@section('title', 'Transferencias de Estoque')
+@section('title', 'Transferências de Estoque')
 
 @section('content')
-<x-erp.page-header title="Transferencias de Estoque" subtitle="Gerencie transferencias entre unidades" icon="truck">
+<x-erp.page-header title="Transferências de Estoque" subtitle="Gerencie transferências entre unidades" icon="truck">
     <a href="{{ route('app.transferencias.create') }}" class="btn btn-erp-primary">
-        <i class="bi bi-plus-lg me-1"></i> Nova Transferencia
+        <i class="bi bi-plus-lg me-1"></i> Nova Transferência
     </a>
 </x-erp.page-header>
 
@@ -18,7 +18,7 @@
         <x-erp.stat-card icon="check-circle" color="success" :value="$totalAprovadas" label="Aprovadas" />
     </div>
     <div class="col-6 col-lg-3">
-        <x-erp.stat-card icon="check-all" color="primary" :value="$totalConcluidas" label="Concluidas" />
+        <x-erp.stat-card icon="check-all" color="primary" :value="$totalConcluidas" label="Concluídas" />
     </div>
     <div class="col-6 col-lg-3">
         <x-erp.stat-card icon="x-circle" color="danger" :value="$totalCanceladas" label="Canceladas" />
@@ -28,13 +28,13 @@
 {{-- Filters --}}
 <x-erp.filter-bar :action="route('app.transferencias.index')">
     <div class="col-md-3">
-        <label class="form-label fw-semibold small text-muted">Status</label>
-        <select name="status" class="form-select">
+        <label for="campo-status" class="form-label fw-semibold small text-muted">Status</label>
+        <select id="campo-status" name="status" class="form-select">
             <option value="">Todos os status</option>
             <option value="solicitada" {{ request('status') == 'solicitada' ? 'selected' : '' }}>Solicitada</option>
             <option value="aprovada" {{ request('status') == 'aprovada' ? 'selected' : '' }}>Aprovada</option>
-            <option value="em_transito" {{ request('status') == 'em_transito' ? 'selected' : '' }}>Em Transito</option>
-            <option value="concluida" {{ request('status') == 'concluida' ? 'selected' : '' }}>Concluida</option>
+            <option value="em_transito" {{ request('status') == 'em_transito' ? 'selected' : '' }}>Em Trânsito</option>
+            <option value="concluida" {{ request('status') == 'concluida' ? 'selected' : '' }}>Concluída</option>
             <option value="cancelada" {{ request('status') == 'cancelada' ? 'selected' : '' }}>Cancelada</option>
         </select>
     </div>
@@ -57,7 +57,7 @@
             <th>Solicitante</th>
             <th class="text-center">Status</th>
             <th class="text-center">Itens</th>
-            <th class="text-center">Acoes</th>
+            <th class="text-center">Ações</th>
         </tr>
     </thead>
     <tbody>
@@ -99,7 +99,7 @@
         @empty
         <tr>
             <td colspan="9">
-                <x-erp.empty-state icon="truck" title="Nenhuma transferencia encontrada" />
+                <x-erp.empty-state icon="truck" title="Nenhuma transferência encontrada" />
             </td>
         </tr>
         @endforelse

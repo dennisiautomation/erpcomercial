@@ -17,6 +17,12 @@
     --info: #0891b2;
     --info-light: #ecfeff;
 
+    /* Texto de status sobre os fundos claros acima (todos >= 4.5:1) */
+    --success-text: #047857;
+    --warning-text: #b45309;
+    --danger-text: #b91c1c;
+    --info-text: #0e7490;
+
     /* Superfícies */
     --bg-page: #f1f5f9;
     --bg-card: #ffffff;
@@ -27,7 +33,7 @@
     /* Texto */
     --text-primary: #0f172a;
     --text-secondary: #475569;
-    --text-muted: #94a3b8;
+    --text-muted: #64748b;
     --text-sidebar: #cbd5e1;
     --text-sidebar-active: #ffffff;
 
@@ -56,11 +62,13 @@ body { background: var(--bg-page); color: var(--text-primary); }
     align-items: center;
     margin-bottom: 1.5rem;
 }
-.page-header h4, .page-header h3 {
+.page-header h1, .page-header h4, .page-header h3 {
     font-weight: 700;
     color: var(--text-primary);
     margin: 0;
-    font-size: 1.35rem;
+    font-size: 1.5rem;
+    line-height: 1.25;
+    letter-spacing: -0.01em;
 }
 .page-header .subtitle {
     color: var(--text-secondary);
@@ -75,7 +83,7 @@ body { background: var(--bg-page); color: var(--text-primary); }
     border-radius: var(--radius-lg);
     padding: 1.25rem;
     box-shadow: var(--shadow-sm);
-    transition: all 0.2s ease;
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
     position: relative;
     overflow: hidden;
 }
@@ -115,8 +123,8 @@ body { background: var(--bg-page); color: var(--text-primary); }
     font-size: 0.75rem;
     font-weight: 600;
 }
-.stat-card .stat-trend.up { color: var(--success); }
-.stat-card .stat-trend.down { color: var(--danger); }
+.stat-card .stat-trend.up { color: var(--success-text); }
+.stat-card .stat-trend.down { color: var(--danger-text); }
 
 /* ─── Cards (genérico) ────────────────────────────────────── */
 .erp-card {
@@ -182,43 +190,43 @@ body { background: var(--bg-page); color: var(--text-primary); }
     flex-shrink: 0;
 }
 .badge-status.ativo, .badge-status.ativa, .badge-status.concluida, .badge-status.autorizada, .badge-status.paga, .badge-status.pago {
-    background: var(--success-light); color: var(--success);
+    background: var(--success-light); color: var(--success-text);
 }
 .badge-status.ativo::before, .badge-status.ativa::before, .badge-status.concluida::before, .badge-status.autorizada::before, .badge-status.paga::before, .badge-status.pago::before {
     background: var(--success);
 }
 .badge-status.pendente, .badge-status.em_aberto, .badge-status.rascunho, .badge-status.em_implantacao, .badge-status.aberto {
-    background: var(--warning-light); color: var(--warning);
+    background: var(--warning-light); color: var(--warning-text);
 }
 .badge-status.pendente::before, .badge-status.em_aberto::before, .badge-status.rascunho::before, .badge-status.em_implantacao::before, .badge-status.aberto::before {
     background: var(--warning);
 }
 .badge-status.cancelado, .badge-status.cancelada, .badge-status.rejeitada, .badge-status.bloqueado, .badge-status.vencida {
-    background: var(--danger-light); color: var(--danger);
+    background: var(--danger-light); color: var(--danger-text);
 }
 .badge-status.cancelado::before, .badge-status.cancelada::before, .badge-status.rejeitada::before, .badge-status.bloqueado::before, .badge-status.vencida::before {
     background: var(--danger);
 }
 .badge-status.inativo, .badge-status.inativa, .badge-status.fechado, .badge-status.suspenso {
-    background: #f1f5f9; color: var(--text-muted);
+    background: #f1f5f9; color: var(--text-secondary);
 }
 .badge-status.inativo::before, .badge-status.inativa::before, .badge-status.fechado::before, .badge-status.suspenso::before {
     background: var(--text-muted);
 }
 .badge-status.vencido {
-    background: var(--danger-light); color: var(--danger);
+    background: var(--danger-light); color: var(--danger-text);
 }
 .badge-status.vencido::before {
     background: var(--danger);
 }
 .badge-status.em_andamento {
-    background: var(--info-light); color: var(--info);
+    background: var(--info-light); color: var(--info-text);
 }
 .badge-status.em_andamento::before {
     background: var(--info);
 }
 .badge-status.confirmado, .badge-status.aprovado, .badge-status.faturado, .badge-status.convertido {
-    background: var(--info-light); color: var(--info);
+    background: var(--info-light); color: var(--info-text);
 }
 .badge-status.confirmado::before, .badge-status.aprovado::before, .badge-status.faturado::before, .badge-status.convertido::before {
     background: var(--info);
@@ -237,7 +245,7 @@ body { background: var(--bg-page); color: var(--text-primary); }
     font-size: 0.875rem;
     padding: 0.5rem 1rem;
     border-radius: var(--radius);
-    transition: all 0.15s ease;
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
 }
 .btn-erp-primary { background: var(--primary); color: #fff; border: none; }
 .btn-erp-primary:hover { background: var(--primary-hover); color: #fff; }
@@ -264,7 +272,7 @@ body { background: var(--bg-page); color: var(--text-primary); }
 }
 .erp-form .form-control:focus, .erp-form .form-select:focus {
     border-color: var(--primary);
-    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.25);
 }
 .erp-form .form-control.is-invalid {
     border-color: var(--danger);
@@ -295,7 +303,7 @@ body { background: var(--bg-page); color: var(--text-primary); }
 .empty-state {
     text-align: center;
     padding: 3rem 1rem;
-    color: var(--text-muted);
+    color: var(--text-secondary);
 }
 .empty-state i {
     font-size: 3rem;
@@ -338,7 +346,73 @@ body { background: var(--bg-page); color: var(--text-primary); }
 
 /* ─── Responsive ──────────────────────────────────────────── */
 @media (max-width: 768px) {
+    .erp-card .card-header { flex-wrap: wrap; }
+    .erp-card .card-header small { flex-basis: 100%; margin-left: 0 !important; margin-top: .15rem; }
     .stat-card .stat-value { font-size: 1.25rem; }
     .page-header { flex-direction: column; gap: 0.75rem; align-items: flex-start; }
     .action-btns { flex-wrap: wrap; }
+}
+
+/* ─── Bootstrap herda os tokens (um único azul primário) ──── */
+:root {
+    --bs-primary: #4f46e5;
+    --bs-primary-rgb: 79, 70, 229;
+    --bs-link-color: #4f46e5;
+    --bs-link-color-rgb: 79, 70, 229;
+    --bs-link-hover-color: #4338ca;
+    --bs-link-hover-color-rgb: 67, 56, 202;
+    --bs-secondary-color: #475569;
+}
+.btn-primary {
+    --bs-btn-bg: var(--primary);
+    --bs-btn-border-color: var(--primary);
+    --bs-btn-hover-bg: var(--primary-hover);
+    --bs-btn-hover-border-color: var(--primary-hover);
+    --bs-btn-active-bg: var(--primary-hover);
+    --bs-btn-active-border-color: var(--primary-hover);
+    --bs-btn-disabled-bg: var(--primary);
+    --bs-btn-disabled-border-color: var(--primary);
+    --bs-btn-focus-shadow-rgb: 79, 70, 229;
+}
+.btn-outline-primary {
+    --bs-btn-color: var(--primary);
+    --bs-btn-border-color: var(--primary);
+    --bs-btn-hover-bg: var(--primary);
+    --bs-btn-hover-border-color: var(--primary);
+    --bs-btn-active-bg: var(--primary);
+    --bs-btn-active-border-color: var(--primary);
+    --bs-btn-focus-shadow-rgb: 79, 70, 229;
+}
+.form-check-input:checked { background-color: var(--primary); border-color: var(--primary); }
+.form-check-input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.25); }
+.form-control:focus, .form-select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.25); }
+.page-link { color: var(--primary); }
+.page-item.active .page-link { background-color: var(--primary); border-color: var(--primary); }
+.nav-pills .nav-link.active, .nav-pills .show > .nav-link { background-color: var(--primary); }
+.nav-tabs .nav-link.active { color: var(--primary); }
+.progress-bar { background-color: var(--primary); }
+
+/* ─── Superfícies do navegador ────────────────────────────── */
+::selection { background: var(--primary-light); color: var(--text-primary); }
+body { caret-color: var(--primary); }
+.erp-table td, .table td { font-variant-numeric: tabular-nums; }
+
+/* Foco visível só no teclado; campos já têm o anel próprio */
+:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; border-radius: 4px; }
+.form-control:focus-visible, .form-select:focus-visible, .form-check-input:focus-visible { outline: none; }
+.btn:focus-visible { outline-offset: 3px; }
+
+/* ─── Toque: interruptores e caixas maiores onde não há mouse ─ */
+@media (pointer: coarse) {
+    .form-check-input { width: 1.25em; height: 1.25em; margin-top: 0.15em; }
+    .form-switch { padding-left: 3.25em; }
+    .form-switch .form-check-input { width: 2.75em; height: 1.5em; margin-left: -3.25em; }
+    .form-check-label { padding-top: 0.1em; }
+}
+
+/* ─── Movimento reduzido: mantém o estado, tira o deslocamento ─ */
+@media (prefers-reduced-motion: reduce) {
+    .fade-in, .erp-alert, .trial-banner { animation: none; }
+    .stat-card:hover { transform: none; }
+    html { scroll-behavior: auto; }
 }

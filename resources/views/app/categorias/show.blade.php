@@ -10,10 +10,10 @@
 
 <div class="row g-3 mb-4">
     <div class="col-md-6">
-        <x-erp.card title="Informacoes" icon="info-circle">
+        <x-erp.card title="Informações" icon="info-circle">
             <p class="mb-1"><strong>Nome:</strong> {{ $categoria->nome }}</p>
             <p class="mb-1"><strong>Categoria Pai:</strong> {{ $categoria->parent->nome ?? 'Nenhuma (raiz)' }}</p>
-            <p class="mb-1"><strong>Descricao:</strong> {{ $categoria->descricao ?: '-' }}</p>
+            <p class="mb-1"><strong>Descrição:</strong> {{ $categoria->descricao ?: '-' }}</p>
             <p class="mb-0">
                 <strong>Status:</strong>
                 <x-erp.status-badge :status="$categoria->status" />
@@ -43,8 +43,8 @@
         <table class="erp-table">
             <thead>
                 <tr>
-                    <th>Descricao</th>
-                    <th class="text-end">Preco Venda</th>
+                    <th>Descrição</th>
+                    <th class="text-end">Preço Venda</th>
                     <th class="text-center">Status</th>
                 </tr>
             </thead>

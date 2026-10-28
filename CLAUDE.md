@@ -5,6 +5,7 @@ Sistema ERP SaaS multi-tenant para micro/pequenas/médias empresas. Admin (IA365
 
 ## Stack
 Laravel 12 (PHP 8.4) | Blade + Bootstrap 5.3 (CDN) + Bootstrap Icons | MySQL 8.0 | Redis | Docker (app, mysql, redis, nginx) | Focus NFe (REST) | Chart.js | JsBarcode | spatie/laravel-activitylog
+- Chart.js **não** está no layout: a view que usa gráfico carrega o `<script>` do CDN dentro do seu `@push('scripts')` (ver `app/dashboard.blade.php`). Não há npm/Vite: as views usam só assets estáticos em `public/` e CDN.
 
 ## Estado Atual
 - **274+ rotas** registradas (após Fase 2 fiscal: +saude-focus, +fiscal.dashboard, +resincronizar)
@@ -100,7 +101,9 @@ resources/views/
 └── layouts/app.blade.php
 
 public/
-├── css/erp.css          # Design system
+├── css/erp.css          # Design system (tokens; o Bootstrap herda --bs-primary = #4f46e5;
+│                        # --success-text/--warning-text/--danger-text/--info-text para texto
+│                        # sobre fundos claros; :focus-visible; interruptores maiores no toque)
 └── js/erp-core.js       # Masks, ViaCEP, CNPJ lookup, autocomplete, import CSV,
                          # ERP.toast (com close manual),
                          # ERP.confirm (modal Bootstrap),
@@ -127,6 +130,7 @@ public/
 ### Vendas
 - Orçamentos → Pedidos → Vendas (workflow com confirmação de transição)
 - **Venda Balcão**: Fora do PDV, com itens dinâmicos + autocomplete
+- **Pedido impresso em A4 + venda de pedido/balcão no caixa + loja de saída (28/10/2026, DK Med)**: `GET pedidos/{id}/imprimir` (view `pedidos/print`, irmã da do orçamento; orçamento convertido imprime o pedido); faturar pedido e venda de balcão **exigem caixa aberto** do usuário na loja da venda e lançam `movimentacoes_caixa` por forma via `App\Services\LancamentoCaixaService` (PDV intocado); faturar baixa a conta a receber do pedido (`contas_receber.pedido_id`); "Loja de saída" nas telas e nos impressos. Ver docs.md seção própria e armadilha 92
 - PDV fullscreen dark, atalhos F1-F12, split payment, verificação estoque
 - **Lógica de emissão no PDV**: `emissao_fiscal_ativa && emite_nfce` → emite NFC-e; senão, só cupom/recibo. Cupom/recibo **sempre é impresso**. Falha na NFC-e cai silenciosamente no recibo.
 - **Trocas e devoluções (03/09/2026)**: F6 no PDV (venda de qualquer dia/loja → itens que voltam → bipa o que leva; diferença cobrada, zerada ou vira **vale** `VT-XXXX-XXXX`/dinheiro conforme Configurações da Loja → Trocas); `TrocaService` é o ponto único; `/app/trocas` + `/app/trocas/vales`; módulo `trocas` na matriz. Ver docs.md seção 9n. **09/09**: o F6 também bipa **peça que não está na venda** e **peça sem venda nenhuma** (botão no passo 1; preço de venda atual; `devolucao_itens.venda_item_id` e `devolucoes.venda_id` NULL; regras normais); botão **Reimprimir** no topo do PDV reimprime recibo/cupom de qualquer venda do dia da loja (`pdv/reimprimir/vendas`, `pdv/venda/{id}/recibo`) e o crédito da troca é linha do split — entra em TODO cálculo de restante (armadilha 75, seção 9w).
@@ -265,7 +269,8 @@ notificacoes: user_id, tipo, titulo, mensagem, url, lida
 
 ## Blade Components (resources/views/components/erp/)
 ```blade
-<x-erp.page-header title="Clientes" icon="people">botões aqui</x-erp.page-header>
+<x-erp.page-header title="Clientes" icon="people" subtitle="opcional">botões aqui</x-erp.page-header>
+{{-- título é <h1>; breadcrumb opcional: <x-slot:breadcrumb><nav aria-label="breadcrumb">...</nav></x-slot:breadcrumb> --}}
 <x-erp.stat-card icon="people" color="primary" :value="$total" label="Ativos" />
 <x-erp.card title="Dados" icon="info-circle">conteúdo</x-erp.card>
 <x-erp.data-table>thead+tbody<x-slot:pagination>{{ $items->links() }}</x-slot:pagination></x-erp.data-table>

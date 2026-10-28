@@ -4,8 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Fechar Caixa - PDV</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet" integrity="sha384-XGjxtQfXaH2tnPFa9x+ruJTuLE3Aa6LhHSWRr1XeTyhezb4abCG4ccI5AkVDxqC+" crossorigin="anonymous">
     <style>
         :root {
             --bg-primary: #0f172a;
@@ -183,7 +184,7 @@
         .form-group input:focus, .form-group textarea:focus {
             outline: none;
             border-color: var(--accent-blue);
-            box-shadow: 0 0 0 3px rgba(59,130,246,0.15);
+            box-shadow: 0 0 0 3px rgba(59,130,246,0.35);
         }
         .form-group .input-prefix {
             position: relative;
@@ -321,6 +322,8 @@
             .forma-row .diff-forma { width: auto !important; }
             .forma-row input[type="file"] { max-width: 100% !important; width: 100%; font-size: 0.75rem; }
         }
+        :focus-visible { outline: 2px solid var(--accent-blue); outline-offset: 2px; border-radius: 6px; }
+        input:focus-visible, textarea:focus-visible { outline: none; }
     </style>
 </head>
 <body>
@@ -424,7 +427,7 @@
         @csrf
 
         <div class="form-group">
-            <label>Valor Contado em Dinheiro (gaveta)</label>
+            <label for="valorContado">Valor Contado em Dinheiro (gaveta)</label>
             <div class="input-prefix">
                 <span>R$</span>
                 <input type="number" name="valor_contado" id="valorContado"
@@ -437,7 +440,7 @@
         </div>
 
         <div class="diferenca-box" id="diferencaBox">
-            <div class="label">Diferenca</div>
+            <div class="label">Diferença</div>
             <div class="value" id="diferencaValue">R$ 0,00</div>
             <div class="detail" id="diferencaDetail">Informe o valor contado</div>
         </div>
@@ -483,8 +486,8 @@
         </div>
 
         <div class="form-group">
-            <label>Observacoes (opcional)</label>
-            <textarea name="observacoes" placeholder="Observacoes do fechamento...">{{ old('observacoes') }}</textarea>
+            <label for="campo-observacoes">Observações (opcional)</label>
+            <textarea id="campo-observacoes" name="observacoes" placeholder="Observações do fechamento...">{{ old('observacoes') }}</textarea>
         </div>
 
         <button type="submit" class="btn-fechar">

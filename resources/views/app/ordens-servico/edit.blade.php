@@ -25,8 +25,8 @@
                 <div class="card-body">
                     <div class="row g-3">
                         <div class="col-md-12">
-                            <label class="form-label">Cliente <span class="text-danger">*</span></label>
-                            <select name="cliente_id" class="form-select" required>
+                            <label for="campo-cliente_id" class="form-label">Cliente <span class="text-danger">*</span></label>
+                            <select id="campo-cliente_id" name="cliente_id" class="form-select" required>
                                 <option value="">Selecione o cliente...</option>
                                 @foreach($clientes as $cliente)
                                     <option value="{{ $cliente->id }}" {{ old('cliente_id', $ordemServico->cliente_id) == $cliente->id ? 'selected' : '' }}>
@@ -36,13 +36,13 @@
                             </select>
                         </div>
                         <div class="col-md-12">
-                            <label class="form-label">Equipamento <span class="text-danger">*</span></label>
-                            <input type="text" name="equipamento" class="form-control" required
+                            <label for="campo-equipamento" class="form-label">Equipamento <span class="text-danger">*</span></label>
+                            <input id="campo-equipamento" type="text" name="equipamento" class="form-control" required
                                    value="{{ old('equipamento', $ordemServico->equipamento) }}">
                         </div>
                         <div class="col-md-12">
-                            <label class="form-label">Defeito Relatado <span class="text-danger">*</span></label>
-                            <textarea name="defeito_relatado" class="form-control" rows="3" required>{{ old('defeito_relatado', $ordemServico->defeito_relatado) }}</textarea>
+                            <label for="campo-defeito_relatado" class="form-label">Defeito Relatado <span class="text-danger">*</span></label>
+                            <textarea id="campo-defeito_relatado" name="defeito_relatado" class="form-control" rows="3" required>{{ old('defeito_relatado', $ordemServico->defeito_relatado) }}</textarea>
                         </div>
                     </div>
                 </div>
@@ -51,7 +51,7 @@
             {{-- Items --}}
             <div class="card shadow-sm mb-4">
                 <div class="card-header bg-white fw-semibold d-flex justify-content-between align-items-center">
-                    <span><i class="bi bi-list-check me-1"></i> Itens (Produtos e Servicos)</span>
+                    <span><i class="bi bi-list-check me-1"></i> Itens (Produtos e Serviços)</span>
                     <button type="button" class="btn btn-sm btn-success" onclick="adicionarItem()">
                         <i class="bi bi-plus-lg me-1"></i> Adicionar Item
                     </button>
@@ -64,7 +64,7 @@
                                     <th width="120">Tipo</th>
                                     <th>Item</th>
                                     <th width="100">Qtd</th>
-                                    <th width="130">Preco Unit.</th>
+                                    <th width="130">Preço Unit.</th>
                                     <th width="130">Total</th>
                                     <th width="50"></th>
                                 </tr>
@@ -82,7 +82,7 @@
                                 <strong id="totalProdutos">R$ 0,00</strong>
                             </div>
                             <div class="d-flex justify-content-between mb-1">
-                                <span>Servicos:</span>
+                                <span>Serviços:</span>
                                 <strong id="totalServicos">R$ 0,00</strong>
                             </div>
                             <div class="d-flex justify-content-between mb-1">
@@ -110,8 +110,8 @@
                 </div>
                 <div class="card-body">
                     <div class="mb-3">
-                        <label class="form-label">Vendedor</label>
-                        <select name="vendedor_id" class="form-select">
+                        <label for="campo-vendedor_id" class="form-label">Vendedor</label>
+                        <select id="campo-vendedor_id" name="vendedor_id" class="form-select">
                             <option value="">Selecione...</option>
                             @foreach($vendedores as $vendedor)
                                 <option value="{{ $vendedor->id }}" {{ old('vendedor_id', $ordemServico->vendedor_id) == $vendedor->id ? 'selected' : '' }}>
@@ -121,8 +121,8 @@
                         </select>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Tecnico</label>
-                        <select name="tecnico_id" class="form-select">
+                        <label for="campo-tecnico_id" class="form-label">Tecnico</label>
+                        <select id="campo-tecnico_id" name="tecnico_id" class="form-select">
                             <option value="">Selecione...</option>
                             @foreach($tecnicos as $tecnico)
                                 <option value="{{ $tecnico->id }}" {{ old('tecnico_id', $ordemServico->tecnico_id) == $tecnico->id ? 'selected' : '' }}>
@@ -137,7 +137,7 @@
             {{-- Observacoes --}}
             <div class="card shadow-sm mb-4">
                 <div class="card-header bg-white fw-semibold">
-                    <i class="bi bi-chat-text me-1"></i> Observacoes
+                    <i class="bi bi-chat-text me-1"></i> Observações
                 </div>
                 <div class="card-body">
                     <textarea name="observacoes" class="form-control" rows="4">{{ old('observacoes', $ordemServico->observacoes) }}</textarea>
@@ -147,7 +147,7 @@
             {{-- Submit --}}
             <div class="d-grid">
                 <button type="submit" class="btn btn-primary btn-lg">
-                    <i class="bi bi-check-lg me-1"></i> Salvar Alteracoes
+                    <i class="bi bi-check-lg me-1"></i> Salvar Alterações
                 </button>
             </div>
         </div>

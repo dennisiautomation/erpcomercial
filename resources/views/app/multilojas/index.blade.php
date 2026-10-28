@@ -27,7 +27,7 @@
                     <i class="bi bi-currency-dollar"></i>
                 </div>
             </div>
-            <div class="stat-trend">Mes atual</div>
+            <div class="stat-trend">Mês atual</div>
         </div>
     </div>
     <div class="col-sm-6 col-xl-3">
@@ -41,21 +41,21 @@
                     <i class="bi bi-receipt"></i>
                 </div>
             </div>
-            <div class="stat-trend">Mes atual</div>
+            <div class="stat-trend">Mês atual</div>
         </div>
     </div>
     <div class="col-sm-6 col-xl-3">
         <div class="stat-card">
             <div class="d-flex justify-content-between align-items-start">
                 <div>
-                    <div class="stat-label">Ticket Medio Global</div>
+                    <div class="stat-label">Ticket Médio Global</div>
                     <div class="stat-value" style="color: var(--info);">R$ {{ number_format($ticketMedioGlobal, 2, ',', '.') }}</div>
                 </div>
                 <div class="stat-icon info">
                     <i class="bi bi-graph-up-arrow"></i>
                 </div>
             </div>
-            <div class="stat-trend">Mes atual</div>
+            <div class="stat-trend">Mês atual</div>
         </div>
     </div>
     <div class="col-sm-6 col-xl-3">
@@ -100,8 +100,8 @@
                         <th>Unidade</th>
                         <th class="text-end">Faturamento</th>
                         <th class="text-center">Vendas</th>
-                        <th class="text-end">Ticket Medio</th>
-                        <th class="text-end">Comissao</th>
+                        <th class="text-end">Ticket Médio</th>
+                        <th class="text-end">Comissão</th>
                         <th class="text-center">Vendedores</th>
                         <th class="text-center">Estoque Critico</th>
                         <th class="text-center">Status</th>

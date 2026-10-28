@@ -27,16 +27,16 @@
 
 <x-erp.filter-bar :action="route('app.adquirentes.recebiveis')">
     <div class="col-md-3">
-        <label class="form-label">De</label>
-        <input type="date" name="data_inicio" class="form-control" value="{{ request('data_inicio') }}">
+        <label for="campo-data_inicio" class="form-label">De</label>
+        <input id="campo-data_inicio" type="date" name="data_inicio" class="form-control" value="{{ request('data_inicio') }}">
     </div>
     <div class="col-md-3">
-        <label class="form-label">Até</label>
-        <input type="date" name="data_fim" class="form-control" value="{{ request('data_fim') }}">
+        <label for="campo-data_fim" class="form-label">Até</label>
+        <input id="campo-data_fim" type="date" name="data_fim" class="form-control" value="{{ request('data_fim') }}">
     </div>
     <div class="col-md-3">
-        <label class="form-label">Status</label>
-        <select name="status" class="form-select">
+        <label for="campo-status" class="form-label">Status</label>
+        <select id="campo-status" name="status" class="form-select">
             <option value="">Todos</option>
             <option value="pendente" @selected(request('status') === 'pendente')>Pendente</option>
             <option value="paga" @selected(request('status') === 'paga')>Recebida</option>

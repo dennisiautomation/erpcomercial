@@ -160,7 +160,7 @@
                         style="width: 44px; height: 44px;">
                         <i class="bi bi-shield-exclamation"></i>
                     </div>
-                    <div class="small mt-1 fw-bold text-warning">Contingencia</div>
+                    <div class="small mt-1 fw-bold text-warning">Contingência</div>
                 </div>
             @endif
         </div>
@@ -181,7 +181,7 @@
                         <span class="fw-semibold">{{ $notaFiscal->tipo->label() }}</span>
                     </div>
                     <div class="col-6">
-                        <label class="text-muted small d-block">Numero / Serie</label>
+                        <label class="text-muted small d-block">Número / Série</label>
                         <span class="fw-semibold">{{ $notaFiscal->numero ?? 'Aguardando' }} / {{ $notaFiscal->serie ?? '-' }}</span>
                     </div>
                     <div class="col-12">
@@ -189,7 +189,7 @@
                         <code class="text-break small">{{ $notaFiscal->chave_acesso ?? 'Aguardando autorizacao' }}</code>
                     </div>
                     <div class="col-6">
-                        <label class="text-muted small d-block">Natureza da Operacao</label>
+                        <label class="text-muted small d-block">Natureza da Operação</label>
                         <span>{{ $notaFiscal->natureza_operacao ?? '-' }}</span>
                     </div>
                     <div class="col-6">
@@ -380,11 +380,11 @@
                 <div class="modal-body">
                     <div class="alert alert-warning mb-3">
                         <i class="bi bi-exclamation-triangle me-1"></i>
-                        <strong>Atencao:</strong> Esta acao e irreversivel. A nota fiscal sera cancelada junto a SEFAZ.
+                        <strong>Atenção:</strong> Esta ação e irreversivel. A nota fiscal sera cancelada junto a SEFAZ.
                     </div>
                     <div class="mb-0">
-                        <label class="form-label fw-semibold">Justificativa <small class="text-muted fw-normal">(minimo 15 caracteres)</small></label>
-                        <textarea name="justificativa" class="form-control" rows="3" minlength="15" maxlength="255" required placeholder="Informe o motivo do cancelamento..."></textarea>
+                        <label for="campo-justificativa" class="form-label fw-semibold">Justificativa <small class="text-muted fw-normal">(mínimo 15 caracteres)</small></label>
+                        <textarea id="campo-justificativa" name="justificativa" class="form-control" rows="3" minlength="15" maxlength="255" required placeholder="Informe o motivo do cancelamento..."></textarea>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -475,17 +475,17 @@
                             Adiciona um CNPJ autorizado a acessar o XML desta NF-e (transportadora, marketplace, seguradora, etc.).
                         </div>
                         <div class="mb-3">
-                            <label class="form-label fw-semibold">CNPJ do Ator</label>
-                            <input type="text" name="cnpj_ator" class="form-control" data-mask="cnpj"
+                            <label for="campo-cnpj_ator" class="form-label fw-semibold">CNPJ do Ator</label>
+                            <input id="campo-cnpj_ator" type="text" name="cnpj_ator" class="form-control" data-mask="cnpj"
                                    placeholder="00.000.000/0000-00" required>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label fw-semibold">Razão Social (opcional)</label>
-                            <input type="text" name="razao_social_ator" class="form-control" maxlength="255">
+                            <label for="campo-razao_social_ator" class="form-label fw-semibold">Razão Social (opcional)</label>
+                            <input id="campo-razao_social_ator" type="text" name="razao_social_ator" class="form-control" maxlength="255">
                         </div>
                         <div class="mb-0">
-                            <label class="form-label fw-semibold">Tipo de Ator</label>
-                            <select name="tipo_ator" class="form-select" required>
+                            <label for="campo-tipo_ator" class="form-label fw-semibold">Tipo de Ator</label>
+                            <select id="campo-tipo_ator" name="tipo_ator" class="form-select" required>
                                 <option value="1">1 — Transportador</option>
                                 <option value="2">2 — Autor do fato</option>
                                 <option value="3">3 — Marketplace / Intermediador</option>
@@ -518,7 +518,7 @@
                             Registra que a mercadoria não pôde ser entregue. Permite retornar com a carga sem emitir nova NF-e.
                         </div>
                         <div class="mb-3">
-                            <label class="form-label fw-semibold">Motivo</label>
+                            <label for="insucesso-motivo" class="form-label fw-semibold">Motivo</label>
                             <select name="motivo" id="insucesso-motivo" class="form-select" required>
                                 <option value="1">1 — Sem funcionamento do estabelecimento</option>
                                 <option value="2">2 — Recusa do destinatário</option>
@@ -527,8 +527,8 @@
                             </select>
                         </div>
                         <div class="mb-3">
-                            <label class="form-label fw-semibold">Data/hora da tentativa</label>
-                            <input type="datetime-local" name="data_tentativa" class="form-control"
+                            <label for="campo-data_tentativa" class="form-label fw-semibold">Data/hora da tentativa</label>
+                            <input id="campo-data_tentativa" type="datetime-local" name="data_tentativa" class="form-control"
                                    value="{{ now()->format('Y-m-d\TH:i') }}">
                         </div>
                         <div class="mb-3">
@@ -540,12 +540,12 @@
                         </div>
                         <div class="row g-2">
                             <div class="col-md-6">
-                                <label class="form-label small">Latitude (opcional)</label>
-                                <input type="number" name="latitude" class="form-control form-control-sm" step="0.000001">
+                                <label for="campo-latitude" class="form-label small">Latitude (opcional)</label>
+                                <input id="campo-latitude" type="number" name="latitude" class="form-control form-control-sm" step="0.000001">
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label small">Longitude (opcional)</label>
-                                <input type="number" name="longitude" class="form-control form-control-sm" step="0.000001">
+                                <label for="campo-longitude" class="form-label small">Longitude (opcional)</label>
+                                <input id="campo-longitude" type="number" name="longitude" class="form-control form-control-sm" step="0.000001">
                             </div>
                         </div>
                     </div>
@@ -573,11 +573,11 @@
                 <div class="modal-body">
                     <div class="alert alert-info mb-3">
                         <i class="bi bi-info-circle me-1"></i>
-                        A Carta de Correcao permite corrigir informacoes da NF-e, <strong>exceto</strong>: valores fiscais, dados do destinatario e datas.
+                        A Carta de Correcao permite corrigir informações da NF-e, <strong>exceto</strong>: valores fiscais, dados do destinatario e datas.
                     </div>
                     <div class="mb-0">
-                        <label class="form-label fw-semibold">Texto da Correcao <small class="text-muted fw-normal">(minimo 15 caracteres)</small></label>
-                        <textarea name="correcao" class="form-control" rows="4" minlength="15" maxlength="1000" required placeholder="Descreva a correcao a ser realizada..."></textarea>
+                        <label for="campo-correcao" class="form-label fw-semibold">Texto da Correcao <small class="text-muted fw-normal">(mínimo 15 caracteres)</small></label>
+                        <textarea id="campo-correcao" name="correcao" class="form-control" rows="4" minlength="15" maxlength="1000" required placeholder="Descreva a correcao a ser realizada..."></textarea>
                     </div>
                 </div>
                 <div class="modal-footer">

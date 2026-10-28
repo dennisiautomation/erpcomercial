@@ -291,6 +291,9 @@ Route::middleware(['auth', 'suspensao', 'unidade', \App\Http\Middleware\Restring
     Route::post('pedidos/{pedido}/faturar', [App\PedidoController::class, 'faturar'])
         ->name('pedidos.faturar')
         ->middleware('permission:pedidos');
+    Route::get('pedidos/{pedido}/imprimir', [App\PedidoController::class, 'imprimir'])
+        ->name('pedidos.imprimir')
+        ->middleware('permission:pedidos');
     Route::post('orcamentos/{orcamento}/status', [App\OrcamentoController::class, 'updateStatus'])
         ->name('orcamentos.update-status')
         ->middleware('permission:orcamentos');

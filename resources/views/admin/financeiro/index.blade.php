@@ -192,7 +192,7 @@
                                     <form class="d-inline" method="POST" action="{{ route('admin.financeiro.faturas.cancelar', $fatura) }}"
                                           data-confirm="Cancelar esta fatura?">
                                         @csrf
-                                        <button class="btn btn-sm btn-outline-secondary"><i class="bi bi-x-lg"></i></button>
+                                        <button class="btn btn-sm btn-outline-secondary" aria-label="Remover"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
                                     </form>
                                 @endif
                             </td>
@@ -216,7 +216,7 @@
             </div>
             <div class="modal-body">
                 <div class="mb-3">
-                    <label class="form-label">Empresa</label>
+                    <label for="gf_empresa" class="form-label">Empresa</label>
                     <select name="empresa_id" class="form-select" required id="gf_empresa">
                         <option value="">Selecione...</option>
                         @foreach($empresas as $e)
@@ -228,17 +228,17 @@
                 </div>
                 <div class="row g-3">
                     <div class="col-6">
-                        <label class="form-label">Valor (R$)</label>
+                        <label for="gf_valor" class="form-label">Valor (R$)</label>
                         <input type="number" step="0.01" min="0.01" name="valor" class="form-control" required id="gf_valor">
                     </div>
                     <div class="col-6">
-                        <label class="form-label">Vencimento</label>
-                        <input type="date" name="vencimento" class="form-control" required>
+                        <label for="campo-vencimento" class="form-label">Vencimento</label>
+                        <input id="campo-vencimento" type="date" name="vencimento" class="form-control" required>
                     </div>
                 </div>
                 <div class="mt-3">
-                    <label class="form-label">Descrição <span class="text-muted">(opcional)</span></label>
-                    <input type="text" name="descricao" class="form-control" maxlength="255"
+                    <label for="campo-descricao" class="form-label">Descrição <span class="text-muted">(opcional)</span></label>
+                    <input id="campo-descricao" type="text" name="descricao" class="form-control" maxlength="255"
                            placeholder="Ex.: Mensalidade agosto/2026, setup, personalização...">
                 </div>
             </div>
@@ -263,12 +263,12 @@
                 <p class="text-muted" id="mp_label"></p>
                 <div class="row g-3">
                     <div class="col-6">
-                        <label class="form-label">Pago em</label>
-                        <input type="date" name="pago_em" class="form-control" value="{{ now()->format('Y-m-d') }}">
+                        <label for="campo-pago_em" class="form-label">Pago em</label>
+                        <input id="campo-pago_em" type="date" name="pago_em" class="form-control" value="{{ now()->format('Y-m-d') }}">
                     </div>
                     <div class="col-6">
-                        <label class="form-label">Forma</label>
-                        <select name="forma_pagamento" class="form-select">
+                        <label for="campo-forma_pagamento" class="form-label">Forma</label>
+                        <select id="campo-forma_pagamento" name="forma_pagamento" class="form-select">
                             <option value="pix">PIX</option>
                             <option value="transferencia">Transferência</option>
                             <option value="dinheiro">Dinheiro</option>
@@ -278,8 +278,8 @@
                     </div>
                 </div>
                 <div class="mt-3">
-                    <label class="form-label">Observação <span class="text-muted">(opcional)</span></label>
-                    <input type="text" name="observacao" class="form-control" maxlength="500">
+                    <label for="campo-observacao" class="form-label">Observação <span class="text-muted">(opcional)</span></label>
+                    <input id="campo-observacao" type="text" name="observacao" class="form-control" maxlength="500">
                 </div>
             </div>
             <div class="modal-footer">

@@ -97,7 +97,7 @@
                 </div>
                 <div>
                     <div class="stat-value text-dark">{{ $totalUsuarios }}</div>
-                    <div class="stat-label">Usuarios</div>
+                    <div class="stat-label">Usuários</div>
                 </div>
             </div>
         </div>
@@ -140,7 +140,7 @@
         <div class="card shadow-sm border-0 h-100">
             <div class="card-header bg-white border-bottom-0 pt-3 pb-0">
                 <h6 class="fw-semibold text-muted mb-0">
-                    <i class="bi bi-lightning-charge me-1"></i> Acoes Rapidas
+                    <i class="bi bi-lightning-charge me-1"></i> Ações Rapidas
                 </h6>
             </div>
             <div class="card-body d-flex flex-column gap-3">
@@ -158,7 +158,7 @@
                         <i class="bi bi-person-plus text-info fs-5"></i>
                     </div>
                     <div>
-                        <div class="fw-semibold">Novo Usuario</div>
+                        <div class="fw-semibold">Novo Usuário</div>
                         <small class="text-muted">Adicionar acesso</small>
                     </div>
                 </a>
@@ -168,7 +168,7 @@
                     </div>
                     <div>
                         <div class="fw-semibold">Gerenciar Planos</div>
-                        <small class="text-muted">Ver planos disponiveis</small>
+                        <small class="text-muted">Ver planos disponíveis</small>
                     </div>
                 </a>
             </div>
@@ -196,7 +196,7 @@
                                 <th>Plano</th>
                                 <th>Status</th>
                                 <th>Criada em</th>
-                                <th class="text-end pe-3">Acoes</th>
+                                <th class="text-end pe-3">Ações</th>
                             </tr>
                         </thead>
                         <tbody>

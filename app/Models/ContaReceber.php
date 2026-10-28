@@ -20,6 +20,7 @@ class ContaReceber extends Model
         'unidade_id',
         'cliente_id',
         'venda_id',
+        'pedido_id',
         'descricao',
         'valor',
         'valor_pago',
@@ -74,6 +75,11 @@ class ContaReceber extends Model
     public function venda(): BelongsTo
     {
         return $this->belongsTo(Venda::class);
+    }
+
+    public function pedido(): BelongsTo
+    {
+        return $this->belongsTo(Pedido::class);
     }
 
     public function planoConta(): BelongsTo

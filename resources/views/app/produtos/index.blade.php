@@ -3,48 +3,43 @@
 @section('title', 'Produtos')
 
 @section('content')
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <div>
-        <h4 class="mb-0"><i class="bi bi-box-seam me-2"></i>Produtos</h4>
-        <small class="text-muted">Gerencie seu catalogo de produtos</small>
-    </div>
-    <div class="d-flex gap-2">
-        <a href="{{ route('app.export.produtos') }}" class="btn btn-erp-outline">
-            <i class="bi bi-file-earmark-spreadsheet me-1"></i> Exportar
-        </a>
-        <a href="{{ route('app.etiquetas.index') }}" class="btn btn-erp-outline">
-            <i class="bi bi-upc me-1"></i> Gerar Etiquetas
-        </a>
-        <div class="btn-group">
-            <button data-import="{{ route('app.import.produtos') }}" class="btn btn-erp-outline"
-                    title="Envie a planilha preenchida (.xlsx ou .csv)">
-                <i class="bi bi-upload me-1"></i> Importar planilha
-            </button>
-            <a href="{{ route('app.import.template', 'produtos') }}" class="btn btn-erp-outline"
-               title="Baixa o modelo em Excel (.xlsx) com as colunas certas e exemplos">
-                <i class="bi bi-file-earmark-excel me-1"></i> Modelo Excel
-            </a>
-        </div>
-        <a href="{{ route('app.produtos.create') }}" class="btn btn-primary">
-            <i class="bi bi-plus-lg me-1"></i> Novo Produto
+<x-erp.page-header title="Produtos" icon="box-seam" subtitle="Gerencie seu catálogo de produtos">
+    <a href="{{ route('app.export.produtos') }}" class="btn btn-erp-outline">
+        <i class="bi bi-file-earmark-spreadsheet me-1"></i> Exportar
+    </a>
+    <a href="{{ route('app.etiquetas.index') }}" class="btn btn-erp-outline">
+        <i class="bi bi-upc me-1"></i> Gerar Etiquetas
+    </a>
+    <div class="btn-group">
+        <button data-import="{{ route('app.import.produtos') }}" class="btn btn-erp-outline"
+                title="Envie a planilha preenchida (.xlsx ou .csv)">
+            <i class="bi bi-upload me-1"></i> Importar planilha
+        </button>
+        <a href="{{ route('app.import.template', 'produtos') }}" class="btn btn-erp-outline"
+           title="Baixa o modelo em Excel (.xlsx) com as colunas certas e exemplos">
+            <i class="bi bi-file-earmark-excel me-1"></i> Modelo Excel
         </a>
     </div>
-</div>
+    <a href="{{ route('app.produtos.create') }}" class="btn btn-primary">
+        <i class="bi bi-plus-lg me-1"></i> Novo Produto
+    </a>
+
+</x-erp.page-header>
 
 {{-- Filtros --}}
 <div class="card shadow-sm mb-4">
     <div class="card-body">
         <form method="GET" action="{{ route('app.produtos.index') }}" class="row g-3 align-items-end">
             <div class="col-md-4">
-                <label class="form-label">Buscar</label>
+                <label for="campo-busca" class="form-label">Buscar</label>
                 <div class="input-group">
                     <span class="input-group-text"><i class="bi bi-search"></i></span>
-                    <input type="text" name="busca" class="form-control" placeholder="Descricao, codigo de barras, SKU ou codigo interno..." value="{{ request('busca') }}">
+                    <input id="campo-busca" type="text" name="busca" class="form-control" placeholder="Descrição, código de barras, SKU ou código interno..." value="{{ request('busca') }}">
                 </div>
             </div>
             <div class="col-md-3">
-                <label class="form-label">Categoria</label>
-                <select name="categoria_id" class="form-select">
+                <label for="campo-categoria_id" class="form-label">Categoria</label>
+                <select id="campo-categoria_id" name="categoria_id" class="form-select">
                     <option value="">Todas</option>
                     @foreach($categorias as $cat)
                         <option value="{{ $cat->id }}" {{ request('categoria_id') == $cat->id ? 'selected' : '' }}>{{ $cat->nome }}</option>
@@ -52,8 +47,8 @@
                 </select>
             </div>
             <div class="col-md-2">
-                <label class="form-label">Status</label>
-                <select name="status" class="form-select">
+                <label for="campo-status" class="form-label">Status</label>
+                <select id="campo-status" name="status" class="form-select">
                     <option value="">Todos</option>
                     <option value="ativo" {{ request('status') === 'ativo' ? 'selected' : '' }}>Ativo</option>
                     <option value="inativo" {{ request('status') === 'inativo' ? 'selected' : '' }}>Inativo</option>
@@ -78,16 +73,16 @@
             <table class="table table-hover align-middle mb-0">
                 <thead class="table-light">
                     <tr>
-                        <th style="width: 100px;">Codigo</th>
-                        <th>Descricao</th>
+                        <th style="width: 100px;">Código</th>
+                        <th>Descrição</th>
                         <th>Categoria</th>
                         <th class="text-center">Unidade</th>
-                        <th class="text-end">Preco Venda</th>
+                        <th class="text-end">Preço Venda</th>
                         <th class="text-end" title="Quantidade em estoque na loja selecionada no topo">
                             Estoque{{ $lojaAtual ? ' ' . $lojaAtual->nome : '' }}
                         </th>
                         <th class="text-center">Status</th>
-                        <th class="text-center" style="width: 150px;">Acoes</th>
+                        <th class="text-center" style="width: 150px;">Ações</th>
                     </tr>
                 </thead>
                 <tbody>

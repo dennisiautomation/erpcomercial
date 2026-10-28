@@ -3,9 +3,8 @@
 @section('title', 'Integrações')
 
 @section('content')
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h4 class="mb-0"><i class="bi bi-plug me-2"></i>Integrações</h4>
-</div>
+<x-erp.page-header title="Integrações" icon="plug">
+</x-erp.page-header>
 
 {{-- 25/09/2026: painel geral. As integrações de pagamento e entrega são DE CADA EMPRESA
      (a conta dela) e se configuram na aba Integração da empresa; aqui é só a visão de todas. --}}
@@ -120,30 +119,30 @@
                 <form method="POST" action="{{ route('admin.integracoes.melhor-envio.store') }}" class="row g-2">
                     @csrf
                     <div class="col-md-4">
-                        <label class="form-label small mb-1">Client ID</label>
-                        <input type="text" name="client_id" class="form-control form-control-sm"
+                        <label for="campo-client_id" class="form-label small mb-1">Client ID</label>
+                        <input id="campo-client_id" type="text" name="client_id" class="form-control form-control-sm"
                                placeholder="{{ filled($melhorEnvio['client_id']) ? '•••• salvo (' . $melhorEnvio['client_id'] . ') — preencha p/ trocar' : 'ex.: 29391' }}">
                     </div>
                     <div class="col-md-8">
-                        <label class="form-label small mb-1">Secret</label>
-                        <input type="password" name="client_secret" class="form-control form-control-sm" autocomplete="new-password"
+                        <label for="campo-client_secret" class="form-label small mb-1">Secret</label>
+                        <input id="campo-client_secret" type="password" name="client_secret" class="form-control form-control-sm" autocomplete="new-password"
                                placeholder="{{ filled($melhorEnvio['client_secret']) ? '•••• salvo — preencha p/ trocar' : 'Secret do aplicativo (fica cifrado no banco)' }}">
                     </div>
                     <div class="col-md-6">
-                        <label class="form-label small mb-1">E-mail de suporte técnico</label>
-                        <input type="email" name="email_suporte" class="form-control form-control-sm" value="{{ $melhorEnvio['email'] }}">
+                        <label for="campo-email_suporte" class="form-label small mb-1">E-mail de suporte técnico</label>
+                        <input id="campo-email_suporte" type="email" name="email_suporte" class="form-control form-control-sm" value="{{ $melhorEnvio['email'] }}">
                         <div class="form-text">Vai no cabeçalho <code>User-Agent</code> de toda chamada (o Melhor Envio exige).</div>
                     </div>
                     <div class="col-md-6">
-                        <label class="form-label small mb-1">Ambiente</label>
-                        <select name="ambiente" class="form-select form-select-sm">
+                        <label for="campo-ambiente" class="form-label small mb-1">Ambiente</label>
+                        <select id="campo-ambiente" name="ambiente" class="form-select form-select-sm">
                             <option value="producao" @selected($melhorEnvio['ambiente'] !== 'sandbox')>Produção (melhorenvio.com.br)</option>
                             <option value="sandbox" @selected($melhorEnvio['ambiente'] === 'sandbox')>Sandbox (sandbox.melhorenvio.com.br — app separado)</option>
                         </select>
                     </div>
                     <div class="col-12">
-                        <label class="form-label small mb-1">Escopos pedidos na autorização</label>
-                        <input type="text" name="scopes" class="form-control form-control-sm" value="{{ $melhorEnvio['scopes'] }}">
+                        <label for="campo-scopes" class="form-label small mb-1">Escopos pedidos na autorização</label>
+                        <input id="campo-scopes" type="text" name="scopes" class="form-control form-control-sm" value="{{ $melhorEnvio['scopes'] }}">
                         <div class="form-text">Padrão: <code>{{ $scopesPadrao }}</code>. Só mude se o Melhor Envio recusar um escopo.</div>
                     </div>
                     <div class="col-12">

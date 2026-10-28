@@ -3,17 +3,17 @@
 @section('title', 'Fluxo de Caixa')
 
 @section('content')
-<x-erp.page-header title="Fluxo de Caixa" subtitle="Analise as entradas e saidas do periodo" icon="graph-up" />
+<x-erp.page-header title="Fluxo de Caixa" subtitle="Análise as entradas e saídas do período" icon="graph-up" />
 
 {{-- Date Filter --}}
 <x-erp.filter-bar :action="route('app.financeiro.fluxo-caixa')">
     <div class="col-md-3">
-        <label class="form-label fw-semibold small text-muted">Data Inicio</label>
-        <input type="date" name="data_inicio" class="form-control" value="{{ $dataInicio->format('Y-m-d') }}">
+        <label for="campo-data_inicio" class="form-label fw-semibold small text-muted">Data Início</label>
+        <input id="campo-data_inicio" type="date" name="data_inicio" class="form-control" value="{{ $dataInicio->format('Y-m-d') }}">
     </div>
     <div class="col-md-3">
-        <label class="form-label fw-semibold small text-muted">Data Fim</label>
-        <input type="date" name="data_fim" class="form-control" value="{{ $dataFim->format('Y-m-d') }}">
+        <label for="campo-data_fim" class="form-label fw-semibold small text-muted">Data Fim</label>
+        <input id="campo-data_fim" type="date" name="data_fim" class="form-control" value="{{ $dataFim->format('Y-m-d') }}">
     </div>
     <div class="col-auto">
         <a href="{{ route('app.financeiro.fluxo-caixa') }}" class="btn btn-erp-outline">
@@ -28,10 +28,10 @@
         <x-erp.stat-card icon="arrow-up-circle" color="success" :value="number_format($totalEntradas, 2, ',', '.')" label="Entradas Realizadas" prefix="R$ " />
     </div>
     <div class="col-6 col-lg-3">
-        <x-erp.stat-card icon="arrow-down-circle" color="danger" :value="number_format($totalSaidas, 2, ',', '.')" label="Saidas Realizadas" prefix="R$ " />
+        <x-erp.stat-card icon="arrow-down-circle" color="danger" :value="number_format($totalSaidas, 2, ',', '.')" label="Saídas Realizadas" prefix="R$ " />
     </div>
     <div class="col-6 col-lg-3">
-        <x-erp.stat-card icon="wallet2" :color="$saldoFinal >= 0 ? 'primary' : 'danger'" :value="number_format($saldoFinal, 2, ',', '.')" label="Saldo do Periodo" prefix="R$ " />
+        <x-erp.stat-card icon="wallet2" :color="$saldoFinal >= 0 ? 'primary' : 'danger'" :value="number_format($saldoFinal, 2, ',', '.')" label="Saldo do Período" prefix="R$ " />
     </div>
     <div class="col-6 col-lg-3">
         <div class="stat-card">
@@ -53,7 +53,7 @@
 </div>
 
 {{-- Chart --}}
-<x-erp.card title="Fluxo Diario" icon="graph-up" class="mb-4">
+<x-erp.card title="Fluxo Diário" icon="graph-up" class="mb-4">
     <div class="d-flex justify-content-end mb-3">
         <div class="btn-group btn-group-sm" role="group" id="chart-toggle">
             <button type="button" class="btn btn-outline-primary active" data-mode="bars">Barras</button>
@@ -64,16 +64,16 @@
 </x-erp.card>
 
 {{-- Daily Table --}}
-<x-erp.card title="Detalhamento Diario" icon="table">
+<x-erp.card title="Detalhamento Diário" icon="table">
     <div class="table-responsive">
         <table class="erp-table">
             <thead>
                 <tr>
                     <th>Data</th>
-                    <th>Descricao</th>
+                    <th>Descrição</th>
                     <th>Categoria</th>
                     <th class="text-end">Entrada (+)</th>
-                    <th class="text-end">Saida (-)</th>
+                    <th class="text-end">Saída (-)</th>
                     <th class="text-end">Saldo Acumulado</th>
                 </tr>
             </thead>
@@ -124,7 +124,7 @@
                 @if(!$hasData)
                 <tr>
                     <td colspan="6">
-                        <x-erp.empty-state icon="graph-up" title="Nenhuma movimentacao financeira no periodo" />
+                        <x-erp.empty-state icon="graph-up" title="Nenhuma movimentação financeira no período" />
                     </td>
                 </tr>
                 @endif
@@ -151,6 +151,7 @@
 @endsection
 
 @push('scripts')
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" integrity="sha384-9nhczxUqK87bcKHh20fSQcTGD4qq5GhayNYSYWqwBkINBhOfQLg/P5HG5lF1urn4" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <script>
     const labels = @json(array_map(fn($d) => \Carbon\Carbon::parse($d)->format('d/m'), $chartLabels));

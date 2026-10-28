@@ -141,7 +141,7 @@
         <div class="col-6 col-md-3">
             <div class="stat-mini">
                 <div class="stat-value">{{ $ultimaCompra ? $ultimaCompra->created_at->format('d/m/Y') : '-' }}</div>
-                <div class="stat-label">Ultima Compra</div>
+                <div class="stat-label">Última Compra</div>
             </div>
         </div>
         <div class="col-6 col-md-3">
@@ -172,14 +172,14 @@
                 </div>
             @endif
             <div class="info-item">
-                <span class="info-label">Limite de Credito</span>
+                <span class="info-label">Limite de Crédito</span>
                 <span class="info-value text-success">R$ {{ number_format($cliente->limite_credito ?? 0, 2, ',', '.') }}</span>
             </div>
         </x-erp.card>
     </div>
 
     <div class="col-md-4">
-        <x-erp.card title="Endereco" icon="geo-alt">
+        <x-erp.card title="Endereço" icon="geo-alt">
             @if($cliente->logradouro)
                 <div class="info-item">
                     <span class="info-label">Logradouro</span>
@@ -206,7 +206,7 @@
             @else
                 <div class="d-flex flex-column align-items-center justify-content-center py-4 text-muted">
                     <i class="bi bi-geo fs-2 opacity-50 mb-2"></i>
-                    <span class="small">Endereco nao informado</span>
+                    <span class="small">Endereço não informado</span>
                 </div>
             @endif
         </x-erp.card>
@@ -253,7 +253,7 @@
 <ul class="nav nav-tabs tab-custom border-bottom" id="clienteTabs" role="tablist">
     <li class="nav-item" role="presentation">
         <button class="nav-link active" id="vendas-tab" data-bs-toggle="tab" data-bs-target="#vendas" type="button" role="tab">
-            <i class="bi bi-cart me-1"></i> Historico de Vendas
+            <i class="bi bi-cart me-1"></i> Histórico de Vendas
             <span class="badge bg-primary bg-opacity-10 text-primary ms-1">{{ $cliente->vendas->count() }}</span>
         </button>
     </li>
@@ -267,7 +267,7 @@
     </li>
     <li class="nav-item" role="presentation">
         <button class="nav-link" id="obs-tab" data-bs-toggle="tab" data-bs-target="#observacoes" type="button" role="tab">
-            <i class="bi bi-chat-text me-1"></i> Observacoes
+            <i class="bi bi-chat-text me-1"></i> Observações
         </button>
     </li>
 </ul>
@@ -323,7 +323,7 @@
             <table class="erp-table">
                 <thead>
                     <tr>
-                        <th>Descricao</th>
+                        <th>Descrição</th>
                         <th>Vencimento</th>
                         <th class="text-end">Valor</th>
                         <th class="text-end">Pago</th>
@@ -370,7 +370,7 @@
                     <p class="mb-0" style="white-space: pre-line;">{{ $cliente->observacoes }}</p>
                 </div>
             @else
-                <x-erp.empty-state icon="chat-text" title="Nenhuma observacao registrada" />
+                <x-erp.empty-state icon="chat-text" title="Nenhuma observação registrada" />
             @endif
         </div>
     </div>

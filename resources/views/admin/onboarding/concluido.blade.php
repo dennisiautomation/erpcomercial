@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Onboarding Concluido')
+@section('title', 'Onboarding Concluído')
 
 @section('content')
 <div class="container-fluid py-5">
@@ -14,7 +14,7 @@
                     </div>
 
                     <h3 class="fw-bold mb-2">Empresa configurada com sucesso!</h3>
-                    <p class="text-muted mb-4">O onboarding foi concluido. Veja o resumo abaixo.</p>
+                    <p class="text-muted mb-4">O onboarding foi concluído. Veja o resumo abaixo.</p>
 
                     {{-- Summary --}}
                     <div class="text-start bg-light rounded p-4 mb-4">
@@ -54,7 +54,7 @@
                                 @endforeach
                             </div>
                             <div class="col-sm-6">
-                                <small class="text-muted d-block">Usuarios</small>
+                                <small class="text-muted d-block">Usuários</small>
                                 <strong>{{ $empresa->users->count() }}</strong>
                                 @foreach($empresa->users as $user)
                                     <br><small>{{ $user->name }} ({{ $user->perfil?->value ?? '-' }})</small>

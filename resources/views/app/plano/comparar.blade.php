@@ -3,12 +3,11 @@
 @section('title', 'Comparar Planos')
 
 @section('content')
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h4 class="mb-0"><i class="bi bi-arrow-left-right me-2"></i>Comparar Planos</h4>
+<x-erp.page-header title="Comparar Planos" icon="arrow-left-right">
     <a href="{{ route('app.plano.index') }}" class="btn btn-outline-secondary">
-        <i class="bi bi-arrow-left me-1"></i> Voltar
-    </a>
-</div>
+            <i class="bi bi-arrow-left me-1"></i> Voltar
+        </a>
+</x-erp.page-header>
 
 {{-- Monthly/Annual Toggle --}}
 <div class="text-center mb-4">
@@ -102,7 +101,7 @@
                     @endforeach
                 </tr>
                 <tr>
-                    <td>Usuarios</td>
+                    <td>Usuários</td>
                     @foreach($planos as $plano)
                         <td class="text-center {{ $planoAtual && $planoAtual->id === $plano->id ? 'table-primary' : '' }}">
                             {{ $plano->max_usuarios >= 999 ? 'Ilimitados' : $plano->max_usuarios }}
@@ -118,7 +117,7 @@
                     @endforeach
                 </tr>
                 <tr>
-                    <td>Notas Fiscais / mes</td>
+                    <td>Notas Fiscais / mês</td>
                     @foreach($planos as $plano)
                         <td class="text-center {{ $planoAtual && $planoAtual->id === $plano->id ? 'table-primary' : '' }}">
                             {{ $plano->max_notas_mes >= 999999 ? 'Ilimitadas' : number_format($plano->max_notas_mes, 0, ',', '.') }}

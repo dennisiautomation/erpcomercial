@@ -3,21 +3,19 @@
 @section('title', 'Vendas')
 
 @section('content')
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <div>
-        <h4 class="mb-1"><i class="bi bi-bag-check me-2"></i>Vendas</h4>
+<x-erp.page-header title="Vendas" icon="bag-check">
+    <x-slot:breadcrumb>
         <nav aria-label="breadcrumb">
-            <ol class="breadcrumb mb-0 small">
-                <li class="breadcrumb-item"><a href="{{ route('app.dashboard') }}">Dashboard</a></li>
-                <li class="breadcrumb-item active">Vendas</li>
-            </ol>
-        </nav>
-    </div>
-    <div class="d-flex gap-2">
-        <x-erp.import-buttons :importRoute="route('app.import.vendas')" templateType="vendas" />
-        <a href="{{ route('app.export.vendas', request()->query()) }}" class="btn btn-erp-outline"><i class="bi bi-file-earmark-spreadsheet me-1"></i>Exportar</a>
-    </div>
-</div>
+                    <ol class="breadcrumb mb-0 small">
+                        <li class="breadcrumb-item"><a href="{{ route('app.dashboard') }}">Dashboard</a></li>
+                        <li class="breadcrumb-item active">Vendas</li>
+                    </ol>
+                </nav>
+    </x-slot:breadcrumb>
+    <x-erp.import-buttons :importRoute="route('app.import.vendas')" templateType="vendas" />
+    <a href="{{ route('app.export.vendas', request()->query()) }}" class="btn btn-erp-outline"><i class="bi bi-file-earmark-spreadsheet me-1"></i>Exportar</a>
+
+</x-erp.page-header>
 
 {{-- Stats Cards --}}
 <div class="row g-3 mb-4">
@@ -31,7 +29,7 @@
                         </div>
                     </div>
                     <div class="flex-grow-1 ms-3">
-                        <div class="text-muted small">Vendas Concluidas</div>
+                        <div class="text-muted small">Vendas Concluídas</div>
                         <div class="fw-bold fs-5">{{ $stats['count_concluidas'] }}</div>
                     </div>
                 </div>
@@ -48,7 +46,7 @@
                         </div>
                     </div>
                     <div class="flex-grow-1 ms-3">
-                        <div class="text-muted small">Total Concluidas</div>
+                        <div class="text-muted small">Total Concluídas</div>
                         <div class="fw-bold fs-6">R$ {{ number_format($stats['total_concluidas'], 2, ',', '.') }}</div>
                     </div>
                 </div>
@@ -96,16 +94,16 @@
     <div class="card-body py-3">
         <form method="GET" class="row g-2 align-items-end">
             <div class="col-lg-3">
-                <label class="form-label small fw-semibold mb-1">Buscar</label>
+                <label for="campo-busca" class="form-label small fw-semibold mb-1">Buscar</label>
                 <div class="input-group input-group-sm">
                     <span class="input-group-text bg-transparent"><i class="bi bi-search"></i></span>
-                    <input type="text" name="busca" class="form-control" placeholder="Numero ou cliente..." value="{{ request('busca') }}">
+                    <input id="campo-busca" type="text" name="busca" class="form-control" placeholder="Número ou cliente..." value="{{ request('busca') }}">
                 </div>
             </div>
             @if(($lojas ?? collect())->count() > 1)
                 <div class="col-md-2">
-                    <label class="form-label small fw-semibold mb-1">Loja</label>
-                    <select name="loja" class="form-select form-select-sm">
+                    <label for="campo-loja" class="form-label small fw-semibold mb-1">Loja</label>
+                    <select id="campo-loja" name="loja" class="form-select form-select-sm">
                         <option value="todas" {{ empty($lojaFiltro) && request()->filled('loja') ? 'selected' : '' }}>Todas</option>
                         @foreach($lojas as $loja)
                             <option value="{{ $loja->id }}" {{ (int) ($lojaFiltro ?? 0) === $loja->id ? 'selected' : '' }}>
@@ -116,8 +114,8 @@
                 </div>
             @endif
             <div class="col-md-2">
-                <label class="form-label small fw-semibold mb-1">Status</label>
-                <select name="status" class="form-select form-select-sm">
+                <label for="campo-status" class="form-label small fw-semibold mb-1">Status</label>
+                <select id="campo-status" name="status" class="form-select form-select-sm">
                     <option value="">Todos</option>
                     @foreach(\App\Enums\StatusVenda::cases() as $status)
                         <option value="{{ $status->value }}" {{ request('status') === $status->value ? 'selected' : '' }}>
@@ -127,21 +125,21 @@
                 </select>
             </div>
             <div class="col-md-2">
-                <label class="form-label small fw-semibold mb-1">Tipo</label>
-                <select name="tipo" class="form-select form-select-sm">
+                <label for="campo-tipo" class="form-label small fw-semibold mb-1">Tipo</label>
+                <select id="campo-tipo" name="tipo" class="form-select form-select-sm">
                     <option value="">Todos</option>
                     <option value="pdv" {{ request('tipo') === 'pdv' ? 'selected' : '' }}>PDV</option>
-                    <option value="balcao" {{ request('tipo') === 'balcao' ? 'selected' : '' }}>Balcao</option>
+                    <option value="balcao" {{ request('tipo') === 'balcao' ? 'selected' : '' }}>Balcão</option>
                     <option value="online" {{ request('tipo') === 'online' ? 'selected' : '' }}>Online</option>
                 </select>
             </div>
             <div class="col-md-2">
-                <label class="form-label small fw-semibold mb-1">Data Inicio</label>
-                <input type="date" name="data_inicio" class="form-control form-control-sm" value="{{ request('data_inicio') }}">
+                <label for="campo-data_inicio" class="form-label small fw-semibold mb-1">Data Início</label>
+                <input id="campo-data_inicio" type="date" name="data_inicio" class="form-control form-control-sm" value="{{ request('data_inicio') }}">
             </div>
             <div class="col-md-2">
-                <label class="form-label small fw-semibold mb-1">Data Fim</label>
-                <input type="date" name="data_fim" class="form-control form-control-sm" value="{{ request('data_fim') }}">
+                <label for="campo-data_fim" class="form-label small fw-semibold mb-1">Data Fim</label>
+                <input id="campo-data_fim" type="date" name="data_fim" class="form-control form-control-sm" value="{{ request('data_fim') }}">
             </div>
             <div class="col-md-1 d-flex gap-1">
                 <button type="submit" class="btn btn-primary btn-sm flex-fill" title="Filtrar">
@@ -161,7 +159,7 @@
         <table class="table table-hover align-middle mb-0">
             <thead>
                 <tr class="bg-light">
-                    <th class="ps-3" style="width:80px">Numero</th>
+                    <th class="ps-3" style="width:80px">Número</th>
                     <th>Data/Hora</th>
                     <th>Cliente</th>
                     <th>Vendedor</th>
@@ -170,7 +168,7 @@
                     <th>Forma Pgto</th>
                     <th class="text-end">Total</th>
                     <th class="text-center">Status</th>
-                    <th class="text-center pe-3" style="width:120px">Acoes</th>
+                    <th class="text-center pe-3" style="width:120px">Ações</th>
                 </tr>
             </thead>
             <tbody>
@@ -233,7 +231,7 @@
                                 </a>
                                 @if($venda->status->value === 'concluida')
                                     <form method="POST" action="{{ route('app.vendas.destroy', $venda) }}" class="d-inline"
-                                          data-confirm="Cancelar esta venda? O estoque volta e o valor sai do caixa na mesma forma de pagamento. Devolva o dinheiro ao cliente; PIX e cartao, estorne no banco ou na maquininha.">
+                                          data-confirm="Cancelar esta venda? O estoque volta e o valor sai do caixa na mesma forma de pagamento. Devolva o dinheiro ao cliente; PIX e cartão, estorne no banco ou na maquininha.">
                                         @csrf
                                         @method('DELETE')
                                         <button type="submit" class="btn btn-outline-danger" title="Cancelar venda">

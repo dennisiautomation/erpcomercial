@@ -5,15 +5,14 @@
     $exigeDoc = auth()->user()->empresa?->exigeDocumentoCadastro() ?? true;
 @endphp
 
-@section('title', 'Nova Ordem de Servico')
+@section('title', 'Nova Ordem de Serviço')
 
 @section('content')
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h4 class="mb-0"><i class="bi bi-wrench-adjustable me-2"></i>Nova Ordem de Servico</h4>
+<x-erp.page-header title="Nova Ordem de Serviço" icon="wrench-adjustable">
     <a href="{{ route('app.ordens-servico.index') }}" class="btn btn-outline-secondary btn-sm">
-        <i class="bi bi-arrow-left me-1"></i> Voltar
-    </a>
-</div>
+            <i class="bi bi-arrow-left me-1"></i> Voltar
+        </a>
+</x-erp.page-header>
 
 <form method="POST" action="{{ route('app.ordens-servico.store') }}" id="formOS">
     @csrf
@@ -58,14 +57,14 @@
                             @error('cliente_id') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
                         </div>
                         <div class="col-md-12">
-                            <label class="form-label fw-semibold">Equipamento <span class="text-danger">*</span></label>
-                            <input type="text" name="equipamento" class="form-control @error('equipamento') is-invalid @enderror" required
+                            <label for="campo-equipamento" class="form-label fw-semibold">Equipamento <span class="text-danger">*</span></label>
+                            <input id="campo-equipamento" type="text" name="equipamento" class="form-control @error('equipamento') is-invalid @enderror" required
                                    value="{{ old('equipamento') }}" placeholder="Ex: Notebook Dell Inspiron 15, Impressora HP LaserJet...">
                             @error('equipamento') <div class="invalid-feedback">{{ $message }}</div> @enderror
                         </div>
                         <div class="col-md-12">
-                            <label class="form-label fw-semibold">Defeito Relatado <span class="text-danger">*</span></label>
-                            <textarea name="defeito_relatado" class="form-control @error('defeito_relatado') is-invalid @enderror" rows="3" required
+                            <label for="campo-defeito_relatado" class="form-label fw-semibold">Defeito Relatado <span class="text-danger">*</span></label>
+                            <textarea id="campo-defeito_relatado" name="defeito_relatado" class="form-control @error('defeito_relatado') is-invalid @enderror" rows="3" required
                                       placeholder="Descreva o defeito relatado pelo cliente...">{{ old('defeito_relatado') }}</textarea>
                             @error('defeito_relatado') <div class="invalid-feedback">{{ $message }}</div> @enderror
                         </div>
@@ -76,13 +75,13 @@
             {{-- Items --}}
             <div class="card shadow-sm mb-4">
                 <div class="card-header bg-white fw-semibold d-flex justify-content-between align-items-center">
-                    <span><i class="bi bi-list-check me-1"></i> Itens (Produtos e Servicos)</span>
+                    <span><i class="bi bi-list-check me-1"></i> Itens (Produtos e Serviços)</span>
                     <div class="d-flex gap-2">
                         <button type="button" class="btn btn-sm btn-outline-primary" onclick="adicionarItem('produto')">
                             <i class="bi bi-box me-1"></i> Produto
                         </button>
                         <button type="button" class="btn btn-sm btn-outline-success" onclick="adicionarItem('servico')">
-                            <i class="bi bi-tools me-1"></i> Servico
+                            <i class="bi bi-tools me-1"></i> Serviço
                         </button>
                     </div>
                 </div>
@@ -94,7 +93,7 @@
                                     <th width="100">Tipo</th>
                                     <th>Item</th>
                                     <th width="90">Qtd</th>
-                                    <th width="130">Preco Unit.</th>
+                                    <th width="130">Preço Unit.</th>
                                     <th width="130">Total</th>
                                     <th width="45"></th>
                                 </tr>
@@ -106,7 +105,7 @@
                     </div>
                     <div id="emptyState" class="text-center text-muted py-4">
                         <i class="bi bi-plus-circle d-block fs-3 mb-1 opacity-50"></i>
-                        <small>Clique nos botoes acima para adicionar itens</small>
+                        <small>Clique nos botões acima para adicionar itens</small>
                     </div>
                 </div>
                 <div class="card-footer bg-white">
@@ -117,7 +116,7 @@
                                 <strong id="totalProdutos">R$ 0,00</strong>
                             </div>
                             <div class="d-flex justify-content-between mb-2">
-                                <span class="text-muted">Servicos:</span>
+                                <span class="text-muted">Serviços:</span>
                                 <strong id="totalServicos">R$ 0,00</strong>
                             </div>
                             <div class="d-flex justify-content-between mb-2 align-items-center">
@@ -145,8 +144,8 @@
                 </div>
                 <div class="card-body">
                     <div class="mb-3">
-                        <label class="form-label fw-semibold">Vendedor</label>
-                        <select name="vendedor_id" class="form-select">
+                        <label for="campo-vendedor_id" class="form-label fw-semibold">Vendedor</label>
+                        <select id="campo-vendedor_id" name="vendedor_id" class="form-select">
                             <option value="">Selecione...</option>
                             @foreach($vendedores as $vendedor)
                                 <option value="{{ $vendedor->id }}" {{ old('vendedor_id') == $vendedor->id ? 'selected' : '' }}>
@@ -156,8 +155,8 @@
                         </select>
                     </div>
                     <div>
-                        <label class="form-label fw-semibold">Tecnico</label>
-                        <select name="tecnico_id" class="form-select">
+                        <label for="campo-tecnico_id" class="form-label fw-semibold">Tecnico</label>
+                        <select id="campo-tecnico_id" name="tecnico_id" class="form-select">
                             <option value="">Selecione...</option>
                             @foreach($tecnicos as $tecnico)
                                 <option value="{{ $tecnico->id }}" {{ old('tecnico_id') == $tecnico->id ? 'selected' : '' }}>
@@ -172,18 +171,18 @@
             {{-- Observacoes --}}
             <div class="card shadow-sm mb-4">
                 <div class="card-header bg-white fw-semibold">
-                    <i class="bi bi-chat-text me-1"></i> Observacoes
+                    <i class="bi bi-chat-text me-1"></i> Observações
                 </div>
                 <div class="card-body">
                     <textarea name="observacoes" class="form-control" rows="4"
-                              placeholder="Observacoes internas...">{{ old('observacoes') }}</textarea>
+                              placeholder="Observações internas...">{{ old('observacoes') }}</textarea>
                 </div>
             </div>
 
             {{-- Submit --}}
             <div class="d-grid">
                 <button type="submit" class="btn btn-primary btn-lg">
-                    <i class="bi bi-check-lg me-1"></i> Criar Ordem de Servico
+                    <i class="bi bi-check-lg me-1"></i> Criar Ordem de Serviço
                 </button>
             </div>
         </div>
@@ -208,20 +207,20 @@
                     </div>
                 </div>
                 <div class="mb-3">
-                    <label class="form-label small fw-semibold" id="nc_label_doc">CPF @if($exigeDoc)<span class="text-danger">*</span>@else<span class="text-muted fw-normal">(opcional)</span>@endif</label>
+                    <label for="nc_cpf_cnpj" class="form-label small fw-semibold" id="nc_label_doc">CPF @if($exigeDoc)<span class="text-danger">*</span>@else<span class="text-muted fw-normal">(opcional)</span>@endif</label>
                     <input type="text" id="nc_cpf_cnpj" class="form-control" maxlength="18" placeholder="000.000.000-00">
                 </div>
                 <div class="mb-3">
-                    <label class="form-label small fw-semibold" id="nc_label_nome">Nome <span class="text-danger">*</span></label>
+                    <label for="nc_nome" class="form-label small fw-semibold" id="nc_label_nome">Nome <span class="text-danger">*</span></label>
                     <input type="text" id="nc_nome" class="form-control">
                 </div>
                 <div class="row g-3">
                     <div class="col-md-6">
-                        <label class="form-label small fw-semibold">Telefone</label>
+                        <label for="nc_telefone" class="form-label small fw-semibold">Telefone</label>
                         <input type="text" id="nc_telefone" class="form-control" placeholder="(00) 00000-0000">
                     </div>
                     <div class="col-md-6">
-                        <label class="form-label small fw-semibold">Email</label>
+                        <label for="nc_email" class="form-label small fw-semibold">Email</label>
                         <input type="email" id="nc_email" class="form-control">
                     </div>
                 </div>

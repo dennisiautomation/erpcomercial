@@ -1,9 +1,9 @@
 @extends('layouts.app')
 
-@section('title', 'Detalhes da Movimentacao')
+@section('title', 'Detalhes da Movimentação')
 
 @section('content')
-<x-erp.page-header title="Movimentacao #{{ $movimentacao->id }}" icon="eye">
+<x-erp.page-header title="Movimentação #{{ $movimentacao->id }}" icon="eye">
     <a href="{{ route('app.movimentacoes.index') }}" class="btn btn-erp-outline">
         <i class="bi bi-arrow-left me-1"></i> Voltar
     </a>
@@ -11,7 +11,8 @@
 
 <div class="row g-4">
     <div class="col-lg-8">
-        <x-erp.card title="Dados da Movimentacao" icon="info-circle">
+        <x-erp.card title="Dados da Movimentação" icon="info-circle">
+            <div class="table-responsive">
             <table class="table table-borderless mb-0">
                 <tr>
                     <th width="40%">Data</th>
@@ -54,7 +55,7 @@
                     <td>R$ {{ number_format($movimentacao->custo_unitario, 2, ',', '.') }}</td>
                 </tr>
                 <tr>
-                    <th>Usuario</th>
+                    <th>Usuário</th>
                     <td>{{ $movimentacao->user->name ?? '-' }}</td>
                 </tr>
                 <tr>
@@ -73,11 +74,12 @@
                 </tr>
                 @if($movimentacao->observacoes)
                 <tr>
-                    <th>Observacoes</th>
+                    <th>Observações</th>
                     <td>{{ $movimentacao->observacoes }}</td>
                 </tr>
                 @endif
             </table>
+            </div>
         </x-erp.card>
     </div>
 </div>

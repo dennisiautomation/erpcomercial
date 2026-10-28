@@ -61,8 +61,8 @@
 <div class="filter-bar">
     <form method="GET" class="row g-3 erp-form">
         <div class="col-md-3">
-            <label class="form-label">Status</label>
-            <select name="status" class="form-select">
+            <label for="campo-status" class="form-label">Status</label>
+            <select id="campo-status" name="status" class="form-select">
                 <option value="">Todos</option>
                 <option value="ativo" @selected(request('status') == 'ativo')>Ativo</option>
                 <option value="vencido" @selected(request('status') == 'vencido')>Vencido</option>
@@ -71,8 +71,8 @@
             </select>
         </div>
         <div class="col-md-3">
-            <label class="form-label">Cliente</label>
-            <select name="cliente_id" class="form-select">
+            <label for="campo-cliente_id" class="form-label">Cliente</label>
+            <select id="campo-cliente_id" name="cliente_id" class="form-select">
                 <option value="">Todos</option>
                 @foreach($clientes as $cliente)
                     <option value="{{ $cliente->id }}" @selected(request('cliente_id') == $cliente->id)>{{ $cliente->nome_razao_social }}</option>
@@ -80,12 +80,12 @@
             </select>
         </div>
         <div class="col-md-2">
-            <label class="form-label">Inicio</label>
-            <input type="date" name="inicio" class="form-control" value="{{ request('inicio') }}">
+            <label for="campo-inicio" class="form-label">Início</label>
+            <input id="campo-inicio" type="date" name="inicio" class="form-control" value="{{ request('inicio') }}">
         </div>
         <div class="col-md-2">
-            <label class="form-label">Fim</label>
-            <input type="date" name="fim" class="form-control" value="{{ request('fim') }}">
+            <label for="campo-fim" class="form-label">Fim</label>
+            <input id="campo-fim" type="date" name="fim" class="form-control" value="{{ request('fim') }}">
         </div>
         <div class="col-md-2 d-flex align-items-end">
             <button type="submit" class="btn btn-erp btn-erp-primary w-100">
@@ -102,12 +102,12 @@
             <thead>
                 <tr>
                     <th>Cliente</th>
-                    <th>Descricao</th>
+                    <th>Descrição</th>
                     <th>Valor</th>
                     <th>Periodicidade</th>
                     <th>Prox. Faturamento</th>
                     <th>Status</th>
-                    <th width="150">Acoes</th>
+                    <th width="150">Ações</th>
                 </tr>
             </thead>
             <tbody>

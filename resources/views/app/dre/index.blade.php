@@ -15,7 +15,7 @@
 {{-- Filters --}}
 <x-erp.filter-bar :action="route('app.dre.index')">
     <div class="col-md-3">
-        <label for="data_inicio" class="form-label">Data Inicio</label>
+        <label for="data_inicio" class="form-label">Data Início</label>
         <input type="date" name="data_inicio" id="data_inicio" class="form-control" value="{{ $dataInicio }}">
     </div>
     <div class="col-md-3">
@@ -61,10 +61,10 @@
         <table class="erp-table">
             <thead>
                 <tr>
-                    <th>Descricao</th>
+                    <th>Descrição</th>
                     <th class="text-end">Valor</th>
                     <th class="text-end">% Receita</th>
-                    <th class="text-end">Periodo Anterior</th>
+                    <th class="text-end">Período Anterior</th>
                 </tr>
             </thead>
             <tbody>

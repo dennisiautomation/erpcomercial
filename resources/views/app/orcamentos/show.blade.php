@@ -6,7 +6,7 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
         <h4 class="mb-1">
-            <i class="bi bi-file-earmark-text me-2"></i>Orcamento #{{ $orcamento->numero }}
+            <i class="bi bi-file-earmark-text me-2"></i>Orçamento #{{ $orcamento->numero }}
             <span class="badge rounded-pill bg-{{ $orcamento->status->color() }}{{ $orcamento->status->color() === 'warning' ? ' text-dark' : '' }} ms-2">
                 {{ $orcamento->status->label() }}
             </span>
@@ -14,7 +14,7 @@
         <nav aria-label="breadcrumb">
             <ol class="breadcrumb mb-0 small">
                 <li class="breadcrumb-item"><a href="{{ route('app.dashboard') }}">Dashboard</a></li>
-                <li class="breadcrumb-item"><a href="{{ route('app.orcamentos.index') }}">Orcamentos</a></li>
+                <li class="breadcrumb-item"><a href="{{ route('app.orcamentos.index') }}">Orçamentos</a></li>
                 <li class="breadcrumb-item active">#{{ $orcamento->numero }}</li>
             </ol>
         </nav>
@@ -22,7 +22,7 @@
     <div class="d-flex gap-2 flex-wrap">
         @if(!in_array($orcamento->status->value, ['convertido', 'recusado']))
             <form method="POST" action="{{ route('app.orcamentos.converter', $orcamento) }}"
-                  data-confirm="Converter este orcamento em pedido? Esta acao nao pode ser desfeita.">
+                  data-confirm="Converter este orçamento em pedido? Esta ação não pode ser desfeita.">
                 @csrf
                 <button type="submit" class="btn btn-success">
                     <i class="bi bi-arrow-right-circle me-1"></i> Converter em Pedido
@@ -35,8 +35,14 @@
             </a>
         @endif
         <a href="{{ route('app.orcamentos.imprimir', $orcamento) }}" target="_blank" rel="noopener" class="btn btn-outline-secondary">
-            <i class="bi bi-printer me-1"></i> Imprimir
+            <i class="bi bi-printer me-1"></i> Imprimir orçamento
         </a>
+        @if($orcamento->status->value === 'convertido' && $orcamento->pedido)
+            {{-- Já virou pedido: o pedido/protocolo de entrega também sai daqui (28/10/2026, DK Med) --}}
+            <a href="{{ route('app.pedidos.imprimir', $orcamento->pedido) }}" target="_blank" rel="noopener" class="btn btn-outline-secondary">
+                <i class="bi bi-printer me-1"></i> Imprimir pedido
+            </a>
+        @endif
         <a href="{{ route('app.orcamentos.index') }}" class="btn btn-outline-secondary">
             <i class="bi bi-arrow-left me-1"></i> Voltar
         </a>
@@ -52,14 +58,14 @@
                 <form method="POST" action="{{ route('app.orcamentos.update-status', $orcamento) }}" class="d-inline">
                     @csrf
                     <input type="hidden" name="status" value="aprovado">
-                    <button type="submit" class="btn btn-success btn-sm" data-confirm="Aprovar este orcamento?">
+                    <button type="submit" class="btn btn-success btn-sm" data-confirm="Aprovar este orçamento?">
                         <i class="bi bi-check-circle me-1"></i> Aprovar
                     </button>
                 </form>
                 <form method="POST" action="{{ route('app.orcamentos.update-status', $orcamento) }}" class="d-inline">
                     @csrf
                     <input type="hidden" name="status" value="recusado">
-                    <button type="submit" class="btn btn-outline-danger btn-sm" data-confirm="Recusar este orcamento?">
+                    <button type="submit" class="btn btn-outline-danger btn-sm" data-confirm="Recusar este orçamento?">
                         <i class="bi bi-x-circle me-1"></i> Recusar
                     </button>
                 </form>
@@ -73,12 +79,12 @@
     <div class="col-lg-6">
         <div class="card border-0 shadow-sm h-100">
             <div class="card-header bg-transparent fw-semibold">
-                <i class="bi bi-info-circle me-1"></i> Informacoes do Orcamento
+                <i class="bi bi-info-circle me-1"></i> Informações do Orçamento
             </div>
             <div class="card-body">
                 <div class="row g-3">
                     <div class="col-6">
-                        <small class="text-muted d-block">Numero</small>
+                        <small class="text-muted d-block">Número</small>
                         <span class="fw-bold">#{{ $orcamento->numero }}</span>
                     </div>
                     <div class="col-6">
@@ -105,6 +111,10 @@
                         <span class="badge rounded-pill bg-{{ $orcamento->status->color() }}{{ $orcamento->status->color() === 'warning' ? ' text-dark' : '' }}">
                             {{ $orcamento->status->label() }}
                         </span>
+                    </div>
+                    <div class="col-6">
+                        <small class="text-muted d-block">Loja de saída</small>
+                        <span><i class="bi bi-shop me-1"></i>{{ $orcamento->unidade->nome ?? '-' }}</span>
                     </div>
                     @if($orcamento->pedido)
                         <div class="col-12">
@@ -156,7 +166,7 @@
     <div class="col-12">
         <div class="card border-0 shadow-sm">
             <div class="card-header bg-transparent fw-semibold">
-                <i class="bi bi-list-ul me-1"></i> Itens do Orcamento
+                <i class="bi bi-list-ul me-1"></i> Itens do Orçamento
                 <span class="badge bg-secondary ms-1">{{ $orcamento->itens->count() }}</span>
             </div>
             <div class="table-responsive">
@@ -164,9 +174,9 @@
                     <thead class="bg-light">
                         <tr>
                             <th class="ps-3" style="width:5%">#</th>
-                            <th>Descricao</th>
+                            <th>Descrição</th>
                             <th class="text-center" style="width:10%">Qtd</th>
-                            <th class="text-end" style="width:12%">Preco Unit.</th>
+                            <th class="text-end" style="width:12%">Preço Unit.</th>
                             <th class="text-center" style="width:10%">Desc.</th>
                             <th class="text-end" style="width:12%">Desc. R$</th>
                             <th class="text-end pe-3" style="width:12%">Total</th>
@@ -181,7 +191,7 @@
                                     @if($item->produto)
                                         <small class="text-muted">Cod: {{ $item->produto->codigo_interno ?? '-' }}</small>
                                     @elseif($item->servico)
-                                        <small class="text-info"><i class="bi bi-tools me-1"></i>Servico</small>
+                                        <small class="text-info"><i class="bi bi-tools me-1"></i>Serviço</small>
                                     @endif
                                 </td>
                                 <td class="text-center">{{ number_format($item->quantidade, 3, ',', '.') }}</td>
@@ -266,7 +276,7 @@
         <div class="col-12">
             <div class="card border-0 shadow-sm">
                 <div class="card-header bg-transparent fw-semibold">
-                    <i class="bi bi-chat-text me-1"></i> Observacoes
+                    <i class="bi bi-chat-text me-1"></i> Observações
                 </div>
                 <div class="card-body">
                     <div class="row g-4">

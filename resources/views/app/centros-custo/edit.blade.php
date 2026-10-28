@@ -3,12 +3,11 @@
 @section('title', 'Editar Centro de Custo')
 
 @section('content')
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h4 class="mb-0"><i class="bi bi-pencil me-2"></i>Editar Centro de Custo</h4>
+<x-erp.page-header title="Editar Centro de Custo" icon="pencil">
     <a href="{{ route('app.centros-custo.index') }}" class="btn btn-outline-secondary">
-        <i class="bi bi-arrow-left me-1"></i> Voltar
-    </a>
-</div>
+            <i class="bi bi-arrow-left me-1"></i> Voltar
+        </a>
+</x-erp.page-header>
 
 <div class="row">
     <div class="col-lg-8">
@@ -20,7 +19,7 @@
 
                     <div class="row">
                         <div class="col-md-4 mb-3">
-                            <label for="codigo" class="form-label">Codigo <span class="text-danger">*</span></label>
+                            <label for="codigo" class="form-label">Código <span class="text-danger">*</span></label>
                             <input type="text" name="codigo" id="codigo" class="form-control @error('codigo') is-invalid @enderror"
                                    value="{{ old('codigo', $centrosCusto->codigo) }}" required>
                             @error('codigo')
@@ -38,7 +37,7 @@
                     </div>
 
                     <div class="mb-3">
-                        <label for="descricao" class="form-label">Descricao</label>
+                        <label for="descricao" class="form-label">Descrição</label>
                         <textarea name="descricao" id="descricao" rows="3" class="form-control @error('descricao') is-invalid @enderror">{{ old('descricao', $centrosCusto->descricao) }}</textarea>
                         @error('descricao')
                             <div class="invalid-feedback">{{ $message }}</div>

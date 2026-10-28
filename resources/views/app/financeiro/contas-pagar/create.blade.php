@@ -15,7 +15,7 @@
         <form method="POST" action="{{ route('app.contas-pagar.store') }}">
             @csrf
 
-            <x-erp.form-section title="Fornecedor e Descricao" icon="building">
+            <x-erp.form-section title="Fornecedor e Descrição" icon="building">
                 <div class="mb-4">
                     <label for="fornecedor_id" class="form-label fw-semibold">Fornecedor <span class="text-danger">*</span></label>
                     <div class="position-relative">
@@ -57,10 +57,10 @@
                 </div>
 
                 <div class="mb-4">
-                    <label for="descricao" class="form-label fw-semibold">Descricao <span class="text-danger">*</span></label>
+                    <label for="descricao" class="form-label fw-semibold">Descrição <span class="text-danger">*</span></label>
                     <input type="text" name="descricao" id="descricao"
                         class="form-control @error('descricao') is-invalid @enderror"
-                        value="{{ old('descricao') }}" placeholder="Ex: Compra de material, Aluguel, Servico..." required>
+                        value="{{ old('descricao') }}" placeholder="Ex: Compra de material, Aluguel, Serviço..." required>
                     @error('descricao')
                         <div class="invalid-feedback">{{ $message }}</div>
                     @enderror
@@ -135,8 +135,8 @@
                             <option value="">Selecione...</option>
                             <option value="boleto" {{ old('forma_pagamento') == 'boleto' ? 'selected' : '' }}>Boleto</option>
                             <option value="pix" {{ old('forma_pagamento') == 'pix' ? 'selected' : '' }}>PIX</option>
-                            <option value="transferencia" {{ old('forma_pagamento') == 'transferencia' ? 'selected' : '' }}>Transferencia</option>
-                            <option value="debito_automatico" {{ old('forma_pagamento') == 'debito_automatico' ? 'selected' : '' }}>Debito Automatico</option>
+                            <option value="transferencia" {{ old('forma_pagamento') == 'transferencia' ? 'selected' : '' }}>Transferência</option>
+                            <option value="debito_automatico" {{ old('forma_pagamento') == 'debito_automatico' ? 'selected' : '' }}>Débito Automático</option>
                             <option value="dinheiro" {{ old('forma_pagamento') == 'dinheiro' ? 'selected' : '' }}>Dinheiro</option>
                         </select>
                     </div>
@@ -173,7 +173,7 @@
                 {{-- Parcelas Preview --}}
                 <div id="parcelas-preview" class="card border-0 bg-light mb-4 d-none">
                     <div class="card-header bg-primary bg-opacity-10 border-0">
-                        <h6 class="mb-0 fw-bold text-primary"><i class="bi bi-list-ol me-1"></i> Previa das Parcelas</h6>
+                        <h6 class="mb-0 fw-bold text-primary"><i class="bi bi-list-ol me-1"></i> Prévia das Parcelas</h6>
                     </div>
                     <div class="card-body p-0">
                         <div class="table-responsive">
@@ -192,10 +192,10 @@
                 </div>
 
                 <div class="mb-4">
-                    <label for="observacoes" class="form-label fw-semibold">Observacoes</label>
+                    <label for="observacoes" class="form-label fw-semibold">Observações</label>
                     <textarea name="observacoes" id="observacoes" rows="3"
                         class="form-control @error('observacoes') is-invalid @enderror"
-                        placeholder="Informacoes adicionais...">{{ old('observacoes') }}</textarea>
+                        placeholder="Informações adicionais...">{{ old('observacoes') }}</textarea>
                     @error('observacoes')
                         <div class="invalid-feedback">{{ $message }}</div>
                     @enderror
@@ -219,7 +219,7 @@
             <div class="small text-muted">
                 <div class="mb-3">
                     <div class="fw-semibold text-dark mb-1">Parcelamento</div>
-                    O valor sera dividido igualmente entre as parcelas. Cada parcela vence com intervalo de 1 mes.
+                    O valor sera dividido igualmente entre as parcelas. Cada parcela vence com intervalo de 1 mês.
                 </div>
                 <div class="mb-3">
                     <div class="fw-semibold text-dark mb-1">Conta Recorrente</div>
@@ -227,7 +227,7 @@
                 </div>
                 <div class="mb-0">
                     <div class="fw-semibold text-dark mb-1">Categorias</div>
-                    Categorize suas despesas para facilitar a analise no fluxo de caixa e DRE.
+                    Categorize suas despesas para facilitar a análise no fluxo de caixa e DRE.
                 </div>
             </div>
         </x-erp.card>

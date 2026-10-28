@@ -231,7 +231,7 @@
         </div>
     @endif
 @else
-    <div class="tipo-cupom">Cupom Nao Fiscal</div>
+    <div class="tipo-cupom">Cupom Não Fiscal</div>
 @endif
 
 <hr class="line">
@@ -260,6 +260,11 @@
     <div class="row">
         <span>Operador: {{ $venda->vendedor->name ?? 'N/A' }}</span>
     </div>
+    @if($venda->unidade?->nome)
+        <div class="row">
+            <span>Loja: {{ \Illuminate\Support\Str::limit($venda->unidade->nome, 34) }}</span>
+        </div>
+    @endif
 </div>
 
 <hr class="line">
@@ -269,7 +274,7 @@
     <thead>
         <tr>
             <th>#</th>
-            <th>Descricao</th>
+            <th>Descrição</th>
             <th class="num">Qtd</th>
             <th class="num">Unit</th>
             <th class="num">Total</th>
@@ -449,7 +454,7 @@
 
     @if(!isset($notaFiscal) || !$notaFiscal)
         <div class="aviso">
-            Este cupom nao possui valor fiscal
+            Este cupom não possui valor fiscal
         </div>
     @endif
 

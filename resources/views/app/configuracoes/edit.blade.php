@@ -2,6 +2,44 @@
 
 @section('title', 'Configurações da Loja')
 
+@push('styles')
+<style>
+    .cfg-intro { color: var(--text-secondary); font-size: .9rem; margin: -.5rem 0 1rem; max-width: 72ch; }
+    .cfg-onde { margin-top: .5rem; }
+    .cfg-onde > summary { cursor: pointer; color: var(--primary); font-weight: 600; font-size: .85rem; list-style: none; }
+    .cfg-onde > summary::-webkit-details-marker { display: none; }
+    .cfg-onde[open] > summary { margin-bottom: .25rem; }
+    .cfg-onde .row { max-width: 72rem; }
+
+    .cfg-abas { position: sticky; top: var(--topbar-height); z-index: 20; margin: 0 -1.5rem 1.25rem; padding: .5rem 1.5rem; background: var(--body-bg); }
+    .cfg-abas .nav { gap: .25rem; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+    .cfg-abas .nav::-webkit-scrollbar { display: none; }
+    .cfg-abas .nav-link { white-space: nowrap; font-weight: 600; font-size: .875rem; color: var(--text-secondary); padding: .45rem .9rem; border-radius: 999px; }
+    .cfg-abas .nav-link:hover { background: #fff; color: var(--text-primary); }
+    .cfg-abas .nav-link.active { background: var(--primary); color: #fff; }
+
+    .cfg-entenda { margin: .25rem 0 .75rem; }
+    .cfg-entenda > summary { cursor: pointer; font-size: .8rem; font-weight: 600; color: var(--primary); list-style: none; display: inline-flex; align-items: center; gap: .3rem; }
+    .cfg-entenda > summary::-webkit-details-marker { display: none; }
+    .cfg-entenda > summary::before { content: ''; width: .4rem; height: .4rem; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(-45deg); transition: transform .15s; }
+    .cfg-entenda[open] > summary::before { transform: rotate(45deg); }
+    .cfg-entenda > div { margin-top: .5rem; padding-left: .75rem; border-left: 2px solid var(--border); }
+    .form-check + .cfg-entenda, .form-check-label + .cfg-entenda { margin-left: 1.5rem; }
+
+    .cfg-subopcao { margin-left: 1.5rem; padding-left: 1rem; border-left: 2px solid var(--border); }
+
+    .cfg-salvar { position: sticky; bottom: 0; z-index: 20; display: flex; align-items: center; justify-content: flex-end; gap: 1rem; margin: 0 -1.5rem; padding: .75rem 1.5rem; background: rgba(241, 245, 249, .92); backdrop-filter: blur(6px); border-top: 1px solid var(--border); }
+    .cfg-salvar-aviso { font-size: .85rem; color: var(--warning-text); font-weight: 600; }
+    .cfg-salvar-aviso:empty { display: none; }
+
+    @media (max-width: 575.98px) {
+        .cfg-abas, .cfg-salvar { margin-left: -1rem; margin-right: -1rem; padding-left: 1rem; padding-right: 1rem; }
+        .cfg-salvar .btn-lg { flex: 1; font-size: 1rem; }
+    }
+    @media (prefers-reduced-motion: reduce) { .cfg-entenda > summary::before { transition: none; } }
+</style>
+@endpush
+
 @section('content')
 <x-erp.page-header title="Configurações da Loja" icon="sliders"
     subtitle="Como o PDV, o caixa e os preços se comportam nesta unidade">
@@ -10,21 +48,50 @@
     </a>
 </x-erp.page-header>
 
-<div class="alert alert-info border-0 bg-info bg-opacity-10 mb-4">
-    <div class="d-flex">
-        <i class="bi bi-info-circle fs-5 me-2 text-info"></i>
-        <div>
-            <strong>Como funciona esta tela:</strong> cada opção abaixo muda um comportamento do sistema
-            <u>somente nesta unidade</u>. Enquanto você não salvar nada, a loja continua operando
-            exatamente como sempre operou. Pode ativar um recurso de cada vez e testar com calma.
+<div class="cfg-intro">
+    Cada opção muda um comportamento do sistema <u>somente nesta unidade</u>. Enquanto você não salvar,
+    a loja continua operando como sempre operou.
+    <details class="cfg-onde">
+        <summary><i class="bi bi-map me-1" aria-hidden="true"></i>Onde essas configurações aparecem no dia a dia</summary>
+        <div class="row g-3 small text-muted mt-0">
+            <div class="col-sm-6 col-lg-3">
+                <strong class="text-body"><i class="bi bi-upc-scan me-1"></i>PDV</strong><br>
+                Preço muda conforme a forma de pagamento; botões Auto/Recibo/Cupom; parcelas do crédito.
+            </div>
+            <div class="col-sm-6 col-lg-3">
+                <strong class="text-body"><i class="bi bi-tag me-1"></i>Etiquetas</strong><br>
+                "6x R$ 54,00 ou R$ 300,00 no PIX" quando houver acréscimo no crédito.
+            </div>
+            <div class="col-sm-6 col-lg-3">
+                <strong class="text-body"><i class="bi bi-cash-register me-1"></i>Fechamento de caixa</strong><br>
+                Conferência por forma de pagamento e responsável por cada entrada.
+            </div>
+            <div class="col-sm-6 col-lg-3">
+                <strong class="text-body"><i class="bi bi-credit-card-2-front me-1"></i>Financeiro</strong><br>
+                Junto com <a href="{{ route('app.adquirentes.index') }}">Máquinas de Cartão</a>, gera a previsão
+                de recebimento com taxa e valor líquido.
+            </div>
         </div>
-    </div>
+    </details>
 </div>
+
+<nav class="cfg-abas" aria-label="Assuntos das configurações">
+    <ul class="nav nav-pills flex-nowrap" role="tablist" id="cfgAbas">
+        <li class="nav-item" role="presentation"><button class="nav-link active" id="tab-caixa" data-bs-toggle="tab" data-bs-target="#cfg-caixa" type="button" role="tab" aria-controls="cfg-caixa" aria-selected="true"><i class="bi bi-person-badge me-1" aria-hidden="true"></i>Caixa e vendedor</button></li>
+        <li class="nav-item" role="presentation"><button class="nav-link" id="tab-precos" data-bs-toggle="tab" data-bs-target="#cfg-precos" type="button" role="tab" aria-controls="cfg-precos" aria-selected="false"><i class="bi bi-tags me-1" aria-hidden="true"></i>Preços e parcelas</button></li>
+        <li class="nav-item" role="presentation"><button class="nav-link" id="tab-cupom" data-bs-toggle="tab" data-bs-target="#cfg-cupom" type="button" role="tab" aria-controls="cfg-cupom" aria-selected="false"><i class="bi bi-receipt me-1" aria-hidden="true"></i>Cupom e recibo</button></li>
+        <li class="nav-item" role="presentation"><button class="nav-link" id="tab-trocas" data-bs-toggle="tab" data-bs-target="#cfg-trocas" type="button" role="tab" aria-controls="cfg-trocas" aria-selected="false"><i class="bi bi-arrow-repeat me-1" aria-hidden="true"></i>Trocas</button></li>
+        <li class="nav-item" role="presentation"><button class="nav-link" id="tab-estoque" data-bs-toggle="tab" data-bs-target="#cfg-estoque" type="button" role="tab" aria-controls="cfg-estoque" aria-selected="false"><i class="bi bi-boxes me-1" aria-hidden="true"></i>Estoque</button></li>
+        <li class="nav-item" role="presentation"><button class="nav-link" id="tab-impressos" data-bs-toggle="tab" data-bs-target="#cfg-impressos" type="button" role="tab" aria-controls="cfg-impressos" aria-selected="false"><i class="bi bi-printer me-1" aria-hidden="true"></i>Impressos</button></li>
+    </ul>
+</nav>
 
 <form method="POST" action="{{ route('app.configuracoes.update') }}">
     @csrf
     @method('PUT')
 
+    <div class="tab-content cfg-conteudo">
+    <div class="tab-pane fade show active" id="cfg-caixa" role="tabpanel" aria-labelledby="tab-caixa" tabindex="0">
     {{-- ============ CAIXA E VENDAS ============ --}}
     <x-erp.form-section title="Caixa e Vendas" icon="person-badge"
         description="Quem responde pela venda e pelo dinheiro que entra no caixa">
@@ -36,7 +103,9 @@
                 <strong>Vendedor selecionado é o responsável pela venda e pela entrada no caixa</strong>
             </label>
         </div>
-        <div class="text-muted small ps-4 mb-2">
+        <details class="cfg-entenda">
+            <summary>Entenda esta opção</summary>
+            <div class="text-muted small">
             <div class="mb-1"><i class="bi bi-toggle-off me-1"></i><strong>Desligado (padrão):</strong>
                 a entrada no caixa fica registrada no nome do <em>operador logado</em> (quem está no computador do caixa).</div>
             <div class="mb-1"><i class="bi bi-toggle-on me-1"></i><strong>Ligado:</strong>
@@ -44,7 +113,8 @@
                 conferência mostram quem de fato fez cada venda.</div>
             <div><i class="bi bi-lightbulb me-1"></i><em>Use quando vários vendedores atendem e um único caixa registra;
                 assim cada venda "pertence" ao vendedor certo, não a quem digitou.</em></div>
-        </div>
+                    </div>
+        </details>
     </x-erp.form-section>
 
     {{-- ============ ACESSO DO VENDEDOR (empresa inteira) ============ --}}
@@ -78,7 +148,9 @@
             </label>
         </div>
 
-        <div class="text-muted small ps-4 mb-2">
+        <details class="cfg-entenda">
+            <summary>Entenda esta opção</summary>
+            <div class="text-muted small">
             <div class="mb-1"><i class="bi bi-toggle-off me-1"></i><strong>Desligado (padrão):</strong>
                 o vendedor entra no Dashboard e navega pelo menu como sempre.</div>
             <div class="mb-1"><i class="bi bi-toggle-on me-1"></i><strong>Ligado:</strong>
@@ -89,7 +161,8 @@
             <div><i class="bi bi-lightbulb me-1"></i><em>Use quando o vendedor é balcão:
                 hoje ele enxerga faturamento do mês, ticket médio, o relatório financeiro da
                 loja e o preço de custo dos produtos.</em></div>
-        </div>
+                    </div>
+        </details>
 
         <div class="small ps-4">
             @if($vendedoresAtivos > 0)
@@ -122,7 +195,9 @@
             </label>
         </div>
 
-        <div class="text-muted small ps-4 mb-2">
+        <details class="cfg-entenda">
+            <summary>Entenda esta opção</summary>
+            <div class="text-muted small">
             <div class="mb-1"><i class="bi bi-toggle-off me-1"></i><strong>Desligado (padrão):</strong>
                 o <strong>F3</strong> lista todos os vendedores, caixas, gerentes e o dono da
                 empresa — inclusive quem trabalha em outra loja.</div>
@@ -132,7 +207,8 @@
                 não tem nenhuma loja vinculada aparece em todas (não há como saber onde está).</div>
             <div><i class="bi bi-lightbulb me-1"></i><em>Use quando cada vendedor atende numa loja
                 fixa e o caixa se perde numa lista com a rede inteira.</em></div>
-        </div>
+                    </div>
+        </details>
 
         <div class="small ps-4">
             <span class="badge bg-secondary-subtle text-secondary-emphasis">
@@ -163,6 +239,8 @@
     </x-erp.form-section>
     @endif
 
+    </div>
+    <div class="tab-pane fade" id="cfg-precos" role="tabpanel" aria-labelledby="tab-precos" tabindex="0">
     {{-- ============ TABELAS DE PREÇO ============ --}}
     <x-erp.form-section title="Preços por Forma de Pagamento" icon="tags"
         description="Um preço para Dinheiro/PIX, outro para Débito, outro para Crédito">
@@ -193,9 +271,9 @@
                     máximo de parcelas). Os acréscimos de débito e crédito abaixo deixam de valer.</div>
             </label>
         </div>
-        <div class="row g-3 mb-3" id="blocoDescontoAvista" @if($precoBase !== 'cartao') style="display:none;" @endif>
+        <div class="row g-3 mb-3 cfg-subopcao" id="blocoDescontoAvista" @if($precoBase !== 'cartao') style="display:none;" @endif>
             <div class="col-md-4">
-                <label class="form-label fw-semibold">Desconto no Dinheiro/PIX (%)</label>
+                <label for="desconto_avista_percentual" class="form-label fw-semibold">Desconto no Dinheiro/PIX (%)</label>
                 <div class="input-group">
                     <input type="number" step="0.01" min="0" max="50" class="form-control @error('desconto_avista_percentual') is-invalid @enderror"
                            name="desconto_avista_percentual" id="desconto_avista_percentual" value="{{ $descAvista }}">
@@ -207,9 +285,10 @@
         </div>
         @error('preco_base') <div class="alert alert-danger py-2 small">{{ $message }}</div> @enderror
 
-        <div class="alert alert-light border mb-3" id="explicaTabelasAvista" @if($precoBase === 'cartao') style="display:none;" @endif>
-            <strong><i class="bi bi-book me-1"></i>Entenda as 3 tabelas:</strong>
-            o <strong>preço de venda cadastrado no produto</strong> é o preço à vista
+        <details class="cfg-entenda mb-3" id="explicaTabelasAvista" @if($precoBase === 'cartao') style="display:none;" @endif>
+            <summary><i class="bi bi-book me-1" aria-hidden="true"></i>Entenda as 3 tabelas</summary>
+            <div class="text-muted small">
+            O <strong>preço de venda cadastrado no produto</strong> é o preço à vista
             (<span class="badge bg-success">Dinheiro / PIX</span>).
             Os acréscimos abaixo calculam automaticamente os preços no
             <span class="badge bg-primary">Débito</span> e no
@@ -223,7 +302,8 @@
                 <i class="bi bi-arrow-return-right me-1"></i>Precisa de um preço diferente num produto específico?
                 No cadastro do produto há os campos "Preço no Débito/Crédito", que têm prioridade sobre a regra geral.
             </div>
-        </div>
+            </div>
+        </details>
 
         <div class="alert alert-warning py-2 small mb-2" id="avisoAcrescimoIgnorado" @if($precoBase !== 'cartao') style="display:none;" @endif>
             <i class="bi bi-info-circle me-1"></i>Com o preço cadastrado sendo o do cartão, os dois acréscimos abaixo
@@ -231,9 +311,9 @@
         </div>
         <div class="row g-3 mb-2">
             <div class="col-md-4 campo-acrescimo">
-                <label class="form-label fw-semibold">Acréscimo no Débito (%)</label>
+                <label for="campo-percentual_debito" class="form-label fw-semibold">Acréscimo no Débito (%)</label>
                 <div class="input-group">
-                    <input type="number" step="0.01" min="0" max="100" class="form-control"
+                    <input id="campo-percentual_debito" type="number" step="0.01" min="0" max="100" class="form-control"
                            name="percentual_debito"
                            value="{{ old('percentual_debito', $config->percentual_debito ?? 0) }}">
                     <span class="input-group-text">%</span>
@@ -242,9 +322,9 @@
                     <strong>0 = mesmo preço do PIX.</strong></div>
             </div>
             <div class="col-md-4 campo-acrescimo">
-                <label class="form-label fw-semibold">Acréscimo no Crédito (%)</label>
+                <label for="campo-percentual_credito" class="form-label fw-semibold">Acréscimo no Crédito (%)</label>
                 <div class="input-group">
-                    <input type="number" step="0.01" min="0" max="100" class="form-control"
+                    <input id="campo-percentual_credito" type="number" step="0.01" min="0" max="100" class="form-control"
                            name="percentual_credito"
                            value="{{ old('percentual_credito', $config->percentual_credito ?? 0) }}">
                     <span class="input-group-text">%</span>
@@ -253,8 +333,8 @@
                     <strong>0 = mesmo preço do PIX.</strong></div>
             </div>
             <div class="col-md-4">
-                <label class="form-label fw-semibold">Máximo de parcelas</label>
-                <input type="number" min="1" max="24" class="form-control"
+                <label for="campo-max_parcelas" class="form-label fw-semibold">Máximo de parcelas</label>
+                <input id="campo-max_parcelas" type="number" min="1" max="24" class="form-control"
                        name="max_parcelas"
                        value="{{ old('max_parcelas', $config->max_parcelas ?? 6) }}">
                 <div class="form-text">Até quantas vezes a loja parcela no crédito.
@@ -267,7 +347,9 @@
         <label class="form-label fw-semibold mb-1">
             <i class="bi bi-percent me-1"></i>Juros do parcelamento no cartão de crédito
         </label>
-        <div class="text-muted small mb-2">
+        <details class="cfg-entenda mb-2">
+            <summary>Como preencher a tabela de juros</summary>
+            <div class="text-muted small">
             Quanto a venda <strong>encarece</strong> em cada quantidade de parcelas. É o mesmo formato da
             tabela que a adquirente (Stone, Cielo, PagSeguro...) manda — dá para copiar o número dela e
             somar a sua margem. <strong>Em branco ou 0 = aquela parcela não tem juros.</strong>
@@ -282,6 +364,7 @@
             aqui porque quem encarece ele é o <strong>"Acréscimo no Crédito"</strong> ali em cima — é por
             isso que a tabela começa no 2x.
         </div>
+        </details>
 
         @php
             $jurosTabela = old('juros_por_parcela', $config->juros_por_parcela ?? []);
@@ -376,138 +459,7 @@
             @endif
         </div>
 
-        <script>
-            // Espelha JurosParcelamentoService no que o lojista precisa VER enquanto
-            // preenche: quanto o cliente paga. Quem grava o valor da venda continua
-            // sendo o servidor — isto aqui e so a previa da tela de configuracao.
-            (function () {
-                const campoMax     = document.querySelector('input[name="max_parcelas"]');
-                const campoCredito = document.querySelector('input[name="percentual_credito"]');
-                const campoBase    = document.getElementById('jurosBase');
-                const espelho1x    = document.getElementById('jurosCreditoAvista');
-                const previa1x     = document.getElementById('previa1x');
-                const aviso        = document.getElementById('jurosAvisoSoma');
-                const linhas       = document.querySelectorAll('#jurosParcelasGrid .juros-linha');
-                if (!linhas.length) return;
 
-                const dinheiro = v => 'R$ ' + (v || 0).toLocaleString('pt-BR',
-                    { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                const num = el => Math.max(0, parseFloat((el && el.value) || 0) || 0);
-
-                const render = () => {
-                    const max     = parseInt((campoMax && campoMax.value) || '6', 10) || 6;
-                    const base    = num(campoBase);
-                    const credito = num(campoCredito);
-
-                    // O 1x espelha o "Acrescimo no Credito": um campo, um dono.
-                    if (espelho1x) espelho1x.value = credito.toFixed(2);
-                    if (previa1x) {
-                        previa1x.textContent = base > 0
-                            ? (credito > 0
-                                ? 'Hoje: ' + dinheiro(base) + ' no crédito à vista sai por '
-                                  + dinheiro(base * (1 + credito / 100)) + '.'
-                                : 'Hoje o crédito à vista sai pelo mesmo preço do PIX.')
-                            : '';
-                    }
-
-                    let algumJuros = false;
-
-                    linhas.forEach(linha => {
-                        const n = parseInt(linha.dataset.parcelas, 10);
-                        linha.style.display = n > max ? 'none' : '';
-
-                        const campo  = linha.querySelector('.juros-campo');
-                        const previa = linha.querySelector('.juros-previa');
-                        const caixa  = linha.querySelector('.juros-caixa');
-                        const pct    = num(campo);
-                        const temJuros = pct > 0;
-
-                        if (temJuros && n <= max) algumJuros = true;
-
-                        // Destaque so em quem tem juros: a tabela cheia de zeros nao
-                        // deixava enxergar o que estava configurado de verdade.
-                        if (caixa) caixa.style.background = temJuros ? 'rgba(255,193,7,.12)' : '';
-
-                        if (!previa) return;
-                        if (base <= 0) { previa.textContent = ''; return; }
-
-                        // A conta que o cliente ve: o acrescimo do credito ja esta no
-                        // preco da tabela, e o juros da parcela vem POR CIMA dele.
-                        const comCredito = base * (1 + credito / 100);
-                        const total      = comCredito * (1 + pct / 100);
-
-                        previa.innerHTML = temJuros
-                            ? '<strong>' + n + 'x de ' + dinheiro(total / n) + '</strong> · total '
-                              + dinheiro(total)
-                            : n + 'x de ' + dinheiro(total / n) + ' · sem juros';
-                    });
-
-                    // O aviso da soma so faz sentido quando os dois estao ligados.
-                    if (aviso) {
-                        if (algumJuros && credito > 0 && base > 0) {
-                            const exemplo = [...linhas].find(l =>
-                                num(l.querySelector('.juros-campo')) > 0 &&
-                                parseInt(l.dataset.parcelas, 10) <= max);
-                            const n   = parseInt(exemplo.dataset.parcelas, 10);
-                            const pct = num(exemplo.querySelector('.juros-campo'));
-                            const soJuros = base * (1 + pct / 100);
-                            const real    = base * (1 + credito / 100) * (1 + pct / 100);
-
-                            aviso.style.display = 'block';
-                            aviso.innerHTML =
-                                '<i class="bi bi-exclamation-triangle me-1"></i><strong>Os dois acréscimos somam.</strong> '
-                                + 'Esta loja já cobra <strong>' + credito.toFixed(2).replace('.', ',') + '%</strong> no crédito. '
-                                + 'Com <strong>' + pct.toFixed(2).replace('.', ',') + '%</strong> no ' + n + 'x, uma venda de '
-                                + dinheiro(base) + ' sai por <strong>' + dinheiro(real) + '</strong> — não por '
-                                + dinheiro(soJuros) + '. Se a intenção era cobrar só o juros da parcela, '
-                                + 'zere o "Acréscimo no Crédito" lá em cima.';
-                        } else {
-                            aviso.style.display = 'none';
-                        }
-                    }
-                };
-
-                [campoMax, campoCredito, campoBase].forEach(c => c && c.addEventListener('input', render));
-                document.querySelectorAll('.juros-campo').forEach(c => c.addEventListener('input', render));
-                render();
-            })();
-        </script>
-
-        <script>
-            // Preço cadastrado = cartão (25/10/2026): mostra o desconto, esconde a
-            // explicação das 3 tabelas e avisa que os acréscimos não valem.
-            (function () {
-                const radios   = document.querySelectorAll('input[name="preco_base"]');
-                const bloco    = document.getElementById('blocoDescontoAvista');
-                const explica  = document.getElementById('explicaTabelasAvista');
-                const aviso    = document.getElementById('avisoAcrescimoIgnorado');
-                const campo    = document.getElementById('desconto_avista_percentual');
-                const exemplo  = document.getElementById('exemploDescontoAvista');
-                const campoMax = document.querySelector('input[name="max_parcelas"]');
-                const porParte = document.getElementById('regra_por_parte');
-                const brl = v => 'R$ ' + v.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-                function render() {
-                    const cartao = document.getElementById('preco_base_cartao').checked;
-                    bloco.style.display   = cartao ? '' : 'none';
-                    explica.style.display = cartao ? 'none' : '';
-                    aviso.style.display   = cartao ? '' : 'none';
-                    document.querySelectorAll('.campo-acrescimo').forEach(c => c.style.opacity = cartao ? '.45' : '');
-                    if (porParte) {
-                        porParte.disabled = cartao;
-                        if (cartao && porParte.checked) document.getElementById('regra_cartao_maior').checked = true;
-                    }
-                    const d = Math.min(50, Math.max(0, parseFloat(campo.value) || 0));
-                    const n = Math.max(1, parseInt(campoMax?.value) || 1);
-                    const pix = Math.round(300 * (1 - d / 100) * 100) / 100;
-                    exemplo.innerHTML = 'Exemplo: produto cadastrado a <strong>R$ 300,00</strong> → cartão '
-                        + '<strong>' + n + 'x de ' + brl(Math.round(300 / n * 100) / 100) + '</strong> · '
-                        + 'Dinheiro/PIX <strong>' + brl(pix) + '</strong>.';
-                }
-                radios.forEach(r => r.addEventListener('change', render));
-                [campo, campoMax].forEach(c => c && c.addEventListener('input', render));
-                render();
-            })();
-        </script>
 
         <hr>
 
@@ -601,12 +553,15 @@
         </div>
     </x-erp.form-section>
 
+    </div>
+    <div class="tab-pane fade" id="cfg-cupom" role="tabpanel" aria-labelledby="tab-cupom" tabindex="0">
     {{-- ============ EMISSÃO ============ --}}
     <x-erp.form-section title="Recibo ou Cupom Fiscal na Finalização da Venda" icon="receipt"
         description="O que imprimir/emitir quando a venda fecha no PDV">
 
-        <div class="alert alert-light border mb-3 small">
-            <strong><i class="bi bi-book me-1"></i>Como o PDV decide o documento:</strong>
+        <details class="cfg-entenda mb-3">
+            <summary><i class="bi bi-book me-1" aria-hidden="true"></i>Como o PDV decide o documento</summary>
+            <div class="text-muted small">
             <ol class="mb-1 ps-3">
                 <li><strong>Escolha manual:</strong> os botões <em>Auto / Recibo / Cupom Fiscal</em> ficam sempre
                     visíveis acima do FINALIZAR. Se o operador escolher, vale a escolha dele.</li>
@@ -614,7 +569,8 @@
             </ol>
             <span class="text-muted"><i class="bi bi-shield-check me-1"></i>Segurança: se a emissão da NFC-e falhar
             (SEFAZ fora do ar etc.), a venda <u>nunca trava</u>: sai o recibo e o cupom pode ser emitido depois.</span>
-        </div>
+            </div>
+        </details>
 
         <div class="form-check form-switch mb-1">
             <input class="form-check-input" type="checkbox" role="switch" value="1"
@@ -671,7 +627,8 @@
         </div>
     </x-erp.form-section>
 
-    {{-- ============ IMPRESSÃO DA ORDEM DE SERVIÇO ============ --}}
+    </div>
+    <div class="tab-pane fade" id="cfg-trocas" role="tabpanel" aria-labelledby="tab-trocas" tabindex="0">
     {{-- ============ TROCAS E DEVOLUÇÕES (03/09/2026) ============ --}}
     <x-erp.form-section title="Trocas e Devoluções" icon="arrow-repeat"
         description="O que a loja faz quando o cliente traz uma peça de volta">
@@ -741,14 +698,19 @@
                 <strong>Fora da política, pedir e-mail e senha de um gerente</strong>
             </label>
         </div>
-        <div class="text-muted small ps-4">
+        <details class="cfg-entenda">
+            <summary>Entenda esta opção</summary>
+            <div class="text-muted small">
             <div class="mb-1"><i class="bi bi-toggle-on me-1"></i><strong>Ligado (padrão):</strong> troca fora do prazo e
                 devolução em dinheiro só saem se um gerente ou o dono digitar e-mail e senha na tela. Quem já está logado
                 como gerente/dono não precisa digitar de novo.</div>
             <div><i class="bi bi-toggle-off me-1"></i><strong>Desligado:</strong> vendedor e caixa fazem qualquer troca sem autorização.</div>
-        </div>
+                    </div>
+        </details>
     </x-erp.form-section>
 
+    </div>
+    <div class="tab-pane fade" id="cfg-estoque" role="tabpanel" aria-labelledby="tab-estoque" tabindex="0">
     {{-- ============ ESTOQUE NA VENDA (22/10/2026) ============ --}}
     <x-erp.form-section title="Estoque na venda (PDV)" icon="boxes"
         description="De qual estoque desta loja a venda sai">
@@ -760,7 +722,9 @@
                 <strong>Deixar o caixa escolher no PDV de qual estoque a venda sai</strong>
             </label>
         </div>
-        <div class="text-muted small ps-4">
+        <details class="cfg-entenda">
+            <summary>Entenda esta opção</summary>
+            <div class="text-muted small">
             <div class="mb-1"><i class="bi bi-toggle-on me-1"></i><strong>Ligado:</strong> o topo do PDV ganha o campo
                 <strong>"Sai de"</strong>, já vindo no estoque de venda. O caixa troca quando a peça está em outro
                 estoque (ex.: Depósito), e ao bipar o produto o PDV mostra o saldo de cada estoque. Cancelar a venda
@@ -775,9 +739,13 @@
                     <a href="{{ route('app.estoques.index') }}">Estoques da Loja</a>.
                 @endif
             </div>
-        </div>
+                    </div>
+        </details>
     </x-erp.form-section>
 
+    </div>
+    <div class="tab-pane fade" id="cfg-impressos" role="tabpanel" aria-labelledby="tab-impressos" tabindex="0">
+    {{-- ============ IMPRESSÃO DA OS ============ --}}
     <x-erp.form-section title="Impressão da Ordem de Serviço" icon="wrench-adjustable"
         description="O que sai no papel quando você imprime uma OS — textos seus, desta loja">
 
@@ -904,7 +872,7 @@
                 <strong>Endereço comercial</strong> <span class="text-muted">— outro endereço, digitado abaixo (showroom, escritório, ponto de retirada)</span>
             </label>
         </div>
-        <div class="mb-3 ps-4">
+        <div class="mb-3 cfg-subopcao">
             <textarea name="orcamento_endereco_comercial" id="orcamento_endereco_comercial" rows="3"
                       class="form-control @error('orcamento_endereco_comercial') is-invalid @enderror"
                       placeholder="Ex.: Av. Frei Serafim, 2000 — Sala 5&#10;Centro · Teresina/PI · CEP 64001-020">{{ old('orcamento_endereco_comercial', $config->orcamento_endereco_comercial) }}</textarea>
@@ -988,64 +956,201 @@
         </div>
     </x-erp.form-section>
 
-    {{-- ============ ONDE MAIS ISSO APARECE ============ --}}
-    <x-erp.card title="Onde essas configurações aparecem no dia a dia" icon="map" class="mb-4">
-        <div class="row g-3 small text-muted">
-            <div class="col-md-3">
-                <strong class="text-body"><i class="bi bi-upc-scan me-1"></i>PDV</strong><br>
-                Preço muda conforme a forma de pagamento; botões Auto/Recibo/Cupom; parcelas do crédito.
-            </div>
-            <div class="col-md-3">
-                <strong class="text-body"><i class="bi bi-tag me-1"></i>Etiquetas</strong><br>
-                "6x R$ 54,00 ou R$ 300,00 no PIX" quando houver acréscimo no crédito.
-            </div>
-            <div class="col-md-3">
-                <strong class="text-body"><i class="bi bi-cash-register me-1"></i>Fechamento de caixa</strong><br>
-                Conferência por forma de pagamento e responsável por cada entrada.
-            </div>
-            <div class="col-md-3">
-                <strong class="text-body"><i class="bi bi-credit-card-2-front me-1"></i>Financeiro</strong><br>
-                Junto com <a href="{{ route('app.adquirentes.index') }}">Máquinas de Cartão</a>, gera a previsão
-                de recebimento com taxa e valor líquido.
-            </div>
-        </div>
-    </x-erp.card>
 
-    <div class="d-flex justify-content-end gap-2 mb-4">
+    </div>
+    </div>{{-- /tab-content --}}
 
-        <script>
-            // Contador de caracteres dos textos da OS. Existe porque a Realiza Phone
-            // reportou "está limitado a 500" numa tela que aceitava 5.000 e não dizia
-            // nada: sem número na tela, o lojista escreve, o texto rola pra fora do
-            // campo e ele conclui que bateu no teto. O limite real é o do servidor
-            // (data-contador), então os dois nunca divergem.
-            (function () {
-                document.querySelectorAll('textarea[data-contador]').forEach(function (campo) {
-                    const limite = parseInt(campo.dataset.contador, 10);
-                    const saida  = document.querySelector('[data-contador-de="' + campo.name + '"]');
-                    if (!saida) return;
-
-                    const fmt = n => n.toLocaleString('pt-BR');
-
-                    const render = function () {
-                        const usado = campo.value.length;
-                        saida.textContent = fmt(usado) + ' de ' + fmt(limite) + ' caracteres';
-                        // Só muda de cor quando encosta de verdade — contador vermelho
-                        // em campo vazio assusta sem motivo.
-                        saida.classList.toggle('text-danger', usado > limite);
-                        saida.classList.toggle('text-warning', usado <= limite && usado > limite * 0.9);
-                        saida.classList.toggle('text-muted',   usado <= limite * 0.9);
-                    };
-
-                    campo.addEventListener('input', render);
-                    render();
-                });
-            })();
-        </script>
-
+    <div class="cfg-salvar">
+        <span class="cfg-salvar-aviso" id="cfgAviso" aria-live="polite"></span>
         <button type="submit" class="btn btn-primary btn-lg px-4">
-            <i class="bi bi-check-lg me-1"></i> Salvar Configurações
+            <i class="bi bi-check-lg me-1" aria-hidden="true"></i> Salvar Configurações
         </button>
     </div>
 </form>
 @endsection
+@push('scripts')
+<script>
+// Espelha JurosParcelamentoService no que o lojista precisa VER enquanto
+// preenche: quanto o cliente paga. Quem grava o valor da venda continua
+// sendo o servidor — isto aqui e so a previa da tela de configuracao.
+(function () {
+    const campoMax     = document.querySelector('input[name="max_parcelas"]');
+    const campoCredito = document.querySelector('input[name="percentual_credito"]');
+    const campoBase    = document.getElementById('jurosBase');
+    const espelho1x    = document.getElementById('jurosCreditoAvista');
+    const previa1x     = document.getElementById('previa1x');
+    const aviso        = document.getElementById('jurosAvisoSoma');
+    const linhas       = document.querySelectorAll('#jurosParcelasGrid .juros-linha');
+    if (!linhas.length) return;
+
+    const dinheiro = v => 'R$ ' + (v || 0).toLocaleString('pt-BR',
+        { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const num = el => Math.max(0, parseFloat((el && el.value) || 0) || 0);
+
+    const render = () => {
+        const max     = parseInt((campoMax && campoMax.value) || '6', 10) || 6;
+        const base    = num(campoBase);
+        const credito = num(campoCredito);
+
+        // O 1x espelha o "Acrescimo no Credito": um campo, um dono.
+        if (espelho1x) espelho1x.value = credito.toFixed(2);
+        if (previa1x) {
+            previa1x.textContent = base > 0
+                ? (credito > 0
+                    ? 'Hoje: ' + dinheiro(base) + ' no crédito à vista sai por '
+                      + dinheiro(base * (1 + credito / 100)) + '.'
+                    : 'Hoje o crédito à vista sai pelo mesmo preço do PIX.')
+                : '';
+        }
+
+        let algumJuros = false;
+
+        linhas.forEach(linha => {
+            const n = parseInt(linha.dataset.parcelas, 10);
+            linha.style.display = n > max ? 'none' : '';
+
+            const campo  = linha.querySelector('.juros-campo');
+            const previa = linha.querySelector('.juros-previa');
+            const caixa  = linha.querySelector('.juros-caixa');
+            const pct    = num(campo);
+            const temJuros = pct > 0;
+
+            if (temJuros && n <= max) algumJuros = true;
+
+            // Destaque so em quem tem juros: a tabela cheia de zeros nao
+            // deixava enxergar o que estava configurado de verdade.
+            if (caixa) caixa.style.background = temJuros ? 'rgba(255,193,7,.12)' : '';
+
+            if (!previa) return;
+            if (base <= 0) { previa.textContent = ''; return; }
+
+            // A conta que o cliente ve: o acrescimo do credito ja esta no
+            // preco da tabela, e o juros da parcela vem POR CIMA dele.
+            const comCredito = base * (1 + credito / 100);
+            const total      = comCredito * (1 + pct / 100);
+
+            previa.innerHTML = temJuros
+                ? '<strong>' + n + 'x de ' + dinheiro(total / n) + '</strong> · total '
+                  + dinheiro(total)
+                : n + 'x de ' + dinheiro(total / n) + ' · sem juros';
+        });
+
+        // O aviso da soma so faz sentido quando os dois estao ligados.
+        if (aviso) {
+            if (algumJuros && credito > 0 && base > 0) {
+                const exemplo = [...linhas].find(l =>
+                    num(l.querySelector('.juros-campo')) > 0 &&
+                    parseInt(l.dataset.parcelas, 10) <= max);
+                const n   = parseInt(exemplo.dataset.parcelas, 10);
+                const pct = num(exemplo.querySelector('.juros-campo'));
+                const soJuros = base * (1 + pct / 100);
+                const real    = base * (1 + credito / 100) * (1 + pct / 100);
+
+                aviso.style.display = 'block';
+                aviso.innerHTML =
+                    '<i class="bi bi-exclamation-triangle me-1"></i><strong>Os dois acréscimos somam.</strong> '
+                    + 'Esta loja já cobra <strong>' + credito.toFixed(2).replace('.', ',') + '%</strong> no crédito. '
+                    + 'Com <strong>' + pct.toFixed(2).replace('.', ',') + '%</strong> no ' + n + 'x, uma venda de '
+                    + dinheiro(base) + ' sai por <strong>' + dinheiro(real) + '</strong> — não por '
+                    + dinheiro(soJuros) + '. Se a intenção era cobrar só o juros da parcela, '
+                    + 'zere o "Acréscimo no Crédito" lá em cima.';
+            } else {
+                aviso.style.display = 'none';
+            }
+        }
+    };
+
+    [campoMax, campoCredito, campoBase].forEach(c => c && c.addEventListener('input', render));
+    document.querySelectorAll('.juros-campo').forEach(c => c.addEventListener('input', render));
+    render();
+})();
+
+// Preço cadastrado = cartão (25/10/2026): mostra o desconto, esconde a
+// explicação das 3 tabelas e avisa que os acréscimos não valem.
+(function () {
+    const radios   = document.querySelectorAll('input[name="preco_base"]');
+    const bloco    = document.getElementById('blocoDescontoAvista');
+    const explica  = document.getElementById('explicaTabelasAvista');
+    const aviso    = document.getElementById('avisoAcrescimoIgnorado');
+    const campo    = document.getElementById('desconto_avista_percentual');
+    const exemplo  = document.getElementById('exemploDescontoAvista');
+    const campoMax = document.querySelector('input[name="max_parcelas"]');
+    const porParte = document.getElementById('regra_por_parte');
+    const brl = v => 'R$ ' + v.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    function render() {
+        const cartao = document.getElementById('preco_base_cartao').checked;
+        bloco.style.display   = cartao ? '' : 'none';
+        explica.style.display = cartao ? 'none' : '';
+        aviso.style.display   = cartao ? '' : 'none';
+        document.querySelectorAll('.campo-acrescimo').forEach(c => c.style.opacity = cartao ? '.45' : '');
+        if (porParte) {
+            porParte.disabled = cartao;
+            if (cartao && porParte.checked) document.getElementById('regra_cartao_maior').checked = true;
+        }
+        const d = Math.min(50, Math.max(0, parseFloat(campo.value) || 0));
+        const n = Math.max(1, parseInt(campoMax?.value) || 1);
+        const pix = Math.round(300 * (1 - d / 100) * 100) / 100;
+        exemplo.innerHTML = 'Exemplo: produto cadastrado a <strong>R$ 300,00</strong> → cartão '
+            + '<strong>' + n + 'x de ' + brl(Math.round(300 / n * 100) / 100) + '</strong> · '
+            + 'Dinheiro/PIX <strong>' + brl(pix) + '</strong>.';
+    }
+    radios.forEach(r => r.addEventListener('change', render));
+    [campo, campoMax].forEach(c => c && c.addEventListener('input', render));
+    render();
+})();
+
+// Contador de caracteres dos textos da OS. Existe porque a Realiza Phone
+// reportou "está limitado a 500" numa tela que aceitava 5.000 e não dizia
+// nada: sem número na tela, o lojista escreve, o texto rola pra fora do
+// campo e ele conclui que bateu no teto. O limite real é o do servidor
+// (data-contador), então os dois nunca divergem.
+(function () {
+    document.querySelectorAll('textarea[data-contador]').forEach(function (campo) {
+        const limite = parseInt(campo.dataset.contador, 10);
+        const saida  = document.querySelector('[data-contador-de="' + campo.name + '"]');
+        if (!saida) return;
+
+        const fmt = n => n.toLocaleString('pt-BR');
+
+        const render = function () {
+            const usado = campo.value.length;
+            saida.textContent = fmt(usado) + ' de ' + fmt(limite) + ' caracteres';
+            // Só muda de cor quando encosta de verdade — contador vermelho
+            // em campo vazio assusta sem motivo.
+            saida.classList.toggle('text-danger', usado > limite);
+            saida.classList.toggle('text-warning', usado <= limite && usado > limite * 0.9);
+            saida.classList.toggle('text-muted',   usado <= limite * 0.9);
+        };
+
+        campo.addEventListener('input', render);
+        render();
+    });
+})();
+
+// Abas: lembra a última aberta nesta loja, abre a aba do primeiro erro de validação
+// e avisa quando há alteração não salva.
+(function () {
+    const chave = 'erp_cfg_aba_{{ session('unidade_id') }}';
+    const abas  = document.querySelectorAll('#cfgAbas [data-bs-toggle="tab"]');
+    const form  = document.querySelector('.cfg-conteudo')?.closest('form');
+    const aviso = document.getElementById('cfgAviso');
+    if (!abas.length || !form) return;
+
+    const abrir = id => { const b = document.querySelector('#cfgAbas [data-bs-target="#' + id + '"]'); if (b) bootstrap.Tab.getOrCreateInstance(b).show(); };
+    const invalido = form.querySelector('.is-invalid, .invalid-feedback.d-block');
+    const pane = invalido && invalido.closest('.tab-pane');
+    if (pane) abrir(pane.id);
+    else { try { const v = localStorage.getItem(chave); if (v && document.getElementById(v)) abrir(v); } catch (e) {} }
+
+    abas.forEach(b => b.addEventListener('shown.bs.tab', e => {
+        try { localStorage.setItem(chave, e.target.dataset.bsTarget.slice(1)); } catch (err) {}
+        // <details> abertos continuam abertos; os campos ganham foco pelo Tab normalmente
+    }));
+
+    let sujo = false;
+    form.addEventListener('input', () => { if (!sujo) { sujo = true; aviso.textContent = 'Há alterações não salvas'; } });
+    form.addEventListener('submit', () => { sujo = false; aviso.textContent = ''; });
+})();
+</script>
+@endpush
+

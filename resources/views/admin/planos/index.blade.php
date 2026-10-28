@@ -3,12 +3,11 @@
 @section('title', 'Planos')
 
 @section('content')
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h4 class="mb-0"><i class="bi bi-credit-card-2-front me-2"></i>Planos</h4>
+<x-erp.page-header title="Planos" icon="credit-card-2-front">
     <a href="{{ route('admin.planos.create') }}" class="btn btn-primary">
-        <i class="bi bi-plus-lg me-1"></i> Novo Plano
-    </a>
-</div>
+            <i class="bi bi-plus-lg me-1"></i> Novo Plano
+        </a>
+</x-erp.page-header>
 
 <div class="card shadow-sm">
     <div class="table-responsive">
@@ -27,7 +26,7 @@
                     <th class="text-center">Features</th>
                     <th class="text-center">Status</th>
                     <th class="text-center">Empresas</th>
-                    <th class="text-end">Acoes</th>
+                    <th class="text-end">Ações</th>
                 </tr>
             </thead>
             <tbody>

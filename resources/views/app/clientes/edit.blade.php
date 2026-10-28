@@ -239,7 +239,7 @@
     <div class="step-item">
         <div class="step-circle" data-step="3" onclick="goToStep(3, true)">
             3
-            <span class="step-label">Endereco</span>
+            <span class="step-label">Endereço</span>
         </div>
     </div>
     <div class="step-item"><div class="step-line" data-line="3"></div></div>
@@ -270,7 +270,7 @@
                     <div class="wizard-option {{ old('tipo_pessoa', $cliente->tipo_pessoa) === 'pf' ? 'selected' : '' }}" data-type="pf" onclick="selectType('pf')">
                         <div class="text-center p-4 p-md-5">
                             <i class="bi bi-person" style="font-size:3rem;color:var(--primary)"></i>
-                            <h4 class="mt-3">Pessoa Fisica</h4>
+                            <h4 class="mt-3">Pessoa Física</h4>
                             <p class="text-muted mb-0">Cliente individual com CPF</p>
                         </div>
                     </div>
@@ -279,7 +279,7 @@
                     <div class="wizard-option {{ old('tipo_pessoa', $cliente->tipo_pessoa) === 'pj' ? 'selected' : '' }}" data-type="pj" onclick="selectType('pj')">
                         <div class="text-center p-4 p-md-5">
                             <i class="bi bi-building" style="font-size:3rem;color:var(--primary)"></i>
-                            <h4 class="mt-3">Pessoa Juridica</h4>
+                            <h4 class="mt-3">Pessoa Jurídica</h4>
                             <p class="text-muted mb-0">Empresa com CNPJ</p>
                         </div>
                     </div>
@@ -340,11 +340,11 @@
                 </div>
 
                 <div class="col-md-6 campos-pj" style="display:none;">
-                    <label for="ie" class="form-label">Inscricao Estadual</label>
+                    <label for="ie" class="form-label">Inscrição Estadual</label>
                     <input type="text" name="ie" id="ie"
                            class="form-control @error('ie') is-invalid @enderror"
                            value="{{ old('ie', $cliente->ie) }}"
-                           placeholder="Isento ou numero">
+                           placeholder="Isento ou número">
                     @error('ie')
                         <div class="text-danger small mt-1">{{ $message }}</div>
                     @enderror
@@ -356,7 +356,7 @@
              STEP 3 — Endereco
              ═══════════════════════════════════════════════════ --}}
         <div class="wizard-step" data-step="3">
-            <h5 class="step-title">Endereco</h5>
+            <h5 class="step-title">Endereço</h5>
             <p class="step-subtitle">Digite o CEP para preencher automaticamente</p>
 
             <div class="row g-3">
@@ -386,7 +386,7 @@
                 </div>
 
                 <div class="col-md-3">
-                    <label for="numero" class="form-label">Numero</label>
+                    <label for="numero" class="form-label">Número</label>
                     <input type="text" name="numero" id="numero"
                            class="form-control @error('numero') is-invalid @enderror"
                            value="{{ old('numero', $cliente->numero) }}">
@@ -445,7 +445,7 @@
              ═══════════════════════════════════════════════════ --}}
         <div class="wizard-step" data-step="4">
             <h5 class="step-title">Contato e Financeiro</h5>
-            <p class="step-subtitle">Dados de contato e configuracoes do cliente</p>
+            <p class="step-subtitle">Dados de contato e configurações do cliente</p>
 
             <div class="row g-3">
                 <div class="col-md-6">
@@ -493,7 +493,7 @@
 
                 <div class="col-md-6">
                     <label for="limite_credito" class="form-label">
-                        Limite de Credito <span class="text-muted fw-normal">(opcional)</span>
+                        Limite de Crédito <span class="text-muted fw-normal">(opcional)</span>
                     </label>
                     <div class="input-group">
                         <span class="input-group-text bg-white fw-semibold">R$</span>
@@ -538,11 +538,11 @@
 
                 <div class="col-12">
                     <label for="observacoes" class="form-label">
-                        Observacoes <span class="text-muted fw-normal">(opcional)</span>
+                        Observações <span class="text-muted fw-normal">(opcional)</span>
                     </label>
                     <textarea name="observacoes" id="observacoes"
                               class="form-control @error('observacoes') is-invalid @enderror"
-                              rows="2" placeholder="Informacoes adicionais...">{{ old('observacoes', $cliente->observacoes) }}</textarea>
+                              rows="2" placeholder="Informações adicionais...">{{ old('observacoes', $cliente->observacoes) }}</textarea>
                     @error('observacoes')
                         <div class="text-danger small mt-1">{{ $message }}</div>
                     @enderror
@@ -562,7 +562,7 @@
             <div id="navSpacer"></div>
             <div class="d-flex gap-2">
                 <button type="button" class="btn btn-primary rounded-pill" id="btnAvancar" onclick="goToStep(currentStep + 1)">
-                    Avancar <i class="bi bi-arrow-right ms-1"></i>
+                    Avançar <i class="bi bi-arrow-right ms-1"></i>
                 </button>
                 <button type="submit" class="btn btn-success rounded-pill" id="btnSalvar" style="display:none;">
                     <i class="bi bi-check-lg me-1"></i> Atualizar Cliente
@@ -575,7 +575,7 @@
              a submeter o UPDATE em vez do DELETE) --}}
         <div class="text-center mt-4 pt-3" style="border-top: 1px solid var(--border);">
             <button type="submit" form="formDeleteCliente" class="btn btn-link text-danger btn-sm"
-                    data-confirm="Tem certeza que deseja excluir este cliente? Esta acao nao pode ser desfeita.">
+                    data-confirm="Tem certeza que deseja excluir este cliente? Esta ação não pode ser desfeita.">
                 <i class="bi bi-trash me-1"></i> Excluir este cliente
             </button>
         </div>

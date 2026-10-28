@@ -1,9 +1,9 @@
 @extends('layouts.app')
 
-@section('title', 'Nova Transferencia de Estoque')
+@section('title', 'Nova Transferência de Estoque')
 
 @section('content')
-<x-erp.page-header title="Nova Transferencia de Estoque" subtitle="Solicite a transferencia de produtos para outra unidade" icon="truck">
+<x-erp.page-header title="Nova Transferência de Estoque" subtitle="Solicite a transferência de produtos para outra unidade" icon="truck">
     <a href="{{ route('app.transferencias.index') }}" class="btn btn-erp-outline">
         <i class="bi bi-arrow-left me-1"></i> Voltar
     </a>
@@ -71,7 +71,7 @@
                 </div>
             </x-erp.form-section>
 
-            <x-erp.form-section title="Itens da Transferencia" icon="box-seam">
+            <x-erp.form-section title="Itens da Transferência" icon="box-seam">
                 <div class="d-flex justify-content-end mb-3">
                     <button type="button" class="btn btn-success btn-sm" id="btn-add-item">
                         <i class="bi bi-plus-lg me-1"></i> Adicionar Item
@@ -86,8 +86,8 @@
                                     <span class="badge bg-primary rounded-pill item-number">1</span>
                                 </div>
                                 <div class="col-md-5">
-                                    <label class="form-label small fw-semibold text-muted">Produto</label>
-                                    <select name="itens[0][produto_id]" class="form-select" required>
+                                    <label for="campo-itens-0-produto_id" class="form-label small fw-semibold text-muted">Produto</label>
+                                    <select id="campo-itens-0-produto_id" name="itens[0][produto_id]" class="form-select" required>
                                         <option value="">Selecione...</option>
                                         @foreach($produtos as $produto)
                                             <option value="{{ $produto->id }}">{{ $produto->descricao }}</option>
@@ -95,8 +95,8 @@
                                     </select>
                                 </div>
                                 <div class="col-md-3">
-                                    <label class="form-label small fw-semibold text-muted">Quantidade</label>
-                                    <input type="number" name="itens[0][quantidade]" class="form-control" step="0.001" min="0.001" placeholder="0,000" required>
+                                    <label for="campo-itens-0-quantidade" class="form-label small fw-semibold text-muted">Quantidade</label>
+                                    <input id="campo-itens-0-quantidade" type="number" name="itens[0][quantidade]" class="form-control" step="0.001" min="0.001" placeholder="0,000" required>
                                 </div>
                                 <div class="col-md-3 d-flex align-items-end">
                                     <button type="button" class="btn btn-outline-danger btn-sm btn-remove-item" disabled>
@@ -109,12 +109,12 @@
                 </div>
             </x-erp.form-section>
 
-            <x-erp.form-section title="Observacoes" icon="chat-text">
+            <x-erp.form-section title="Observações" icon="chat-text">
                 <div class="mb-4">
-                    <label for="observacoes" class="form-label fw-semibold">Observacoes</label>
+                    <label for="observacoes" class="form-label fw-semibold">Observações</label>
                     <textarea name="observacoes" id="observacoes" rows="3"
                         class="form-control @error('observacoes') is-invalid @enderror"
-                        placeholder="Motivo da transferencia, instrucoes, etc.">{{ old('observacoes') }}</textarea>
+                        placeholder="Motivo da transferência, instruções, etc.">{{ old('observacoes') }}</textarea>
                     @error('observacoes')
                         <div class="invalid-feedback">{{ $message }}</div>
                     @enderror
@@ -122,7 +122,7 @@
 
                 <div class="d-flex gap-2">
                     <button type="submit" class="btn btn-erp-primary btn-lg px-4">
-                        <i class="bi bi-send me-1"></i> Solicitar Transferencia
+                        <i class="bi bi-send me-1"></i> Solicitar Transferência
                     </button>
                     <a href="{{ route('app.transferencias.index') }}" class="btn btn-erp-outline btn-lg">Cancelar</a>
                 </div>
@@ -136,8 +136,8 @@
             <ol class="small text-muted ps-3 mb-0">
                 <li class="mb-2">Selecione a unidade de destino</li>
                 <li class="mb-2">Adicione os produtos e quantidades</li>
-                <li class="mb-2">Envie a solicitacao</li>
-                <li class="mb-2">Aguarde a aprovacao do responsavel</li>
+                <li class="mb-2">Envie a solicitação</li>
+                <li class="mb-2">Aguarde a aprovação do responsável</li>
                 <li class="mb-0">O estoque sera movimentado automaticamente</li>
             </ol>
         </x-erp.card>

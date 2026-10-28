@@ -1,9 +1,9 @@
 @extends('layouts.app')
 
-@section('title', 'Configurar Comissoes')
+@section('title', 'Configurar Comissões')
 
 @section('content')
-<x-erp.page-header title="Configurar Comissoes" icon="gear">
+<x-erp.page-header title="Configurar Comissões" icon="gear">
     <a href="{{ route('app.comissoes.index') }}" class="btn btn-erp-outline">
         <i class="bi bi-arrow-left me-1"></i> Voltar
     </a>
@@ -41,8 +41,8 @@
     <div class="tab-content">
         {{-- Tab Global --}}
         <div class="tab-pane fade show active" id="tab-global" role="tabpanel">
-            <x-erp.form-section title="Percentual de Comissao por Vendedor" icon="people">
-                <p class="text-muted small mb-3">Defina o percentual padrao de comissao para cada vendedor. Este valor sera usado quando nao houver regra especifica por categoria ou produto.</p>
+            <x-erp.form-section title="Percentual de Comissão por Vendedor" icon="people">
+                <p class="text-muted small mb-3">Defina o percentual padrão de comissão para cada vendedor. Este valor sera usado quando não houver regra específica por categoria ou produto.</p>
 
                 @if($vendedores->isEmpty())
                     <p class="text-muted text-center py-3">Nenhum vendedor cadastrado.</p>
@@ -52,7 +52,7 @@
                             <thead>
                                 <tr>
                                     <th>Vendedor</th>
-                                    <th style="width: 150px;">Comissao (%)</th>
+                                    <th style="width: 150px;">Comissão (%)</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -80,7 +80,7 @@
 
         {{-- Tab Categoria --}}
         <div class="tab-pane fade" id="tab-categoria" role="tabpanel">
-            <x-erp.form-section title="Percentual de Comissao por Categoria" icon="tags">
+            <x-erp.form-section title="Percentual de Comissão por Categoria" icon="tags">
                 <p class="text-muted small mb-3">Defina percentuais especificos por categoria. Estas regras tem prioridade sobre o percentual global do vendedor.</p>
 
                 @if($categorias->isEmpty())
@@ -91,7 +91,7 @@
                             <thead>
                                 <tr>
                                     <th>Categoria</th>
-                                    <th style="width: 150px;">Comissao (%)</th>
+                                    <th style="width: 150px;">Comissão (%)</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -119,7 +119,7 @@
 
         {{-- Tab Produto --}}
         <div class="tab-pane fade" id="tab-produto" role="tabpanel">
-            <x-erp.form-section title="Percentual de Comissao por Produto" icon="box">
+            <x-erp.form-section title="Percentual de Comissão por Produto" icon="box">
                 <p class="text-muted small mb-3">Defina percentuais especificos por produto. Estas regras tem a maior prioridade.</p>
 
                 @if($produtos->isEmpty())
@@ -135,7 +135,7 @@
                             <thead>
                                 <tr>
                                     <th>Produto</th>
-                                    <th style="width: 150px;">Comissao (%)</th>
+                                    <th style="width: 150px;">Comissão (%)</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -164,7 +164,7 @@
 
     <div class="mt-4">
         <button type="submit" class="btn btn-erp-primary">
-            <i class="bi bi-check-lg me-1"></i> Salvar Configuracoes
+            <i class="bi bi-check-lg me-1"></i> Salvar Configurações
         </button>
     </div>
 </form>

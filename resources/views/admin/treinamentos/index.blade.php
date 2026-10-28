@@ -3,12 +3,11 @@
 @section('title', 'Treinamentos')
 
 @section('content')
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h4 class="mb-0"><i class="bi bi-play-btn me-2"></i>Treinamentos</h4>
+<x-erp.page-header title="Treinamentos" icon="play-btn">
     <a href="{{ route('admin.treinamentos.create') }}" class="btn btn-primary">
-        <i class="bi bi-plus-lg me-1"></i> Novo Treinamento
-    </a>
-</div>
+            <i class="bi bi-plus-lg me-1"></i> Novo Treinamento
+        </a>
+</x-erp.page-header>
 
 <div class="card shadow-sm">
     <div class="table-responsive">
@@ -16,12 +15,12 @@
             <thead class="table-light">
                 <tr>
                     <th>Ordem</th>
-                    <th>Titulo</th>
+                    <th>Título</th>
                     <th class="text-end">Tamanho</th>
                     <th>Perfis</th>
                     <th class="text-center">Status</th>
                     <th class="text-center">Assistiram</th>
-                    <th class="text-end">Acoes</th>
+                    <th class="text-end">Ações</th>
                 </tr>
             </thead>
             <tbody>

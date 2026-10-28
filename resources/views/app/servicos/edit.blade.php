@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Editar Servico')
+@section('title', 'Editar Serviço')
 
 @push('styles')
 <style>
@@ -63,7 +63,7 @@
 {{-- Header --}}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
-        <h4 class="fw-bold mb-1"><i class="bi bi-pencil-square me-2"></i>Editar Servico</h4>
+        <h4 class="fw-bold mb-1"><i class="bi bi-pencil-square me-2"></i>Editar Serviço</h4>
         <p class="text-muted mb-0 small">{{ $servico->descricao }}</p>
     </div>
     <a href="{{ route('app.servicos.index') }}" class="btn btn-outline-secondary rounded-pill px-3">
@@ -74,7 +74,7 @@
 {{-- Progress Indicator --}}
 <div class="wizard-progress" id="wizardProgress">
     <div class="step-item">
-        <div class="step-circle active" data-step="1">1<span class="step-label">Dados do Servico</span></div>
+        <div class="step-circle active" data-step="1">1<span class="step-label">Dados do Serviço</span></div>
     </div>
     <div class="step-item"><div class="step-line" data-line="1"></div></div>
     <div class="step-item">
@@ -90,12 +90,12 @@
 
         {{-- STEP 1 — Dados do Servico --}}
         <div class="wizard-step active" data-step="1">
-            <h5 class="step-title">Dados do Servico</h5>
-            <p class="step-subtitle">Informe a descricao e o valor padrao</p>
+            <h5 class="step-title">Dados do Serviço</h5>
+            <p class="step-subtitle">Informe a descrição e o valor padrão</p>
 
             <div class="row g-3">
                 <div class="col-12">
-                    <label for="descricao" class="form-label required-dot">Descricao</label>
+                    <label for="descricao" class="form-label required-dot">Descrição</label>
                     <input type="text" name="descricao" id="descricao"
                            class="form-control @error('descricao') is-invalid @enderror"
                            value="{{ old('descricao', $servico->descricao) }}" required>
@@ -104,7 +104,7 @@
                 </div>
 
                 <div class="col-md-5">
-                    <label for="valor_padrao" class="form-label required-dot">Valor Padrao (R$)</label>
+                    <label for="valor_padrao" class="form-label required-dot">Valor Padrão (R$)</label>
                     <div class="input-group">
                         <span class="input-group-text bg-white fw-semibold">R$</span>
                         <input type="number" name="valor_padrao" id="valor_padrao"
@@ -129,15 +129,15 @@
         {{-- STEP 2 — Dados Fiscais --}}
         <div class="wizard-step" data-step="2">
             <h5 class="step-title">Dados Fiscais</h5>
-            <p class="step-subtitle">Configuracoes fiscais para emissao de NFS-e</p>
+            <p class="step-subtitle">Configurações fiscais para emissão de NFS-e</p>
 
             @if(isset($emiteNfse) && $emiteNfse)
                 <div class="row g-3">
                     <div class="col-md-5">
                         <label for="codigo_lc116" class="form-label">
-                            Codigo LC 116
+                            Código LC 116
                             <i class="bi bi-info-circle info-tooltip" data-bs-toggle="tooltip" data-bs-placement="top"
-                               title="Codigo da Lista de Servicos (Lei Complementar 116). Define a classificacao do servico para fins de ISS."></i>
+                               title="Código da Lista de Serviços (Lei Complementar 116). Define a classificacao do serviço para fins de ISS."></i>
                         </label>
                         <input type="text" name="codigo_lc116" id="codigo_lc116"
                                class="form-control @error('codigo_lc116') is-invalid @enderror"
@@ -156,7 +156,7 @@
                         @error('cnae') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
                     </div>
                     <div class="col-md-3">
-                        <label for="iss_aliquota" class="form-label">Aliquota ISS (%)</label>
+                        <label for="iss_aliquota" class="form-label">Alíquota ISS (%)</label>
                         <div class="input-group">
                             <input type="number" name="iss_aliquota" id="iss_aliquota"
                                    class="form-control @error('iss_aliquota') is-invalid @enderror"
@@ -169,8 +169,8 @@
             @else
                 <div class="nfse-skip-banner">
                     <i class="bi bi-file-earmark-x d-block mb-3"></i>
-                    <h6 class="fw-bold mb-2">Sua empresa nao emite NFS-e</h6>
-                    <p class="text-muted mb-3">Voce pode pular esta etapa. Os dados fiscais podem ser configurados posteriormente.</p>
+                    <h6 class="fw-bold mb-2">Sua empresa não emite NFS-e</h6>
+                    <p class="text-muted mb-3">Você pode pular esta etapa. Os dados fiscais podem ser configurados posteriormente.</p>
                     <button type="submit" class="btn btn-outline-primary rounded-pill">
                         <i class="bi bi-skip-forward me-1"></i> Pular e Salvar
                     </button>
@@ -185,10 +185,10 @@
             </button>
             <div id="navSpacer"></div>
             <button type="button" class="btn btn-primary rounded-pill" id="btnAvancar" onclick="goToStep(currentStep + 1)">
-                Avancar <i class="bi bi-arrow-right ms-1"></i>
+                Avançar <i class="bi bi-arrow-right ms-1"></i>
             </button>
             <button type="submit" class="btn btn-success rounded-pill" id="btnSalvar" style="display:none;">
-                <i class="bi bi-check-lg me-1"></i> Atualizar Servico
+                <i class="bi bi-check-lg me-1"></i> Atualizar Serviço
             </button>
         </div>
 

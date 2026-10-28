@@ -11,14 +11,15 @@
 
 <div class="row g-4">
     <div class="col-lg-8">
-        <x-erp.card title="Informacoes" icon="info-circle">
+        <x-erp.card title="Informações" icon="info-circle">
+            <div class="table-responsive">
             <table class="table table-borderless mb-0">
                 <tr>
                     <th width="40%">Fornecedor</th>
                     <td>{{ $contaPagar->fornecedor->razao_social ?? '-' }}</td>
                 </tr>
                 <tr>
-                    <th>Descricao</th>
+                    <th>Descrição</th>
                     <td>{{ $contaPagar->descricao }}</td>
                 </tr>
                 <tr>
@@ -67,16 +68,17 @@
                 @endif
                 @if($contaPagar->observacoes)
                 <tr>
-                    <th>Observacoes</th>
+                    <th>Observações</th>
                     <td>{{ $contaPagar->observacoes }}</td>
                 </tr>
                 @endif
             </table>
+            </div>
         </x-erp.card>
 
         {{-- Parcelas --}}
         @if($parcelas->count() > 1)
-        <x-erp.card title="Historico de Parcelas" icon="list-ol" class="mt-4">
+        <x-erp.card title="Histórico de Parcelas" icon="list-ol" class="mt-4">
             <div class="table-responsive">
                 <table class="erp-table">
                     <thead>

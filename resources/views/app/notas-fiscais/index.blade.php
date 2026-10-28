@@ -56,7 +56,7 @@
                 <div class="stat-icon info"><i class="bi bi-tools"></i></div>
                 <div>
                     <h6 class="mb-1 fw-bold">NFS-e</h6>
-                    <small class="text-muted">Nota fiscal de servico para prestadores</small>
+                    <small class="text-muted">Nota fiscal de serviço para prestadores</small>
                 </div>
             </div>
         </div>
@@ -70,7 +70,7 @@
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-start">
                     <div>
-                        <p class="text-muted small mb-1">Emitidas no Mes</p>
+                        <p class="text-muted small mb-1">Emitidas no Mês</p>
                         <h3 class="fw-bold mb-0">{{ $totalEmitidas }}</h3>
                     </div>
                     <div class="rounded-3 bg-primary bg-opacity-10 p-2">
@@ -85,7 +85,7 @@
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-start">
                     <div>
-                        <p class="text-muted small mb-1">Autorizadas no Mes</p>
+                        <p class="text-muted small mb-1">Autorizadas no Mês</p>
                         <h3 class="fw-bold mb-0 text-success">{{ $totalAutorizadas }}</h3>
                     </div>
                     <div class="rounded-3 bg-success bg-opacity-10 p-2">
@@ -100,7 +100,7 @@
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-start">
                     <div>
-                        <p class="text-muted small mb-1">Canceladas no Mes</p>
+                        <p class="text-muted small mb-1">Canceladas no Mês</p>
                         <h3 class="fw-bold mb-0 text-danger">{{ $totalCanceladas }}</h3>
                     </div>
                     <div class="rounded-3 bg-danger bg-opacity-10 p-2">
@@ -117,15 +117,15 @@
     <div class="card-body py-3">
         <form method="GET" class="row g-2 align-items-end">
             <div class="col-md-3">
-                <label class="form-label small fw-semibold">Buscar</label>
+                <label for="campo-busca" class="form-label small fw-semibold">Buscar</label>
                 <div class="input-group input-group-sm">
                     <span class="input-group-text"><i class="bi bi-search"></i></span>
-                    <input type="text" name="busca" class="form-control" placeholder="Numero, chave, cliente..." value="{{ request('busca') }}">
+                    <input id="campo-busca" type="text" name="busca" class="form-control" placeholder="Número, chave, cliente..." value="{{ request('busca') }}">
                 </div>
             </div>
             <div class="col-md-2">
-                <label class="form-label small fw-semibold">Tipo</label>
-                <select name="tipo" class="form-select form-select-sm">
+                <label for="campo-tipo" class="form-label small fw-semibold">Tipo</label>
+                <select id="campo-tipo" name="tipo" class="form-select form-select-sm">
                     <option value="">Todos</option>
                     @foreach(\App\Enums\TipoNotaFiscal::cases() as $tipo)
                         <option value="{{ $tipo->value }}" {{ request('tipo') === $tipo->value ? 'selected' : '' }}>
@@ -135,8 +135,8 @@
                 </select>
             </div>
             <div class="col-md-2">
-                <label class="form-label small fw-semibold">Status</label>
-                <select name="status" class="form-select form-select-sm">
+                <label for="campo-status" class="form-label small fw-semibold">Status</label>
+                <select id="campo-status" name="status" class="form-select form-select-sm">
                     <option value="">Todos</option>
                     @foreach(\App\Enums\StatusNotaFiscal::cases() as $status)
                         <option value="{{ $status->value }}" {{ request('status') === $status->value ? 'selected' : '' }}>
@@ -146,12 +146,12 @@
                 </select>
             </div>
             <div class="col-md-2">
-                <label class="form-label small fw-semibold">De</label>
-                <input type="date" name="data_inicio" class="form-control form-control-sm" value="{{ request('data_inicio') }}">
+                <label for="campo-data_inicio" class="form-label small fw-semibold">De</label>
+                <input id="campo-data_inicio" type="date" name="data_inicio" class="form-control form-control-sm" value="{{ request('data_inicio') }}">
             </div>
             <div class="col-md-2">
-                <label class="form-label small fw-semibold">Ate</label>
-                <input type="date" name="data_fim" class="form-control form-control-sm" value="{{ request('data_fim') }}">
+                <label for="campo-data_fim" class="form-label small fw-semibold">Até</label>
+                <input id="campo-data_fim" type="date" name="data_fim" class="form-control form-control-sm" value="{{ request('data_fim') }}">
             </div>
             <div class="col-md-1 d-flex gap-1">
                 <button type="submit" class="btn btn-primary btn-sm flex-grow-1" title="Filtrar">
@@ -171,14 +171,14 @@
         <table class="table table-hover align-middle mb-0">
             <thead class="table-light">
                 <tr>
-                    <th>Numero</th>
+                    <th>Número</th>
                     <th class="text-center">Tipo</th>
                     <th>Cliente</th>
                     <th>Chave de Acesso</th>
                     <th class="text-end">Valor (R$)</th>
                     <th class="text-center">Status</th>
-                    <th>Emissao</th>
-                    <th class="text-center" style="width: 140px;">Acoes</th>
+                    <th>Emissão</th>
+                    <th class="text-center" style="width: 140px;">Ações</th>
                 </tr>
             </thead>
             <tbody>
@@ -187,7 +187,7 @@
                         <td>
                             <strong>#{{ $nf->numero ?? '-' }}</strong>
                             @if($nf->serie)
-                                <small class="text-muted d-block">Serie {{ $nf->serie }}</small>
+                                <small class="text-muted d-block">Série {{ $nf->serie }}</small>
                             @endif
                         </td>
                         <td class="text-center">

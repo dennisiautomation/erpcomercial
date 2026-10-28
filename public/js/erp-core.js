@@ -566,6 +566,8 @@ const ERP = {
         if (!container) {
             container = document.createElement('div');
             container.id = 'erp-toasts';
+            container.setAttribute('role', 'status');
+            container.setAttribute('aria-live', 'polite');
             container.style.cssText = 'position:fixed;top:1rem;right:1rem;z-index:9999;display:flex;flex-direction:column;gap:0.5rem;max-width:420px;';
             document.body.appendChild(container);
         }
@@ -575,6 +577,7 @@ const ERP = {
         const duration = opts.duration !== undefined ? opts.duration : (type === 'danger' ? 8000 : 4000);
 
         const toast = document.createElement('div');
+        if (type === 'danger') toast.setAttribute('role', 'alert');
         toast.style.cssText = `background:#fff;border-left:4px solid ${colors[type]||colors.info};border-radius:0.5rem;padding:0.75rem 0.875rem;box-shadow:0 4px 12px rgba(0,0,0,0.15);display:flex;align-items:flex-start;gap:0.5rem;min-width:280px;animation:slideIn 0.3s ease;font-size:0.875rem;`;
 
         const iconEl = document.createElement('i');
@@ -618,6 +621,22 @@ const ERP = {
 
     // ─── HELPERS ─────────────────────────────────────────────
     formatMoney(v) { return 'R$ ' + parseFloat(v).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2}); },
+
+    // ─── TECLADO EM ELEMENTOS CLICÁVEIS ─────────────────────
+    // div/span/tr com onclick (ou as opções de wizard) entram na ordem de Tab
+    // e respondem a Enter/Espaço como um botão.
+    initA11y() {
+        const sel = 'div[onclick], span[onclick], li[onclick], i[onclick], tr[onclick], td[onclick], '
+                  + '.wizard-option, .perfil-option, .fiscal-toggle, .step-circle';
+        document.querySelectorAll(sel).forEach(el => {
+            if (el.closest('a, button, input, select, textarea, label')) return;
+            if (!el.hasAttribute('tabindex')) el.setAttribute('tabindex', '0');
+            if (!el.hasAttribute('role') && !/^(tr|td)$/i.test(el.tagName)) el.setAttribute('role', 'button');
+            el.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); el.click(); }
+            });
+        });
+    },
 
     // ─── KEYBOARD SHORTCUTS ─────────────────────────────────
     initKeyboard() {
@@ -787,6 +806,7 @@ const ERP = {
         this.initKeyboard();
         this.initConfirmDelete();
         this.initSubmitLoading();
+        this.initA11y();
     }
 };
 

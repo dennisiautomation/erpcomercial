@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Detalhes do Usuario')
+@section('title', 'Detalhes do Usuário')
 
 @section('content')
 <div class="d-flex justify-content-between align-items-center mb-4">
@@ -27,7 +27,7 @@
     <div class="col-md-6">
         <div class="card shadow-sm h-100">
             <div class="card-header bg-white">
-                <h6 class="mb-0"><i class="bi bi-person me-2"></i>Dados do Usuario</h6>
+                <h6 class="mb-0"><i class="bi bi-person me-2"></i>Dados do Usuário</h6>
             </div>
             <div class="card-body">
                 <dl class="row mb-0">
@@ -57,7 +57,7 @@
                         @if($usuario->is_admin)
                             <span class="badge bg-danger">Sim</span>
                         @else
-                            <span class="badge bg-secondary">Nao</span>
+                            <span class="badge bg-secondary">Não</span>
                         @endif
                     </dd>
 
@@ -70,7 +70,7 @@
                         @endif
                     </dd>
 
-                    <dt class="col-sm-5 text-muted">Comissao</dt>
+                    <dt class="col-sm-5 text-muted">Comissão</dt>
                     <dd class="col-sm-7">
                         {{ $usuario->comissao_percentual ? number_format($usuario->comissao_percentual, 2, ',', '.') . '%' : '-' }}
                     </dd>
@@ -94,7 +94,7 @@
             <div class="card-body">
                 @if($usuario->empresa)
                     <dl class="row mb-0">
-                        <dt class="col-sm-5 text-muted">Razao Social</dt>
+                        <dt class="col-sm-5 text-muted">Razão Social</dt>
                         <dd class="col-sm-7 fw-semibold">{{ $usuario->empresa->razao_social }}</dd>
 
                         <dt class="col-sm-5 text-muted">Nome Fantasia</dt>

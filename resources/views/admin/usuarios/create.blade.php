@@ -1,14 +1,13 @@
 @extends('layouts.app')
 
-@section('title', 'Novo Usuario')
+@section('title', 'Novo Usuário')
 
 @section('content')
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h4 class="mb-0"><i class="bi bi-person-plus me-2"></i>Novo Usuario</h4>
+<x-erp.page-header title="Novo Usuário" icon="person-plus">
     <a href="{{ route('admin.usuarios.index') }}" class="btn btn-outline-secondary">
-        <i class="bi bi-arrow-left me-1"></i> Voltar
-    </a>
-</div>
+            <i class="bi bi-arrow-left me-1"></i> Voltar
+        </a>
+</x-erp.page-header>
 
 <form action="{{ route('admin.usuarios.store') }}" method="POST">
     @csrf
@@ -120,7 +119,7 @@
                     @enderror
                 </div>
                 <div class="col-md-4">
-                    <label for="comissao_percentual" class="form-label">Comissao (%)</label>
+                    <label for="comissao_percentual" class="form-label">Comissão (%)</label>
                     <input type="number" class="form-control @error('comissao_percentual') is-invalid @enderror"
                            id="comissao_percentual" name="comissao_percentual"
                            value="{{ old('comissao_percentual') }}" min="0" max="100" step="0.01">

@@ -1,9 +1,9 @@
 @extends('layouts.app')
 
-@section('title', 'Historico de Caixas')
+@section('title', 'Histórico de Caixas')
 
 @section('content')
-<x-erp.page-header title="Historico de Caixas" subtitle="Aberturas, fechamentos e conferencias" icon="cash-stack">
+<x-erp.page-header title="Histórico de Caixas" subtitle="Aberturas, fechamentos e conferencias" icon="cash-stack">
     <a href="{{ route('app.caixa.abrir') }}" class="btn btn-erp-primary">
         <i class="bi bi-unlock me-1"></i> Abrir Caixa
     </a>
@@ -12,20 +12,20 @@
 {{-- Filters --}}
 <x-erp.filter-bar :action="route('app.caixa.index')">
     <div class="col-md-2">
-        <label class="form-label fw-semibold small text-muted">Status</label>
-        <select name="status" class="form-select">
+        <label for="campo-status" class="form-label fw-semibold small text-muted">Status</label>
+        <select id="campo-status" name="status" class="form-select">
             <option value="">Todos</option>
             <option value="aberto" {{ request('status') == 'aberto' ? 'selected' : '' }}>Aberto</option>
             <option value="fechado" {{ request('status') == 'fechado' ? 'selected' : '' }}>Fechado</option>
         </select>
     </div>
     <div class="col-md-2">
-        <label class="form-label fw-semibold small text-muted">De</label>
-        <input type="date" name="data_inicio" class="form-control" value="{{ request('data_inicio') }}">
+        <label for="campo-data_inicio" class="form-label fw-semibold small text-muted">De</label>
+        <input id="campo-data_inicio" type="date" name="data_inicio" class="form-control" value="{{ request('data_inicio') }}">
     </div>
     <div class="col-md-2">
-        <label class="form-label fw-semibold small text-muted">Ate</label>
-        <input type="date" name="data_fim" class="form-control" value="{{ request('data_fim') }}">
+        <label for="campo-data_fim" class="form-label fw-semibold small text-muted">Até</label>
+        <input id="campo-data_fim" type="date" name="data_fim" class="form-control" value="{{ request('data_fim') }}">
     </div>
     <div class="col-auto">
         <a href="{{ route('app.caixa.index') }}" class="btn btn-erp-outline">
@@ -44,9 +44,9 @@
             <th class="text-end">Valor Abertura</th>
             <th class="text-end">Esperado (dinheiro)</th>
             <th class="text-end">Contado</th>
-            <th class="text-end">Diferenca</th>
+            <th class="text-end">Diferença</th>
             <th class="text-center">Status</th>
-            <th class="text-center">Acoes</th>
+            <th class="text-center">Ações</th>
         </tr>
     </thead>
     <tbody>
