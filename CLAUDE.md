@@ -7,18 +7,37 @@ Relatório sem os 6 passos **não sobe**. Os testes são do Claude, não do Denn
 Quem abrir sessão ou subagente para mexer aqui **copia esta rotina no briefing** (sessão nova não herda memória). Regra geral do servidor:
 `/home/ubuntu/.claude/CLAUDE.md`.
 
-1. **Impacto antes de codar**, por escrito no plano curto: arquivos, telas (nova e antiga, se há duas), perfis/papéis, rotas de API,
-   crons/filas, webhooks e integrações (WhatsApp, pagamento, fiscal, IA), **clientes/empresas atingidos** e os módulos que dependem do
-   que muda. Mudança de comportamento visível = plano curto (sim/não + 2-3 linhas + "posso fazer?") e OK do Dennis antes.
-2. **Roteiro reexecutável `validar-<tema>-<data>` antes|depois** (✅/❌ por item) em ambiente descartável: cópia/dump de homolog,
-   integrações externas falsas ou desligadas (nunca mensagem a cliente, nunca PIX/nota/órgão externo real), dados fictícios, limpeza
-   conferida no fim. **ANTES** na versão que está no ar tem de reproduzir o defeito (❌).
-3. **DEPOIS** na versão nova: todos ✅, **duas vezes**; tela envolvida = smoke das telas afetadas × perfis (Playwright/puppeteer, print por tela).
-4. **Regressão na mesma versão:** `php artisan test` completo (não só o teste tocado); `php -l` em TODO o PHP tocado + blades compiladas (`view:cache` sozinho não linta); os roteiros das entregas anteriores da mesma área (ver `docs.md`); smoke das telas afetadas × perfis com puppeteer (tela nova E antiga quando as duas existem; print `.png`).
-5. **Deploy é do Dennis.** Antes do build/deploy: guardar a versão do ar (tag `pre-<tema>-<data>` da imagem ou backup de arquivos) e a
-   receita de rollback no `docs.md`. Build SEMPRE com `-f docker-compose.prod.yml`; `docker tag` da imagem do ar como `pre-<feature>-<data>` antes do build.
-6. **DEPOIS DO DEPLOY, sem esperar pedido:** repetir o roteiro `depois` contra a versão que ficou no ar, conferir login/healthcheck,
-   log sem erro novo e o sinal funcional da entrega; registrar no `docs.md` (hora em BRT e UTC, versão, rollback, resultado).
+**Ferramental (28/10/2026, `tools/` — ver `tools/README.md`; saída em `/home/ubuntu/erp-validacao/<branch>/`):**
+```
+tools/impacto.sh [branch]                                 # passo 1 — impacto.md (arquivos, rotas, telas, perfis, crons, integrações, empresas)
+tools/validar/validar.sh erp-com-app:latest antes         # passo 2 — baseline na imagem NO AR (phpunit completo + lint + roteiros + smoke × 7 perfis)
+tools/build.sh [rotulo]                                   #          tag pre-<rotulo>-<data> da imagem do ar + build erp-com-app:<rotulo>-<data>
+tools/validar/validar.sh erp-com-app:<rotulo>-<data> depois   # passos 3-4 — tudo de novo na imagem nova → TOTAL ❌ NOVOS = 0
+tools/deploy.sh <branch> --conferir                       # o Claude confere o portão (não muda nada)
+sudo tools/deploy.sh <branch>                             # passo 5-6 — DENNIS: rollback tag, :latest, compose up, login/log, pós-deploy, deploys.log
+```
+Hook `tools/hooks/bloquear-deploy-direto.sh` (instalar com `tools/hooks/instalar.sh`) barra `docker compose … up`, `docker build`
+e `docker tag … erp-com-app:<tag>` fora desses scripts. Roteiro novo da feature: `scripts/validar-<tema>-<data>.sh` aceitando
+`BASE/ANTES/DB_CT/APP_CT/OUT`, registrado em `tools/validar/roteiros.tsv`.
+
+1. **Impacto antes de codar** (`tools/impacto.sh`), por escrito no plano curto: arquivos, telas (nova e antiga, se há duas), perfis/papéis,
+   rotas de API, crons/filas, webhooks e integrações (WhatsApp, pagamento, fiscal, IA), **clientes/empresas atingidos** e os módulos que
+   dependem do que muda. Mudança de comportamento visível = plano curto (sim/não + 2-3 linhas + "posso fazer?") e OK do Dennis antes.
+2. **Roteiro reexecutável `scripts/validar-<tema>-<data>.sh` antes|depois** (✅/❌ por item) no ambiente descartável do
+   `validar.sh` (mysql+pgvector+redis próprios, seed demo ou `DUMP=`, Focus/InfinitePay/Melhor Envio/IA mortos, sem queue/schedule,
+   banco destruído no fim — nunca mensagem a cliente, nunca PIX/nota/órgão externo real). **ANTES** (`validar.sh <imagem-no-ar> antes`)
+   tem de reproduzir o defeito (❌).
+3. **DEPOIS** (`tools/build.sh` + `validar.sh <imagem-nova> depois`): todos ✅, **duas vezes**; tela envolvida = smoke das telas
+   afetadas × perfis (puppeteer, print por tela — o `validar.sh` já abre TODAS as telas GET × 7 perfis).
+4. **Regressão na mesma imagem** (dentro do `validar.sh depois`): `php artisan test` completo; `php -l` em todo o PHP + blades compiladas
+   (`view:cache` sozinho não linta); roteiros das entregas anteriores (`tools/validar/roteiros.tsv`); smoke de todas as telas × perfis
+   comparado ao `antes` (tela nova E antiga quando as duas existem; print `.png`). Relatório `depois/relatorio.md` com `TOTAL ❌ NOVOS: 0`.
+5. **Deploy é do Dennis** (`sudo tools/deploy.sh <branch>`; o Claude roda só `--conferir`). O script guarda a imagem do ar como
+   `pre-<branch>-<data>`, move `:latest` para a imagem validada e sobe com `-f docker-compose.prod.yml up -d --no-build`; a receita de
+   rollback vai no `docs.md`. Build só por `tools/build.sh` (tag `pre-` antes, mesmo Dockerfile do compose).
+6. **DEPOIS DO DEPLOY, sem esperar pedido** (o `deploy.sh` já faz): imagem no ar, `/login`, log do 1º minuto, `validar.sh
+   erp-com-app:latest pos-deploy` (roteiros + smoke × depois) e linha em `erp-validacao/deploys.log`; conferir o sinal funcional da
+   entrega e registrar no `docs.md` (hora em BRT e UTC, imagem, rollback, resultado).
 
 Regras fixas: branch sempre, nunca `git add -A`, `main` só por fast-forward, merge/push quando o Dennis mandar; `docs.md` canônico no
 MESMO commit (pedido, causa, o que mudou, impacto, antes → depois, rollback); banco de produção só leitura (SELECT) — gravar só com
@@ -34,7 +53,7 @@ Laravel 12 (PHP 8.4) | Blade + Bootstrap 5.3 (CDN) + Bootstrap Icons | MySQL 8.0
 ## Estado Atual
 - **274+ rotas** registradas (após Fase 2 fiscal: +saude-focus, +fiscal.dashboard, +resincronizar)
 - **142+ views** Blade (saude-focus, fiscal/dashboard)
-- **162 testes** ainda na suite (não rodados após Fase 2 — phpunit fora do container prod)
+- **232 testes** na suíte — `tools/validar/validar.sh … depois` roda todos: 230 ✅ / 2 ❌ pré-existentes em 28/10/2026 (ver docs.md 9ag)
 - **27 commits** + integração fiscal completa (Maio/2026)
 - Integração Focus NFe: ~99% (CT-e/MDF-e ainda fora de escopo)
 
