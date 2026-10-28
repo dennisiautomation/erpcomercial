@@ -270,6 +270,10 @@ Route::middleware(['auth', 'suspensao', 'unidade', \App\Http\Middleware\Restring
     Route::match(['put', 'patch'], 'produtos/{produto}', [App\ProdutoController::class, 'update'])
         ->name('produtos.update')
         ->middleware('permission:produtos,foto');
+    // Preço direto na lista de produtos (AJAX) — só quem tem 'editar' (27/10/2026)
+    Route::patch('produtos/{produto}/preco', [App\ProdutoController::class, 'atualizarPreco'])
+        ->name('produtos.preco')
+        ->middleware('permission:produtos,editar');
     Route::resource('produtos', App\ProdutoController::class)->except(['update'])->middleware('permission:produtos');
     Route::resource('fornecedores', App\FornecedorController::class)->middleware('permission:produtos');
     Route::resource('categorias', App\CategoriaController::class)->middleware('permission:produtos');
