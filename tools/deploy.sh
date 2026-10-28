@@ -36,7 +36,14 @@ DEPOIS=$OUTBASE/$ROTULO/depois/relatorio.md; ANTES=$OUTBASE/$ROTULO/antes/relato
 IMG=$(sed -nE 's/^- ImagemID: `([0-9a-f]+)`.*/\1/p' "$DEPOIS"); [ -n "$IMG" ] || die "relatório depois sem ImagemID — rode o depois de novo"
 VALIDADO=$(sed -nE 's/^- Commit: `([0-9a-f]+)`.*/\1/p' "$DEPOIS")
 ETAPAS=$(sed -nE 's/^- Gerado: .* etapas: (.*)$/\1/p' "$DEPOIS")
-for e in phpunit lint roteiros smoke; do case "$ETAPAS" in *$e*) ;; *) die "o depois rodou sem a etapa '$e' (etapas: $ETAPAS) — rode tools/validar/validar.sh <imagem> depois sem --so";; esac; done
+# caminho rápido (impacto.sh "Etapas recomendadas"): se entre o commit da baseline antes/ e o validado NÃO mudou código de app
+# (app routes config database resources public composer*), bastam lint + roteiros; senão as 4 etapas.
+ANTES_COMMIT=$(sed -nE 's/^- Commit: `([0-9a-f]+)`.*/\1/p' "$ANTES"); EXIGE="phpunit lint roteiros smoke"
+if [ -n "$ANTES_COMMIT" ] && [ -n "$VALIDADO" ] && git -C "$REPO" cat-file -e "$ANTES_COMMIT^{commit}" 2>/dev/null \
+   && [ -z "$(git -C "$REPO" diff --name-only "$ANTES_COMMIT" "$VALIDADO" -- app routes config database resources public composer.json composer.lock)" ]; then
+  EXIGE="lint roteiros"; cor 33 "caminho rápido: nenhum código de app mudou entre ${ANTES_COMMIT:0:7} (baseline) e ${VALIDADO:0:7} — exige só lint + roteiros (o canário testa o boot)"
+fi
+for e in $EXIGE; do case "$ETAPAS" in *$e*) ;; *) die "o depois rodou sem a etapa '$e' (etapas: $ETAPAS) — rode tools/validar/validar.sh <imagem> depois (etapas exigidas: $EXIGE)";; esac; done
 IDADE=$(( ($(date +%s) - $(stat -c %Y "$DEPOIS")) / 3600 )); [ "$IDADE" -le 48 ] || cor 33 "⚠ o relatório depois tem ${IDADE}h — considere rodar de novo"
 
 # 2) imagem
@@ -56,7 +63,7 @@ fi
 TOTAL=$(sed -nE 's/^## TOTAL ❌ NOVOS: \*\*([0-9]+)\*\*.*/\1/p' "$DEPOIS"); [ -n "$TOTAL" ] || die "não li o TOTAL ❌ NOVOS de $DEPOIS"
 [ "$TOTAL" = 0 ] || die "depois com $TOTAL ❌ novo(s) — veja $DEPOIS"
 ACESSO=$(sed -nE 's/^- Smoke × antes: \*\*[0-9]+ ❌ erros novos · ([0-9]+) mudanças de acesso\*\*.*/\1/p' "$DEPOIS")
-[ -n "$ACESSO" ] || die "o depois não comparou o smoke com o antes — rode antes e depois com a etapa smoke"
+case "$EXIGE" in *smoke*) [ -n "$ACESSO" ] || die "o depois não comparou o smoke com o antes — rode antes e depois com a etapa smoke";; *) ACESSO=${ACESSO:-0};; esac
 if [ "$ACESSO" != 0 ] && [ "$ACEITA" != 1 ]; then grep '^  - ACESSO' "$DEPOIS" | head -20; die "smoke: $ACESSO mudança(s) de acesso de perfil (acima). Se foi o pedido, documente no docs.md e rode com --aceitar-acesso"; fi
 grep -q 'Produção intocada.*⚠' "$DEPOIS" && cor 33 "⚠ contagem da produção mudou durante a rodada (uso normal?) — ver producao-diff.txt"
 PHP=$(sed -nE 's/^- PHPUnit[^*]*\*\*([0-9]+ ✅ \/ [0-9]+ ❌)\*\*.*/\1/p' "$DEPOIS"); SMK=$(sed -nE 's/^- Smoke \(puppeteer[^*]*\*\*([0-9]+ ✅ \/ [0-9]+ ❌)\*\*.*/\1/p' "$DEPOIS")

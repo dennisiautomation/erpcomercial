@@ -122,7 +122,8 @@ subir)
   grep -q 'SEED-SMOKE ok' "$OUT/seed.log" || cor 33 "   ⚠ seed-smoke não confirmou (financeiro/consulta podem faltar no smoke) — ver $OUT/seed.log"
   # --- app "antes" (imagem no ar, mesmo banco) para roteiros auto-antes ---
   if [ -n "$IMG_ANTES" ]; then
-    app_env "$NOME" "$PORTA_ANTES" > "$OUT/antes.env"; chmod 600 "$OUT/antes.env"
+    # a imagem no ar pode ter o entrypoint antigo (sem aspas no .env): o container antes sobe sem espaço no APP_NAME
+    app_env "$NOME" "$PORTA_ANTES" | sed 's/^APP_NAME=.*/APP_NAME=ERPValidacaoAntes/' > "$OUT/antes.env"; chmod 600 "$OUT/antes.env"
     subir_app "$IMG_ANTES" "$NOME-antes" "$PORTA_ANTES" "$OUT/antes.env"
     esperar_http "http://127.0.0.1:$PORTA_ANTES/login" 60 >/dev/null || cor 33 "   ⚠ app antes (imagem no ar) não respondeu /login 200"
   fi
