@@ -7221,3 +7221,9 @@ baseline = pós-deploy da imagem no ar):** lint 0 ❌; roteiros `validar-integra
 `env_file` de produção em 127.0.0.1:8098 (`/login` 200), troca, `/login` em 90 s senão rollback sozinho, rodada pós-deploy.
 Depois do deploy, o `.env` passa a ser gerado pelo entrypoint com aspas a cada boot — nada mais copiado à mão.
 
+**1ª tentativa de deploy (23:52 BRT) BLOQUEADA pelo próprio portão, produção intocada:** `canário não subiu (docker run falhou)` —
+`Bind for 127.0.0.1:8098 failed: port is already allocated` (a 8098 é do `jl-man-app`). Corrigido no `deploy.sh`: o canário pega a
+primeira porta livre a partir de 8098 (`PORTA_CANARIO` força) e sobe com o supervisord do validador (php-fpm + nginx), para nunca
+rodar `queue:work`/`schedule:work` contra a produção enquanto é só um teste de boot. A tag `pre-infra-entrypoint-20261028-2352`
+(= 5771b772eba2) ficou criada e serve de rollback. Repetir: `sudo tools/deploy.sh integracao-28out --rotulo infra-entrypoint`.
+
