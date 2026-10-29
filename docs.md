@@ -6026,6 +6026,50 @@ nada muda no app; é ferramenta de validação + `CLAUDE.md`/`docs.md`. Manual c
 
 ---
 
+## App de vendas na maquininha Stone — API `api/integracao/pos/v1` (28/10/2026, branch `feature/pos-stone-app`)
+
+**Pedido (Dennis, 28/10):** versão do ERP para app na maquininha Stone (igual ao JL Passagens), só **venda** e **emissão de pedido**,
+com cupom. App Android em repositório próprio (`app-pdv-stone`, pacote `br.com.ia365.vendas.pos`, Deeplink Stone).
+
+**Causa / lacuna:** o ERP não tinha API por usuário (só `integracao_tokens`, por empresa, sem perfil nem vendedor), nem Stone/TEF.
+O PDV, o caixa e o faturamento dependem de `session('empresa_id'|'unidade_id'|'caixa_id')` e respondem para navegador.
+
+**O que mudou (aditivo — nenhuma tela web muda):**
+- Migration `2026_10_28_200000_create_pos_tables`: `pos_tokens` (sha256, usuário+loja+serial do POS, 16 h), `pos_operacoes`
+  (chave de idempotência do app), `pos_eventos` (log de atividade — contrato Stone exige 180 dias).
+- `PosApiToken` (middleware por classe): token do operador → `Auth::setUser` + **sessão em memória** (driver array) com
+  empresa/loja/caixa. Assim `PdvController::registrarVenda`, `CaixaController`, `VendaController::destroy` e
+  `PedidoController::updateStatus/faturar` rodam **sem alteração** (regra num lugar só). Rotas sob `api/integracao/*`
+  (isenção de CSRF existente) com `withoutMiddleware(StartSession…)`; **nada em `bootstrap/`** (armadilha 46).
+- Controllers `app/Http/Controllers/Api/Pos/*`, services `app/Services/Pos/*` (permissões = `CheckPermission::canUser`,
+  cupom 58 mm em linhas JSON, tradução Stone → NFC-e: bandeira tBand, CNPJ credenciadora 16.501.555/0001-57, autorização).
+- `CaixaController::resumoCaixa` passou de `private` para `public` (reuso; sem mudança de comportamento).
+- Limitadores nomeados `pos` (300/min por aparelho) e `pos-login` (10/min por e-mail+IP, 60/min por IP) no
+  `AppServiceProvider` — `throttle:N,1` sem nome compartilha a chave por IP entre rotas e travaria o login de uma loja
+  com várias maquininhas no mesmo IP.
+
+**Fluxo de dinheiro:** `POST vendas/cotar` roda o `registrarVenda` numa transação **desfeita** (documento=recibo, sem NFC-e)
+→ total exato (tabela da forma + acréscimo por parte + juros) → app cobra na Stone → `POST vendas` com ATK/autorização/bandeira
+e `chave` (uuid). Antes de gravar, nova simulação confere **valor da Stone = total**; diferente → 409 `estornar=true`.
+Mesma chave reenviada → devolve a venda já gravada (`repetida=true`). ERP recusou (4xx) → app estorna na Stone.
+Cancelamento: `cancelamento/validar` (travas do `destroy` + só gerente cancela venda de outro; vendedor/caixa só a própria
+com o caixa dela aberto) → app estorna por ATK → `cancelar` (cancela NFC-e autorizada na Focus, depois `destroy`).
+
+**Impacto:** rotas novas `api/integracao/pos/v1/*` (27); tabelas novas; perfis via matriz existente (caixa não emite pedido).
+Nenhum cron, fila, webhook ou tela web alterado. Focus é chamada só quando a loja emite NFC-e (mesma regra do PDV).
+
+**Validação (local, 28/10 — ambiente descartável do `tools/validar/ambiente.sh`, imagem da branch):**
+- PHPUnit completo: antes (main) 243 ✅ / 2 ❌; depois 262 ✅ / 2 ❌ — os 2 ❌ são os pré-existentes (9ag); 19 testes novos em
+  `tests/Feature/Api/PosApiTest.php`.
+- Roteiro `scripts/validar-pos-stone-28out.sh` (registrado em `roteiros.tsv`): 25 ✅ / 0 ❌ duas vezes na imagem nova;
+  na imagem da main as rotas `pos/v1` não existem (0 rotas) → ❌.
+- App no emulador contra este ambiente: venda crédito 4x com juros, retomada após app morto no meio do pagamento,
+  cancelamento com estorno (estoque/caixa/contas a receber revertidos), pedido emitido/confirmado e recebido no PIX.
+- Não rodou aqui: smoke de telas × 7 perfis (puppeteer do servidor) — rodar `tools/validar/validar.sh … depois` no sp1.
+
+**Deploy:** do Dennis (`sudo tools/deploy.sh feature/pos-stone-app`), depois do merge. Precisa de `php artisan migrate`
+(3 tabelas novas). **Rollback:** voltar a imagem `pre-…`; as tabelas `pos_*` podem ficar (nada as lê fora da API nova).
+
 ## Armadilhas conhecidas
 
 1. **EmpresaScope recursão**: `auth()->user()` dentro do scope chama User model que tem o scope → loop infinito. Scopes têm flag `static $applying`. Não remover.

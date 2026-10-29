@@ -10,7 +10,10 @@ use App\Observers\AgenteIaConfigObserver;
 use App\Observers\EmpresaGatewayObserver;
 use App\Observers\ProdutoObserver;
 use App\Observers\VendaItemObserver;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
 use Illuminate\Pagination\Paginator;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Spatie\Activitylog\Models\Activity;
 
@@ -27,6 +30,16 @@ class AppServiceProvider extends ServiceProvider
         // Paginação com markup Bootstrap 5 (a view padrão do Laravel é
         // Tailwind — sem Tailwind na página, as setas SVG saem gigantes)
         Paginator::useBootstrapFive();
+
+        // App POS Stone (28/10/2026): limitadores NOMEADOS. `throttle:20,1` sem nome usa a
+        // mesma chave (IP) para todas as rotas — a loja com várias maquininhas atrás do
+        // mesmo IP travaria o login depois de 20 requisições quaisquer no minuto.
+        RateLimiter::for('pos', fn (Request $r) => Limit::perMinute(300)
+            ->by('pos:' . ($r->bearerToken() ? hash('sha256', $r->bearerToken()) : $r->ip())));
+        RateLimiter::for('pos-login', fn (Request $r) => [
+            Limit::perMinute(10)->by('pos-login:' . strtolower((string) $r->input('email')) . '|' . $r->ip()),
+            Limit::perMinute(60)->by('pos-login-ip:' . $r->ip()),
+        ]);
 
         // Snapshot fiscal automático: copia NCM/CFOP/CST/alíquotas do produto
         // para o venda_item na criação. Imuniza histórico contra edições do produto.

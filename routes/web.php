@@ -786,6 +786,65 @@ Route::prefix('api/integracao/v1')->name('api.integracao.')
         Route::post('/pedidos/{id}/entregue', [\App\Http\Controllers\Api\IntegracaoAgenteController::class, 'marcarEntregue'])->whereNumber('id')->name('pedidos.entregue');
     });
 
+/* ------------------------------------------------------------------ */
+/*  App de vendas na maquininha Stone — POS v1 (28/10/2026)           */
+/* ------------------------------------------------------------------ */
+
+// Mora sob api/integracao/* para herdar a isenção de CSRF sem tocar no
+// bootstrap/ (armadilha 46); middleware POR CLASSE pelo mesmo motivo. Sem a
+// sessão de navegador: o PosApiToken cria uma sessão em memória por request
+// com empresa/loja/caixa do token do operador. Ver docs.md "App POS Stone".
+Route::prefix('api/integracao/pos/v1')->name('api.pos.')
+    ->withoutMiddleware([
+        \Illuminate\Session\Middleware\StartSession::class,
+        \Illuminate\View\Middleware\ShareErrorsFromSession::class,
+        \Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class,
+    ])
+    ->middleware([\App\Http\Middleware\ForceJsonForIntegracaoApi::class])
+    ->group(function () {
+        // Limitadores nomeados em AppServiceProvider (por aparelho / por e-mail+IP).
+        Route::post('/auth/login', [\App\Http\Controllers\Api\Pos\PosAuthController::class, 'login'])
+            ->middleware('throttle:pos-login')->name('login');
+
+        // Sem loja ainda escolhida (operador com várias lojas)
+        Route::middleware([\App\Http\Middleware\PosApiToken::class . ':nao', 'throttle:pos'])->group(function () {
+            Route::post('/auth/loja', [\App\Http\Controllers\Api\Pos\PosAuthController::class, 'escolherLoja'])->name('loja');
+            Route::post('/auth/logout', [\App\Http\Controllers\Api\Pos\PosAuthController::class, 'logout'])->name('logout');
+        });
+
+        Route::middleware([\App\Http\Middleware\PosApiToken::class, 'throttle:pos'])->group(function () {
+            Route::get('/me', [\App\Http\Controllers\Api\Pos\PosAuthController::class, 'me'])->name('me');
+
+            Route::get('/produtos', [\App\Http\Controllers\Api\Pos\PosCatalogoController::class, 'produtos'])->name('produtos');
+            Route::get('/produtos/{id}', [\App\Http\Controllers\Api\Pos\PosCatalogoController::class, 'produto'])->whereNumber('id')->name('produtos.show');
+            Route::get('/categorias', [\App\Http\Controllers\Api\Pos\PosCatalogoController::class, 'categorias'])->name('categorias');
+            Route::get('/clientes', [\App\Http\Controllers\Api\Pos\PosCatalogoController::class, 'clientes'])->name('clientes');
+            Route::post('/clientes', [\App\Http\Controllers\Api\Pos\PosCatalogoController::class, 'criarCliente'])->name('clientes.store');
+
+            Route::get('/caixa', [\App\Http\Controllers\Api\Pos\PosCaixaController::class, 'atual'])->name('caixa');
+            Route::post('/caixa/abrir', [\App\Http\Controllers\Api\Pos\PosCaixaController::class, 'abrir'])->name('caixa.abrir');
+            Route::post('/caixa/fechar', [\App\Http\Controllers\Api\Pos\PosCaixaController::class, 'fechar'])->name('caixa.fechar');
+            Route::post('/caixa/sangria', [\App\Http\Controllers\Api\Pos\PosCaixaController::class, 'sangria'])->name('caixa.sangria');
+            Route::post('/caixa/suprimento', [\App\Http\Controllers\Api\Pos\PosCaixaController::class, 'suprimento'])->name('caixa.suprimento');
+            Route::get('/caixa/{id}/comprovante', [\App\Http\Controllers\Api\Pos\PosEventoController::class, 'comprovanteCaixa'])->whereNumber('id')->name('caixa.comprovante');
+
+            Route::post('/vendas/cotar', [\App\Http\Controllers\Api\Pos\PosVendaController::class, 'cotar'])->name('vendas.cotar');
+            Route::post('/vendas', [\App\Http\Controllers\Api\Pos\PosVendaController::class, 'registrar'])->name('vendas.store');
+            Route::get('/vendas', [\App\Http\Controllers\Api\Pos\PosVendaController::class, 'listar'])->name('vendas');
+            Route::get('/vendas/{id}', [\App\Http\Controllers\Api\Pos\PosVendaController::class, 'mostrar'])->whereNumber('id')->name('vendas.show');
+            Route::post('/vendas/{id}/cancelamento/validar', [\App\Http\Controllers\Api\Pos\PosVendaController::class, 'validarCancelamento'])->whereNumber('id')->name('vendas.cancelamento.validar');
+            Route::post('/vendas/{id}/cancelar', [\App\Http\Controllers\Api\Pos\PosVendaController::class, 'cancelar'])->whereNumber('id')->name('vendas.cancelar');
+
+            Route::post('/pedidos', [\App\Http\Controllers\Api\Pos\PosPedidoController::class, 'criar'])->name('pedidos.store');
+            Route::get('/pedidos', [\App\Http\Controllers\Api\Pos\PosPedidoController::class, 'listar'])->name('pedidos');
+            Route::get('/pedidos/{id}', [\App\Http\Controllers\Api\Pos\PosPedidoController::class, 'mostrar'])->whereNumber('id')->name('pedidos.show');
+            Route::post('/pedidos/{id}/faturar', [\App\Http\Controllers\Api\Pos\PosPedidoController::class, 'faturar'])->whereNumber('id')->name('pedidos.faturar');
+            Route::post('/pedidos/{id}/cancelar', [\App\Http\Controllers\Api\Pos\PosPedidoController::class, 'cancelar'])->whereNumber('id')->name('pedidos.cancelar');
+
+            Route::post('/eventos', [\App\Http\Controllers\Api\Pos\PosEventoController::class, 'registrar'])->name('eventos');
+        });
+    });
+
 // Retorno do OAuth do Melhor Envio (05/09/2026) — GET, UMA URL para todas as empresas
 // (é a URL do app IA365 cadastrada no painel do Melhor Envio); o `state` cifrado diz a empresa.
 Route::get('/integracao/melhor-envio/callback', [\App\Http\Controllers\Integracao\MelhorEnvioCallbackController::class, 'callback'])
