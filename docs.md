@@ -6140,11 +6140,20 @@ com foto, NFC-e ligada). Dump e fotos ficam fora do repositório e são apagados
   "Sem conexão com o emissor de notas agora."; rejeição da SEFAZ fica, sem URL e curta. Texto técnico segue no log.
 - 132 produtos ativos com preço 0 na loja → o app mostra "Sem preço" e não põe no carrinho (o app não edita preço).
 **Visto e não mudado:** fotos de produto vão no tamanho original (média ~230 KB, até 2 MB; ~7 MB por página de 30) — pesado
-no chip da maquininha; miniatura no servidor fica como próxima melhoria. Venda de crédito com NFC-e ligada: venda gravada,
+no chip da maquininha. **Decisão do Dennis (29/10): não fazer miniatura** — já há clientes no ERP usando foto assim; só
+revisitar se o catálogo ficar lento no chip. Venda de crédito com NFC-e ligada: venda gravada,
 estoque baixado, nota `rejeitada` (Focus morto) e cupom não fiscal impresso.
 **Validação:** PHPUnit completo 268 ✅ / 2 ❌ pré-existentes (+2 testes de `mensagemNfce`). O roteiro `validar-pos-stone-28out.sh`
 não rodou nesta rodada: o ambiente estava com a cópia de produção, sem os usuários demo que ele usa (última rodada: 31 ✅).
 **Rollback:** o mesmo da entrega acima (sem migration nova).
+**2ª rodada (29/10, ~04h40 BRT):** a cópia foi refeita do zero (mesmo dump só leitura + fotos) para o Dennis testar no
+emulador com a Dona Douro; a imagem `erp-com-app:pos-29out` é anterior a `37df740`, então os 4 arquivos de `app/Http/Controllers/Api/Pos`
+e `app/Services/Pos` do commit foram copiados para o container (+ `USR2` no php-fpm). Login do usuário local conferido pela API
+(`auth/login` → loja Matriz da DONA DOURO direto, catálogo com foto 200). A senha do usuário local fica só fora do repositório.
+**Onde fica o ambiente:** no Mac do Dennis (Docker local, porta 8097, app aponta `10.0.2.2:8097`) — **não no eveo**; no servidor
+não há nada a derrubar. Para apagar: `tools/validar/ambiente.sh derrubar posval` no Mac + remover o dump e as fotos copiadas.
+**Status:** branch `feature/pos-stone-app` pronta para ir ao GitHub (o push do Mac em 29/10 voltou 403: credencial sem escrita); **sem merge na `main` e sem deploy** (deploy é do
+Dennis, pelo rito do topo). App Android (`app-pdv-stone`, `e5ea0b2`) segue só local: o repositório não tem remoto.
 
 ## Armadilhas conhecidas
 
