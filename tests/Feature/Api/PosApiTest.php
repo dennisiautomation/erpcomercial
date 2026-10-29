@@ -351,6 +351,38 @@ class PosApiTest extends TestCase
             'itens' => [['produto_id' => $this->produto->id, 'quantidade' => 1]]])->assertStatus(422);
     }
 
+    public function test_lista_de_pedidos_separa_pago_e_a_receber_com_totais(): void
+    {
+        [, $token] = $this->prepararVenda('gerente');
+        $pedido = fn (string $nome, int $qtd) => $this->api($token)->postJson(self::BASE . '/pedidos', [
+            'chave' => (string) \Illuminate\Support\Str::uuid(), 'identificacao' => $nome, 'confirmar' => true,
+            'itens' => [['produto_id' => $this->produto->id, 'quantidade' => $qtd]],
+        ])->assertOk()->json('pedido.id');
+        $aberto = $pedido('Bruno', 1);               // R$ 50 a receber
+        $pago = $pedido('Carla', 2);                 // R$ 100, recebido no PIX
+        $this->api($token)->postJson(self::BASE . "/pedidos/{$pago}/faturar", [
+            'chave' => (string) \Illuminate\Support\Str::uuid(),
+            'pagamento' => ['forma' => 'pix', 'stone' => ['atk' => 'PAGO1', 'valor_centavos' => 10000]],
+        ])->assertOk();
+
+        $aReceber = $this->api($token)->getJson(self::BASE . '/pedidos?pagamento=a_receber')->assertOk();
+        $this->assertSame([$aberto], array_column($aReceber->json('pedidos'), 'id'));
+        $this->assertFalse($aReceber->json('pedidos.0.pago'));
+        $this->assertSame(['qtd' => 1, 'valor' => 50], $aReceber->json('totais.a_receber'));
+        $this->assertSame(['qtd' => 1, 'valor' => 100], $aReceber->json('totais.pago'));
+
+        $pagos = $this->api($token)->getJson(self::BASE . '/pedidos?pagamento=pago')->assertOk();
+        $this->assertSame([$pago], array_column($pagos->json('pedidos'), 'id'));
+        $this->assertTrue($pagos->json('pedidos.0.pago'));
+
+        // Faturado pelo ERP com conta ainda em aberto (a prazo) continua "a receber"
+        Pedido::withoutGlobalScopes()->whereKey($aberto)->update(['status' => 'faturado']);
+        $this->assertSame([$aberto], array_column($this->api($token)->getJson(self::BASE . '/pedidos?pagamento=a_receber')->json('pedidos'), 'id'));
+        // A busca vale para os totais também
+        $this->assertSame(0, $this->api($token)->getJson(self::BASE . '/pedidos?pagamento=pago&q=Bruno')->json('totais.pago.qtd'));
+        $this->api($token)->getJson(self::BASE . '/pedidos?pagamento=outro')->assertStatus(422);
+    }
+
     public function test_perfil_caixa_nao_emite_pedido(): void
     {
         [, $token] = $this->prepararVenda('caixa');

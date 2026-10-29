@@ -156,33 +156,74 @@ class PosPedidoController extends Controller
         return $this->resposta($pedido, $request);
     }
 
-    /** GET pedidos?q=&status= — pedidos da loja (vendedor vê os próprios). */
+    /**
+     * GET pedidos?q=&pagamento=a_receber|pago|cancelado  (ou status=… separado por vírgula, legado).
+     * "Pago" = faturado/entregue SEM conta a receber em aberto (pendente/vencida) do pedido; o resto que não foi cancelado
+     * está "a receber" (inclusive faturado a prazo pelo ERP). `totais` traz quantidade e valor de cada lado, para a aba.
+     */
     public function listar(Request $request): JsonResponse
     {
-        $request->validate(['q' => ['nullable', 'string', 'max:100'], 'status' => ['nullable', 'string']]);
+        $request->validate([
+            'q' => ['nullable', 'string', 'max:100'],
+            'status' => ['nullable', 'string'],
+            'pagamento' => ['nullable', 'string', 'in:a_receber,pago,cancelado'],
+        ]);
         $user = $request->user();
 
-        $query = Pedido::withoutGlobalScope(UnidadeScope::class)
+        $base = Pedido::withoutGlobalScope(UnidadeScope::class)
             ->where('empresa_id', (int) session('empresa_id'))
-            ->where('unidade_id', (int) session('unidade_id'))
-            ->with('cliente:id,nome_razao_social')
-            ->latest('id');
+            ->where('unidade_id', (int) session('unidade_id'));
 
-        if ($request->filled('status')) {
-            $query->whereIn('status', explode(',', $request->status));
-        }
         if ($q = trim((string) $request->q)) {
-            $query->where(function ($w) use ($q) {
+            $base->where(function ($w) use ($q) {
                 $w->where('numero', ctype_digit($q) ? (int) $q : -1)
                     ->orWhereHas('cliente', fn ($c) => $c->withoutGlobalScopes()->where('nome_razao_social', 'like', "%{$q}%"))
-                    ->orWhere('observacoes_externas', 'like', PosCupomService::PREFIXO_PARA . '%' . str_replace(['%', '_'], ['\%', '\_'], $q) . '%');
+                    ->orWhere('observacoes_externas', 'like', PosCupomService::PREFIXO_PARA . '%' . str_replace(['%', '_'], ['\\%', '\\_'], $q) . '%');
             });
         }
         if (! PosPermissoes::pode($user, 'vendas', 'excluir') && ! PosPermissoes::pode($user, 'pedidos', 'editar')) {
-            $query->where('vendedor_id', $user->id);
+            $base->where('vendedor_id', $user->id);
         }
 
-        return response()->json(['pedidos' => $query->limit(100)->get()->map(fn (Pedido $p) => $this->resumo($p))]);
+        $totais = [];
+        foreach (['a_receber', 'pago'] as $lado) {
+            $t = $this->filtroPagamento(clone $base, $lado)->selectRaw('COUNT(*) as qtd, COALESCE(SUM(total), 0) as valor')->first();
+            $totais[$lado] = ['qtd' => (int) $t->qtd, 'valor' => round((float) $t->valor, 2)];
+        }
+
+        $query = (clone $base)->with('cliente:id,nome_razao_social')
+            ->addSelect(['conta_aberta' => self::contaAberta()->selectRaw('1')->limit(1)])->latest('id');
+        if ($request->filled('pagamento')) {
+            $this->filtroPagamento($query, $request->pagamento);
+        } elseif ($request->filled('status')) {
+            $query->whereIn('status', explode(',', $request->status));
+        }
+
+        return response()->json([
+            'pedidos' => $query->limit(100)->get()->map(fn (Pedido $p) => $this->resumo($p))->values(),
+            'totais' => $totais,
+        ]);
+    }
+
+    private const CONTA_ABERTA = ['pendente', 'vencida'];
+
+    private function filtroPagamento($query, string $lado)
+    {
+        $faturado = [StatusPedido::Faturado->value, StatusPedido::Entregue->value];
+
+        return match ($lado) {
+            'cancelado' => $query->where('status', StatusPedido::Cancelado->value),
+            'pago' => $query->whereIn('status', $faturado)->whereNotExists(self::contaAberta()),
+            default => $query->where(fn ($w) => $w->whereIn('status', [StatusPedido::Rascunho->value, StatusPedido::Confirmado->value])
+                ->orWhere(fn ($f) => $f->whereIn('status', $faturado)->whereExists(self::contaAberta()))),
+        };
+    }
+
+    /** Conta a receber em aberto do pedido da linha (subconsulta correlacionada; o model Pedido não tem a relação). */
+    private static function contaAberta(): \Illuminate\Database\Query\Builder
+    {
+        return DB::table('contas_receber as cr')->whereColumn('cr.pedido_id', 'pedidos.id')
+            ->whereIn('cr.status', self::CONTA_ABERTA)->whereNull('cr.deleted_at');
     }
 
     public function mostrar(Request $request, int $id): JsonResponse
@@ -319,6 +360,19 @@ class PosPedidoController extends Controller
             ->findOrFail($id);
     }
 
+    /** Pago = faturado/entregue sem conta a receber em aberto (usa o withExists da lista quando veio). */
+    private function pago(Pedido $p): bool
+    {
+        if (! in_array($p->status, [StatusPedido::Faturado, StatusPedido::Entregue], true)) {
+            return false;
+        }
+        if (array_key_exists('conta_aberta', $p->getAttributes())) {
+            return ! $p->conta_aberta;
+        }
+
+        return ! DB::table('contas_receber')->where('pedido_id', $p->id)->whereIn('status', self::CONTA_ABERTA)->whereNull('deleted_at')->exists();
+    }
+
     private function resumo(Pedido $p): array
     {
         return [
@@ -329,6 +383,7 @@ class PosPedidoController extends Controller
             'total' => (float) $p->total,
             'cliente' => $p->cliente?->nome_razao_social,
             'identificacao' => PosCupomService::identificacao($p),
+            'pago' => $this->pago($p),
             'criado_em' => $p->created_at->toIso8601String(),
         ];
     }

@@ -86,6 +86,10 @@ PB=$(echo "$RB" | j pedido.id)
 check "pedido sem cliente com nome → cupom 'PARA: MESA 7', cliente vazio" "$(echo "$RB" | grep -q 'PARA: MESA 7' && [ "$(sql "select ifnull(cliente_id,'nulo') from pedidos where id=$PB")" = nulo ] && echo 1)" "$RB"
 RBF=$(post "/pedidos/$PB/faturar" "{\"chave\":\"$(uuid)\",\"pagamento\":{\"forma\":\"dinheiro\",\"valor_recebido\":1000}}" "$TG")
 check "pedido de balcão cobrado depois em dinheiro → faturado" "$([ "$(sql "select status from pedidos where id=$PB")" = faturado ] && echo 1)" "$RBF"
+# Lista de pedidos por pagamento (29/10): o pedido recebido está em "pago", não em "a receber"; totais batem com a lista
+LPG=$(get "/pedidos?pagamento=pago&q=Mesa%207" "$TG"); LAR=$(get "/pedidos?pagamento=a_receber&q=Mesa%207" "$TG")
+check "pedidos?pagamento=pago traz o pedido recebido com pago=true" "$(echo "$LPG" | python3 -c "import sys,json;d=json.load(sys.stdin);print(1 if any(p['id']==$PB and p['pago'] for p in d['pedidos']) and d['totais']['pago']['qtd']==len(d['pedidos']) else 0)")" "$LPG"
+check "pedidos?pagamento=a_receber não traz o pedido recebido" "$(echo "$LAR" | python3 -c "import sys,json;d=json.load(sys.stdin);print(0 if any(p['id']==$PB for p in d['pedidos']) else 1)")" "$LAR"
 
 echo "== 6. Log de atividade (contrato Stone, 180 dias)"
 RE=$(post /eventos '{"eventos":[{"tipo":"stone_pagamento_recusado","mensagem":"Senha invalida"}]}' "$TC")

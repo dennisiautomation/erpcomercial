@@ -6099,6 +6099,20 @@ faturar em dinheiro); roteiro 29 ✅ / 0 ❌ duas vezes (+2 itens); emulador: pe
 Receber no PIX → pedido faturado com venda ligada.
 **Rollback:** o mesmo da entrega acima (sem migration nova).
 
+### Pedidos do POS separados em "a receber" × "pago" (29/10/2026, mesma branch)
+
+**Pedido (Dennis, 29/10):** ao procurar o pedido, deixar mais fácil ver o que está pago e o que não está.
+**O que mudou:** `GET pedidos` aceita `pagamento` = `a_receber` · `pago` · `cancelado` (o `status=` antigo continua) e devolve
+`totais` (quantidade e soma do total de cada lado, respeitando a busca e o "vendedor vê os próprios") e `pago` em cada pedido.
+**Pago** = faturado/entregue **sem** conta a receber em aberto (`pendente`/`vencida`, não excluída) ligada ao pedido; o resto
+que não foi cancelado é **a receber** — inclusive pedido faturado a prazo pelo ERP. Subconsulta direta em `contas_receber`
+(o model `Pedido` não ganhou relação nova). App: dois cartões "A receber (n) R$" e "Pagos (n) R$" no topo, etiqueta
+âmbar/verde em cada pedido, nome/mesa ao lado do número; cancelados num atalho.
+**Impacto:** só a API do POS; nada na web, cron ou integração.
+**Validação (local):** PHPUnit completo 266 ✅ / 2 ❌ pré-existentes (+1 teste: lados, totais, faturado a prazo, busca, 422);
+roteiro 31 ✅ / 0 ❌ duas vezes (+2 itens); emulador: cartões, etiquetas e busca "Mesa".
+**Rollback:** o mesmo da entrega acima (sem migration nova).
+
 ## Armadilhas conhecidas
 
 1. **EmpresaScope recursão**: `auth()->user()` dentro do scope chama User model que tem o scope → loop infinito. Scopes têm flag `static $applying`. Não remover.
