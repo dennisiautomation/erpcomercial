@@ -7238,4 +7238,7 @@ tem o `.env` dentro só no container antigo — se recriar, volta o 502; por iss
 rodada pós-deploy (saída só no terminal do Dennis; a investigar). O pós-deploy foi rodado à mão pelo Claude
 (`validar.sh erp-com-app:latest pos-deploy --so=roteiros,smoke --rotulo integracao-28out`, baseline = `depois/` completo da integração) —
 resultado na linha seguinte.
+**Pós-deploy (29/10 00:54 UTC = 28/10 21:54 BRT, imagem do ar `78e310290ca6`):** roteiro da feature **104 ✅ / 0 ❌**, orçamento 58/0, 3 ❌
+pré-existentes iguais à baseline; smoke **569 ✅ / 4 ❌** (178 telas × 7 perfis, os 4 pré-existentes), **0 ❌ novos, 0 mudança de acesso**,
+produção intocada ✅ (contagens iguais). Relatório: `/home/ubuntu/erp-validacao/integracao-28out/pos-deploy/`. GitHub `main` = `26c72fa` = produção (push 29/10 00:50 UTC).
 
