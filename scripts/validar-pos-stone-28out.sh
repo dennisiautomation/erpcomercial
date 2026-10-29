@@ -80,6 +80,12 @@ PEDID=$(echo "$RP" | j pedido.id); PT=$(echo "$RP" | j pedido.total_centavos)
 check "gerente emite pedido confirmado" "$([ "$(echo "$RP" | j pedido.status)" = confirmado ] && echo 1)" "$RP"
 RF=$(post "/pedidos/$PEDID/faturar" "{\"chave\":\"$(uuid)\",\"pagamento\":{\"forma\":\"pix\",\"stone\":{\"atk\":\"VALPIX\",\"valor_centavos\":$PT}}}" "$TG")
 check "pedido recebido no PIX → faturado, venda ligada" "$([ "$(sql "select status from pedidos where id=$PEDID")" = faturado ] && [ -n "$(echo "$RF" | j venda.id)" ] && echo 1)" "$RF"
+# Pedido de balcão sem cliente (29/10): só o nome/mesa, cobrado depois
+RB=$(post /pedidos "{\"chave\":\"$(uuid)\",\"identificacao\":\"Mesa 7\",\"confirmar\":true,\"itens\":[{\"produto_id\":$PID,\"quantidade\":1}]}" "$TG")
+PB=$(echo "$RB" | j pedido.id)
+check "pedido sem cliente com nome → cupom 'PARA: MESA 7', cliente vazio" "$(echo "$RB" | grep -q 'PARA: MESA 7' && [ "$(sql "select ifnull(cliente_id,'nulo') from pedidos where id=$PB")" = nulo ] && echo 1)" "$RB"
+RBF=$(post "/pedidos/$PB/faturar" "{\"chave\":\"$(uuid)\",\"pagamento\":{\"forma\":\"dinheiro\",\"valor_recebido\":1000}}" "$TG")
+check "pedido de balcão cobrado depois em dinheiro → faturado" "$([ "$(sql "select status from pedidos where id=$PB")" = faturado ] && echo 1)" "$RBF"
 
 echo "== 6. Log de atividade (contrato Stone, 180 dias)"
 RE=$(post /eventos '{"eventos":[{"tipo":"stone_pagamento_recusado","mensagem":"Senha invalida"}]}' "$TC")

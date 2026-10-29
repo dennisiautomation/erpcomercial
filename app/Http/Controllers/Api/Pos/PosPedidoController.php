@@ -39,7 +39,9 @@ class PosPedidoController extends Controller
     {
         $request->validate([
             'chave' => ['required', 'string', 'min:8', 'max:64'],
-            'cliente_id' => ['required', 'integer'],
+            // Cliente opcional (balcão/cafeteria: tira o pedido, cobra depois). `identificacao` = nome ou mesa no cupom.
+            'cliente_id' => ['nullable', 'integer'],
+            'identificacao' => ['nullable', 'string', 'max:60'],
             'itens' => ['required', 'array', 'min:1', 'max:200'],
             'itens.*.produto_id' => ['required', 'integer'],
             'itens.*.quantidade' => ['required', 'numeric', 'min:0.001', 'max:99999'],
@@ -56,10 +58,16 @@ class PosPedidoController extends Controller
         }
 
         $empresaId = (int) session('empresa_id');
-        $cliente = Cliente::withoutGlobalScopes()->where('empresa_id', $empresaId)->find($request->cliente_id);
-        if (! $cliente) {
-            return response()->json(['erro' => 'Cliente não encontrado.'], 422);
+        $cliente = null;
+        if ($request->filled('cliente_id')) {
+            $cliente = Cliente::withoutGlobalScopes()->where('empresa_id', $empresaId)->find($request->cliente_id);
+            if (! $cliente) {
+                return response()->json(['erro' => 'Cliente não encontrado.'], 422);
+            }
         }
+        // Sem coluna nova: a identificação vai na 1ª linha da observação externa (sai no impresso web e no cupom).
+        $ident = trim(preg_replace('/\s+/', ' ', (string) $request->input('identificacao', '')));
+        $observacoes = trim(($ident !== '' ? PosCupomService::PREFIXO_PARA . $ident . "\n" : '') . (string) $request->observacoes) ?: null;
 
         try {
             $op = PosOperacao::create(['empresa_id' => $empresaId, 'user_id' => $user->id, 'chave' => $request->chave, 'tipo' => 'pedido']);
@@ -76,7 +84,7 @@ class PosPedidoController extends Controller
             ->whereIn('id', collect($request->itens)->pluck('produto_id'))->get()->keyBy('id');
 
         try {
-            $pedido = DB::transaction(function () use ($request, $empresaId, $produtos, $cliente, $user) {
+            $pedido = DB::transaction(function () use ($request, $empresaId, $produtos, $cliente, $user, $observacoes) {
                 $numero = (int) Pedido::withoutGlobalScopes()->where('empresa_id', $empresaId)->lockForUpdate()->max('numero') + 1;
 
                 $subtotal = 0.0;
@@ -108,7 +116,7 @@ class PosPedidoController extends Controller
                 $pedido = Pedido::create([
                     'empresa_id' => $empresaId,
                     'unidade_id' => (int) session('unidade_id'),
-                    'cliente_id' => $cliente->id,
+                    'cliente_id' => $cliente?->id,
                     'vendedor_id' => $user->id,
                     'numero' => $numero,
                     'condicao_pagamento' => $request->condicao_pagamento,
@@ -118,7 +126,7 @@ class PosPedidoController extends Controller
                     'desconto_valor' => $desconto,
                     'total' => round($subtotal - $desconto, 2),
                     'status' => StatusPedido::Rascunho,
-                    'observacoes_externas' => $request->observacoes,
+                    'observacoes_externas' => $observacoes,
                     'observacoes_internas' => 'Emitido no app POS',
                 ]);
                 foreach ($itens as $i) {
@@ -166,7 +174,8 @@ class PosPedidoController extends Controller
         if ($q = trim((string) $request->q)) {
             $query->where(function ($w) use ($q) {
                 $w->where('numero', ctype_digit($q) ? (int) $q : -1)
-                    ->orWhereHas('cliente', fn ($c) => $c->withoutGlobalScopes()->where('nome_razao_social', 'like', "%{$q}%"));
+                    ->orWhereHas('cliente', fn ($c) => $c->withoutGlobalScopes()->where('nome_razao_social', 'like', "%{$q}%"))
+                    ->orWhere('observacoes_externas', 'like', PosCupomService::PREFIXO_PARA . '%' . str_replace(['%', '_'], ['\%', '\_'], $q) . '%');
             });
         }
         if (! PosPermissoes::pode($user, 'vendas', 'excluir') && ! PosPermissoes::pode($user, 'pedidos', 'editar')) {
@@ -319,6 +328,7 @@ class PosPedidoController extends Controller
             'status_nome' => $p->status->label(),
             'total' => (float) $p->total,
             'cliente' => $p->cliente?->nome_razao_social,
+            'identificacao' => PosCupomService::identificacao($p),
             'criado_em' => $p->created_at->toIso8601String(),
         ];
     }

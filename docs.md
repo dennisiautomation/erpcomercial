@@ -6084,6 +6084,21 @@ Vender e o botão Cobrar, com caixa fechado, vira "Abrir caixa" (leva à aba Cai
 vendidos primeiro); roteiro `validar-pos-stone-28out.sh` 27 ✅ / 0 ❌ duas vezes (+2 itens de ordenação); app no emulador.
 **Rollback:** o mesmo da entrega acima (sem migration nova).
 
+### Pedido de balcão sem cliente no app POS (29/10/2026, mesma branch)
+
+**Pedido (Dennis, 29/10):** gerar o pedido no Revisar sem cliente selecionado, para entregar e cobrar depois (atendimento tipo
+cafeteria), sem mudar muita coisa.
+**O que mudou:** `POST pedidos` aceita `cliente_id` vazio (a coluna já era nullable; web, impresso A4, faturar e conta a receber
+já tratavam pedido sem cliente) e o campo novo `identificacao` (nome ou mesa, até 60). **Sem migration:** a identificação vai na
+1ª linha de `observacoes_externas` como `Para: <nome>` (aparece também no impresso web). `PosCupomService::identificacao()` lê
+de volta; o cupom do pedido mostra `PARA: <NOME>` em letra grande e omite a linha de assinatura quando não há cliente. A busca
+de pedidos do POS (`q`) acha também pelo nome. Cliente informado de outra empresa continua 422.
+**Impacto:** só a API do POS; nenhuma tela web, cron ou integração. Pedidos com cliente seguem iguais.
+**Validação (local):** PHPUnit completo 265 ✅ / 2 ❌ pré-existentes (+1 teste: pedido sem cliente com nome, cupom, busca,
+faturar em dinheiro); roteiro 29 ✅ / 0 ❌ duas vezes (+2 itens); emulador: pedido só com "Ana mesa 4" → lista de Pedidos →
+Receber no PIX → pedido faturado com venda ligada.
+**Rollback:** o mesmo da entrega acima (sem migration nova).
+
 ## Armadilhas conhecidas
 
 1. **EmpresaScope recursão**: `auth()->user()` dentro do scope chama User model que tem o scope → loop infinito. Scopes têm flag `static $applying`. Não remover.

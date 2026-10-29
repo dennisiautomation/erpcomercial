@@ -322,6 +322,35 @@ class PosApiTest extends TestCase
         $this->assertSame(150.0, (float) MovimentacaoCaixa::withoutGlobalScopes()->where('venda_id', $venda->id)->sum('valor'));
     }
 
+    public function test_pedido_de_balcao_sem_cliente_com_nome_e_cobrado_depois(): void
+    {
+        // Cafeteria: tira o pedido só com o nome, entrega e cobra depois.
+        [, $token] = $this->prepararVenda('gerente');
+        $r = $this->api($token)->postJson(self::BASE . '/pedidos', [
+            'chave' => (string) \Illuminate\Support\Str::uuid(), 'identificacao' => 'Ana  mesa 4', 'observacoes' => 'sem açúcar',
+            'confirmar' => true, 'itens' => [['produto_id' => $this->produto->id, 'quantidade' => 1]],
+        ]);
+        $r->assertOk()->assertJsonPath('pedido.cliente', null)->assertJsonPath('pedido.identificacao', 'Ana mesa 4');
+        $cupom = collect($r->json('cupom'))->pluck('v');
+        $this->assertTrue($cupom->contains('PARA: ANA MESA 4'));
+        $this->assertTrue($cupom->contains('sem açúcar'));
+        $this->assertFalse($cupom->contains('Assinatura do cliente'));
+
+        $id = $r->json('pedido.id');
+        $this->assertNull(Pedido::withoutGlobalScopes()->find($id)->cliente_id);
+        $this->assertSame($id, $this->api($token)->getJson(self::BASE . '/pedidos?q=Ana')->json('pedidos.0.id'));
+        $this->assertSame('Ana mesa 4', $this->api($token)->getJson(self::BASE . '/pedidos?q=Ana')->json('pedidos.0.identificacao'));
+
+        $this->api($token)->postJson(self::BASE . "/pedidos/{$id}/faturar", [
+            'chave' => (string) \Illuminate\Support\Str::uuid(), 'pagamento' => ['forma' => 'dinheiro', 'valor_recebido' => 50],
+        ])->assertOk()->assertJsonPath('venda.total', 50);
+        $this->assertSame('faturado', Pedido::withoutGlobalScopes()->find($id)->status->value);
+
+        // Cliente informado que não é da empresa continua recusado
+        $this->api($token)->postJson(self::BASE . '/pedidos', ['chave' => (string) \Illuminate\Support\Str::uuid(), 'cliente_id' => 999999,
+            'itens' => [['produto_id' => $this->produto->id, 'quantidade' => 1]]])->assertStatus(422);
+    }
+
     public function test_perfil_caixa_nao_emite_pedido(): void
     {
         [, $token] = $this->prepararVenda('caixa');

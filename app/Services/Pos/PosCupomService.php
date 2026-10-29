@@ -130,6 +130,18 @@ class PosCupomService
         return $l;
     }
 
+    /** 1ª linha da observação externa do pedido feito no POS sem cliente ("Para: Ana · mesa 4"). */
+    public const PREFIXO_PARA = 'Para: ';
+
+    public static function identificacao(Pedido $pedido): ?string
+    {
+        $primeira = strtok((string) $pedido->observacoes_externas, "\n");
+
+        return $primeira !== false && str_starts_with($primeira, self::PREFIXO_PARA)
+            ? trim(substr($primeira, strlen(self::PREFIXO_PARA))) ?: null
+            : null;
+    }
+
     public function pedido(Pedido $pedido): array
     {
         $pedido->loadMissing(['itens', 'cliente', 'vendedor', 'empresa', 'unidade']);
@@ -140,6 +152,12 @@ class PosCupomService
         $l[] = $this->texto('Não é documento fiscal', 'centro', 'p');
         $l[] = $this->linha();
 
+        $ident = self::identificacao($pedido);
+        if ($ident !== null) {
+            // Balcão/cafeteria: o nome (ou a mesa) em letra grande, para chamar na entrega.
+            $l[] = $this->texto('PARA: ' . mb_strtoupper($ident), 'centro', 'g');
+            $l[] = $this->linha();
+        }
         if ($pedido->cliente) {
             $l[] = $this->texto('Cliente: ' . $pedido->cliente->nome_razao_social, 'esq', 'm');
             if ($pedido->cliente->cpf_cnpj) {
@@ -161,17 +179,20 @@ class PosCupomService
         if ($pedido->condicao_pagamento) {
             $l[] = $this->texto('Condição: ' . $pedido->condicao_pagamento, 'esq', 'p');
         }
-        if ($pedido->observacoes_externas) {
+        $obs = $ident !== null ? trim((string) strstr((string) $pedido->observacoes_externas, "\n")) : trim((string) $pedido->observacoes_externas);
+        if ($obs !== '') {
             $l[] = $this->linha();
-            $l[] = $this->texto($pedido->observacoes_externas, 'esq', 'p');
+            $l[] = $this->texto($obs, 'esq', 'p');
         }
         $l[] = $this->linha();
         if ($pedido->vendedor) {
             $l[] = $this->texto('Vendedor: ' . $pedido->vendedor->name, 'esq', 'p');
         }
-        $l[] = $this->texto(' ', 'esq', 'p');
-        $l[] = $this->texto(str_repeat('_', $this->colunas - 4), 'centro', 'p');
-        $l[] = $this->texto('Assinatura do cliente', 'centro', 'p');
+        if ($pedido->cliente) { // canhoto de assinatura só faz sentido com cliente identificado
+            $l[] = $this->texto(' ', 'esq', 'p');
+            $l[] = $this->texto(str_repeat('_', $this->colunas - 4), 'centro', 'p');
+            $l[] = $this->texto('Assinatura do cliente', 'centro', 'p');
+        }
 
         return $l;
     }
