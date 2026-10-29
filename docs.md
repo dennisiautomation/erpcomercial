@@ -6113,6 +6113,18 @@ que não foi cancelado é **a receber** — inclusive pedido faturado a prazo pe
 roteiro 31 ✅ / 0 ❌ duas vezes (+2 itens); emulador: cartões, etiquetas e busca "Mesa".
 **Rollback:** o mesmo da entrega acima (sem migration nova).
 
+### Textos do login do app POS (29/10/2026, mesma branch)
+
+**Pedido (Dennis, 29/10):** melhorar os textos da tela de login.
+**O que mudou:** só mensagens de `PosAuthController` (login/escolher loja) — mais claras e dizendo o que fazer: "E-mail ou senha
+não conferem. Confira e tente de novo.", usuário desativado/sem loja/perfil sem acesso → "peça ao gerente…". Nenhuma regra
+mudou; o login web do ERP (e o `LoginTest`) não foi tocado. No app: "Acesse sua conta", aviso de que é o mesmo e-mail e senha
+do sistema da loja, validação de e-mail incompleto, "Entrando…", "Esqueci a senha" (explica que a troca é pelo sistema ou
+pelo gerente) e mensagens de rede/servidor reescritas.
+**Validação (local):** PHPUnit completo 266 ✅ / 2 ❌ pré-existentes; roteiro 31 ✅ / 0 ❌ duas vezes; emulador: e-mail
+incompleto, senha errada, "Esqueci a senha" e login certo.
+**Rollback:** o mesmo da entrega acima (sem migration nova).
+
 ## Armadilhas conhecidas
 
 1. **EmpresaScope recursão**: `auth()->user()` dentro do scope chama User model que tem o scope → loop infinito. Scopes têm flag `static $applying`. Não remover.

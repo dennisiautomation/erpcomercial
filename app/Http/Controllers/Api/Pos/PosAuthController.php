@@ -40,7 +40,7 @@ class PosAuthController extends Controller
             if (RateLimiter::tooManyAttempts($chave, $max)) {
                 $minutos = (int) ceil(RateLimiter::availableIn($chave) / 60);
 
-                return response()->json(['erro' => "Muitas tentativas. Aguarde {$minutos} minuto(s) e tente de novo."], 429);
+                return response()->json(['erro' => "Muitas tentativas seguidas. Aguarde {$minutos} minuto(s) e tente de novo."], 429);
             }
         }
 
@@ -50,29 +50,29 @@ class PosAuthController extends Controller
             RateLimiter::hit($chaveEmail, 15 * 60);
             RateLimiter::hit($chaveIp, 15 * 60);
 
-            return response()->json(['erro' => 'E-mail ou senha incorretos.'], 422);
+            return response()->json(['erro' => 'E-mail ou senha não conferem. Confira e tente de novo.'], 422);
         }
         RateLimiter::clear($chaveEmail);
 
         if ($user->status !== 'ativo') {
-            return response()->json(['erro' => 'Este usuário está inativo. Fale com o gerente da loja.'], 403);
+            return response()->json(['erro' => 'Seu usuário está desativado. Peça ao gerente da loja para reativar.'], 403);
         }
         if (! $user->empresa_id) {
             // Admin da plataforma não vende no POS de nenhuma empresa.
-            return response()->json(['erro' => 'Este usuário não pertence a uma empresa.'], 403);
+            return response()->json(['erro' => 'Seu usuário não está ligado a nenhuma empresa. Fale com o suporte.'], 403);
         }
         if (! PosPermissoes::podeUsarApp($user)) {
-            return response()->json(['erro' => 'Seu perfil não tem acesso ao app de vendas.'], 403);
+            return response()->json(['erro' => 'Seu perfil de acesso não usa o app de vendas. Peça ao gerente para liberar (vendedor, caixa ou gerente).'], 403);
         }
 
         $empresa = $user->empresa()->withoutGlobalScopes()->first();
         if (! $empresa || $empresa->estaSuspensa()) {
-            return response()->json(['erro' => 'O acesso da empresa está suspenso. Fale com o responsável.'], 403);
+            return response()->json(['erro' => 'O acesso da empresa está suspenso. Fale com o responsável pela conta.'], 403);
         }
 
         $lojas = $this->lojasDoUsuario($user);
         if ($lojas->isEmpty()) {
-            return response()->json(['erro' => 'Você não está vinculado a nenhuma loja ativa.'], 403);
+            return response()->json(['erro' => 'Seu usuário não está em nenhuma loja ativa. Peça ao gerente para incluir você em uma loja.'], 403);
         }
 
         $unidadeId = $lojas->count() === 1 ? (int) $lojas->first()->id : null;
