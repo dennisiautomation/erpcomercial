@@ -6070,6 +6070,20 @@ Nenhum cron, fila, webhook ou tela web alterado. Focus é chamada só quando a l
 **Deploy:** do Dennis (`sudo tools/deploy.sh feature/pos-stone-app`), depois do merge. Precisa de `php artisan migrate`
 (3 tabelas novas). **Rollback:** voltar a imagem `pre-…`; as tabelas `pos_*` podem ficar (nada as lê fora da API nova).
 
+### Catálogo com foto e ordenação no app POS (29/10/2026, mesma branch)
+
+**Pedido (Dennis, 29/10):** produtos com foto, em catálogo, para achar mais fácil; opções de ordenar; navegar sem abrir o caixa.
+**O que mudou:** `GET produtos` aceita `ordem` = `nome` (padrão) · `mais_vendidos` (soma de `venda_itens` de vendas `concluida`
+da loja nos últimos 90 dias) · `menor_preco` · `maior_preco` · `estoque` (mesmo saldo do `SaldoEstoque::naUnidade`, em
+subconsulta); desempate por descrição e id (paginação estável); valor fora da lista → 422. `foto_url` passou a ser montada com
+o host do pedido (`url('storage/…')`; `TrustProxies` já resolve https/host atrás do nginx) — antes vinha do `APP_URL`, que no
+ambiente local não chega ao aparelho. Catálogo e carrinho nunca exigiram caixa; o app tirou a faixa "caixa fechado" da aba
+Vender e o botão Cobrar, com caixa fechado, vira "Abrir caixa" (leva à aba Caixa e guarda o carrinho).
+**Impacto:** só leitura na API do POS; nenhuma tela web, cron ou integração. Foto continua vindo do cadastro de produto do ERP.
+**Validação (local):** PHPUnit completo 264 ✅ / 2 ❌ pré-existentes (+2 testes: ordenações, foto e catálogo sem caixa; mais
+vendidos primeiro); roteiro `validar-pos-stone-28out.sh` 27 ✅ / 0 ❌ duas vezes (+2 itens de ordenação); app no emulador.
+**Rollback:** o mesmo da entrega acima (sem migration nova).
+
 ## Armadilhas conhecidas
 
 1. **EmpresaScope recursão**: `auth()->user()` dentro do scope chama User model que tem o scope → loop infinito. Scopes têm flag `static $applying`. Não remover.

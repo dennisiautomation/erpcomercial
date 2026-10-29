@@ -35,6 +35,10 @@ check "/me: caixa vende e NÃO emite pedido (matriz do ERP)" "$([ "$(echo "$ME" 
 echo "== 2. Catálogo e caixa"
 P=$(get '/produtos' "$TC"); PID=$(echo "$P" | j produtos.0.id); PRECO=$(echo "$P" | j produtos.0.precos.dinheiro_pix)
 check "produtos com preço por tabela e estoque" "$([ -n "$PID" ] && [ -n "$PRECO" ] && echo 1)" "$P"
+# Catálogo com ordenação (29/10): menor preço em ordem crescente; ordem inválida → 422
+PM=$(get '/produtos?ordem=menor_preco' "$TC" | python3 -c 'import sys,json;v=[p["preco"] for p in json.load(sys.stdin)["produtos"]];print(1 if v and v==sorted(v) else 0)')
+check "produtos?ordem=menor_preco vem do mais barato ao mais caro" "$PM"
+check "produtos?ordem=inválida → 422" "$([ "$(curl -s -o /dev/null -w '%{http_code}' "$U/produtos?ordem=xyz" -H 'Accept: application/json' -H "Authorization: Bearer $TC")" = 422 ] && echo 1)"
 c=$(postc /caixa/abrir '{"valor_abertura":100}' "$TC")
 check "abrir caixa pelo POS (200, ou 422 se já aberto)" "$([ "$c" = 200 ] || [ "$c" = 422 ] && echo 1)" "$c"
 check "caixa atual com resumo" "$([ -n "$(get /caixa "$TC" | j caixa.resumo.esperado_dinheiro)" ] && echo 1)"

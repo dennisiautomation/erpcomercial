@@ -148,6 +148,41 @@ class PosApiTest extends TestCase
         $this->api($token)->getJson(self::BASE . '/produtos?q=alheio')->assertJsonCount(0, 'produtos');
     }
 
+    public function test_catalogo_ordena_e_traz_foto_sem_caixa_aberto(): void
+    {
+        $user = $this->operador('vendedor');
+        $barato = $this->createProduto($this->empresa, ['descricao' => 'Caneta', 'preco_venda' => 3.00, 'foto' => 'produtos/caneta.jpg']);
+        $caro = $this->createProduto($this->empresa, ['descricao' => 'Agenda', 'preco_venda' => 40.00]);
+        $meio = $this->createProduto($this->empresa, ['descricao' => 'Borracha', 'preco_venda' => 8.00]);
+        $this->darEntradaEstoque($this->unidade, $meio, 50, ['user_id' => $user->id]);
+        $this->darEntradaEstoque($this->unidade, $caro, 5, ['user_id' => $user->id]);
+        $token = $this->token($user);
+        $nomes = fn (string $ordem) => array_column($this->api($token)->getJson(self::BASE . '/produtos?ordem=' . $ordem)->assertOk()->json('produtos'), 'descricao');
+
+        // Sem caixa aberto: o catálogo abre normalmente (só cobrar exige caixa)
+        $this->assertNull(Caixa::withoutGlobalScopes()->where('user_id', $user->id)->where('status', 'aberto')->first());
+        $this->assertSame(['Agenda', 'Borracha', 'Caneta'], $nomes('nome'));
+        $this->assertSame(['Caneta', 'Borracha', 'Agenda'], $nomes('menor_preco'));
+        $this->assertSame(['Agenda', 'Borracha', 'Caneta'], $nomes('maior_preco'));
+        $this->assertSame(['Borracha', 'Agenda', 'Caneta'], $nomes('estoque'));
+        $this->assertCount(3, $nomes('mais_vendidos'));
+
+        $foto = collect($this->api($token)->getJson(self::BASE . '/produtos?q=Caneta')->json('produtos'))->first()['foto_url'];
+        $this->assertStringEndsWith('/storage/produtos/caneta.jpg', $foto);
+        $this->assertStringStartsWith('http', $foto);
+        $this->api($token)->getJson(self::BASE . '/produtos?ordem=qualquer')->assertStatus(422);
+    }
+
+    public function test_mais_vendidos_vem_primeiro(): void
+    {
+        [$user, $token] = $this->prepararVenda();
+        $this->createProduto($this->empresa, ['descricao' => 'AAA nunca vendido', 'preco_venda' => 1.00]);
+        $this->api($token)->postJson(self::BASE . '/vendas', $this->venda(['forma' => 'dinheiro', 'valor_base' => 100, 'valor_recebido' => 100]))->assertOk();
+
+        $primeiro = $this->api($token)->getJson(self::BASE . '/produtos?ordem=mais_vendidos')->json('produtos.0.id');
+        $this->assertSame($this->produto->id, $primeiro);
+    }
+
     public function test_vender_sem_caixa_aberto_e_bloqueado(): void
     {
         $user = $this->operador();

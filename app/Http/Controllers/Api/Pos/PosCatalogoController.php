@@ -13,15 +13,19 @@ use App\Services\SaldoEstoque;
 use App\Services\TabelaPrecoService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\DB;
 
 /** Busca de produtos e clientes para o app POS (sempre da empresa do operador). */
 class PosCatalogoController extends Controller
 {
+    public const ORDENS = ['nome', 'mais_vendidos', 'menor_preco', 'maior_preco', 'estoque'];
+
     /**
-     * GET produtos?q=&categoria_id=&pagina=
+     * GET produtos?q=&categoria_id=&pagina=&ordem=
      * `q` casa código de barras/interno EXATO primeiro (bipe do leitor) e depois
      * descrição. Preço das 3 tabelas (dinheiro/PIX, débito, crédito) + saldo da loja.
+     * `ordem`: nome (padrão) · mais_vendidos (90 dias, nesta loja) · menor_preco ·
+     * maior_preco · estoque (maior saldo na loja). Só leitura: não exige caixa aberto.
      */
     public function produtos(Request $request, TabelaPrecoService $tabelas): JsonResponse
     {
@@ -29,6 +33,7 @@ class PosCatalogoController extends Controller
             'q' => ['nullable', 'string', 'max:100'],
             'categoria_id' => ['nullable', 'integer'],
             'pagina' => ['nullable', 'integer', 'min:1'],
+            'ordem' => ['nullable', 'string', 'in:' . implode(',', self::ORDENS)],
         ]);
 
         $empresaId = (int) session('empresa_id');
@@ -53,7 +58,8 @@ class PosCatalogoController extends Controller
         }
 
         $total = (clone $query)->count();
-        $produtos = $query->orderBy('descricao')
+        $this->ordenar($query, (string) $request->input('ordem', 'nome'), (int) session('unidade_id'));
+        $produtos = $query->orderBy('descricao')->orderBy('id')
             ->skip(($pagina - 1) * $porPagina)->take($porPagina)
             ->get();
 
@@ -128,6 +134,34 @@ class PosCatalogoController extends Controller
         return app(ClienteController::class)->quickStore($request);
     }
 
+    /** Critério principal; o desempate por descrição/id fica no chamador (paginação estável). */
+    private function ordenar($query, string $ordem, int $unidadeId): void
+    {
+        switch ($ordem) {
+            case 'menor_preco':
+                $query->orderBy('preco_venda');
+                break;
+            case 'maior_preco':
+                $query->orderByDesc('preco_venda');
+                break;
+            case 'mais_vendidos':
+                $query->orderByDesc(DB::table('venda_itens as vi')
+                    ->join('vendas as v', 'v.id', '=', 'vi.venda_id')
+                    ->whereColumn('vi.produto_id', 'produtos.id')
+                    ->where('v.unidade_id', $unidadeId)
+                    ->where('v.status', 'concluida')
+                    ->where('v.created_at', '>=', now()->subDays(90))
+                    ->selectRaw('COALESCE(SUM(vi.quantidade), 0)'));
+                break;
+            case 'estoque':
+                // Mesmo saldo do SaldoEstoque::naUnidade: última movimentação de cada estoque da loja.
+                $query->orderByRaw('(SELECT COALESCE(SUM(e.quantidade_posterior), 0) FROM estoque_movimentacoes e
+                    WHERE e.id IN (SELECT MAX(m.id) FROM estoque_movimentacoes m
+                        WHERE m.unidade_id = ? AND m.produto_id = produtos.id GROUP BY m.estoque_id)) DESC', [$unidadeId]);
+                break;
+        }
+    }
+
     private function produtoJson(Produto $p, TabelaPrecoService $tabelas, ConfiguracaoLoja $config): array
     {
         $unidadeId = (int) session('unidade_id');
@@ -142,7 +176,7 @@ class PosCatalogoController extends Controller
             'preco' => (float) $p->preco_venda,
             'precos' => $tabelas->precosDoProduto($p, $config),
             'estoque' => $unidadeId ? SaldoEstoque::naUnidade($unidadeId, (int) $p->id) : null,
-            'foto_url' => $p->foto ? rtrim(config('app.url'), '/') . Storage::url($p->foto) : null,
+            'foto_url' => $p->foto ? url('storage/' . ltrim($p->foto, '/')) : null,
         ];
     }
 }
