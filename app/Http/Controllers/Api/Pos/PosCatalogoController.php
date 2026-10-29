@@ -154,10 +154,16 @@ class PosCatalogoController extends Controller
                     ->selectRaw('COALESCE(SUM(vi.quantidade), 0)'));
                 break;
             case 'estoque':
-                // Mesmo saldo do SaldoEstoque::naUnidade: última movimentação de cada estoque da loja.
-                $query->orderByRaw('(SELECT COALESCE(SUM(e.quantidade_posterior), 0) FROM estoque_movimentacoes e
-                    WHERE e.id IN (SELECT MAX(m.id) FROM estoque_movimentacoes m
-                        WHERE m.unidade_id = ? AND m.produto_id = produtos.id GROUP BY m.estoque_id)) DESC', [$unidadeId]);
+                // Mesmo saldo do SaldoEstoque::naUnidade (última movimentação de cada estoque da loja), calculado UMA vez
+                // para a loja inteira e juntado por produto. A subconsulta correlacionada por linha levava ~48 s com
+                // 2.359 produtos / 19 mil movimentações (cópia de produção, 29/10).
+                $ultimas = DB::table('estoque_movimentacoes')->where('unidade_id', $unidadeId)
+                    ->groupBy('produto_id', 'estoque_id')->selectRaw('MAX(id) as id');
+                $saldos = DB::table('estoque_movimentacoes as e')->joinSub($ultimas, 'u', 'u.id', '=', 'e.id')
+                    ->groupBy('e.produto_id')->selectRaw('e.produto_id, SUM(e.quantidade_posterior) as saldo');
+                $query->leftJoinSub($saldos, 'saldo_loja', 'saldo_loja.produto_id', '=', 'produtos.id')
+                    ->select('produtos.*')
+                    ->orderByRaw('COALESCE(saldo_loja.saldo, 0) DESC');
                 break;
         }
     }

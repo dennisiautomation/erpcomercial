@@ -325,7 +325,7 @@ class PosPedidoController extends Controller
         $resposta = app(PosVendaController::class)->mostrar($request, (int) $venda->id);
         if ($nfceErro) {
             $dados = $resposta->getData(true);
-            $dados['nfce_erro'] = $nfceErro;
+            $dados['nfce_erro'] = PosCupomService::mensagemNfce($nfceErro);
             $resposta->setData($dados);
         }
 

@@ -6125,6 +6125,27 @@ pelo gerente) e mensagens de rede/servidor reescritas.
 incompleto, senha errada, "Esqueci a senha" e login certo.
 **Rollback:** o mesmo da entrega acima (sem migration nova).
 
+### Teste do app POS com cópia do banco de produção (29/10/2026, mesma branch)
+
+**Pedido (Dennis, 29/10):** copiar o banco e testar local com dados reais (na maquininha só depois do deploy do ERP).
+**Como:** `mysqldump --single-transaction` do `erp-com-mysql` no eveo (só leitura, 79 tabelas, 68 MB) + as fotos de
+`storage/app/public/produtos` (1.070 arquivos, 247 MB), carregados no ambiente descartável (`ambiente.sh`, Focus/IA/gateways
+mortos, sem queue/schedule). Usuário local `teste.pos@local.test` (gerente) só na cópia, na DONA DOURO (2.359 produtos, 948
+com foto, NFC-e ligada). Dump e fotos ficam fora do repositório e são apagados com o ambiente.
+**O que o teste real achou e foi corrigido:**
+- `produtos?ordem=estoque` levava **~48 s** (subconsulta correlacionada por produto sobre 19 mil movimentações) → saldo da
+  loja calculado uma vez (`joinSub` das últimas movimentações por produto/estoque) e juntado: **0,14 s**, mesmos saldos do
+  `SaldoEstoque::naUnidade`.
+- Falha da NFC-e chegava crua na tela ("cURL error 7 … https://…") → `PosCupomService::mensagemNfce()`: falha de rede vira
+  "Sem conexão com o emissor de notas agora."; rejeição da SEFAZ fica, sem URL e curta. Texto técnico segue no log.
+- 132 produtos ativos com preço 0 na loja → o app mostra "Sem preço" e não põe no carrinho (o app não edita preço).
+**Visto e não mudado:** fotos de produto vão no tamanho original (média ~230 KB, até 2 MB; ~7 MB por página de 30) — pesado
+no chip da maquininha; miniatura no servidor fica como próxima melhoria. Venda de crédito com NFC-e ligada: venda gravada,
+estoque baixado, nota `rejeitada` (Focus morto) e cupom não fiscal impresso.
+**Validação:** PHPUnit completo 268 ✅ / 2 ❌ pré-existentes (+2 testes de `mensagemNfce`). O roteiro `validar-pos-stone-28out.sh`
+não rodou nesta rodada: o ambiente estava com a cópia de produção, sem os usuários demo que ele usa (última rodada: 31 ✅).
+**Rollback:** o mesmo da entrega acima (sem migration nova).
+
 ## Armadilhas conhecidas
 
 1. **EmpresaScope recursão**: `auth()->user()` dentro do scope chama User model que tem o scope → loop infinito. Scopes têm flag `static $applying`. Não remover.

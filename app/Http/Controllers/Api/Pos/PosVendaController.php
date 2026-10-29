@@ -406,7 +406,7 @@ class PosVendaController extends Controller
                 'chave' => $nota->chave_acesso,
                 'mensagem' => $nota->focus_mensagem,
             ] : null,
-            'nfce_erro' => $nfceErro,
+            'nfce_erro' => PosCupomService::mensagemNfce($nfceErro),
             'cupom' => $cupom,
             'repetida' => $repetida,
         ]);

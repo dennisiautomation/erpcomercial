@@ -130,6 +130,24 @@ class PosCupomService
         return $l;
     }
 
+    /**
+     * Erro da NFC-e em linguagem de balcão: falha de rede vira "sem conexão com o emissor"; rejeição da SEFAZ fica,
+     * sem URL, sem "cURL error" e curta (vai num aviso na tela da maquininha). O texto técnico continua no log.
+     */
+    public static function mensagemNfce(?string $erro): ?string
+    {
+        if ($erro === null || trim($erro) === '') {
+            return null;
+        }
+        if (preg_match('/cURL error (6|7|28|35)\b|Could not (connect|resolve)|Failed to connect|timed out|Connection refused/i', $erro)) {
+            return 'Sem conexão com o emissor de notas agora.';
+        }
+        $txt = preg_replace(['~https?://\S+~', '/cURL error \d+:?/i', '/\(see\s*\)/i', '/^\s*NFC-e rejeitada:\s*/i', '/\s+/'], ['', '', '', '', ' '], $erro);
+        $txt = rtrim(trim($txt), ' .;:') ?: 'Erro na emissão';
+
+        return mb_strimwidth($txt, 0, 160, '…') . '.';
+    }
+
     /** 1ª linha da observação externa do pedido feito no POS sem cliente ("Para: Ana · mesa 4"). */
     public const PREFIXO_PARA = 'Para: ';
 
