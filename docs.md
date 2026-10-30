@@ -8833,12 +8833,12 @@ troca F6 (Produzido não volta). Revenda sem adicionais segue **exatamente** o c
 receita (hoje só soma — por isso no demo o copo vem do grupo Tamanho), opções em pedido/orçamento/balcão (só no PDV),
 unidades g/ml (a ficha usa a unidade do insumo).
 
-**Testes** — `tests/Feature/App/CafeteriaTest.php`, 15 testes / 105 asserções (receita baixa insumos, adicionais somam e baixam,
+**Testes** — `tests/Feature/App/CafeteriaTest.php`, 16 testes / 109 asserções (receita baixa insumos, adicionais somam e baixam,
 obrigatório/máximo/opção de outro produto → 422, cancelamento devolve, revenda igual a antes, busca sem insumo, ficha recalcula
 custo, telas somem desligado + POST forjado não grava tipo, grupo cria adicional, atalhos, PDV só mostra atalhos com a opção,
 balcão e faturar pedido com Produzido). **Suíte completa** contra o MySQL/pgvector da homologação:
 main `d214a3b` = 245 testes, 2 ❌ pré-existentes (`PdvTest::test_caixa_fechamento_calculates_correctly`,
-`LoginTest::test_oito_senhas_erradas_travam_o_email`) → branch = 260 testes, **as mesmas 2 ❌, 0 novas**. Lint PHP 0 erros;
+`LoginTest::test_oito_senhas_erradas_travam_o_email`) → branch `bd83502` = 261 testes, **as mesmas 2 ❌, 0 novas**. Lint PHP 0 erros;
 Blade compilado + `php -l` nas views compiladas 0 erros; JS do PDV `node --check` ok.
 
 **Homologação** (`/home/ubuntu/erp-cafeteria-homolog/`, fora do repositório): compose próprio `erp-cafeteria-homolog`
@@ -8848,4 +8848,15 @@ banco próprio (seed padrão + `CafeteriaDemoSeeder`, empresa "Café Demo"), **s
 `/home/ubuntu/erp-cafeteria-homolog/LOGINS.txt` (600). Domínio: o Dennis aponta; vhost pronto em
 `/home/ubuntu/erp-cafeteria-homolog/nginx-homolog.conf` (precisa sudo + certbot).
 `phpunit.sh` na mesma pasta roda a suíte de qualquer cópia (`PASTA=… BANCO=…`).
+
+**Estado 30/10/2026 ~17:40 BRT:** homologação no ar com a imagem `erp-caf-app:bd83502` (build de `git archive` — o repositório não
+tem `.dockerignore`; buildar da worktree levaria o `vendor/` de desenvolvimento). Roteiro de cliques
+`/home/ubuntu/erp-cafeteria-homolog/roteiro-cafeteria.mjs` (puppeteer, dono + caixa, 1366 px e 390 px): **41 ✅ / 0 ❌**, 0 erro de JS —
+lista/filtro/selo de tipo, cartões de tipo, ficha com custo ao vivo e salvar, grupo novo criando adicionais, chaves da configuração,
+PDV com atalhos por categoria, janela de opções (obrigatório trava, escolha única troca, ordem dos grupos, total), item com
+"+ Tamanho G (400 ml) + Leite de aveia", revenda direta, busca sem insumo, F5, venda paga e finalizada; conferido no banco: venda
+R$ 28,00, insumos baixados (café 0,027 kg, leite 0,25 L, aveia 0,15 L, copo G 1, pão de queijo congelado 1), água pelo caminho antigo.
+Achados no roteiro e corrigidos em `bd83502`: salvar a ficha regravava os grupos em ordem alfabética (agora os ligados vêm primeiro,
+na ordem atual) e o cartão do tipo selecionado tinha texto lilás sobre lilás. **Branch não pushada; produção intocada.**
+Domínio: `sudo /home/ubuntu/erp-cafeteria-homolog/instalar-dominio.sh <domínio>` (vhost + certbot + `APP_URL`).
 
