@@ -14,9 +14,9 @@
         @foreach(\App\Enums\TipoProduto::cases() as $tipo)
             <div class="col-6 col-lg-3">
                 <input type="radio" class="btn-check" name="tipo" id="tipo_{{ $tipo->value }}" value="{{ $tipo->value }}" @checked($tipoAtual === $tipo->value)>
-                <label class="btn btn-outline-primary w-100 h-100 text-start p-2" for="tipo_{{ $tipo->value }}">
+                <label class="tipo-card w-100 h-100 text-start p-2" for="tipo_{{ $tipo->value }}">
                     <span class="fw-semibold d-block"><i class="bi bi-{{ $icones[$tipo->value] }} me-1"></i>{{ $tipo->label() }}</span>
-                    <small class="d-block opacity-75" style="line-height:1.25">{{ $tipo->descricao() }}</small>
+                    <small class="d-block text-muted" style="line-height:1.25">{{ $tipo->descricao() }}</small>
                 </label>
             </div>
         @endforeach
@@ -37,6 +37,13 @@
         <label class="form-check-label" for="atalho_pdv">Mostrar nos atalhos do PDV <span class="text-muted">(botão para tocar e lançar)</span></label>
     </div>
 </div>
+<style>
+    /* Cartão do tipo: selecionado = borda forte + fundo claro, texto sempre escuro (contraste AA) */
+    #tipoProdutoCards .tipo-card { display: block; border: 1px solid var(--bs-border-color); border-radius: .5rem; background: #fff; cursor: pointer; color: var(--bs-body-color); }
+    #tipoProdutoCards .tipo-card i { color: var(--bs-primary); }
+    #tipoProdutoCards .btn-check:checked + .tipo-card { border: 2px solid var(--bs-primary); background: rgba(79, 70, 229, .07); padding: calc(.5rem - 1px) !important; }
+    #tipoProdutoCards .btn-check:focus-visible + .tipo-card { outline: 2px solid var(--bs-primary); outline-offset: 2px; }
+</style>
 @push('scripts')
 <script>
 (function () {

@@ -295,6 +295,26 @@ class CafeteriaTest extends TestCase
             ->assertSee('Custo da receita');
     }
 
+    public function test_salvar_a_ficha_mantem_a_ordem_dos_grupos(): void
+    {
+        $dono = $this->createUser($this->empresa, $this->unidade, 'dono');
+        $c = $this->cenarioCappuccino($dono);
+        $o = $this->gruposDoCappuccino($c);   // Tamanho (0), Extras (1) — fora da ordem alfabética
+
+        $this->actingAsUser($dono, $this->unidade)
+            ->get(route('app.produtos.composicao', $c['capu']))
+            ->assertOk()
+            ->assertSeeInOrder(['grupo_' . $o['tamanho']->id, 'grupo_' . $o['extras']->id], false);
+
+        // A tela manda os marcados na ordem em que aparecem
+        $this->actingAsUser($dono, $this->unidade)->put(route('app.produtos.composicao.update', $c['capu']), [
+            'ficha' => [['insumo_id' => $c['cafe']->id, 'quantidade' => 0.018]],
+            'grupos' => [$o['tamanho']->id, $o['extras']->id],
+        ])->assertSessionHas('success');
+
+        $this->assertSame(['Tamanho', 'Extras'], $c['capu']->fresh()->gruposOpcoes()->withoutGlobalScopes()->pluck('nome')->all());
+    }
+
     public function test_telas_da_cafeteria_somem_com_a_opcao_desligada(): void
     {
         $this->empresa->update(['usa_ficha_tecnica' => false]);

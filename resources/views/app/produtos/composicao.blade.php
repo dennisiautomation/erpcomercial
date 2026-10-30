@@ -119,7 +119,7 @@
             <a href="{{ route('app.grupos-opcoes.create') }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-plus-lg me-1"></i> Novo grupo</a>
         </div>
         <div class="card-body">
-            <p class="small text-muted mb-2">Marque os grupos que o caixa escolhe ao lançar este produto. A ordem da tela do PDV segue a ordem desta lista.</p>
+            <p class="small text-muted mb-2">Marque os grupos que o caixa escolhe ao lançar este produto. No PDV eles aparecem nesta ordem (os já ligados ficam no topo; um grupo novo entra no fim).</p>
             @forelse($grupos as $g)
                 <div class="form-check mb-2">
                     <input class="form-check-input" type="checkbox" name="grupos[]" value="{{ $g->id }}" id="grupo_{{ $g->id }}" @checked(in_array($g->id, $gruposMarcados, true))>
