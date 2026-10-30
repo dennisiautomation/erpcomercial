@@ -131,6 +131,7 @@ public/
 - **Venda Balcão**: Fora do PDV, com itens dinâmicos + autocomplete
 - **Pedido impresso em A4 + venda de pedido/balcão no caixa + loja de saída (28/10/2026, DK Med)**: `GET pedidos/{id}/imprimir` (view `pedidos/print`, irmã da do orçamento; orçamento convertido imprime o pedido); faturar pedido e venda de balcão **exigem caixa aberto** do usuário na loja da venda e lançam `movimentacoes_caixa` por forma via `App\Services\LancamentoCaixaService` (PDV intocado); faturar baixa a conta a receber do pedido (`contas_receber.pedido_id`); "Loja de saída" nas telas e nos impressos. Ver docs.md seção própria e armadilha 92
 - PDV fullscreen dark, atalhos F1-F12, split payment, verificação estoque
+- **Cafeteria Fase 1 (30/10/2026, branch `feat/cafeteria-fase1`, só homologação)**: `produtos.tipo` (revenda/produzido/insumo/adicional), ficha técnica (`produto_ficha_itens`), grupos de opções no PDV, atalhos F5. Liga com `empresas.usa_ficha_tecnica` e `configuracoes_loja.pdv_atalhos`. Toda baixa de venda passa por `App\Services\ComposicaoEstoque` (docs.md armadilha 103)
 - **Lógica de emissão no PDV**: `emissao_fiscal_ativa && emite_nfce` → emite NFC-e; senão, só cupom/recibo. Cupom/recibo **sempre é impresso**. Falha na NFC-e cai silenciosamente no recibo.
 - Devoluções; Comissões (config por produto/categoria, pagamento em lote)
 

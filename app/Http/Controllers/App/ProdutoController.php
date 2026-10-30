@@ -48,6 +48,11 @@ class ProdutoController extends Controller
             $query->where('status', $request->status);
         }
 
+        // Cafeteria: filtro por tipo (revenda/produzido/insumo/adicional)
+        if ($request->filled('tipo') && \App\Enums\TipoProduto::tryFrom((string) $request->tipo)) {
+            $query->where('tipo', $request->tipo);
+        }
+
         $produtos = $query->orderBy('descricao')->paginate(15)->withQueryString();
         // categorias.status é FEMININO ('ativa') — com 'ativo' o filtro vinha sempre vazio
         $categorias = Categoria::where('status', 'ativa')->orderBy('nome')->get();
@@ -66,7 +71,9 @@ class ProdutoController extends Controller
             ? \App\Services\SaldoEstoque::porProdutoEEstoqueDaUnidade($lojaAtual->id, $produtos->pluck('id')->all())
             : [];
 
-        return view('app.produtos.index', compact('produtos', 'categorias', 'lojaAtual', 'saldosLoja', 'estoquesLoja', 'saldosPorEstoque'));
+        $usaFichaTecnica = (bool) auth()->user()->empresa?->usaFichaTecnica();
+
+        return view('app.produtos.index', compact('produtos', 'categorias', 'lojaAtual', 'saldosLoja', 'estoquesLoja', 'saldosPorEstoque', 'usaFichaTecnica'));
     }
 
     public function create()
@@ -100,7 +107,9 @@ class ProdutoController extends Controller
             ->where('unidade_id', session('unidade_id'))
             ->first();
 
-        return view('app.produtos.create', compact('categorias', 'fornecedores', 'fiscalDefaults', 'cfopOptions', 'origemOptions', 'configFiscal'));
+        $usaFichaTecnica = $empresa->usaFichaTecnica();
+
+        return view('app.produtos.create', compact('categorias', 'fornecedores', 'fiscalDefaults', 'cfopOptions', 'origemOptions', 'configFiscal', 'usaFichaTecnica'));
     }
 
     public function store(Request $request)
@@ -168,6 +177,9 @@ class ProdutoController extends Controller
             'preco_atacado'          => 'nullable|numeric|min:0',
             // Preço próprio no Dinheiro/PIX — só a loja com "preço cadastrado = cartão" mostra o campo
             'preco_pix'              => 'nullable|numeric|min:0',
+            // Cafeteria (30/10/2026) — só vem da tela com "Usa ficha técnica"
+            'tipo'                   => ['nullable', Rule::enum(\App\Enums\TipoProduto::class)],
+            'atalho_pdv'             => 'nullable|boolean',
         ]);
 
         // Preço no Cartão (form) vale para as duas modalidades; os campos
@@ -231,6 +243,7 @@ class ProdutoController extends Controller
             $validated['foto'] = $request->file('foto')->store('produtos', 'public');
         }
 
+        $validated = $this->camposCafeteria($validated, auth()->user()->empresa);
         $produto = Produto::create($validated);
         $this->salvarPrecosPorForma($produto, $precoDebito, $precoCredito, $precoAtacado, $precoPix);
 
@@ -263,7 +276,39 @@ class ProdutoController extends Controller
             }
         }
 
-        return view('app.produtos.show', compact('produto', 'saldoPorUnidade', 'empresa', 'saldoPorEstoque'));
+        $usaFichaTecnica = (bool) $empresa?->usaFichaTecnica();
+
+        return view('app.produtos.show', compact('produto', 'saldoPorUnidade', 'empresa', 'saldoPorEstoque', 'usaFichaTecnica'));
+    }
+
+    /**
+     * Tipo e atalho do PDV (cafeteria, 30/10/2026) só gravam na empresa com
+     * "Usa ficha técnica"; campo ausente não mexe no que já está gravado.
+     */
+    private function camposCafeteria(array $validated, ?\App\Models\Empresa $empresa): array
+    {
+        if (! $empresa?->usaFichaTecnica()) {
+            unset($validated['tipo'], $validated['atalho_pdv']);
+
+            return $validated;
+        }
+
+        if (empty($validated['tipo'])) {
+            unset($validated['tipo']);
+        }
+        if (array_key_exists('atalho_pdv', $validated)) {
+            $validated['atalho_pdv'] = (bool) $validated['atalho_pdv'];
+        }
+        // Insumo e adicional não vão sozinhos ao PDV
+        if (in_array($validated['tipo'] ?? null, ['insumo', 'adicional'], true)) {
+            $validated['atalho_pdv'] = false;
+        }
+        // Produzido não tem saldo próprio: sem mínimo (não vira aviso de estoque baixo)
+        if (($validated['tipo'] ?? null) === 'produzido') {
+            $validated['estoque_minimo'] = 0;
+        }
+
+        return $validated;
     }
 
     /** Estoques ativos de uma loja, o de venda primeiro. */
@@ -302,7 +347,9 @@ class ProdutoController extends Controller
             ->where('unidade_id', session('unidade_id'))
             ->first();
 
-        return view('app.produtos.edit', compact('produto', 'categorias', 'fornecedores', 'fiscalDefaults', 'cfopOptions', 'origemOptions', 'configFiscal'));
+        $usaFichaTecnica = $empresa->usaFichaTecnica();
+
+        return view('app.produtos.edit', compact('produto', 'categorias', 'fornecedores', 'fiscalDefaults', 'cfopOptions', 'origemOptions', 'configFiscal', 'usaFichaTecnica'));
     }
 
     public function update(Request $request, Produto $produto)
@@ -387,6 +434,9 @@ class ProdutoController extends Controller
             'preco_atacado'          => 'nullable|numeric|min:0',
             // Preço próprio no Dinheiro/PIX — só a loja com "preço cadastrado = cartão" mostra o campo
             'preco_pix'              => 'nullable|numeric|min:0',
+            // Cafeteria (30/10/2026) — só vem da tela com "Usa ficha técnica"
+            'tipo'                   => ['nullable', Rule::enum(\App\Enums\TipoProduto::class)],
+            'atalho_pdv'             => 'nullable|boolean',
         ]);
 
         // Preço no Cartão (form) vale para as duas modalidades; os campos
@@ -429,6 +479,8 @@ class ProdutoController extends Controller
             $precoPix = $grava['dinheiro_pix'] ?? '';
         }
 
+
+        $validated = $this->camposCafeteria($validated, $produto->empresa);
         $produto->update($validated);
         $this->salvarPrecosPorForma($produto, $precoDebito, $precoCredito, $precoAtacado, $precoPix);
 

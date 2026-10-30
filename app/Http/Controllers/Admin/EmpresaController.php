@@ -168,6 +168,7 @@ class EmpresaController extends Controller
             'vendedor_apenas_pdv' => ['nullable', 'boolean'],
             'pdv_vendedores_da_loja' => ['nullable', 'boolean'],
             'pdv_credishop' => ['nullable', 'boolean'],
+            'usa_ficha_tecnica'      => ['nullable', 'boolean'],
             'regime_cobranca'   => ['nullable', 'in:padrao,cortesia,parceiro,pos_pago'],
             'cortesia_motivo'   => ['nullable', 'string', 'max:255', 'required_unless:regime_cobranca,padrao'],
             'cortesia_concedida_em' => ['nullable', 'date', 'required_unless:regime_cobranca,padrao'],
@@ -246,6 +247,10 @@ class EmpresaController extends Controller
         $validated['vendedor_apenas_pdv'] = $request->boolean('vendedor_apenas_pdv');
         $validated['pdv_vendedores_da_loja'] = $request->boolean('pdv_vendedores_da_loja');
         $validated['pdv_credishop'] = $request->boolean('pdv_credishop');
+        // Cafeteria (30/10/2026): só muda quando o campo veio na tela
+        if ($request->has('usa_ficha_tecnica')) {
+            $validated['usa_ficha_tecnica'] = $request->boolean('usa_ficha_tecnica');
+        }
 
         if ($request->hasFile('logo')) {
             if ($empresa->logo) {

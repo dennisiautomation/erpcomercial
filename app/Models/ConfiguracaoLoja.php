@@ -32,6 +32,8 @@ class ConfiguracaoLoja extends Model
         'padrao_impressao',
         // PDV escolhe de qual estoque a venda sai (22/10/2026)
         'pdv_escolher_estoque',
+        // Atalhos de produto no PDV — cafeteria (30/10/2026)
+        'pdv_atalhos',
         'os_cabecalho',
         'os_termos_garantia',
         'os_texto_legal',
@@ -68,6 +70,7 @@ class ConfiguracaoLoja extends Model
         // Orçamento sai com o endereço da própria loja até alguém escolher outro
         'orcamento_endereco'    => 'loja',
         'pdv_escolher_estoque'  => false,
+        'pdv_atalhos'           => false,
         'preco_base'            => 'avista',
         'desconto_avista_percentual' => 0,
         // Trocas: loja que nunca abriu a tela troca em até 30 dias, sobra vira
@@ -96,6 +99,7 @@ class ConfiguracaoLoja extends Model
             'troca_vale_validade_dias'   => 'integer',
             'troca_senha_gerente'        => 'boolean',
             'pdv_escolher_estoque'       => 'boolean',
+            'pdv_atalhos'                => 'boolean',
             'desconto_avista_percentual' => 'decimal:2',
             'desconto_max_percentual'    => 'decimal:2',
             'orcamento_parcelas'         => 'integer',

@@ -33,6 +33,8 @@ class IndexadorProdutos
             ->with('categoria')
             ->where('empresa_id', $empresaId)
             ->where('status', 'ativo')
+            // Insumo e adicional (cafeteria) ficam fora do índice do agente
+            ->whereIn('tipo', \App\Enums\TipoProduto::vendaveis())
             ->orderBy('id')
             ->chunk(100, function ($produtos) use (&$indexados, &$idsVivos) {
                 $this->gravarLote($produtos->all());
@@ -59,7 +61,7 @@ class IndexadorProdutos
     /** Indexa (upsert) um produto só — caminho do Observer. */
     public function indexarProduto(Produto $produto): void
     {
-        if ($produto->status !== 'ativo' || $produto->deleted_at !== null) {
+        if ($produto->status !== 'ativo' || $produto->deleted_at !== null || ! $produto->tipoEnum()->vendeNoPdv()) {
             $this->removerProduto($produto->id);
 
             return;

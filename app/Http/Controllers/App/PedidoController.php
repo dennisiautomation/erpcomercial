@@ -14,6 +14,7 @@ use App\Models\EstoqueMovimentacao;
 use App\Models\Pedido;
 use App\Models\PedidoItem;
 use App\Models\Produto;
+use App\Services\ComposicaoEstoque;
 use App\Services\SaldoEstoque;
 use App\Models\Servico;
 use App\Models\User;
@@ -668,8 +669,9 @@ class PedidoController extends Controller
                 'observacoes'         => "Faturamento do Pedido #{$pedido->numero}",
             ]);
 
+            $vendaItemDoPedido = [];
             foreach ($pedido->itens as $item) {
-                $venda->itens()->create([
+                $vendaItemDoPedido[$item->id] = $venda->itens()->create([
                     'produto_id'          => $item->produto_id,
                     'servico_id'          => $item->servico_id,
                     'descricao'           => $item->descricao,
@@ -682,7 +684,7 @@ class PedidoController extends Controller
             }
 
             // Estoque sai como faturamento do pedido (mesma origem de antes)
-            $this->baixarEstoquePedido($pedido);
+            $this->baixarEstoquePedido($pedido, $vendaItemDoPedido);
 
             // Entrada no caixa (uma por forma, com venda_id: o cancelamento estorna
             // por ele) + baixa da conta a receber aberta na confirmação.
@@ -904,27 +906,49 @@ class PedidoController extends Controller
         }
     }
 
-    /** Baixa o estoque dos itens do pedido (chamado no faturamento). */
-    private function baixarEstoquePedido(Pedido $pedido): void
+    /**
+     * Baixa o estoque dos itens do pedido (chamado no faturamento). Produto
+     * Produzido (cafeteria) baixa os insumos da ficha; o que saiu fica no item da
+     * venda gerada, para o cancelamento devolver o mesmo.
+     *
+     * @param  array<int, \App\Models\VendaItem>  $vendaItemDoPedido  pedido_item_id => item da venda
+     */
+    private function baixarEstoquePedido(Pedido $pedido, array $vendaItemDoPedido = []): void
     {
         foreach ($pedido->itens as $item) {
             if ($item->produto_id) {
-                SaldoEstoque::registrar(
-                    $pedido->empresa_id,
-                    $pedido->unidade_id,
+                $saiu = ComposicaoEstoque::baixarItem(
+                    (int) $pedido->empresa_id,
+                    (int) $pedido->unidade_id,
                     // "Sai de" escolhido no pedido (05/11/2026), validado de novo na baixa
                     SaldoEstoque::estoqueEscolhidoId((int) $pedido->unidade_id, $pedido->estoque_id)
                         ?? SaldoEstoque::estoqueDeVendaId($pedido->unidade_id),
                     (int) $item->produto_id,
-                    TipoMovimentacaoEstoque::Saida->value,
-                    -(float) $item->quantidade,
+                    (float) $item->quantidade,
                     [
-                        'custo_unitario' => $item->preco_unitario,
-                        'origem_tipo'    => Pedido::class,
-                        'origem_id'      => $pedido->id,
-                        'observacoes'    => "Faturamento Pedido #{$pedido->numero}",
-                    ]
+                        'origem_tipo' => Pedido::class,
+                        'origem_id'   => $pedido->id,
+                        'observacoes' => "Faturamento Pedido #{$pedido->numero} — {$item->descricao}",
+                    ],
+                    fn () => SaldoEstoque::registrar(
+                        $pedido->empresa_id,
+                        $pedido->unidade_id,
+                        SaldoEstoque::estoqueEscolhidoId((int) $pedido->unidade_id, $pedido->estoque_id)
+                            ?? SaldoEstoque::estoqueDeVendaId($pedido->unidade_id),
+                        (int) $item->produto_id,
+                        TipoMovimentacaoEstoque::Saida->value,
+                        -(float) $item->quantidade,
+                        [
+                            'custo_unitario' => $item->preco_unitario,
+                            'origem_tipo'    => Pedido::class,
+                            'origem_id'      => $pedido->id,
+                            'observacoes'    => "Faturamento Pedido #{$pedido->numero}",
+                        ]
+                    )
                 );
+                if ($saiu !== null && isset($vendaItemDoPedido[$item->id])) {
+                    $vendaItemDoPedido[$item->id]->update(['baixa_componentes' => $saiu]);
+                }
             }
         }
     }

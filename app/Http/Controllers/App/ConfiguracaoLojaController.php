@@ -171,6 +171,10 @@ class ConfiguracaoLojaController extends Controller
             // funcionar sem nunca gravar.
             'vendedor_apenas_pdv'        => 'nullable|boolean',
             'pdv_vendedores_da_loja'     => 'nullable|boolean',
+            // Cafeteria (30/10/2026): usa_ficha_tecnica é da EMPRESA (tratado à parte);
+            // pdv_atalhos é desta loja
+            'usa_ficha_tecnica'          => 'nullable|boolean',
+            'pdv_atalhos'                => 'nullable|boolean',
         ]);
 
         $dados['preco_base'] = $dados['preco_base'] ?? 'avista';
@@ -189,7 +193,11 @@ class ConfiguracaoLojaController extends Controller
             'vendedor_apenas_pdv'    => (bool) ($dados['vendedor_apenas_pdv'] ?? false),
             'pdv_vendedores_da_loja' => (bool) ($dados['pdv_vendedores_da_loja'] ?? false),
         ];
-        unset($dados['vendedor_apenas_pdv'], $dados['pdv_vendedores_da_loja']);
+        // Só grava quando o campo veio (form aberto antes do deploy não desliga nada)
+        if ($request->has('usa_ficha_tecnica')) {
+            $daEmpresa['usa_ficha_tecnica'] = (bool) ($dados['usa_ficha_tecnica'] ?? false);
+        }
+        unset($dados['vendedor_apenas_pdv'], $dados['pdv_vendedores_da_loja'], $dados['usa_ficha_tecnica']);
 
         // Checkboxes desmarcados não vêm no request
         foreach ([
@@ -202,6 +210,7 @@ class ConfiguracaoLojaController extends Controller
             'pdv_mostrar_valor_parcelas',
             'troca_senha_gerente',
             'pdv_escolher_estoque',
+            'pdv_atalhos',
         ] as $flag) {
             $dados[$flag] = (bool) ($dados[$flag] ?? false);
         }

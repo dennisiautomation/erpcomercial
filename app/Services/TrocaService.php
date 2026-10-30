@@ -220,6 +220,11 @@ class TrocaService
             }
 
             $retorna = $info['e_servico'] ? false : (bool) ($linha['retorna_estoque'] ?? true);
+            // Produzido (cafeteria) não volta para a prateleira: foi feito e consumido
+            if ($retorna && ! empty($info['produto_id'])
+                && \App\Models\Produto::withoutGlobalScopes()->find($info['produto_id'])?->ehProduzido()) {
+                $retorna = false;
+            }
             $linhas[] = [
                 'info'            => $info,
                 'quantidade'      => $qtd,

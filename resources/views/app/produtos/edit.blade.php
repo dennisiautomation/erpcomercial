@@ -93,6 +93,11 @@
                         @error('descricao_detalhada') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
 
+                    {{-- Cafeteria (30/10/2026): tipo do produto, só com "Usa ficha técnica" --}}
+                    @if($usaFichaTecnica ?? false)
+                        @include('app.produtos._tipo-cafeteria')
+                    @endif
+
                     {{-- Categoria --}}
                     <div class="col-md-4">
                         <label for="categoria_id" class="form-label">Categoria</label>

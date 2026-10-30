@@ -20,6 +20,11 @@
             <i class="bi bi-file-earmark-excel me-1"></i> Modelo Excel
         </a>
     </div>
+    @if($usaFichaTecnica ?? false)
+        <a href="{{ route('app.grupos-opcoes.index') }}" class="btn btn-erp-outline" title="Tamanho, leite, extras: os adicionais escolhidos no PDV">
+            <i class="bi bi-ui-checks-grid me-1"></i> Grupos de opções
+        </a>
+    @endif
     <a href="{{ route('app.produtos.create') }}" class="btn btn-primary">
         <i class="bi bi-plus-lg me-1"></i> Novo Produto
     </a>
@@ -30,7 +35,7 @@
 <div class="card shadow-sm mb-4">
     <div class="card-body">
         <form method="GET" action="{{ route('app.produtos.index') }}" class="row g-3 align-items-end">
-            <div class="col-md-4">
+            <div class="{{ ($usaFichaTecnica ?? false) ? 'col-md-3' : 'col-md-4' }}">
                 <label for="campo-busca" class="form-label">Buscar</label>
                 <div class="input-group">
                     <span class="input-group-text"><i class="bi bi-search"></i></span>
@@ -54,6 +59,17 @@
                     <option value="inativo" {{ request('status') === 'inativo' ? 'selected' : '' }}>Inativo</option>
                 </select>
             </div>
+            @if($usaFichaTecnica ?? false)
+                <div class="col-md-2">
+                    <label for="campo-tipo" class="form-label">Tipo</label>
+                    <select id="campo-tipo" name="tipo" class="form-select">
+                        <option value="">Todos</option>
+                        @foreach(\App\Enums\TipoProduto::cases() as $tipo)
+                            <option value="{{ $tipo->value }}" @selected(request('tipo') === $tipo->value)>{{ $tipo->label() }}</option>
+                        @endforeach
+                    </select>
+                </div>
+            @endif
             <div class="col-md-3 d-flex gap-2">
                 <button type="submit" class="btn btn-outline-primary">
                     <i class="bi bi-funnel me-1"></i> Filtrar
@@ -97,6 +113,9 @@
                             </td>
                             <td>
                                 <strong>{{ $produto->descricao }}</strong>
+                                @if(($usaFichaTecnica ?? false) && $produto->tipoEnum() !== \App\Enums\TipoProduto::Revenda)
+                                    <span class="badge bg-info-subtle text-info-emphasis ms-1">{{ $produto->tipoEnum()->label() }}</span>
+                                @endif
                                 @if($produto->codigo_barras)
                                     <br><small class="text-muted"><i class="bi bi-upc me-1"></i>{{ $produto->codigo_barras }}</small>
                                 @endif
@@ -150,7 +169,10 @@
                                 @endif
                             </td>
                             <td class="text-end">
-                                @if($lojaAtual)
+                                @if($produto->ehProduzido())
+                                    {{-- Produzido não tem saldo próprio: quem tem são os insumos --}}
+                                    <span class="text-muted small" title="Feito na hora: a venda baixa os insumos da ficha técnica">pela receita</span>
+                                @elseif($lojaAtual)
                                     @php
                                         $qtd = $saldosLoja[$produto->id] ?? 0;
                                     @endphp

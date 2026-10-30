@@ -773,6 +773,40 @@
         :focus-visible { outline: 2px solid var(--accent-blue); outline-offset: 2px; border-radius: 6px; }
         #searchInput:focus-visible, .qty-control input:focus-visible, .modal .form-control:focus-visible, .modal .form-select:focus-visible { outline: none; }
 
+        /* ===== Cafeteria (30/10/2026): atalhos e adicionais ===== */
+        .atalhos-panel {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            margin-bottom: 10px;
+            padding: 8px;
+            max-height: 38vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .atalhos-panel.recolhido .atalhos-grid, .atalhos-panel.recolhido .atalhos-tabs { display: none; }
+        .atalhos-head { display: flex; align-items: center; gap: 8px; font-size: .8rem; color: var(--text-secondary); }
+        .atalhos-head .btn-toggle { margin-left: auto; background: transparent; border: 1px solid var(--border); color: var(--text-secondary); border-radius: 6px; font-size: .75rem; padding: 2px 8px; }
+        .atalhos-tabs { display: flex; gap: 6px; overflow-x: auto; padding: 6px 0; flex: none; }
+        .atalhos-tabs button { flex: none; background: var(--bg-tertiary); border: 1px solid var(--border); color: var(--text-primary); border-radius: 999px; padding: 4px 12px; font-size: .8rem; }
+        .atalhos-tabs button.active { background: var(--accent-blue); border-color: var(--accent-blue); color: #fff; }
+        .atalhos-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 6px; overflow-y: auto; }
+        .atalho-btn { background: var(--bg-tertiary); border: 1px solid var(--border); color: var(--text-primary); border-radius: 8px; padding: 8px; text-align: left; min-height: 64px; display: flex; flex-direction: column; justify-content: space-between; }
+        .atalho-btn:hover, .atalho-btn:focus-visible { border-color: var(--accent-blue); outline: none; }
+        .atalho-btn .nome { font-size: .82rem; font-weight: 600; line-height: 1.2; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+        .atalho-btn .preco { font-size: .78rem; color: var(--accent-green); margin-top: 4px; }
+        .atalho-btn .tem-opcoes { font-size: .7rem; color: var(--text-secondary); }
+        .item-opcoes { display: block; font-size: .75rem; color: var(--text-secondary); margin-top: 2px; }
+        #modalOpcoes .modal-content { background: var(--bg-secondary); color: var(--text-primary); border: 1px solid var(--border); }
+        #modalOpcoes .grupo-opcoes + .grupo-opcoes { margin-top: 14px; }
+        #modalOpcoes .grupo-titulo { font-weight: 600; margin-bottom: 6px; }
+        #modalOpcoes .grupo-titulo small { font-weight: 400; color: var(--text-secondary); }
+        #modalOpcoes .grupo-titulo.faltando small { color: var(--accent-yellow); }
+        #modalOpcoes .opcoes-lista { display: flex; flex-wrap: wrap; gap: 6px; }
+        #modalOpcoes .opcao-btn { background: var(--bg-tertiary); border: 1px solid var(--border); color: var(--text-primary); border-radius: 8px; padding: 8px 12px; min-width: 110px; text-align: left; }
+        #modalOpcoes .opcao-btn.sel { border-color: var(--accent-green); background: rgba(34,197,94,.15); }
+        #modalOpcoes .opcao-btn small { display: block; color: var(--text-secondary); }
+
         @media (prefers-reduced-motion: reduce) {
             .pdv-alert { animation: none; }
             .btn-finalizar:hover, .no-caixa-box .btn-open-caixa:hover { transform: none; }
@@ -906,6 +940,19 @@
                 <div class="search-results-dropdown" id="searchDropdown"></div>
             </div>
         </div>
+
+        @if($configLoja->pdv_atalhos)
+            {{-- Atalhos (cafeteria, 30/10/2026): F5 mostra/esconde --}}
+            <div class="atalhos-panel" id="atalhosPanel">
+                <div class="atalhos-head">
+                    <i class="bi bi-grid-3x3-gap"></i>
+                    <span id="atalhosTitulo">Atalhos</span>
+                    <button type="button" class="btn-toggle" onclick="PDV.toggleAtalhos()" title="Mostrar/esconder (F5)"><kbd>F5</kbd> <span id="atalhosToggleTxt">esconder</span></button>
+                </div>
+                <div class="atalhos-tabs" id="atalhosTabs" role="tablist"></div>
+                <div class="atalhos-grid" id="atalhosGrid"><div class="text-muted small p-2">Carregando…</div></div>
+            </div>
+        @endif
 
         <div class="items-container">
             <table class="items-table">
@@ -1066,6 +1113,9 @@
     <span><kbd>F2</kbd> Cliente</span>
     <span><kbd>F3</kbd> Vendedor</span>
     <span><kbd>F4</kbd> Desconto</span>
+    @if($configLoja->pdv_atalhos)
+        <span><kbd>F5</kbd> Atalhos</span>
+    @endif
     <span><kbd>F6</kbd> Troca</span>
     <span><kbd>F7</kbd> Sangria</span>
     <span><kbd>F8</kbd> Suprimento</span>
@@ -1077,6 +1127,26 @@
 </div>
 
 {{-- ===== MODALS ===== --}}
+
+{{-- Modal: adicionais do produto (cafeteria, 30/10/2026) --}}
+<div class="modal fade" id="modalOpcoes" tabindex="-1" aria-labelledby="modalOpcoesTitulo">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title" id="modalOpcoesTitulo">Opções</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body" id="modalOpcoesCorpo"></div>
+            <div class="modal-footer border-secondary d-flex justify-content-between">
+                <div><span class="text-secondary small">Item</span> <strong id="modalOpcoesTotal">R$ 0,00</strong></div>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-success" id="btnConfirmarOpcoes" onclick="PDV.confirmarOpcoes()"><i class="bi bi-check-lg me-1"></i> Lançar <kbd class="ms-1">Enter</kbd></button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
 {{-- Modal: Pagamento (valor input for dinheiro) --}}
 <div class="modal fade" id="modalPagamento" tabindex="-1">
@@ -1557,6 +1627,12 @@ const PDV = {
             && ($configFiscal->emite_nfce ?? ($configFiscal->tipo_cupom_pdv === 'fiscal'))),
     ]) !!},
     estoquesLoja: {!! json_encode($estoquesLoja ?? []) !!},
+    // Cafeteria (30/10/2026): produtos vistos na busca/atalhos (tipo, opções) e janela de adicionais
+    atalhosAtivos: {{ $configLoja->pdv_atalhos ? 'true' : 'false' }},
+    produtosCache: {},
+    atalhosCategorias: [],
+    atalhoCategoriaAtual: 0,
+    opcoesPendente: null,
     pagamentoAtual: null,
     // Troca (F6): crédito da devolução aplicado na venda nova
     creditoTroca: null,
@@ -1624,6 +1700,14 @@ const PDV = {
         this.bindPaymentButtons();
         this.bindBarcodeDetection();
         this.renderItems();
+        if (this.atalhosAtivos) this.carregarAtalhos();
+        document.getElementById('modalOpcoes')?.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') { e.preventDefault(); this.confirmarOpcoes(); }
+        });
+        document.getElementById('modalOpcoes')?.addEventListener('hidden.bs.modal', () => {
+            this.opcoesPendente = null;
+            document.getElementById('searchInput')?.focus();
+        });
     },
 
     updateClock() {
@@ -1661,6 +1745,13 @@ const PDV = {
                 case 'F4':
                     e.preventDefault();
                     this.openDesconto();
+                    break;
+                case 'F5':
+                    // Só toma o F5 (recarregar) quando a loja ligou os atalhos
+                    if (this.atalhosAtivos) {
+                        e.preventDefault();
+                        this.toggleAtalhos();
+                    }
                     break;
                 case 'F6':
                     e.preventDefault();
@@ -1859,6 +1950,7 @@ const PDV = {
         if (! Array.isArray(produtos)) return;
         produtos.forEach(p => {
             if (p && p.precos) this.precosCache[p.id] = p.precos;
+            if (p && p.id) this.produtosCache[p.id] = p;
         });
     },
 
@@ -1901,15 +1993,22 @@ const PDV = {
 
     // ===== ADD ITEMS =====
     addProdutoById(id, descricao, preco, codigoInterno, codigoBarras) {
-        this.addProduto({ id, descricao, preco_venda: preco, codigo_interno: codigoInterno, codigo_barras: codigoBarras });
+        this.addProduto(this.produtosCache[id] || { id, descricao, preco_venda: preco, codigo_interno: codigoInterno, codigo_barras: codigoBarras });
         document.getElementById('searchInput').value = '';
         this.closeDropdown();
         document.getElementById('searchInput').focus();
     },
 
-    async addProduto(produto) {
+    async addProduto(produto, opcoes = null) {
+        // Produto com grupos de opções: escolhe antes de entrar na venda
+        if (produto.tem_opcoes && opcoes === null) {
+            return this.abrirOpcoes(produto);
+        }
+        opcoes = opcoes || [];
+
         let estoqueData = null;
-        try {
+        // Produzido não tem saldo próprio (baixa os insumos): sem aviso de estoque
+        if (produto.tipo !== 'produzido') try {
             const r = await fetch(`/app/pdv/estoque/${produto.id}` + (this.estoqueSaidaId ? `?estoque_id=${this.estoqueSaidaId}` : ''), {
                 headers: { 'X-Requested-With': 'XMLHttpRequest' }
             });
@@ -1946,7 +2045,9 @@ const PDV = {
             }
         }
 
-        const existing = this.itens.find(i => i.produto_id === produto.id && i.unidade_origem_id === unidadeOrigemId);
+        const chaveOpcoes = opcoes.map(o => o.id).sort((a, b) => a - b).join(',');
+        const existing = this.itens.find(i => i.produto_id === produto.id && i.unidade_origem_id === unidadeOrigemId
+            && (i.chave_opcoes || '') === chaveOpcoes);
         if (existing) {
             existing.quantidade += 1;
             existing.total = round((existing.preco_unitario * existing.quantidade) - existing.desconto_valor, 2);
@@ -1954,6 +2055,9 @@ const PDV = {
             const precos = produto.precos || this.precosCache[produto.id] || null;
             this.itens.push({
                 produto_id: produto.id,
+                opcoes: opcoes,
+                chave_opcoes: chaveOpcoes,
+                preco_base: parseFloat(produto.preco_venda),
                 descricao: produto.descricao,
                 codigo_interno: produto.codigo_interno || '',
                 codigo_barras: produto.codigo_barras || '',
@@ -1970,6 +2074,161 @@ const PDV = {
         }
         this.selectedItemIndex = this.itens.length - 1;
         this.repriceItens();
+    },
+
+    // ===== ADICIONAIS (cafeteria, 30/10/2026) =====
+    precoDasOpcoes(opcoes, mod) {
+        return round((opcoes || []).reduce((s, o) =>
+            s + parseFloat((o.precos && o.precos[mod] !== undefined) ? o.precos[mod] : o.preco), 0), 2);
+    },
+
+    async abrirOpcoes(produto) {
+        let dados = null;
+        try {
+            const r = await fetch(`/app/pdv/produto/${produto.id}/opcoes`, { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' } });
+            if (r.ok) dados = await r.json();
+        } catch (err) { /* cai no aviso abaixo */ }
+        if (!dados || !Array.isArray(dados.grupos)) {
+            this.showAlert('Não consegui carregar as opções de ' + this.escHtml(produto.descricao) + '. Tente de novo.', 'error');
+            return;
+        }
+        if (dados.grupos.length === 0) {
+            return this.addProduto(produto, []);
+        }
+        this.opcoesPendente = { produto, grupos: dados.grupos, escolhidas: {} };
+        dados.grupos.forEach(g => { this.opcoesPendente.escolhidas[g.id] = []; });
+        document.getElementById('modalOpcoesTitulo').textContent = produto.descricao;
+        this.renderOpcoes();
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('modalOpcoes')).show();
+    },
+
+    renderOpcoes() {
+        const p = this.opcoesPendente;
+        if (!p) return;
+        const esc = (t) => this.escHtml(t);
+        const mod = this.modalidadeAtual();
+        document.getElementById('modalOpcoesCorpo').innerHTML = p.grupos.map(g => {
+            const sel = p.escolhidas[g.id] || [];
+            const falta = sel.length < g.minimo;
+            return `<div class="grupo-opcoes">
+                <div class="grupo-titulo ${falta ? 'faltando' : ''}">${esc(g.nome)} <small>${esc(g.regra)}</small></div>
+                <div class="opcoes-lista">${g.opcoes.map(o => {
+                    const preco = parseFloat((o.precos && o.precos[mod] !== undefined) ? o.precos[mod] : o.preco);
+                    return `<button type="button" class="opcao-btn ${sel.includes(o.id) ? 'sel' : ''}" onclick="PDV.escolherOpcao(${g.id}, ${o.id})">
+                        ${esc(o.descricao)}<small>${preco > 0 ? '+ ' + this.formatMoney(preco) : 'sem custo'}</small></button>`;
+                }).join('')}</div>
+            </div>`;
+        }).join('');
+        const base = parseFloat((p.produto.precos && p.produto.precos[mod] !== undefined) ? p.produto.precos[mod] : p.produto.preco_venda);
+        document.getElementById('modalOpcoesTotal').textContent = this.formatMoney(round(base + this.precoDasOpcoes(this.opcoesEscolhidasLista(), mod), 2));
+        const completo = p.grupos.every(g => (p.escolhidas[g.id] || []).length >= g.minimo);
+        document.getElementById('btnConfirmarOpcoes').disabled = !completo;
+    },
+
+    escolherOpcao(grupoId, opcaoId) {
+        const p = this.opcoesPendente;
+        if (!p) return;
+        const g = p.grupos.find(x => x.id === grupoId);
+        let sel = p.escolhidas[grupoId] || [];
+        if (sel.includes(opcaoId)) {
+            sel = sel.filter(id => id !== opcaoId);
+        } else if (g.maximo <= 1) {
+            sel = [opcaoId];                       // escolha única: troca
+        } else if (sel.length < g.maximo) {
+            sel = [...sel, opcaoId];
+        } else {
+            this.showAlert(`No máximo ${g.maximo} em ${this.escHtml(g.nome)}.`, 'warning');
+        }
+        p.escolhidas[grupoId] = sel;
+        this.renderOpcoes();
+    },
+
+    opcoesEscolhidasLista() {
+        const p = this.opcoesPendente;
+        if (!p) return [];
+        const lista = [];
+        p.grupos.forEach(g => (p.escolhidas[g.id] || []).forEach(id => {
+            const o = g.opcoes.find(x => x.id === id);
+            if (o) lista.push({ id: o.id, descricao: o.descricao, preco: o.preco, precos: o.precos });
+        }));
+        return lista;
+    },
+
+    confirmarOpcoes() {
+        const p = this.opcoesPendente;
+        if (!p) return;
+        const falta = p.grupos.find(g => (p.escolhidas[g.id] || []).length < g.minimo);
+        if (falta) {
+            this.showAlert(`Escolha ${this.escHtml(falta.nome)}.`, 'warning');
+            return;
+        }
+        const produto = p.produto;
+        const opcoes = this.opcoesEscolhidasLista();
+        bootstrap.Modal.getInstance(document.getElementById('modalOpcoes'))?.hide();
+        this.addProduto(produto, opcoes);
+    },
+
+    // ===== ATALHOS (cafeteria, 30/10/2026) =====
+    async carregarAtalhos() {
+        const grid = document.getElementById('atalhosGrid');
+        if (!grid) return;
+        try {
+            const r = await fetch('{{ route("app.pdv.atalhos") }}', { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' } });
+            const dados = await r.json();
+            this.atalhosCategorias = Array.isArray(dados.categorias) ? dados.categorias : [];
+            this.atalhosCategorias.forEach(c => this.cachePrecos(c.produtos));
+            document.getElementById('atalhosTitulo').textContent = dados.origem === 'mais_vendidos'
+                ? 'Atalhos · mais vendidos (30 dias)' : 'Atalhos';
+        } catch (err) {
+            this.atalhosCategorias = [];
+        }
+        try {
+            if (localStorage.getItem('pdv_atalhos_recolhido') === '1') this.toggleAtalhos(true);
+        } catch (e) { /* sem storage: fica aberto */ }
+        this.renderAtalhos();
+    },
+
+    renderAtalhos() {
+        const tabs = document.getElementById('atalhosTabs');
+        const grid = document.getElementById('atalhosGrid');
+        if (!grid) return;
+        const esc = (t) => this.escHtml(t);
+        if (this.atalhosCategorias.length === 0) {
+            tabs.innerHTML = '';
+            grid.innerHTML = '<div class="text-muted small p-2">Nenhum atalho ainda. Marque "Mostrar nos atalhos do PDV" no cadastro do produto.</div>';
+            return;
+        }
+        if (this.atalhoCategoriaAtual >= this.atalhosCategorias.length) this.atalhoCategoriaAtual = 0;
+        tabs.innerHTML = this.atalhosCategorias.length > 1 ? this.atalhosCategorias.map((c, i) =>
+            `<button type="button" role="tab" class="${i === this.atalhoCategoriaAtual ? 'active' : ''}" onclick="PDV.atalhoCategoria(${i})">${esc(c.nome)}</button>`
+        ).join('') : '';
+        const mod = this.modalidadeAtual();
+        grid.innerHTML = this.atalhosCategorias[this.atalhoCategoriaAtual].produtos.map(p => {
+            const preco = (p.precos && p.precos[mod] !== undefined) ? p.precos[mod] : p.preco_venda;
+            return `<button type="button" class="atalho-btn" onclick="PDV.lancarAtalho(${p.id})" ${!{{ $caixa ? 'true' : 'false' }} ? 'disabled' : ''}>
+                <span class="nome">${esc(p.descricao)}</span>
+                <span><span class="preco">${this.formatMoney(preco)}</span>${p.tem_opcoes ? ' <span class="tem-opcoes">+ opções</span>' : ''}</span>
+            </button>`;
+        }).join('');
+    },
+
+    atalhoCategoria(i) {
+        this.atalhoCategoriaAtual = i;
+        this.renderAtalhos();
+    },
+
+    lancarAtalho(id) {
+        const p = this.produtosCache[id];
+        if (p) this.addProduto(p);
+    },
+
+    toggleAtalhos(forcarRecolher = null) {
+        const painel = document.getElementById('atalhosPanel');
+        if (!painel) return;
+        const recolher = forcarRecolher === null ? !painel.classList.contains('recolhido') : forcarRecolher;
+        painel.classList.toggle('recolhido', recolher);
+        document.getElementById('atalhosToggleTxt').textContent = recolher ? 'mostrar' : 'esconder';
+        try { localStorage.setItem('pdv_atalhos_recolhido', recolher ? '1' : '0'); } catch (e) { /* ok */ }
     },
 
     // ===== TABELAS DE PREÇO POR FORMA DE PAGAMENTO =====
@@ -2138,6 +2397,12 @@ const PDV = {
         this.itens.forEach(item => {
             if (item.precos && item.precos[mod] !== undefined) {
                 item.preco_unitario = parseFloat(item.precos[mod]);
+            } else if (item.opcoes && item.opcoes.length) {
+                item.preco_unitario = item.preco_base;
+            }
+            // Adicionais somam ao item, cada um na tabela da forma de pagamento
+            if (item.opcoes && item.opcoes.length) {
+                item.preco_unitario = round(item.preco_unitario + this.precoDasOpcoes(item.opcoes, mod), 2);
             }
             item.total = round((item.preco_unitario * item.quantidade) - item.desconto_valor, 2);
         });
@@ -2286,6 +2551,7 @@ const PDV = {
                 <td class="col-code">${esc(item.codigo_interno || item.codigo_barras || '-')}</td>
                 <td class="col-desc">
                     ${esc(item.descricao)}
+                    ${item.opcoes && item.opcoes.length ? `<span class="item-opcoes">+ ${item.opcoes.map(o => esc(o.descricao)).join(' + ')}</span>` : ''}
                     ${item.unidade_origem_id ? `<span class="badge bg-warning text-dark ms-1" title="Estoque da unidade ${esc(item.unidade_origem_nome)}"><i class="bi bi-arrow-left-right"></i> ${esc(item.unidade_origem_nome)}</span>` : ''}
                 </td>
                 <td class="col-qty">
@@ -2930,9 +3196,13 @@ const PDV = {
                 itens: this.itens.map(i => ({
                     produto_id: i.produto_id,
                     quantidade: i.quantidade,
-                    preco_unitario: i.preco_unitario,
+                    // Com adicionais vai o preço do produto SEM eles: o servidor soma
+                    preco_unitario: (i.opcoes && i.opcoes.length)
+                        ? round(i.preco_unitario - this.precoDasOpcoes(i.opcoes, this.tabelaAtiva), 2)
+                        : i.preco_unitario,
                     desconto_valor: i.desconto_valor,
                     unidade_origem_id: i.unidade_origem_id || null,
+                    opcoes: (i.opcoes || []).map(o => o.id),
                 })),
                 estoque_id: this.estoqueSaidaId,
                 pagamentos: credito > 0

@@ -13,6 +13,7 @@ use App\Models\Servico;
 use App\Models\User;
 use App\Models\Venda;
 use App\Models\VendaItem;
+use App\Services\ComposicaoEstoque;
 use App\Services\SaldoEstoque;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -399,19 +400,32 @@ class OrdemServicoController extends Controller
                 continue;
             }
 
-            SaldoEstoque::registrar(
-                $ordemServico->empresa_id,
-                $ordemServico->unidade_id,
+            // Produzido (cafeteria) baixa os insumos da ficha; o resto, como sempre
+            ComposicaoEstoque::baixarItem(
+                (int) $ordemServico->empresa_id,
+                (int) $ordemServico->unidade_id,
                 SaldoEstoque::estoqueDeVendaId($ordemServico->unidade_id),
                 (int) $item->produto_id,
-                TipoMovimentacaoEstoque::Saida->value,
-                -(float) $item->quantidade,
+                (float) $item->quantidade,
                 [
-                    'custo_unitario' => $item->preco_unitario,
-                    'origem_tipo'    => OrdemServico::class,
-                    'origem_id'      => $ordemServico->id,
-                    'observacoes'    => "Conversao da OS #{$ordemServico->numero} em venda",
-                ]
+                    'origem_tipo' => OrdemServico::class,
+                    'origem_id'   => $ordemServico->id,
+                    'observacoes' => "Conversao da OS #{$ordemServico->numero} em venda",
+                ],
+                fn () => SaldoEstoque::registrar(
+                    $ordemServico->empresa_id,
+                    $ordemServico->unidade_id,
+                    SaldoEstoque::estoqueDeVendaId($ordemServico->unidade_id),
+                    (int) $item->produto_id,
+                    TipoMovimentacaoEstoque::Saida->value,
+                    -(float) $item->quantidade,
+                    [
+                        'custo_unitario' => $item->preco_unitario,
+                        'origem_tipo'    => OrdemServico::class,
+                        'origem_id'      => $ordemServico->id,
+                        'observacoes'    => "Conversao da OS #{$ordemServico->numero} em venda",
+                    ]
+                )
             );
         }
     }

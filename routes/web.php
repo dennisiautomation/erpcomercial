@@ -274,6 +274,18 @@ Route::middleware(['auth', 'suspensao', 'unidade', \App\Http\Middleware\Restring
     Route::patch('produtos/{produto}/preco', [App\ProdutoController::class, 'atualizarPreco'])
         ->name('produtos.preco')
         ->middleware('permission:produtos,editar');
+    // Cafeteria (30/10/2026): ficha técnica + grupos de opções do produto, e o
+    // cadastro dos grupos reutilizáveis (Tamanho, Leite, Extras)
+    Route::get('produtos/{produto}/composicao', [App\ComposicaoProdutoController::class, 'edit'])
+        ->name('produtos.composicao')
+        ->middleware('permission:produtos');
+    Route::put('produtos/{produto}/composicao', [App\ComposicaoProdutoController::class, 'update'])
+        ->name('produtos.composicao.update')
+        ->middleware('permission:produtos,editar');
+    Route::resource('grupos-opcoes', App\GrupoOpcaoController::class)
+        ->parameters(['grupos-opcoes' => 'grupoOpcao'])
+        ->except(['show'])
+        ->middleware('permission:produtos');
     Route::resource('produtos', App\ProdutoController::class)->except(['update'])->middleware('permission:produtos');
     // Promoções por período (05/11/2026) — quem edita preço de produto
     Route::middleware('permission:produtos,editar')->prefix('promocoes')->name('promocoes.')->group(function () {
@@ -351,6 +363,13 @@ Route::middleware(['auth', 'suspensao', 'unidade', \App\Http\Middleware\Restring
 
     Route::get('/pdv/produto/{codigo}', [App\PdvController::class, 'buscarProduto'])
         ->name('pdv.buscar-produto')
+        ->middleware('permission:vendas,criar');
+    // Cafeteria (30/10/2026): janela de adicionais e botões de atalho
+    Route::get('/pdv/produto/{produto}/opcoes', [App\PdvController::class, 'opcoesProduto'])
+        ->name('pdv.produto.opcoes')
+        ->middleware('permission:vendas,criar');
+    Route::get('/pdv/atalhos', [App\PdvController::class, 'atalhos'])
+        ->name('pdv.atalhos')
         ->middleware('permission:vendas,criar');
     Route::get('/pdv/cliente/{termo}', [App\PdvController::class, 'buscarCliente'])
         ->name('pdv.buscar-cliente')

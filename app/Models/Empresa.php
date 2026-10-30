@@ -27,6 +27,7 @@ class Empresa extends Model
         'vendedor_apenas_pdv',
         'pdv_vendedores_da_loja',
         'pdv_credishop',
+        'usa_ficha_tecnica',
         'cep',
         'logradouro',
         'numero',
@@ -83,6 +84,7 @@ class Empresa extends Model
             'vendedor_apenas_pdv'           => 'boolean',
             'pdv_vendedores_da_loja'        => 'boolean',
             'pdv_credishop'                 => 'boolean',
+            'usa_ficha_tecnica'             => 'boolean',
         ];
     }
 
@@ -132,6 +134,15 @@ class Empresa extends Model
     public function pdvCredishop(): bool
     {
         return (bool) ($this->pdv_credishop ?? false);
+    }
+
+    /**
+     * Cafeteria/alimentação (30/10/2026): tipo do produto, ficha técnica e
+     * adicionais. Desligado = cadastro e PDV como sempre foram.
+     */
+    public function usaFichaTecnica(): bool
+    {
+        return (bool) ($this->usa_ficha_tecnica ?? false);
     }
 
     /** Visualiza estoque de outras unidades da mesma empresa? */

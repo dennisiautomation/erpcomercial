@@ -56,6 +56,7 @@
 9aj. [Contas a Pagar para despesa de pessoal — Fase 1 (10/11/2026)](#contas-a-pagar-para-despesa-de-pessoal--fase-1-10112026--branch-folha-contas-pagar-10nov)
 9ak. [Folha de Pagamento — Fase 2 (10/11/2026)](#folha-de-pagamento--fase-2-10112026--branch-folha-contas-pagar-10nov)
 9al. [DRE com pessoal e competência, fluxo programado e despesas por centro de custo — Fase 3 (10/11/2026)](#dre-com-pessoal-e-competência-fluxo-programado-e-despesas-por-centro-de-custo--fase-3-10112026--branch-folha-contas-pagar-10nov)
+9am. [Cafeteria Fase 1: tipo do produto, ficha técnica, adicionais e atalhos no PDV (30/10/2026)](#cafeteria-fase-1-tipo-do-produto-ficha-técnica-adicionais-e-atalhos-no-pdv-30102026--branch-featcafeteria-fase1-só-em-homologação)
 10. [Armadilhas conhecidas](#armadilhas-conhecidas)
 11. [Próximos passos](#próximos-passos)
 
@@ -6610,6 +6611,13 @@ Lote de correções na branch `fix/auditoria-bugs-mai2026`, após varredura de s
     (modal de faturar) e "**Analise** as entradas e saídas" (subtítulo do Fluxo de Caixa). Ao acentuar em lote, conferir
     cada par em contexto (`git diff --word-diff`) — palavras que são verbo e substantivo ao mesmo tempo (previa/prévia,
     analise/análise, pratica/prática, secretaria/secretária) não podem ir na lista cega.
+103. **Baixa de estoque de item de venda passa pelo `ComposicaoEstoque`** (30/10/2026). Produto **Produzido** não tem saldo
+    próprio: a venda baixa os insumos da ficha técnica, e adicionais escolhidos no PDV baixam a receita deles. Todo caminho que
+    baixa estoque de venda (PDV, balcão, faturar pedido, OS) usa `ComposicaoEstoque::baixarItem()`/`baixar()`, que grava o que
+    saiu em `venda_itens.baixa_componentes`; o cancelamento devolve **isso** (`devolver()`), nunca "1 cappuccino". Caminho novo
+    de venda que chamar `SaldoEstoque::registrar(-qtd)` direto no produto cria saldo negativo de um produto sem estoque e não
+    baixa os insumos. Troca (F6) de Produzido não volta ao estoque (foi consumido). Insumo e adicional ficam fora da busca do
+    PDV, dos atalhos e do agente IA (`TipoProduto::vendaveis()`).
 
 94. **Trocar a regra de preço da loja NÃO converte o cadastro — a tela tem que LER os dois formatos** (01/11/2026).
     O preço é da EMPRESA e a regra ("preço cadastrado = à vista | cartão") é da LOJA. Existem dois formatos de produto
@@ -8772,3 +8780,72 @@ Só o *dono* e o *gerente* têm acesso.
 
 Qualquer dúvida, é só chamar a gente por aqui! 😊
 ```
+## Cafeteria Fase 1: tipo do produto, ficha técnica, adicionais e atalhos no PDV (30/10/2026) — branch `feat/cafeteria-fase1`, SÓ EM HOMOLOGAÇÃO
+
+Pedido do Dennis (30/10): usar o ERP numa cafeteria de balcão. **Produção não muda**: tudo nasce desligado e a branch sobe só
+na homologação `erp-caf-*` (ver abaixo). Nenhuma empresa em uso vê diferença enquanto não ligar a opção.
+
+**Liga/desliga**
+- `empresas.usa_ficha_tecnica` (empresa toda): Configurações da Loja › Estoque › "Cafeteria e alimentação" (dono/gerente/admin)
+  e Admin › Empresa. Ligado = Tipo no cadastro, tela "Ficha técnica e opções", "Grupos de opções". Desligar só esconde as telas;
+  Produzido continua baixando pela receita.
+- `configuracoes_loja.pdv_atalhos` (por loja): botões de atalho no PDV, **F5** mostra/esconde (o F5 só é tomado com a opção ligada).
+
+**Tipo do produto** (`produtos.tipo`, `App\Enums\TipoProduto`, default `revenda` — todo produto existente vira Revenda):
+| Tipo | Estoque | PDV/atalhos/agente IA |
+|---|---|---|
+| `revenda` | baixa o próprio produto (o de sempre) | sim |
+| `produzido` | sem saldo próprio; baixa os insumos da ficha | sim |
+| `insumo` | entra por compra/NF-e, sai pelas fichas | não |
+| `adicional` | baixa a própria ficha, se tiver (sem ficha não baixa nada) | só dentro de um grupo de opções |
+Revenda também pode ser insumo de ficha (ex.: pão de queijo congelado vendido no saco e usado no forno). Produzido não entra em
+ficha de outro (um nível só). Produzido fica com `estoque_minimo = 0` e a lista mostra "pela receita" no lugar do saldo.
+
+**Ficha técnica** (`produto_ficha_itens`: produto_id, insumo_id, quantidade decimal(12,4) na unidade do insumo — café em KG →
+18 g = 0,018). Tela `produtos/{id}/composicao` (`ComposicaoProdutoController`): Produzido precisa de ≥ 1 insumo; salvar
+recalcula `preco_custo` = Σ custo do insumo × quantidade (e o markup). Mostra custo da receita e margem ao vivo.
+
+**Grupos de opções** (`grupos_opcoes` minimo/maximo/status · `grupo_opcao_itens` adicional_id + preco nullable · pivô
+`produto_grupo_opcao` com ordem). Reutilizável: "Leite" criado uma vez e ligado em vários cafés na tela do produto. Na tela do grupo
+(`GrupoOpcaoController`) dá para **criar o adicional na hora** só com nome e preço (produto `adicional`, UN, fiscal padrão do regime).
+Preço da opção: o do grupo; vazio = preço de venda do adicional (com a tabela da forma de pagamento, como o produto).
+
+**PDV** (`PdvController`, `pdv/index.blade.php`)
+- Busca e atalhos devolvem `tipo` e `tem_opcoes`; produto com grupos abre a janela **Opções** (`GET pdv/produto/{id}/opcoes`):
+  grupo obrigatório trava o "Lançar" até escolher, escolha única troca, máximo respeitado; Enter lança.
+- O item mostra "+ Tamanho G + Leite de aveia"; mesmo produto com opções diferentes = linhas separadas.
+- Payload: `itens.*.opcoes` = ids de `grupo_opcao_itens`; `preco_unitario` vai **sem** os adicionais. O servidor é a autoridade:
+  `ComposicaoEstoque::resolverOpcoes()` valida (grupo ativo ligado ao produto, mínimo/máximo, mesma empresa → 422 com mensagem) e
+  soma o preço; `venda_itens.descricao` = "Cappuccino + Tamanho G + Leite de aveia" (vai assim para cupom/NFC-e), `venda_itens.opcoes`
+  = snapshot (nome e preço do momento).
+- Produzido: `GET pdv/estoque/{id}` devolve `sem_controle` (sem aviso "sem estoque", sem venda remota); insumo/adicional mandado
+  direto ao PDV → 422.
+- Atalhos (`GET pdv/atalhos`): produtos com `atalho_pdv` por categoria; sem nenhum marcado, os 24 mais vendidos da loja em 30 dias.
+  Recolhido/aberto fica no `localStorage` do caixa.
+
+**Baixa de estoque** — ver armadilha 103. Cobertos: PDV (com e sem adicionais), venda de balcão, faturar pedido (o que saiu vai
+para o item da venda gerada), conversão de OS, cancelamento (devolve `baixa_componentes`; Produzido sem registro não devolve nada),
+troca F6 (Produzido não volta). Revenda sem adicionais segue **exatamente** o caminho antigo (`precisaComposicao()` = false).
+
+**Agente IA**: insumo/adicional fora da busca textual/semântica, do fallback de catálogo, da criação de pedido e do índice vetorial.
+
+**Fora da Fase 1** (de propósito): comanda/mesa, impressão por setor, taxa de serviço, combo, adicional que *substitui* insumo da
+receita (hoje só soma — por isso no demo o copo vem do grupo Tamanho), opções em pedido/orçamento/balcão (só no PDV),
+unidades g/ml (a ficha usa a unidade do insumo).
+
+**Testes** — `tests/Feature/App/CafeteriaTest.php`, 15 testes / 105 asserções (receita baixa insumos, adicionais somam e baixam,
+obrigatório/máximo/opção de outro produto → 422, cancelamento devolve, revenda igual a antes, busca sem insumo, ficha recalcula
+custo, telas somem desligado + POST forjado não grava tipo, grupo cria adicional, atalhos, PDV só mostra atalhos com a opção,
+balcão e faturar pedido com Produzido). **Suíte completa** contra o MySQL/pgvector da homologação:
+main `d214a3b` = 245 testes, 2 ❌ pré-existentes (`PdvTest::test_caixa_fechamento_calculates_correctly`,
+`LoginTest::test_oito_senhas_erradas_travam_o_email`) → branch = 260 testes, **as mesmas 2 ❌, 0 novas**. Lint PHP 0 erros;
+Blade compilado + `php -l` nas views compiladas 0 erros; JS do PDV `node --check` ok.
+
+**Homologação** (`/home/ubuntu/erp-cafeteria-homolog/`, fora do repositório): compose próprio `erp-cafeteria-homolog`
+(containers `erp-caf-app` / `erp-caf-mysql` / `erp-caf-vector` / `erp-caf-redis`, rede 10.250.78.0/24, app em `127.0.0.1:8099`),
+banco próprio (seed padrão + `CafeteriaDemoSeeder`, empresa "Café Demo"), **supervisord só com php-fpm + nginx** (sem
+`queue:work`/`schedule:work`: nada sai para Focus, app.ia365 ou e-mail), `MAIL_MAILER=log`. Senhas dos logins de homologação em
+`/home/ubuntu/erp-cafeteria-homolog/LOGINS.txt` (600). Domínio: o Dennis aponta; vhost pronto em
+`/home/ubuntu/erp-cafeteria-homolog/nginx-homolog.conf` (precisa sudo + certbot).
+`phpunit.sh` na mesma pasta roda a suíte de qualquer cópia (`PASTA=… BANCO=…`).
+

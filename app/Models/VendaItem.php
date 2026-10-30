@@ -37,6 +37,9 @@ class VendaItem extends Model
         'snapshot_cofins_aliquota',
         'snapshot_ipi_aliquota',
         'snapshot_unidade_medida',
+        // Cafeteria (30/10/2026): adicionais escolhidos e o que saiu do estoque
+        'opcoes',
+        'baixa_componentes',
     ];
 
     protected function casts(): array
@@ -50,6 +53,8 @@ class VendaItem extends Model
             'snapshot_pis_aliquota' => 'decimal:2',
             'snapshot_cofins_aliquota' => 'decimal:2',
             'snapshot_ipi_aliquota' => 'decimal:2',
+            'opcoes' => 'array',
+            'baixa_componentes' => 'array',
         ];
     }
 

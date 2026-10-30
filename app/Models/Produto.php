@@ -2,10 +2,12 @@
 
 namespace App\Models;
 
+use App\Enums\TipoProduto;
 use App\Traits\AuditableModel;
 use App\Traits\BelongsToEmpresa;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -20,6 +22,9 @@ class Produto extends Model
         'sku',
         'descricao',
         'descricao_detalhada',
+        // Fase 1 cafeteria (30/10/2026) — ver App\Enums\TipoProduto
+        'tipo',
+        'atalho_pdv',
         'unidade_medida',
         'categoria_id',
         'fornecedor_id',
@@ -91,6 +96,7 @@ class Produto extends Model
             'altura_cm' => 'decimal:2',
             'largura_cm' => 'decimal:2',
             'comprimento_cm' => 'decimal:2',
+            'atalho_pdv' => 'boolean',
         ];
     }
 
@@ -100,6 +106,17 @@ class Produto extends Model
     public function ehImportado(): bool
     {
         return in_array((string) $this->origem, ['1', '2', '3', '6', '7', '8'], true);
+    }
+
+    /** Tipo do produto; nulo/desconhecido conta como Revenda (o de sempre). */
+    public function tipoEnum(): TipoProduto
+    {
+        return TipoProduto::de($this->tipo);
+    }
+
+    public function ehProduzido(): bool
+    {
+        return $this->tipoEnum() === TipoProduto::Produzido;
     }
 
     /* ------------------------------------------------------------------ */
@@ -128,6 +145,20 @@ class Produto extends Model
     public function estoqueMovimentacoes(): HasMany
     {
         return $this->hasMany(EstoqueMovimentacao::class);
+    }
+
+    /** Ficha técnica (só produto Produzido): insumos por unidade vendida. */
+    public function fichaItens(): HasMany
+    {
+        return $this->hasMany(ProdutoFichaItem::class)->orderBy('id');
+    }
+
+    /** Grupos de opções (tamanho, leite, extras) que o PDV oferece ao lançar o produto. */
+    public function gruposOpcoes(): BelongsToMany
+    {
+        return $this->belongsToMany(GrupoOpcao::class, 'produto_grupo_opcao')
+            ->withPivot('ordem')
+            ->orderBy('produto_grupo_opcao.ordem');
     }
 
     /** Overrides de preço por forma de pagamento (tabelas dinheiro_pix/debito/credito). */

@@ -25,6 +25,8 @@ use App\Scopes\UnidadeScope;
 use App\Services\TrocaService;
 use App\Models\ConfiguracaoFiscal;
 use App\Models\ConfiguracaoLoja;
+use App\Enums\TipoProduto;
+use App\Services\ComposicaoEstoque;
 use App\Services\EstoqueMultiUnidadeService;
 use App\Services\JurosParcelamentoService;
 use App\Services\SaldoEstoque;
@@ -160,6 +162,20 @@ class PdvController extends Controller
     public function verificarEstoque(Request $request, $produtoId, EstoqueMultiUnidadeService $estoqueSvc)
     {
         $produto = Produto::find($produtoId);
+
+        // Produzido não tem saldo próprio — quem tem são os insumos. Não avisa
+        // "sem estoque" nem oferece outra loja: é feito aqui, na hora.
+        if ($produto && $produto->ehProduzido()) {
+            return response()->json([
+                'produto_id' => $produtoId,
+                'estoque_atual' => null,
+                'sem_controle' => true,
+                'estoques' => [],
+                'estoque_minimo' => 0,
+                'pode_vender_remoto' => false,
+                'outras_unidades' => [],
+            ]);
+        }
         $empresa = $request->user()->empresa;
         $unidadeAtual = (int) session('unidade_id');
 
@@ -206,11 +222,22 @@ class PdvController extends Controller
 
     public function buscarProduto(Request $request, $codigo, TabelaPrecoService $tabelaPrecos)
     {
-        $produtos = self::buscarProdutosDaEmpresa((int) session('empresa_id'), (string) $codigo, 50);
+        // Insumo e adicional não são vendidos sozinhos (cafeteria, 30/10/2026)
+        $produtos = self::buscarProdutosDaEmpresa((int) session('empresa_id'), (string) $codigo, 50, true);
 
+        return response()->json($this->produtosParaPdv($produtos, $tabelaPrecos));
+    }
+
+    /**
+     * Formato que o PDV usa para lançar um produto (busca e atalhos): preços por
+     * forma de pagamento + se abre a janela de opções antes de entrar na venda.
+     */
+    private function produtosParaPdv($produtos, TabelaPrecoService $tabelaPrecos)
+    {
         // Tabelas de preço por forma de pagamento (dinheiro_pix/debito/credito)
         $configLoja = ConfiguracaoLoja::daUnidade();
-        $produtos = $produtos->map(function ($p) use ($tabelaPrecos, $configLoja) {
+
+        return $produtos->map(function ($p) use ($tabelaPrecos, $configLoja) {
             $dados = $p->only(['id', 'codigo_interno', 'codigo_barras', 'descricao', 'preco_venda', 'unidade_medida']);
             $dados['precos'] = $tabelaPrecos->precosDoProduto($p, $configLoja);
             // O preço da busca e da peça sem cupom no F6 é o "preço cadastrado" da
@@ -218,10 +245,91 @@ class PdvController extends Controller
             $dados['preco_venda'] = $dados['precos'][$tabelaPrecos->modalidadeDoCadastro($configLoja)];
             // Promoção do dia nesta loja (05/11/2026) — só para o aviso na lista; o preço já vem nela
             $dados['promocao'] = $tabelaPrecos->promocaoDoProduto($p, $configLoja)?->promocao?->nome;
+            $dados['tipo'] = $p->tipoEnum()->value;
+            $dados['tem_opcoes'] = (int) ($p->grupos_opcoes_count ?? 0) > 0;
             return $dados;
-        });
+        })->values();
+    }
 
-        return response()->json($produtos);
+    /**
+     * Grupos de opções do produto para a janela do PDV (cafeteria, 30/10/2026).
+     * Preço de cada opção já na tabela de cada forma de pagamento, igual ao produto.
+     */
+    public function opcoesProduto(Produto $produto, TabelaPrecoService $tabelaPrecos)
+    {
+        $configLoja = ConfiguracaoLoja::daUnidade();
+
+        $grupos = $produto->gruposOpcoes()
+            ->where('grupos_opcoes.status', 'ativo')
+            ->with(['itens.adicional' => fn ($q) => $q->with('precos:id,produto_id,modalidade,valor')])
+            ->get()
+            ->map(fn ($g) => [
+                'id'      => $g->id,
+                'nome'    => $g->nome,
+                'minimo'  => (int) $g->minimo,
+                'maximo'  => (int) $g->maximo,
+                'regra'   => $g->regraTexto(),
+                'opcoes'  => $g->itens->filter(fn ($i) => $i->adicional && $i->adicional->status === 'ativo')->map(function ($i) use ($tabelaPrecos, $configLoja) {
+                    // Preço fixo no grupo vale em qualquer forma; sem ele, a tabela do adicional
+                    $precos = $i->preco !== null
+                        ? array_fill_keys(['dinheiro_pix', 'debito', 'credito', 'atacado'], (float) $i->preco)
+                        : $tabelaPrecos->precosDoProduto($i->adicional, $configLoja);
+
+                    return [
+                        'id'        => $i->id,
+                        'descricao' => $i->adicional->descricao,
+                        'preco'     => $i->precoEfetivo(),
+                        'precos'    => $precos,
+                    ];
+                })->values(),
+            ])
+            ->filter(fn ($g) => count($g['opcoes']) > 0)
+            ->values();
+
+        return response()->json(['produto_id' => $produto->id, 'grupos' => $grupos]);
+    }
+
+    /**
+     * Botões de atalho do PDV (cafeteria, 30/10/2026): os produtos marcados
+     * "Mostrar nos atalhos do PDV", por categoria. Sem nenhum marcado, os 24
+     * mais vendidos da loja nos últimos 30 dias — a tela nunca nasce vazia.
+     */
+    public function atalhos(TabelaPrecoService $tabelaPrecos)
+    {
+        $base = fn () => Produto::where('empresa_id', session('empresa_id'))
+            ->where('status', 'ativo')
+            ->whereIn('tipo', [TipoProduto::Revenda->value, TipoProduto::Produzido->value])
+            ->select('id', 'codigo_interno', 'codigo_barras', 'descricao', 'preco_venda', 'unidade_medida', 'tipo', 'categoria_id', 'foto')
+            ->with(['precos:id,produto_id,modalidade,valor', 'categoria:id,nome'])
+            ->withCount('gruposOpcoes');
+
+        $produtos = $base()->where('atalho_pdv', true)->orderBy('descricao')->limit(120)->get();
+        $origem = 'marcados';
+
+        if ($produtos->isEmpty()) {
+            $origem = 'mais_vendidos';
+            $ids = \Illuminate\Support\Facades\DB::table('venda_itens as vi')
+                ->join('vendas as v', 'v.id', '=', 'vi.venda_id')
+                ->where('v.empresa_id', session('empresa_id'))
+                ->where('v.unidade_id', session('unidade_id'))
+                ->where('v.status', 'concluida')
+                ->where('v.created_at', '>=', now()->subDays(30))
+                ->whereNotNull('vi.produto_id')
+                ->groupBy('vi.produto_id')
+                ->orderByRaw('SUM(vi.quantidade) DESC')
+                ->limit(24)
+                ->pluck('vi.produto_id');
+            $produtos = $ids->isEmpty() ? collect() : $base()->whereIn('id', $ids)->orderBy('descricao')->get();
+        }
+
+        $dados = $this->produtosParaPdv($produtos, $tabelaPrecos);
+        $porId = $produtos->keyBy('id');
+        $categorias = $dados->groupBy(fn ($d) => $porId[$d['id']]->categoria?->nome ?? 'Sem categoria')
+            ->map(fn ($itens, $nome) => ['nome' => $nome, 'produtos' => $itens->values()])
+            ->sortBy('nome')
+            ->values();
+
+        return response()->json(['origem' => $origem, 'categorias' => $categorias]);
     }
 
     /**
@@ -238,15 +346,19 @@ class PdvController extends Controller
      *    BRANCO") digitava e "não localizava" (04/11/2026).
      * Ordem: começa pelo termo → contém; depois alfabética.
      */
-    public static function buscarProdutosDaEmpresa(int $empresaId, string $termo, int $limite = 50)
+    public static function buscarProdutosDaEmpresa(int $empresaId, string $termo, int $limite = 50, bool $soVendaveis = false)
     {
         $termo = trim(preg_replace('/\s+/u', ' ', $termo));
         $palavras = array_values(array_filter(explode(' ', $termo), fn ($p) => $p !== ''));
 
         $base = fn () => Produto::where('empresa_id', $empresaId)
             ->where('status', 'ativo')
-            ->select('id', 'codigo_interno', 'codigo_barras', 'sku', 'descricao', 'preco_venda', 'unidade_medida')
-            ->with('precos:id,produto_id,modalidade,valor');
+            ->select('id', 'codigo_interno', 'codigo_barras', 'sku', 'descricao', 'preco_venda', 'unidade_medida', 'tipo')
+            ->with('precos:id,produto_id,modalidade,valor')
+            // PDV (cafeteria, 30/10/2026): só Revenda/Produzido, e se abre a janela de opções
+            ->when($soVendaveis, fn ($q) => $q
+                ->whereIn('tipo', [TipoProduto::Revenda->value, TipoProduto::Produzido->value])
+                ->withCount('gruposOpcoes'));
 
         if ($termo === '') {
             return collect();
@@ -301,6 +413,9 @@ class PdvController extends Controller
             'itens.*.preco_unitario'   => 'required|numeric|min:0',
             'itens.*.desconto_valor'   => 'nullable|numeric|min:0',
             'itens.*.unidade_origem_id'=> 'nullable|integer|exists:unidades,id',
+            // Adicionais escolhidos (cafeteria, 30/10/2026): ids de grupo_opcao_itens
+            'itens.*.opcoes'           => 'nullable|array|max:30',
+            'itens.*.opcoes.*'         => 'integer',
             'estoque_id'               => 'nullable|integer',
             'pagamentos'               => 'required|array|min:1',
             'pagamentos.*.forma'       => ['required', 'string', function ($attr, $valor, $falha) {
@@ -393,30 +508,57 @@ class PdvController extends Controller
                 $brutoVenda = 0.0;
                 $descontoItens = 0.0;
 
+                // Composição de cada item (cafeteria): índice do item => [Produto, opções]
+                $composicao = [];
+
                 foreach ($request->itens as $item) {
                     $produto = Produto::find($item['produto_id']);
                     if (!$produto) continue;
+
+                    // Insumo e adicional não são vendidos sozinhos (a busca do PDV já os esconde)
+                    if (! $produto->tipoEnum()->vendeNoPdv()) {
+                        throw new \DomainException("{$produto->descricao} é {$produto->tipoEnum()->label()} e não é vendido sozinho no PDV.");
+                    }
 
                     $precoUnit = $item['preco_unitario'];
                     if ($modalidade !== null) {
                         $precoUnit = $tabelaPrecos->precosDoProduto($produto, $configLoja)[$modalidade];
                     }
+
+                    // Adicionais: o servidor valida (grupo do produto, mínimo/máximo) e é a
+                    // autoridade do preço — o front manda o preço do produto SEM eles.
+                    $opcoes = ComposicaoEstoque::resolverOpcoes($produto, $item['opcoes'] ?? []);
+                    $snapshotOpcoes = ComposicaoEstoque::snapshotOpcoes($opcoes, function ($o) use ($modalidade, $tabelaPrecos, $configLoja) {
+                        if ($o->preco !== null || $modalidade === null) {
+                            return $o->precoEfetivo();
+                        }
+
+                        return (float) $tabelaPrecos->precosDoProduto($o->adicional, $configLoja)[$modalidade];
+                    });
+                    $precoUnit = round((float) $precoUnit + array_sum(array_column($snapshotOpcoes, 'preco')), 2);
+
                     $qtd = $item['quantidade'];
                     $descontoValor = $item['desconto_valor'] ?? 0;
                     $totalItem = round(($precoUnit * $qtd) - $descontoValor, 2);
                     $brutoVenda += $precoUnit * $qtd;
                     $descontoItens += (float) $descontoValor;
 
+                    $composicao[count($itensData)] = ComposicaoEstoque::precisaComposicao($produto, $opcoes)
+                        ? [$produto, $opcoes]
+                        : null;
+
                     $itensData[] = [
                         'produto_id'         => $item['produto_id'],
-                        'descricao'          => $produto->descricao,
+                        'descricao'          => ComposicaoEstoque::descricaoComOpcoes($produto->descricao, $snapshotOpcoes),
                         'quantidade'         => $qtd,
                         'preco_unitario'     => $precoUnit,
                         'desconto_valor'     => $descontoValor,
                         'desconto_percentual'=> 0,
                         'total'              => $totalItem,
                         // Venda remota: estoque vem de outra unidade da mesma empresa
-                        'unidade_origem_id'  => $item['unidade_origem_id'] ?? null,
+                        // (produto com ficha/adicionais sai sempre desta loja: é feito aqui)
+                        'unidade_origem_id'  => $composicao[count($itensData)] ? null : ($item['unidade_origem_id'] ?? null),
+                        'opcoes'             => $snapshotOpcoes ?: null,
                     ];
 
                     $subtotal += $totalItem;
@@ -608,7 +750,22 @@ class PdvController extends Controller
                     $qtd = $itemData['quantidade'];
                     $origemRemota = $itemData['unidade_origem_id'] ?? null;
 
-                    if ($origemRemota && $origemRemota !== $unidadeId) {
+                    if (! empty($composicao[$i])) {
+                        // Cafeteria: sai a receita (insumos) e a dos adicionais, não o produto
+                        [$produtoComp, $opcoesComp] = $composicao[$i];
+                        $saiu = ComposicaoEstoque::baixar(
+                            (int) $empresaId,
+                            (int) $unidadeId,
+                            (int) $estoqueSaidaId,
+                            ComposicaoEstoque::componentes($produtoComp, (float) $qtd, $opcoesComp),
+                            [
+                                'origem_tipo' => Venda::class,
+                                'origem_id'   => $venda->id,
+                                'observacoes' => "Venda PDV #{$venda->numero} — {$produtoComp->descricao}",
+                            ]
+                        );
+                        $vendaItem->update(['baixa_componentes' => $saiu]);
+                    } elseif ($origemRemota && $origemRemota !== $unidadeId) {
                         // Venda remota: baixa estoque da outra unidade + cria transferência
                         $empresa = Venda::find($venda->id)->empresa;
                         if (! $empresa?->permiteVenderEstoqueRemoto()) {

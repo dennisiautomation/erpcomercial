@@ -764,6 +764,54 @@
         </details>
     </x-erp.form-section>
 
+    {{-- ============ CAFETERIA / ALIMENTAÇÃO (30/10/2026) ============ --}}
+    <x-erp.form-section title="Cafeteria e alimentação" icon="cup-hot"
+        description="Produto feito na casa, receita que baixa insumos e adicionais no PDV">
+        <input type="hidden" name="usa_ficha_tecnica" value="0">
+        <div class="form-check form-switch mb-1">
+            <input class="form-check-input" type="checkbox" role="switch" value="1"
+                   id="usa_ficha_tecnica" name="usa_ficha_tecnica"
+                   @checked(old('usa_ficha_tecnica', $empresa?->usa_ficha_tecnica))
+                   @disabled(! $podeMudarAcessoVendedor)>
+            <label class="form-check-label" for="usa_ficha_tecnica">
+                <strong>Usar tipo do produto, ficha técnica e adicionais</strong> <span class="text-muted small">(vale para a empresa toda)</span>
+            </label>
+        </div>
+        <details class="cfg-entenda">
+            <summary>Entenda esta opção</summary>
+            <div class="text-muted small">
+            <div class="mb-1"><i class="bi bi-toggle-on me-1"></i><strong>Ligado:</strong> o cadastro de produto ganha o
+                <strong>Tipo</strong> (Revenda, Produzido, Insumo, Adicional), a tela <strong>Ficha técnica e opções</strong>
+                e o menu <strong>Grupos de opções</strong>. Vender um Produzido (ex.: cappuccino) baixa os insumos da receita
+                (café, leite, copo); adicionais escolhidos no PDV somam ao preço e baixam a receita deles.</div>
+            <div class="mb-1"><i class="bi bi-toggle-off me-1"></i><strong>Desligado (padrão):</strong> cadastro e PDV como
+                sempre — todo produto é Revenda e a venda baixa o próprio produto.</div>
+            <div><i class="bi bi-info-circle me-1"></i>Desligar depois não apaga receitas nem grupos: só esconde as telas.
+                Produto já marcado como Produzido continua baixando pela receita.</div>
+                    </div>
+        </details>
+
+        <hr class="my-3">
+
+        <div class="form-check form-switch mb-1">
+            <input class="form-check-input" type="checkbox" role="switch" value="1"
+                   id="pdv_atalhos" name="pdv_atalhos"
+                   @checked(old('pdv_atalhos', $config->pdv_atalhos))>
+            <label class="form-check-label" for="pdv_atalhos">
+                <strong>Botões de atalho no PDV desta loja</strong>
+            </label>
+        </div>
+        <details class="cfg-entenda">
+            <summary>Entenda esta opção</summary>
+            <div class="text-muted small">
+            <div class="mb-1"><i class="bi bi-toggle-on me-1"></i><strong>Ligado:</strong> o PDV mostra botões grandes por
+                categoria (tecla <strong>F5</strong> mostra e esconde) para tocar e lançar sem buscar. Aparecem os produtos marcados
+                "Mostrar nos atalhos do PDV"; sem nenhum marcado, os 24 mais vendidos da loja nos últimos 30 dias.</div>
+            <div><i class="bi bi-toggle-off me-1"></i><strong>Desligado (padrão):</strong> PDV só com busca e leitor, como sempre.</div>
+                    </div>
+        </details>
+    </x-erp.form-section>
+
     </div>
     <div class="tab-pane fade" id="cfg-impressos" role="tabpanel" aria-labelledby="tab-impressos" tabindex="0">
     {{-- ============ IMPRESSÃO DA OS ============ --}}

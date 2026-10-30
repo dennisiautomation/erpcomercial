@@ -89,6 +89,20 @@ class VendaCancelamentoService
             }
 
             foreach ($venda->itens as $item) {
+                // Cafeteria (30/10/2026): item que baixou insumos/adicionais devolve exatamente o que saiu
+                if (! empty($item->baixa_componentes)) {
+                    ComposicaoEstoque::devolver($venda->empresa_id, $venda->unidade_id, $item->baixa_componentes, [
+                        'origem_tipo' => Venda::class,
+                        'origem_id'   => $venda->id,
+                        'observacoes' => "Cancelamento Venda #{$venda->numero} — {$item->descricao}",
+                    ]);
+                    continue;
+                }
+                // Produzido sem registro do que saiu (venda de OS): devolver "1 cappuccino"
+                // criaria saldo de um produto que não tem estoque próprio — não devolve.
+                if ($item->produto_id && \App\Models\Produto::withoutGlobalScopes()->find($item->produto_id)?->ehProduzido()) {
+                    continue;
+                }
                 if ($item->produto_id) {
                     // Volta para o estoque de onde a peça SAIU nesta venda (o PDV pode ter
                     // baixado de outro que não o de venda — 22/10/2026); sem registro, o de

@@ -16,6 +16,7 @@ use App\Models\MovimentacaoCaixa;
 use App\Models\Produto;
 use App\Scopes\UnidadeScope;
 use App\Services\LancamentoCaixaService;
+use App\Services\ComposicaoEstoque;
 use App\Services\SaldoEstoque;
 use App\Models\User;
 use App\Models\Vale;
@@ -237,30 +238,48 @@ class VendaController extends Controller
                 ]);
 
                 // Create VendaItens
+                $vendaItens = [];
                 foreach ($itensData as $itemData) {
-                    $venda->itens()->create($itemData);
+                    $vendaItens[] = $venda->itens()->create($itemData);
                 }
 
                 // Deduct estoque
-                foreach ($request->itens as $item) {
+                foreach (array_values($request->itens) as $idx => $item) {
                     if (!empty($item['produto_id'])) {
                         $produto = Produto::find($item['produto_id']);
                         if (!$produto) continue;
 
-                        SaldoEstoque::registrar(
-                            $empresaId,
-                            $unidadeId,
+                        // Produzido (cafeteria): saem os insumos da ficha técnica
+                        $saiu = ComposicaoEstoque::baixarItem(
+                            (int) $empresaId,
+                            (int) $unidadeId,
                             SaldoEstoque::estoqueDeVendaId($unidadeId),
                             (int) $item['produto_id'],
-                            TipoMovimentacaoEstoque::Saida->value,
-                            -(float) $item['quantidade'],
+                            (float) $item['quantidade'],
                             [
-                                'custo_unitario' => $item['preco_unitario'],
-                                'origem_tipo'    => Venda::class,
-                                'origem_id'      => $venda->id,
-                                'observacoes'    => "Venda Balcao #{$venda->numero}",
-                            ]
+                                'origem_tipo' => Venda::class,
+                                'origem_id'   => $venda->id,
+                                'observacoes' => "Venda Balcao #{$venda->numero} — {$produto->descricao}",
+                            ],
+                            fn () => SaldoEstoque::registrar(
+                                $empresaId,
+                                $unidadeId,
+                                SaldoEstoque::estoqueDeVendaId($unidadeId),
+                                (int) $item['produto_id'],
+                                TipoMovimentacaoEstoque::Saida->value,
+                                -(float) $item['quantidade'],
+                                [
+                                    'custo_unitario' => $item['preco_unitario'],
+                                    'origem_tipo'    => Venda::class,
+                                    'origem_id'      => $venda->id,
+                                    'observacoes'    => "Venda Balcao #{$venda->numero}",
+                                ]
+                            )
                         );
+                        if ($saiu !== null) {
+                            $vendaItem = collect($vendaItens)->first(fn ($vi) => (int) $vi->produto_id === (int) $item['produto_id'] && $vi->baixa_componentes === null);
+                            $vendaItem?->update(['baixa_componentes' => $saiu]);
+                        }
                     }
                 }
 

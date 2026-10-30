@@ -212,7 +212,9 @@ class IntegracaoAgenteController extends Controller
         if ($termos->isNotEmpty()) {
             $query = Produto::withoutGlobalScope(EmpresaScope::class)
                 ->where('empresa_id', $token->empresa_id)
-                ->where('status', 'ativo');
+                ->where('status', 'ativo')
+                // Insumo e adicional (cafeteria) não são oferecidos ao cliente
+                ->whereIn('tipo', \App\Enums\TipoProduto::vendaveis());
 
             foreach ($termos as $termo) {
                 $query->where(function ($q) use ($termo) {
@@ -281,6 +283,7 @@ class IntegracaoAgenteController extends Controller
             ->with(['categoria:id,nome', 'precos'])
             ->where('empresa_id', $token->empresa_id)
             ->where('status', 'ativo')
+            ->whereIn('tipo', \App\Enums\TipoProduto::vendaveis())
             ->whereIn('id', $ids)
             ->get()
             ->keyBy('id');
@@ -319,7 +322,8 @@ class IntegracaoAgenteController extends Controller
             $fb = Produto::withoutGlobalScope(EmpresaScope::class)
                 ->with(['categoria:id,nome', 'precos'])
                 ->where('empresa_id', $token->empresa_id)
-                ->where('status', 'ativo');
+                ->where('status', 'ativo')
+                ->whereIn('tipo', \App\Enums\TipoProduto::vendaveis());
             if ($precoMin !== null) {
                 $fb->where('preco_venda', '>=', $precoMin);
             }
@@ -720,6 +724,7 @@ class IntegracaoAgenteController extends Controller
         $produtos = Produto::withoutGlobalScope(EmpresaScope::class)
             ->where('empresa_id', $token->empresa_id)
             ->where('status', 'ativo')
+            ->whereIn('tipo', \App\Enums\TipoProduto::vendaveis())
             ->whereIn('id', $produtoIds)
             ->get()
             ->keyBy('id');

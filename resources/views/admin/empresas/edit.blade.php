@@ -573,6 +573,23 @@
                         Conta como cartão de crédito: preço do cartão, acréscimo do crédito e NFC-e com
                         forma 03.
                     </small>
+
+                    @php $fichaTecnica = (bool) old('usa_ficha_tecnica', $empresa->usa_ficha_tecnica ?? false); @endphp
+                    <div class="form-check form-switch mt-3">
+                        <input type="hidden" name="usa_ficha_tecnica" value="0">
+                        <input class="form-check-input" type="checkbox" role="switch" value="1"
+                               id="usa_ficha_tecnica" name="usa_ficha_tecnica"
+                               @checked($fichaTecnica)>
+                        <label class="form-check-label" for="usa_ficha_tecnica">
+                            Cafeteria/alimentação: tipo do produto, ficha técnica e adicionais
+                        </label>
+                    </div>
+                    <small class="text-muted d-block mt-2">
+                        <i class="bi bi-info-circle me-1"></i>
+                        Liga o Tipo no cadastro de produto (Revenda, Produzido, Insumo, Adicional), a receita que
+                        baixa insumos e os grupos de opções do PDV. Os atalhos do PDV são por loja, em
+                        <strong>Configurações da Loja</strong>.
+                    </small>
                 </div>
             </div>
 

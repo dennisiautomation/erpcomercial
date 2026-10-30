@@ -4,6 +4,11 @@
 
 @section('content')
 <x-erp.page-header :title="$produto->descricao" icon="box-seam">
+    @if($usaFichaTecnica ?? false)
+        <a href="{{ route('app.produtos.composicao', $produto) }}" class="btn btn-erp-outline">
+            <i class="bi bi-cup-hot me-1"></i> Ficha técnica e opções
+        </a>
+    @endif
     <a href="{{ route('app.produtos.edit', $produto) }}" class="btn btn-erp-primary">
         <i class="bi bi-pencil me-1"></i> Editar
     </a>
@@ -28,6 +33,9 @@
 {{-- Status Badge --}}
 <div class="mb-4">
     <x-erp.status-badge :status="$produto->status" />
+    @if(($usaFichaTecnica ?? false))
+        <span class="badge bg-primary-subtle text-primary-emphasis fs-6 ms-1">{{ $produto->tipoEnum()->label() }}</span>
+    @endif
     @if($produto->categoria)
         <span class="badge bg-info fs-6 ms-1">
             <i class="bi bi-tag me-1"></i>{{ $produto->categoria->nome }}
