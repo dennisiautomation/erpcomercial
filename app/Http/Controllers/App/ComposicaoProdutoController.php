@@ -36,8 +36,11 @@ class ComposicaoProdutoController extends Controller
         // Os já ligados vêm primeiro, na ordem atual (é a ordem do PDV e salvar a
         // tela regrava a ordem pela posição); depois os outros, por nome.
         $ordemAtual = $produto->gruposOpcoes->pluck('id')->flip();
+        // Os não ligados: obrigatórios primeiro (Tamanho antes de Extras), depois por nome.
         $grupos = GrupoOpcao::where('status', 'ativo')->with('itens.adicional:id,descricao,preco_venda')->orderBy('nome')->get()
-            ->sortBy(fn ($g) => $ordemAtual->has($g->id) ? $ordemAtual[$g->id] : 1000)
+            ->sortBy(fn ($g) => $ordemAtual->has($g->id)
+                ? sprintf('0-%05d', $ordemAtual[$g->id])
+                : ($g->minimo > 0 ? '1-' : '2-') . mb_strtolower($g->nome))
             ->values();
         $custoFicha = ComposicaoEstoque::custoDaFicha($produto);
 

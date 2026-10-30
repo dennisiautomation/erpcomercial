@@ -315,6 +315,20 @@ class CafeteriaTest extends TestCase
         $this->assertSame(['Tamanho', 'Extras'], $c['capu']->fresh()->gruposOpcoes()->withoutGlobalScopes()->pluck('nome')->all());
     }
 
+    public function test_grupo_obrigatorio_aparece_antes_na_tela_do_produto_novo(): void
+    {
+        $dono = $this->createUser($this->empresa, $this->unidade, 'dono');
+        $c = $this->cenarioCappuccino($dono);
+        $o = $this->gruposDoCappuccino($c);
+        $novo = $this->createProduto($this->empresa, ['descricao' => 'Chocolate quente', 'tipo' => 'produzido']);
+
+        // Nenhum grupo ligado: "Tamanho" (obrigatório) vem antes de "Extras" (ordem alfabética diria o contrário)
+        $this->actingAsUser($dono, $this->unidade)
+            ->get(route('app.produtos.composicao', $novo))
+            ->assertOk()
+            ->assertSeeInOrder(['grupo_' . $o['tamanho']->id, 'grupo_' . $o['extras']->id], false);
+    }
+
     public function test_telas_da_cafeteria_somem_com_a_opcao_desligada(): void
     {
         $this->empresa->update(['usa_ficha_tecnica' => false]);
