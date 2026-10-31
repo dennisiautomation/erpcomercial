@@ -13,7 +13,7 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 /**
  * Aba Treinamento da empresa (19/10/2026) — o único lugar onde os vídeos
- * aparecem. Cada usuário vê os vídeos do seu perfil (dono e gerente veem
+ * aparecem. Cada usuário vê os vídeos do seu perfil (admin da empresa, dono e gerente veem
  * todos) e o próprio selo de assistido/pendente; quem acompanha a equipe é
  * o admin IA365, na aba Treinamento da empresa.
  *

@@ -26,7 +26,7 @@
             </div>
             <div class="col-12">
                 <label class="form-label mb-1">Quem vê este video <span class="text-danger">*</span></label>
-                <div class="form-text mt-0 mb-2">Dono e Gerente veem todos os videos.</div>
+                <div class="form-text mt-0 mb-2">Administrador, Dono e Gerente veem todos os videos.</div>
                 @php($marcados = old('perfis', $t?->perfis ?? array_map(fn ($p) => $p->value, \App\Models\Treinamento::PERFIS)))
                 <div class="d-flex flex-wrap gap-3">
                     @foreach(\App\Models\Treinamento::PERFIS as $perfil)

@@ -9,11 +9,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 /**
  * Vídeo de treinamento da plataforma (sem empresa_id — vale para todas).
- * Dono e gerente veem todos; os demais perfis só os marcados em `perfis`.
+ * Admin da empresa, dono e gerente veem todos; os demais perfis só os marcados em `perfis`.
  */
 class Treinamento extends Model
 {
-    /** Perfis que o admin marca no vídeo. Dono e gerente ficam de fora: veem tudo. */
+    /** Perfis que o admin marca no vídeo. Admin da empresa, dono e gerente ficam de fora: veem tudo. */
     public const PERFIS = [
         Perfil::Financeiro,
         Perfil::Vendedor,
@@ -56,7 +56,7 @@ class Treinamento extends Model
     private static function veTodos(User $user): bool
     {
         return $user->is_admin
-            || in_array(self::perfilDe($user), [Perfil::Dono->value, Perfil::Gerente->value], true);
+            || in_array(self::perfilDe($user), [Perfil::Admin->value, Perfil::Dono->value, Perfil::Gerente->value], true);
     }
 
     /** Vídeos que este usuário pode abrir na empresa. */
