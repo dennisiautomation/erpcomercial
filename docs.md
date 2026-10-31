@@ -7244,3 +7244,20 @@ resultado na linha seguinte.
 pré-existentes iguais à baseline; smoke **569 ✅ / 4 ❌** (178 telas × 7 perfis, os 4 pré-existentes), **0 ❌ novos, 0 mudança de acesso**,
 produção intocada ✅ (contagens iguais). Relatório: `/home/ubuntu/erp-validacao/integracao-28out/pos-deploy/`. GitHub `main` = `26c72fa` = produção (push 29/10 00:50 UTC).
 
+
+## Treinamento: perfil Administrador da empresa via a aba vazia (31/10/2026) — EM PRODUÇÃO 10:16 BRT
+
+**Sintoma (Dennis, print do "Acessar como" Metheus — N S BORBA SERVICOS, empresa 6):** Treinamento mostrava "Nenhum vídeo
+disponível", embora os 10 vídeos estejam ativos e marcados para financeiro/vendedor/caixa/consulta.
+**Causa:** `Treinamento::veTodos()` liberava todos só para `is_admin`, dono e gerente. Usuário com perfil `admin` **dentro
+de uma empresa** (`is_admin = 0`) não está em `PERFIS` (o admin não marca esse perfil no vídeo) nem no "vê todos" → lista
+vazia, 404 no vídeo e "—" no quadro do admin. Em produção eram 2: Metheus (id 33, emp. 6) e Dennis Canteli (id 2, emp. 1).
+**Correção:** `Perfil::Admin` entra no `veTodos()` (lista, player, concluir e `aplicaA` do quadro); texto do form do admin
+"Administrador, Dono e Gerente veem todos os videos". Branch `treinamento-perfil-admin-31out` @`9cd7f82`.
+**Validação (tinker, só leitura, todos os usuários ativos × vídeos visíveis e quadro):** antes **51 ✅ / 2 ❌** (ids 2 e 33 com
+0) → depois, em container descartável da imagem do ar com o model novo, **53 ✅ / 0 ❌** → pós-deploy no container de
+produção **53 ✅ / 0 ❌**; `/login` 200; 0 ERROR novo; php -l ok.
+**Deploy:** `docker cp` dos 3 arquivos + `view:cache` + USR2 no php-fpm (imagem `78e310290ca6`, sem rebuild, sem migration).
+**Rollback:** `docker commit` do container antes = `erp-com-app:pre-treinamento-admin-20261031-1316`; os 3 arquivos antigos em
+`/home/ubuntu/erp-backups/pre-treinamento-admin-20261031-1316/` (copiar de volta + USR2).
+**Pendente:** mesclar na `main` (fast-forward) + push antes do próximo rebuild — senão o rebuild volta o defeito (armadilha 52).
