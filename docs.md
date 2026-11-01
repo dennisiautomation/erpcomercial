@@ -7314,3 +7314,14 @@ sobrar a diferença em vale. Miss Merlinda (`por_parte`) não muda.
 - phpunit completo antes × depois: 245 testes, os mesmos 2 ❌ pré-existentes (PdvTest fechamento, LoginTest trava);
   `php -l` nos 5 PHP e nas 254 views compiladas.
 
+
+### EM PRODUÇÃO 01/11/2026 12:33 BRT (sobre a imagem `78e310290ca6`, sem rebuild, sem migration)
+`docker cp` dos 8 arquivos (container conferido = `main` antes, md5 um a um) + `view:cache` + USR2 no php-fpm +
+`queue:restart` (o Dennis rodou o reload). **Rollback:** foto `erp-com-app:pre-preco-cartao-troca-20261101-1226`, ou copiar
+de volta `/home/ubuntu/erp-backups/pre-preco-cartao-troca-20261101-1226/arquivos/` + `view:cache` + USR2.
+**Pós-deploy (só leitura):** STILO Matriz (cartão) mostra Bermuda Jeans R$ 33 + Dinheiro/PIX R$ 30 e a loja 10 (à vista)
+R$ 30 + Cartão R$ 33 — cobrando PIX 30 / cartão 33 nas duas; **516 de 516 produtos da STILO com a tela = o valor
+cobrado**; vale VT-JVWB-7M7K (troca de peça paga em dinheiro) compra na tabela do dinheiro, VT-DGK3-G5YB (cartão) na do
+cartão; php-fpm e as 2 filas reiniciadas 12:33; 0 erro novo no log (2503 = antes); `/login` e `/` 200.
+**Pendente:** mesclar na `main` + push (rebuild sem isso desfaz a correção — armadilha 52); avisar STILO/Dona Douro/N S Borba
+da troca de peça paga no cartão; cancelar os 2 vales de teste da STILO se o Dennis mandar.
