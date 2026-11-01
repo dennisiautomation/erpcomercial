@@ -207,7 +207,7 @@ class TrocaService
 
             if (empty($linha['venda_item_id']) && ! empty($linha['produto_id'])) {
                 // Peça que não está nesta venda: identifica pelo produto, vale o preço de hoje
-                $info = $this->infoSemCupom($empresaId, (int) $linha['produto_id']);
+                $info = $this->infoSemCupom($empresaId, (int) $linha['produto_id'], $config);
                 $semCupom[] = $info['descricao'] . ' × ' . rtrim(rtrim(number_format($qtd, 3, ',', ''), '0'), ',');
             } else {
                 $info = $porItem->get((int) ($linha['venda_item_id'] ?? 0));
@@ -470,7 +470,7 @@ class TrocaService
      * quanto o cliente pagou. Sem teto de quantidade. Regras de prazo/gerente
      * são as da troca normal (decisão do Dennis: "as regras podem ser as normais").
      */
-    private function infoSemCupom(int $empresaId, int $produtoId): array
+    private function infoSemCupom(int $empresaId, int $produtoId, ConfiguracaoLoja $config): array
     {
         $produto = Produto::withoutGlobalScopes()
             ->where('empresa_id', $empresaId)
@@ -489,7 +489,9 @@ class TrocaService
             'quantidade'     => 0.0,
             'devolvida'      => 0.0,
             'disponivel'     => INF,
-            'valor_unitario' => round((float) $produto->preco_venda, 2),
+            // "Preço de venda de hoje" = o preço cadastrado na regra da loja — na
+            // regra do cartão, o do cartão, mesmo no produto com cartão fixo (01/11/2026)
+            'valor_unitario' => round(app(TabelaPrecoService::class)->precoDoCadastro($produto, $config), 2),
             'e_servico'      => false,
             'sem_cupom'      => true,
         ];

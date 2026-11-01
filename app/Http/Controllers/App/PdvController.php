@@ -219,6 +219,9 @@ class PdvController extends Controller
         $produtos = $produtos->map(function ($p) use ($tabelaPrecos, $configLoja) {
             $dados = $p->only(['id', 'codigo_interno', 'codigo_barras', 'descricao', 'preco_venda', 'unidade_medida']);
             $dados['precos'] = $tabelaPrecos->precosDoProduto($p, $configLoja);
+            // O preço da busca e da peça sem cupom no F6 é o "preço cadastrado" da
+            // regra da loja — na regra do cartão, o do cartão (01/11/2026)
+            $dados['preco_venda'] = $dados['precos'][$tabelaPrecos->modalidadeDoCadastro($configLoja)];
             return $dados;
         });
 
@@ -297,7 +300,22 @@ class PdvController extends Controller
                 if ($request->boolean('tabela_precos')) {
                     $tabelaPrecos = app(TabelaPrecoService::class);
                     $configLoja = ConfiguracaoLoja::daUnidade($empresaId, $unidadeId);
-                    $formas = array_column($request->pagamentos, 'forma');
+                    // Vale de troca compra na tabela da venda de onde a peça voltou
+                    // (01/11/2026) — o PDV faz a mesma conta na tela.
+                    $formas = array_map(function ($pgto) use ($tabelaPrecos, $configLoja, $empresaId) {
+                        $forma = (string) ($pgto['forma'] ?? '');
+                        if (str_starts_with($forma, 'modalidade:')) {
+                            return 'outro'; // marcação só o servidor monta
+                        }
+                        if ($forma === 'vale' && ! empty($pgto['vale_codigo'])) {
+                            $vale = Vale::withoutGlobalScopes()->where('empresa_id', $empresaId)
+                                ->where('codigo', Vale::normalizarCodigo((string) $pgto['vale_codigo']))->first();
+                            if ($vale) {
+                                return 'modalidade:' . $tabelaPrecos->modalidadeDoVale($vale, $configLoja);
+                            }
+                        }
+                        return $forma;
+                    }, $request->pagamentos);
                     // Cliente de atacado leva o preço de atacado em qualquer forma
                     $clienteVenda = $request->cliente_id
                         ? Cliente::find($request->cliente_id)
@@ -909,6 +927,8 @@ class PdvController extends Controller
                 'codigo'   => $devolucao->vale->codigo,
                 'saldo'    => (float) $devolucao->vale->saldo,
                 'validade' => $devolucao->vale->validade?->format('d/m/Y'),
+                // Tabela que o crédito compra (01/11/2026): a da venda de origem
+                'modalidade' => app(TabelaPrecoService::class)->modalidadeDoVale($devolucao->vale, ConfiguracaoLoja::daUnidade()),
             ] : null,
             'comprovante' => $comprovante,
         ]);
@@ -994,6 +1014,7 @@ class PdvController extends Controller
             'saldo'    => (float) $vale->saldo,
             'validade' => $vale->validade?->format('d/m/Y'),
             'cliente'  => $vale->cliente->nome_razao_social ?? null,
+            'modalidade' => app(TabelaPrecoService::class)->modalidadeDoVale($vale, ConfiguracaoLoja::daUnidade()),
         ]);
     }
 }

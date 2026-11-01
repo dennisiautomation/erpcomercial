@@ -56,8 +56,22 @@ class SearchController extends Controller
             })
             ->where('status', 'ativo')
             ->select('id', 'descricao', 'codigo_interno', 'preco_venda', 'unidade_medida')
+            ->with('precos:id,produto_id,modalidade,valor')
             ->limit(10)
             ->get();
+
+        // Orçamento, pedido e venda balcão recebem o "preço cadastrado" da regra da
+        // loja: na regra do cartão, o do cartão — também no produto com cartão fixo,
+        // que antes vinha com o preço do PIX (01/11/2026)
+        $tabela = app(\App\Services\TabelaPrecoService::class);
+        $config = \App\Models\ConfiguracaoLoja::daUnidade();
+        $produtos = $produtos->map(fn ($p) => [
+            'id'             => $p->id,
+            'descricao'      => $p->descricao,
+            'codigo_interno' => $p->codigo_interno,
+            'preco_venda'    => number_format($tabela->precoDoCadastro($p, $config), 2, '.', ''),
+            'unidade_medida' => $p->unidade_medida,
+        ]);
 
         return response()->json($produtos);
     }

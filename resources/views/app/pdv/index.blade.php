@@ -1953,6 +1953,9 @@ const PDV = {
 
     // ===== TABELAS DE PREÇO POR FORMA DE PAGAMENTO =====
     modalidadeDaForma(forma) {
+        // "modalidade:<tabela>" = vale de troca: compra na tabela da venda de origem
+        // (TabelaPrecoService::modalidadeDoVale, 01/11/2026)
+        if (String(forma).startsWith('modalidade:')) return String(forma).slice(11);
         return ({
             dinheiro: 'dinheiro_pix', pix: 'dinheiro_pix',
             cartao_debito: 'debito', cartao_credito: 'credito',
@@ -1976,8 +1979,15 @@ const PDV = {
         // mesma dos dois lados, senão a tela mostra um total e o servidor grava outro.
         if (this.cobraPorParte()) return 'dinheiro_pix';
 
-        const formas = this.pagamentos.map(p => p.forma);
-        if (formaExtra) formas.push(formaExtra);
+        // O vale (botão Vale ou crédito da troca) entra com a tabela da venda de onde
+        // a peça voltou — o servidor faz a mesma conta (01/11/2026). Sem isso, na
+        // regra do cartão, a tela fechava no preço do dinheiro e o servidor cobrava o
+        // do cartão: "Pagamento insuficiente" (STILO VINTE).
+        const formas = this.pagamentos.map(p => (p.forma === 'vale' && p.modalidade) ? 'modalidade:' + p.modalidade : p.forma);
+        if (this.creditoTroca && this.creditoTroca.saldo > 0 && this.creditoTroca.modalidade) {
+            formas.unshift('modalidade:' + this.creditoTroca.modalidade);
+        }
+        if (formaExtra) formas.push(formaExtra === 'vale' && this.valeAtual && this.valeAtual.modalidade ? 'modalidade:' + this.valeAtual.modalidade : formaExtra);
         if (formas.length === 0) return this.modalidadeDoCadastro();
 
         const mods = formas.map(f => this.modalidadeDaForma(f));
@@ -2681,7 +2691,7 @@ const PDV = {
             ? parseInt(document.getElementById('parcelasSelect')?.value || '1', 10)
             : 1;
 
-        const extra = forma === 'vale' && this.valeAtual ? { vale_codigo: this.valeAtual.codigo } : {};
+        const extra = forma === 'vale' && this.valeAtual ? { vale_codigo: this.valeAtual.codigo, modalidade: this.valeAtual.modalidade || null } : {};
 
         if (isSplit) {
             // Split payment - add to list
@@ -3488,9 +3498,9 @@ const PDV = {
 
             if (tipo === 'troca') {
                 if (data.vale && data.vale.saldo > 0) {
-                    this.creditoTroca = { codigo: data.vale.codigo, saldo: data.vale.saldo, devolucaoId: data.devolucao.id, validade: data.vale.validade };
+                    this.creditoTroca = { codigo: data.vale.codigo, saldo: data.vale.saldo, devolucaoId: data.devolucao.id, validade: data.vale.validade, modalidade: data.vale.modalidade || null };
                     bootstrap.Modal.getInstance(document.getElementById('modalTroca'))?.hide();
-                    this.updateSummary();
+                    this.repriceItens(); // o crédito decide a tabela (01/11/2026)
                     this.showAlert(`${data.devolucao.venda_numero ? 'Troca da venda #' + data.devolucao.venda_numero : 'Troca de peça sem venda'}: crédito de ${this.formatMoney(data.vale.saldo)}. Bipe o que o cliente leva.`, 'success');
                     document.getElementById('searchInput').focus();
                 } else {

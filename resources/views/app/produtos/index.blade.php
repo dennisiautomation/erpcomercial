@@ -81,7 +81,7 @@
                         <th>Descrição</th>
                         <th>Categoria</th>
                         <th class="text-center">Unidade</th>
-                        <th class="text-end">Preço Venda</th>
+                        <th class="text-end">{{ \App\Models\ConfiguracaoLoja::daUnidade()->precoBaseCartao() ? 'Preço (cartão)' : 'Preço Venda' }}</th>
                         <th class="text-end" title="Quantidade em estoque na loja selecionada no topo">
                             Estoque{{ $lojaAtual ? ' ' . $lojaAtual->nome : '' }}
                         </th>
@@ -109,28 +109,34 @@
                                 <span class="badge bg-light text-dark">{{ $produto->unidade_medida }}</span>
                             </td>
                             <td class="text-end fw-bold text-success text-nowrap">
+                                @php
+                                    // Preço REAL de cada forma na regra da loja (01/11/2026): na regra do
+                                    // cartão o principal é o do cartão, mesmo no produto antigo com o cartão
+                                    // fixo — antes a lista mostrava sempre preco_venda e só o rótulo mudava.
+                                    $tabelaPrecosLista ??= app(\App\Services\TabelaPrecoService::class);
+                                    $configLojaLista ??= \App\Models\ConfiguracaoLoja::daUnidade();
+                                    $precoTela = $tabelaPrecosLista->precosParaTela($produto, $configLojaLista);
+                                @endphp
                                 @if($podeEditarPreco)
-                                    <span class="preco-inline" data-url="{{ route('app.produtos.preco', $produto) }}" data-valor="{{ $produto->preco_venda }}"
+                                    <span class="preco-inline" data-url="{{ route('app.produtos.preco', $produto) }}" data-valor="{{ $precoTela['principal'] }}"
                                           role="button" title="Clique para alterar o preço">
-                                        <span class="preco-texto">R$ {{ number_format($produto->preco_venda, 2, ',', '.') }}</span>
+                                        <span class="preco-texto">R$ {{ number_format($precoTela['principal'], 2, ',', '.') }}</span>
                                         <i class="bi bi-pencil small text-muted ms-1"></i>
                                     </span>
                                 @else
-                                    R$ {{ number_format($produto->preco_venda, 2, ',', '.') }}
+                                    R$ {{ number_format($precoTela['principal'], 2, ',', '.') }}
                                 @endif
                                 @php
-                                    // Preço fixo por forma tem prioridade sobre a regra geral e NÃO
-                                    // acompanha o preço de venda — avisa para ninguém se confundir.
-                                    // Débito = crédito é o "Preço no Cartão" da tela de edição.
+                                    // Preço fixo da outra forma: não acompanha o preço da lista — avisa
+                                    // para ninguém se confundir. Débito ≠ crédito aparece separado.
                                     $fixos = $produto->precos->pluck('valor', 'modalidade');
                                     $avisoFixos = [];
-                                    if (isset($fixos['debito'], $fixos['credito']) && (float) $fixos['debito'] === (float) $fixos['credito']) {
-                                        $avisoFixos['Cartão'] = $fixos['debito'];
-                                    } else {
-                                        if (isset($fixos['debito'])) $avisoFixos['Débito'] = $fixos['debito'];
-                                        if (isset($fixos['credito'])) $avisoFixos['Crédito'] = $fixos['credito'];
+                                    if (isset($fixos['debito'], $fixos['credito']) && (float) $fixos['debito'] !== (float) $fixos['credito']) {
+                                        $avisoFixos['Débito'] = $fixos['debito'];
+                                        $avisoFixos['Crédito'] = $fixos['credito'];
+                                    } elseif ($precoTela['secundario'] !== null) {
+                                        $avisoFixos[$precoTela['rotulo_secundario']] = $precoTela['secundario'];
                                     }
-                                    if (isset($fixos['dinheiro_pix'])) $avisoFixos['Dinheiro/PIX'] = $fixos['dinheiro_pix'];
                                     if (isset($fixos['atacado'])) $avisoFixos['Atacado'] = $fixos['atacado'];
                                 @endphp
                                 @if($avisoFixos)

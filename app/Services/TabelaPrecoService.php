@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Cliente;
 use App\Models\ConfiguracaoLoja;
 use App\Models\Produto;
+use App\Models\Vale;
 
 /**
  * Tabelas de preço por forma de pagamento.
@@ -63,8 +64,10 @@ class TabelaPrecoService
             $desconto = max(0.0, min(100.0, (float) $config->desconto_avista_percentual));
 
             return [
+                // Produto do formato antigo (preço FIXO no cartão, 01/11/2026): o
+                // cadastrado dele já é o preço do Dinheiro/PIX — não leva desconto.
                 'dinheiro_pix' => (float) ($overrides['dinheiro_pix']
-                    ?? round($base * (1 - $desconto / 100), 2)),
+                    ?? ($this->temCartaoFixo($overrides) ? $base : round($base * (1 - $desconto / 100), 2))),
                 'debito'       => (float) ($overrides['debito'] ?? $base),
                 'credito'      => (float) ($overrides['credito'] ?? $base),
                 'atacado'      => (float) ($overrides['atacado'] ?? $base),
@@ -81,6 +84,119 @@ class TabelaPrecoService
             // nunca um preço inventado por regra geral.
             'atacado'      => (float) ($overrides['atacado'] ?? $base),
         ];
+    }
+
+    /**
+     * O produto tem preço FIXO no cartão? É o formato de quem cadastrou na regra
+     * à vista: `preco_venda` = Dinheiro/PIX e o cartão em `produto_precos`.
+     * Quem cadastrou na regra do cartão tem o contrário: `preco_venda` = cartão e,
+     * se quiser, o PIX fixo. Os dois formatos convivem na mesma empresa (o preço é
+     * da empresa, a regra é da LOJA) e toda tela lê os dois do mesmo jeito.
+     */
+    public function temCartaoFixo($overrides): bool
+    {
+        return isset($overrides['credito']) || isset($overrides['debito']);
+    }
+
+    /**
+     * O que a tela do produto mostra (lista, edição, preço inline), na regra da loja
+     * — 01/11/2026. Antes a tela mostrava sempre `preco_venda` e só trocava o
+     * rótulo: na STILO VINTE, ao ligar "preço do cartão", os produtos antigos
+     * apareceram com o preço do PIX no campo do cartão e o PIX vazio.
+     *
+     * - principal: o preço do rótulo principal (cartão na regra 'cartao', Dinheiro/PIX na de sempre);
+     * - secundario: o campo opcional da outra forma (PIX na regra 'cartao', cartão na de sempre),
+     *   null quando ela segue a regra geral da loja.
+     *
+     * @return array{principal: float, secundario: ?float, rotulo_secundario: string}
+     */
+    public function precosParaTela(Produto $produto, ConfiguracaoLoja $config): array
+    {
+        $base = (float) $produto->preco_venda;
+        $ov = $produto->relationLoaded('precos')
+            ? $produto->precos->pluck('valor', 'modalidade')
+            : $produto->precos()->pluck('valor', 'modalidade');
+        $cartaoFixo = $ov['credito'] ?? $ov['debito'] ?? null;
+
+        if ($config->precoBaseCartao()) {
+            return [
+                'principal'         => (float) ($cartaoFixo ?? $base),
+                'secundario'        => isset($ov['dinheiro_pix']) ? (float) $ov['dinheiro_pix']
+                    : ($cartaoFixo !== null ? $base : null),
+                'rotulo_secundario' => 'Dinheiro/PIX',
+            ];
+        }
+
+        return [
+            'principal'         => (float) ($ov['dinheiro_pix'] ?? $base),
+            'secundario'        => $cartaoFixo !== null ? (float) $cartaoFixo
+                : (isset($ov['dinheiro_pix']) ? $base : null),
+            'rotulo_secundario' => 'Cartão',
+        ];
+    }
+
+    /**
+     * O contrário de precosParaTela(): o que gravar a partir dos dois campos da
+     * tela, SEM mudar o formato do produto — assim as lojas da mesma empresa que
+     * estão na outra regra continuam cobrando o mesmo preço.
+     *
+     * Devolve `preco_venda` e os preços fixos (`debito`, `credito`, `dinheiro_pix`);
+     * null = sem preço fixo naquela forma (apaga).
+     *
+     * @return array{preco_venda: float, debito: ?float, credito: ?float, dinheiro_pix: ?float}
+     */
+    public function gravarDaTela(Produto $produto, ConfiguracaoLoja $config, float $principal, ?float $secundario): array
+    {
+        $ov = $produto->exists ? $produto->precos()->pluck('valor', 'modalidade') : collect();
+        $cartaoFixo = $this->temCartaoFixo($ov);
+
+        if ($config->precoBaseCartao()) {
+            if ($cartaoFixo) {
+                // Formato antigo: o cartão fica no fixo e o cadastrado segue sendo o PIX
+                $desconto = max(0.0, min(100.0, (float) $config->desconto_avista_percentual));
+
+                return ['preco_venda' => $secundario ?? round($principal * (1 - $desconto / 100), 2),
+                    'debito' => $principal, 'credito' => $principal, 'dinheiro_pix' => null];
+            }
+
+            return ['preco_venda' => $principal, 'debito' => null, 'credito' => null, 'dinheiro_pix' => $secundario];
+        }
+
+        if (isset($ov['dinheiro_pix']) && ! $cartaoFixo && $secundario !== null) {
+            // Produto cadastrado na regra do cartão, editado numa loja à vista
+            return ['preco_venda' => $secundario, 'debito' => null, 'credito' => null, 'dinheiro_pix' => $principal];
+        }
+
+        return ['preco_venda' => $principal, 'debito' => $secundario, 'credito' => $secundario, 'dinheiro_pix' => null];
+    }
+
+    /** Preço que vale o "preço cadastrado" na regra da loja (busca, orçamento, troca sem cupom). */
+    public function precoDoCadastro(Produto $produto, ConfiguracaoLoja $config): float
+    {
+        return $this->precosDoProduto($produto, $config)[$this->modalidadeDoCadastro($config)];
+    }
+
+    /**
+     * Tabela de preço que o vale compra (01/11/2026). Vale nascido de troca compra na
+     * tabela da venda de onde a peça voltou: peça paga no dinheiro → a nova sai no
+     * preço do dinheiro; paga no cartão → no do cartão. Antes o vale caía sempre na
+     * tabela do preço cadastrado e, na regra do cartão, a troca de uma peça paga em
+     * dinheiro pedia a diferença do cartão (STILO VINTE: "Faltam R$ 2,50").
+     * Vale sem venda de origem (peça sem cupom) segue o preço cadastrado.
+     */
+    public function modalidadeDoVale(Vale $vale, ConfiguracaoLoja $config): string
+    {
+        $venda = $vale->devolucao?->venda;
+        if (! $venda) {
+            return $this->modalidadeDoCadastro($config);
+        }
+
+        $formas = collect($venda->pagamento_detalhes ?? [])->pluck('forma')->filter()->values()->all();
+        if (empty($formas)) {
+            $formas = [(string) $venda->forma_pagamento];
+        }
+
+        return $this->modalidadeDosPagamentos($formas, $config);
     }
 
     /**
@@ -112,8 +228,12 @@ class TabelaPrecoService
         // cadastrado: Dinheiro/PIX na regra de sempre, o cartão na regra 'cartao'
         // (o desconto é só de Dinheiro/PIX).
         $tabelaCadastro = $this->modalidadeDoCadastro($config);
+        // "modalidade:<tabela>" = vale de troca, que compra na tabela da venda de
+        // origem (modalidadeDoVale, 01/11/2026). O PDV manda a mesma marcação.
         $modalidades = array_map(
-            fn ($forma) => self::FORMA_MODALIDADE[$forma] ?? $tabelaCadastro,
+            fn ($forma) => str_starts_with((string) $forma, 'modalidade:')
+                ? substr((string) $forma, 11)
+                : (self::FORMA_MODALIDADE[$forma] ?? $tabelaCadastro),
             $formas
         );
 
@@ -200,6 +320,7 @@ class TabelaPrecoService
     private function maiorModalidade(array $modalidades): string
     {
         $peso = array_flip(self::MODALIDADES); // dinheiro_pix=0, debito=1, credito=2
+        $modalidades = array_values(array_filter($modalidades, fn ($m) => isset($peso[$m])));
 
         usort($modalidades, fn ($a, $b) => $peso[$b] <=> $peso[$a]);
 

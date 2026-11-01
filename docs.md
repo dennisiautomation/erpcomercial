@@ -6606,6 +6606,15 @@ Lote de correções na branch `fix/auditoria-bugs-mai2026`, após varredura de s
     cada par em contexto (`git diff --word-diff`) — palavras que são verbo e substantivo ao mesmo tempo (previa/prévia,
     analise/análise, pratica/prática, secretaria/secretária) não podem ir na lista cega.
 
+94. **Trocar a regra de preço da loja NÃO converte o cadastro — a tela tem que LER os dois formatos** (01/11/2026).
+    O preço é da EMPRESA e a regra ("preço cadastrado = à vista | cartão") é da LOJA. Existem dois formatos de produto
+    convivendo: o antigo (`preco_venda` = PIX + cartão fixo em `produto_precos`) e o da regra do cartão (`preco_venda`
+    = cartão + PIX fixo opcional). Toda tela de preço passa por `TabelaPrecoService::precosParaTela()` (mostrar) e
+    `gravarDaTela()` (salvar, preservando o formato) — nunca `preco_venda` cru com rótulo trocado. Converter os dados
+    para uma loja quebraria as outras lojas da mesma empresa. E **tela e servidor têm de decidir a tabela de preço do
+    mesmo jeito**: o PDV fecha a conta na tela e o servidor reprecifica; se divergirem, a venda volta "Pagamento
+    insuficiente" (o vale da troca era 'cadastro' no servidor e não entrava na conta da tela).
+
 ## Próximos passos
 
 ### Estado do repositório (25/10/2026)
@@ -7261,3 +7270,47 @@ produção **53 ✅ / 0 ❌**; `/login` 200; 0 ERROR novo; php -l ok.
 **Rollback:** `docker commit` do container antes = `erp-com-app:pre-treinamento-admin-20261031-1316`; os 3 arquivos antigos em
 `/home/ubuntu/erp-backups/pre-treinamento-admin-20261031-1316/` (copiar de volta + USR2).
 **Pendente:** mesclar na `main` (fast-forward) + push antes do próximo rebuild — senão o rebuild volta o defeito (armadilha 52).
+
+
+## "Preço do cartão" com produtos antigos + troca no PDV (01/11/2026) — branch `preco-cartao-troca-01nov`
+
+**Relato (Dennis, prints da STILO VINTE, 01/11):** ligou "preço cadastrado = cartão" na Matriz (unidade 9, 11:41 BRT,
+desconto 0%) e (1) a lista e a edição do produto passaram a mostrar o preço do PIX no campo do cartão e o PIX vazio
+("Fixo: Cartão R$ 33,00" debaixo de "R$ 30,00"); (2) a troca no PDV dizia que faltava dinheiro.
+
+**Causa:** os 515 produtos da STILO têm cartão FIXO desde 25/07 (+10%: R$ 30 PIX → R$ 33 cartão). Ao mudar a regra, o
+sistema só trocou o RÓTULO: a tela lia `preco_venda` (= PIX) como cartão. O PDV cobrava certo (PIX 30 / cartão 33 nas
+duas regras — `precosDoProduto` já juntava o fixo). Na troca, o crédito entra como `vale`, e o vale usava a tabela do
+"preço cadastrado" — na regra do cartão, o CARTÃO. A tela do PDV não conta o crédito como forma: ao escolher dinheiro
+ela fechava no preço do dinheiro (R$ 25 por R$ 25) e o servidor cobrava o do cartão → "Pagamento insuficiente: recebido
+R$ 25,00 de R$ 27,50" (troca real de 11:52, venda #14, Blusa Academia R$25 paga em dinheiro). Nenhuma venda de cliente
+afetada: a Matriz não vende há 30 dias. Vales de teste que ficaram ativos: VT-JVWB-7M7K (R$ 25) e VT-DGK3-G5YB (R$ 33).
+
+### O que mudou (sem migration, sem mexer em dado nenhum)
+| Onde | O quê |
+|---|---|
+| `TabelaPrecoService::precosParaTela()` | preço REAL de cada forma na regra da loja: principal (cartão na regra `cartao`, PIX na de sempre) + o campo da outra forma. Lê os dois formatos |
+| `TabelaPrecoService::gravarDaTela()` | do formulário para o banco **sem mudar o formato** do produto — as lojas da outra regra seguem cobrando o mesmo |
+| `TabelaPrecoService::precosDoProduto()` | regra `cartao`: produto com cartão fixo não leva o desconto da loja no PIX (o cadastrado dele já é o PIX). Medido em produção: 0 preço diferente (DK não tem cartão fixo; STILO desconto 0) |
+| `TabelaPrecoService::modalidadeDoVale()` | vale nascido de troca compra na tabela da **venda de origem** (dinheiro → preço do dinheiro; cartão → do cartão). Vale sem venda (peça sem cupom) = preço cadastrado. Marcação `modalidade:<tabela>` em `modalidadeDosPagamentos` |
+| `PdvController::registrarVenda` / `trocaRegistrar` / `valeConsultar` / `buscarProduto` | servidor usa `modalidadeDoVale`; troca e vale devolvem `modalidade`; busca do PDV devolve `preco_venda` = preço cadastrado da regra |
+| `pdv/index.blade.php` | `modalidadeAtual()` conta o crédito da troca e o vale com a tabela deles — mesma conta do servidor; `repriceItens()` ao receber o crédito |
+| `produtos/index`, `produtos/edit`, `ProdutoController::update/atualizarPreco` | lista, edição e preço inline pelo `precosParaTela`/`gravarDaTela` (hidden `precos_tela=1`); coluna "Preço (cartão)" na regra do cartão |
+| `SearchController::produtos` | orçamento, pedido e venda balcão recebem o preço cadastrado da regra (na STILO Matriz: R$ 33, não R$ 30) |
+| `TrocaService::infoSemCupom` | peça sem cupom vale o preço cadastrado da regra (cartão na regra do cartão) |
+
+**Mudança de comportamento (avisar):** nas lojas à vista com cartão mais caro (STILO, Dona Douro e N S Borba, regra
+`cartao_maior`), trocar uma peça paga no CARTÃO pela mesma passa a sair no preço do cartão — zero a zero — em vez de
+sobrar a diferença em vale. Miss Merlinda (`por_parte`) não muda.
+
+### Validação (ambiente descartável `pct-*`: mysql + pgvector + imagem do ar com o código montado; `main` na 8196, branch na 8197)
+- `scripts/validar-preco-cartao-troca-01nov.py`: **antes 23 ✅ / 11 ❌** (os defeitos, incluindo o "Faltam R$ 2,50"
+  idêntico ao da STILO) → **depois 34 ✅ / 0 ❌** (2 rodadas).
+- `scripts/validar-pdv-troca-01nov.mjs` (navegador, JavaScript real do PDV): **antes 2 ✅ / 2 ❌** (tela 27,50 × crédito
+  25 → "Pagamento ja completo" e a venda não fecha) → **depois 4 ✅ / 0 ❌**; banco: troca do dinheiro = venda de R$ 25
+  paga pelo vale, do cartão = R$ 27,50.
+- Produção, só leitura: `precosDoProduto` atual × novo em **13.420 produto×loja: 0 diferenças**; tabela por forma em
+  80.520 checagens: 0 diferenças.
+- phpunit completo antes × depois: 245 testes, os mesmos 2 ❌ pré-existentes (PdvTest fechamento, LoginTest trava);
+  `php -l` nos 5 PHP e nas 254 views compiladas.
+

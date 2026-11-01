@@ -135,12 +135,18 @@
                     @php
                         $lojaPrecoCartao = \App\Models\ConfiguracaoLoja::daUnidade()->precoBaseCartao();
                         $lojaDescontoAvista = (float) \App\Models\ConfiguracaoLoja::daUnidade()->desconto_avista_percentual;
+                        // Preço REAL de cada forma na regra da loja (01/11/2026) — o produto
+                        // antigo com cartão fixo mostra o cartão aqui e o PIX no campo do PIX.
+                        $precoTela = app(\App\Services\TabelaPrecoService::class)
+                            ->precosParaTela($produto, \App\Models\ConfiguracaoLoja::daUnidade());
+                        $fmtTela = fn ($v) => $v === null ? '' : number_format((float) $v, 2, '.', '');
                     @endphp
+                    <input type="hidden" name="precos_tela" value="1">
                     <div class="col-md-6">
                         <label for="preco_venda" class="form-label fw-semibold">@if($lojaPrecoCartao) Preço de venda (cartão) @else Preço à vista (Dinheiro/PIX) @endif <span class="text-danger">*</span></label>
                         <div class="input-group input-group-lg">
                             <span class="input-group-text text-success fw-bold">R$</span>
-                            <input type="text" inputmode="numeric" data-mask="money" name="preco_venda" id="preco_venda" class="form-control form-control-lg fw-bold @error('preco_venda') is-invalid @enderror" value="{{ old('preco_venda', $produto->preco_venda) }}" placeholder="0,00" required>
+                            <input type="text" inputmode="numeric" data-mask="money" name="preco_venda" id="preco_venda" class="form-control form-control-lg fw-bold @error('preco_venda') is-invalid @enderror" value="{{ old('preco_venda', $fmtTela($precoTela['principal'])) }}" placeholder="0,00" required>
                             @error('preco_venda') <div class="invalid-feedback">{{ $message }}</div> @enderror
                         </div>
                     </div>
@@ -168,9 +174,8 @@
                         $precoCartaoAtual = $precosForma['credito'] ?? $precosForma['debito'] ?? '';
                     @endphp
                     @if($lojaPrecoCartao)
-                    {{-- Preço cadastrado = cartão: o campo opcional é o do Dinheiro/PIX; o do cartão
-                         segue escondido com o valor atual para salvar não apagar nada. --}}
-                    <input type="hidden" name="preco_cartao" value="{{ old('preco_cartao', $precoCartaoAtual) }}">
+                    {{-- Preço cadastrado = cartão: o campo opcional é o do Dinheiro/PIX. O salvar
+                         (precos_tela) devolve ao formato do produto sem apagar nada. --}}
                     <div class="col-12">
                         <div class="border rounded p-3 bg-light-subtle">
                             <div class="fw-semibold mb-1"><i class="bi bi-cash-coin me-1"></i> Preço no Dinheiro/PIX <span class="text-muted fw-normal">(opcional)</span></div>
@@ -180,7 +185,7 @@
                                     <label for="preco_pix" class="form-label">Preço no Dinheiro/PIX</label>
                                     <div class="input-group">
                                         <span class="input-group-text">R$</span>
-                                        <input type="text" inputmode="numeric" data-mask="money" name="preco_pix" id="preco_pix" class="form-control @error('preco_pix') is-invalid @enderror" value="{{ old('preco_pix', $precosForma['dinheiro_pix'] ?? '') }}" placeholder="desconto da loja">
+                                        <input type="text" inputmode="numeric" data-mask="money" name="preco_pix" id="preco_pix" class="form-control @error('preco_pix') is-invalid @enderror" value="{{ old('preco_pix', $fmtTela($precoTela['secundario'])) }}" placeholder="desconto da loja">
                                         @error('preco_pix') <div class="invalid-feedback">{{ $message }}</div> @enderror
                                     </div>
                                 </div>
@@ -197,7 +202,7 @@
                                     <label for="preco_cartao" class="form-label">Preço no Cartão (Crédito e Débito)</label>
                                     <div class="input-group">
                                         <span class="input-group-text">R$</span>
-                                        <input type="text" inputmode="numeric" data-mask="money" name="preco_cartao" id="preco_cartao" class="form-control @error('preco_cartao') is-invalid @enderror" value="{{ old('preco_cartao', $precoCartaoAtual) }}" placeholder="regra geral">
+                                        <input type="text" inputmode="numeric" data-mask="money" name="preco_cartao" id="preco_cartao" class="form-control @error('preco_cartao') is-invalid @enderror" value="{{ old('preco_cartao', $fmtTela($precoTela['secundario'])) }}" placeholder="regra geral">
                                         @error('preco_cartao') <div class="invalid-feedback">{{ $message }}</div> @enderror
                                     </div>
                                 </div>

@@ -4,9 +4,11 @@ namespace App\Http\Controllers\App;
 
 use App\Http\Controllers\Controller;
 use App\Models\Categoria;
+use App\Models\ConfiguracaoLoja;
 use App\Models\Fornecedor;
 use App\Models\Produto;
 use App\Services\FiscalAutoConfig;
+use App\Services\TabelaPrecoService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Storage;
@@ -402,6 +404,21 @@ class ProdutoController extends Controller
             $validated['foto'] = $request->file('foto')->store('produtos', 'public');
         }
 
+        // Tela de edição (01/11/2026): os campos mostram o preço REAL de cada forma na
+        // regra da loja (precosParaTela); aqui volta para o formato do produto, sem
+        // mudar o que as lojas da outra regra cobram.
+        if ($request->boolean('precos_tela')) {
+            $config = ConfiguracaoLoja::daUnidade();
+            $secundario = $config->precoBaseCartao()
+                ? (($precoPix === false || $precoPix === '' || $precoPix === null) ? null : (float) $precoPix)
+                : ($precoCartao !== null ? (float) $precoCartao : null);
+            $grava = app(TabelaPrecoService::class)->gravarDaTela($produto, $config, (float) $validated['preco_venda'], $secundario);
+            $validated['preco_venda'] = $grava['preco_venda'];
+            $precoDebito = $grava['debito'];
+            $precoCredito = $grava['credito'];
+            $precoPix = $grava['dinheiro_pix'] ?? '';
+        }
+
         $produto->update($validated);
         $this->salvarPrecosPorForma($produto, $precoDebito, $precoCredito, $precoAtacado, $precoPix);
 
@@ -440,16 +457,25 @@ class ProdutoController extends Controller
             'preco_venda' => 'required|numeric|min:0',
         ]);
 
-        $produto->preco_venda = $validated['preco_venda'];
+        // O preço da lista é o da regra da loja (cartão ou Dinheiro/PIX, 01/11/2026):
+        // muda só ele e a outra forma fica como estava.
+        $tabela = app(TabelaPrecoService::class);
+        $config = ConfiguracaoLoja::daUnidade();
+        $principal = round((float) $validated['preco_venda'], 2);
+        $grava = $tabela->gravarDaTela($produto, $config, $principal, $tabela->precosParaTela($produto, $config)['secundario']);
+
+        $produto->preco_venda = $grava['preco_venda'];
         if ((float) $produto->preco_custo > 0) {
             $custo = (float) $produto->preco_custo;
-            $produto->markup = round(((float) $validated['preco_venda'] - $custo) / $custo * 100, 2);
+            $produto->markup = round(($principal - $custo) / $custo * 100, 2);
         }
         $produto->save();
+        $this->salvarPrecosPorForma($produto, $grava['debito'], $grava['credito'],
+            $produto->precos()->where('modalidade', 'atacado')->value('valor'), $grava['dinheiro_pix'] ?? '');
 
         return response()->json([
-            'preco_venda'     => $produto->preco_venda,
-            'preco_formatado' => 'R$ ' . number_format($produto->preco_venda, 2, ',', '.'),
+            'preco_venda'     => $principal,
+            'preco_formatado' => 'R$ ' . number_format($principal, 2, ',', '.'),
         ]);
     }
 
