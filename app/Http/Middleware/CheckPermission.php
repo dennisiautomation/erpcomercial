@@ -57,6 +57,9 @@ class CheckPermission
             'dono' => ['ver', 'criar', 'editar', 'excluir'],
             'gerente' => ['ver', 'criar', 'editar', 'excluir'],
             'vendedor' => ['ver', 'criar', 'editar', 'excluir'],
+            // Caixa vê, lança, edita e fatura pedido (03/11/2026, pedido da STILO);
+            // excluir continua só com quem gerencia.
+            'caixa' => ['ver', 'criar', 'editar'],
             'consulta' => ['ver'],
         ],
         // trocar_vendedor (03/11/2026): corrige o vendedor de venda finalizada
