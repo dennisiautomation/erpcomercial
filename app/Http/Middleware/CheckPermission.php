@@ -50,6 +50,9 @@ class CheckPermission
             'dono' => ['ver', 'criar', 'editar', 'excluir'],
             'gerente' => ['ver', 'criar', 'editar', 'excluir'],
             'vendedor' => ['ver', 'criar', 'editar', 'excluir'],
+            // Caixa vê, lança, edita, imprime e converte orçamento (03/11/2026, STILO);
+            // excluir continua só com quem gerencia — mesmo recorte dos Pedidos.
+            'caixa' => ['ver', 'criar', 'editar'],
             'consulta' => ['ver'],
         ],
         'pedidos' => [
