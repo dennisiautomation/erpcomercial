@@ -292,6 +292,9 @@ Route::middleware(['auth', 'suspensao', 'unidade', \App\Http\Middleware\Restring
     Route::post('pedidos/{pedido}/status', [App\PedidoController::class, 'updateStatus'])
         ->name('pedidos.update-status')
         ->middleware('permission:pedidos');
+    Route::post('pedidos/{pedido}/vendedor', [App\PedidoController::class, 'trocarVendedor'])
+        ->name('pedidos.trocar-vendedor')
+        ->middleware('permission:pedidos,trocar_vendedor');
     Route::post('pedidos/{pedido}/faturar', [App\PedidoController::class, 'faturar'])
         ->name('pedidos.faturar')
         ->middleware('permission:pedidos');

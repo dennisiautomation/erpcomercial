@@ -235,7 +235,66 @@ class PedidoController extends Controller
         }
         $formasFaturar = self::FORMAS_FATURAR;
 
-        return view('app.pedidos.show', compact('pedido', 'fiscalPedido', 'formaSugerida', 'quadroOrcamento', 'formasFaturar'));
+        // Trocar vendedor (03/11/2026): mesma lista do F3 do PDV, pela loja do pedido
+        $vendedoresTroca = collect();
+        if (in_array($pedido->status, [StatusPedido::Rascunho, StatusPedido::Confirmado], true)
+            && \App\Http\Middleware\CheckPermission::canUser(auth()->user(), 'pedidos', 'trocar_vendedor')) {
+            $vendedoresTroca = PdvController::filtrarOperadoresPelaLoja(
+                $this->vendedoresDaEmpresa($pedido->empresa_id), $pedido->empresa, (int) $pedido->unidade_id
+            );
+        }
+
+        return view('app.pedidos.show', compact('pedido', 'fiscalPedido', 'formaSugerida', 'quadroOrcamento', 'formasFaturar', 'vendedoresTroca'));
+    }
+
+    /**
+     * Corrige o vendedor do pedido ainda não faturado (03/11/2026). Muda só
+     * `pedidos.vendedor_id` — o faturamento leva esse vendedor para a venda.
+     * Faturado em diante: a troca é na venda (VendaController::trocarVendedor).
+     */
+    public function trocarVendedor(Request $request, Pedido $pedido)
+    {
+        if (! in_array($pedido->status, [StatusPedido::Rascunho, StatusPedido::Confirmado], true)) {
+            return back()->with('error', 'Pedido faturado, entregue ou cancelado não troca de vendedor aqui — no faturado, troque na venda.');
+        }
+
+        $validos = PdvController::filtrarOperadoresPelaLoja(
+            $this->vendedoresDaEmpresa($pedido->empresa_id), $pedido->empresa, (int) $pedido->unidade_id
+        );
+        $dados = $request->validate([
+            'vendedor_id' => ['required', 'integer', function ($attr, $valor, $falha) use ($validos) {
+                if (! $validos->contains('id', (int) $valor)) {
+                    $falha('Vendedor inválido para a loja deste pedido.');
+                }
+            }],
+        ]);
+
+        $antigo = $pedido->vendedor;
+        $novo = $validos->firstWhere('id', (int) $dados['vendedor_id']);
+        if ((int) $pedido->vendedor_id === (int) $novo->id) {
+            return back()->with('success', 'O pedido já está com este vendedor.');
+        }
+
+        $pedido->update(['vendedor_id' => $novo->id]);
+        activity('Pedido')
+            ->performedOn($pedido)
+            ->causedBy(auth()->user())
+            ->event('vendedor_trocado')
+            ->withProperties(['de' => ['id' => $antigo?->id, 'nome' => $antigo?->name], 'para' => ['id' => $novo->id, 'nome' => $novo->name]])
+            ->log('Vendedor trocado de ' . ($antigo?->name ?? '—') . ' para ' . $novo->name);
+
+        return back()->with('success', 'Vendedor do pedido #' . $pedido->numero . ' trocado para ' . $novo->name . '.');
+    }
+
+    /** Quem pode ser vendedor de um pedido — os mesmos perfis do F3 do PDV. */
+    private function vendedoresDaEmpresa(int $empresaId)
+    {
+        return User::where('empresa_id', $empresaId)
+            ->where('status', 'ativo')
+            ->whereIn('perfil', ['caixa', 'vendedor', 'gerente', 'dono'])
+            ->select('id', 'name', 'perfil')
+            ->orderBy('name')
+            ->get();
     }
 
     public function edit(Pedido $pedido)

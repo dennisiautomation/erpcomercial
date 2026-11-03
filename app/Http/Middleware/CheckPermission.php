@@ -55,10 +55,11 @@ class CheckPermission
             'caixa' => ['ver', 'criar', 'editar'],
             'consulta' => ['ver'],
         ],
+        // trocar_vendedor (03/11/2026): corrige o vendedor do pedido confirmado (antes de faturar).
         'pedidos' => [
-            'admin' => ['ver', 'criar', 'editar', 'excluir'],
-            'dono' => ['ver', 'criar', 'editar', 'excluir'],
-            'gerente' => ['ver', 'criar', 'editar', 'excluir'],
+            'admin' => ['ver', 'criar', 'editar', 'excluir', 'trocar_vendedor'],
+            'dono' => ['ver', 'criar', 'editar', 'excluir', 'trocar_vendedor'],
+            'gerente' => ['ver', 'criar', 'editar', 'excluir', 'trocar_vendedor'],
             'vendedor' => ['ver', 'criar', 'editar', 'excluir'],
             // Caixa vê, lança, edita e fatura pedido (03/11/2026, pedido da STILO);
             // excluir continua só com quem gerencia.
