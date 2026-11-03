@@ -7424,3 +7424,13 @@ arquivos de `…/arquivos/` + `route:cache` + `view:cache` + USR2.
   `pode_vender_remoto=false`. Volta: admin › Editar empresa › Política multi-loja › "Ver e vender".
 - Nota: com "Ver e vender" não existe a opção "vender desta loja mesmo assim" na janela — se outra empresa pedir, é mudança no PDV.
 
+## Perfil Caixa acessa Pedidos (03/11/2026) — EM PRODUÇÃO ~10:55 BRT
+- Pedido da STILO (Operador loja 03): o menu já mostrava "Pedidos" para todos, mas o perfil `caixa` não estava no módulo
+  `pedidos` de `CheckPermission::PERMISSIONS` → 403 no clique.
+- Agora `caixa` => `['ver', 'criar', 'editar']`: vê, lança, edita, imprime e fatura (faturar e status são POST = `criar`);
+  **excluir** segue só com admin/dono/gerente/vendedor. Vale para TODOS os caixas (é por perfil): hoje 6 da STILO, 1 da N S BORBA
+  e 1 de teste da IA365.
+- Commit `5458b21`, 1 arquivo, sem migration. O Dennis rodou `/home/ubuntu/erp-backups/pre-caixa-pedidos-20261103-1046/deploy-caixa-pedidos.sh`.
+  Pós-deploy: arquivo = commit; Operador loja 03 ver/criar/editar = sim, excluir = não; `/app/pedidos` 200 como ele; vendedor,
+  gerente e consulta iguais a antes; `/login` 200. Rollback: foto `erp-com-app:pre-caixa-pedidos-20261103-1046`.
+
