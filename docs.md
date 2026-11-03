@@ -7433,4 +7433,7 @@ arquivos de `…/arquivos/` + `route:cache` + `view:cache` + USR2.
 - Commit `5458b21`, 1 arquivo, sem migration. O Dennis rodou `/home/ubuntu/erp-backups/pre-caixa-pedidos-20261103-1046/deploy-caixa-pedidos.sh`.
   Pós-deploy: arquivo = commit; Operador loja 03 ver/criar/editar = sim, excluir = não; `/app/pedidos` 200 como ele; vendedor,
   gerente e consulta iguais a antes; `/login` 200. Rollback: foto `erp-com-app:pre-caixa-pedidos-20261103-1046`.
+- **Orçamentos também (~11:00 BRT, commit `9209515`):** `caixa` => `['ver', 'criar', 'editar']` no módulo `orcamentos` (ver, lançar,
+  editar, imprimir, converter em pedido; sem excluir). Pós-deploy como Operador loja 03: `/app/orcamentos`, `/app/orcamentos/create`
+  e `/app/pedidos` 200, excluir = não. Rollback: foto `erp-com-app:pre-caixa-orcamentos-20261103-1050`.
 
