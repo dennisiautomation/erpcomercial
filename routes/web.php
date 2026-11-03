@@ -369,6 +369,7 @@ Route::middleware(['auth', 'suspensao', 'unidade', \App\Http\Middleware\Restring
         Route::get('/vales', [App\TrocaController::class, 'vales'])->name('vales');
         Route::get('/vales/{vale}/imprimir', [App\TrocaController::class, 'imprimirVale'])->name('vales.imprimir');
         Route::post('/vales/{vale}/cancelar', [App\TrocaController::class, 'cancelarVale'])->name('vales.cancelar')->middleware('permission:trocas,editar');
+        Route::post('/{devolucao}/cancelar', [App\TrocaController::class, 'cancelar'])->name('cancelar')->middleware('permission:trocas,criar');
         Route::get('/{devolucao}', [App\TrocaController::class, 'show'])->name('show');
         Route::get('/{devolucao}/comprovante', [App\TrocaController::class, 'comprovante'])->name('comprovante');
     });

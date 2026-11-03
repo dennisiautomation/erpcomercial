@@ -61,8 +61,8 @@ def pedido(total=30):
     sql("insert into pedidos (empresa_id, unidade_id, vendedor_id, numero, subtotal, desconto_percentual, desconto_valor, total, status, canal, created_at, updated_at) "
         f"values (1, 1, 5, (select coalesce(max(p.numero),0)+1 from pedidos p), {total}, 0, 0, {total}, 'confirmado', 'whatsapp', now(), now())")
     pid = int(sql("select max(id) from pedidos"))
-    sql(f"insert into pedido_itens (pedido_id, produto_id, quantidade, preco_unitario, desconto_percentual, desconto_valor, total, created_at, updated_at) "
-        f"values ({pid}, 3, 1, {total}, 0, 0, {total}, now(), now())")
+    sql(f"insert into pedido_itens (pedido_id, produto_id, descricao, quantidade, preco_unitario, desconto_percentual, desconto_valor, total, created_at, updated_at) "
+        f"values ({pid}, 3, 'Produto teste', 1, {total}, 0, 0, {total}, now(), now())")
     return pid
 
 
