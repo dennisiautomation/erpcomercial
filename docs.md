@@ -7448,7 +7448,7 @@ arquivos de `…/arquivos/` + `route:cache` + `view:cache` + USR2.
   200 com o botão, como Operador loja 03 200 sem o botão; `/login` 200. Rollback: foto `erp-com-app:pre-pedido-trocar-vendedor-20261103-1119`.
 
 
-### Pedido repreça os itens pela condição de pagamento (03/11/2026)
+### Pedido repreça os itens pela condição de pagamento (03/11/2026) — EM PRODUÇÃO ~13:25 BRT
 - Pedido do Dennis (STILO): no pedido, trocar a condição para "À vista" não mudava o valor, como a forma de pagamento faz no PDV.
   O item ficava sempre no "preço cadastrado" da loja (`SearchController::produtos` / `PdvController::buscarProduto`).
 - Agora `pedidos/create` e `pedidos/edit` repreçam os itens ao trocar a condição: **À vista/PIX = tabela Dinheiro/PIX, Cartão = crédito,
@@ -7459,3 +7459,6 @@ arquivos de `…/arquivos/` + `route:cache` + `view:cache` + USR2.
   gravando o `preco_unitario` que a tela manda. Não muda: Faturar (a forma escolhida no Faturar não repreça o pedido), orçamento, venda balcão.
 - Validação `scripts/validar-pedido-preco-condicao-03nov.py` (navegador no container do Playwright, ambiente descartável) **19 ✅ / 0 ❌**:
   novo pedido, editar rascunho, loja na regra do cartão e gravação; regressão `validar-pedido-trocar-vendedor-03nov.py` 17 ✅ / 0 ❌.
+- Pós-deploy: 4 arquivos = commit `e526472`; `/login` 200; na STILO a tela do pedido traz o mapa certo por loja (loja 9 regra do cartão:
+  vazio/prazo/boleto = crédito; loja 10: vazio/prazo/boleto = PIX; nas duas À vista/PIX = PIX e Cartão = crédito) e a busca devolve as
+  tabelas (ex.: Saia Alfaiataria Luana CURTA PIX 30 / cartão 33). Rollback: foto `erp-com-app:pre-pedido-preco-condicao-20261103-1321`.
