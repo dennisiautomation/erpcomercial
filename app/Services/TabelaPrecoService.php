@@ -44,6 +44,7 @@ class TabelaPrecoService
         'pix'            => 'dinheiro_pix',
         'cartao_debito'  => 'debito',
         'cartao_credito' => 'credito',
+        'credishop'      => 'credito', // cartão de crédito de rede própria (03/11/2026)
         // Demais formas (boleto, crediario, transferencia, vale) usam a tabela base
     ];
 

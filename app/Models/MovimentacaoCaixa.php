@@ -37,6 +37,7 @@ class MovimentacaoCaixa extends Model
         'crediario'      => 'Crediário',
         'transferencia'  => 'Transferência',
         'vale'           => 'Vale',
+        'credishop'      => 'Credishop',
     ];
 
     public function formaLabel(): ?string

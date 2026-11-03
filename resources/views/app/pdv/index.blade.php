@@ -412,6 +412,8 @@
         .btn-pay.pay-pix i { color: var(--accent-purple); }
         .btn-pay.pay-boleto i { color: var(--accent-orange, #fd7e14); }
         .btn-pay.pay-crediario i { color: var(--accent-red, #dc3545); }
+        .btn-pay.pay-credishop { grid-column: span 2; }
+        .btn-pay.pay-credishop i { color: var(--accent-purple, #6f42c1); }
         .btn-pay.pay-transferencia i { color: var(--accent-blue, #0d6efd); }
         .btn-pay.pay-vale i { color: var(--accent-teal, #20c997); }
 
@@ -1020,6 +1022,12 @@
             <button class="btn-pay pay-vale" data-forma="vale" title="Vale / Voucher">
                 <i class="bi bi-ticket-perforated"></i> Vale
             </button>
+            {{-- Credishop: só para empresa com a chave ligada (empresas.pdv_credishop, 03/11/2026) --}}
+            @if(auth()->user()->empresa?->pdvCredishop())
+            <button class="btn-pay pay-credishop" data-forma="credishop" title="Credishop">
+                <i class="bi bi-credit-card-fill"></i> Credishop
+            </button>
+            @endif
         </div>
 
         {{-- Split payments --}}
@@ -1959,6 +1967,7 @@ const PDV = {
         return ({
             dinheiro: 'dinheiro_pix', pix: 'dinheiro_pix',
             cartao_debito: 'debito', cartao_credito: 'credito',
+            credishop: 'credito', // cartão de crédito de rede própria (03/11/2026)
         })[forma] || this.modalidadeDoCadastro();
     },
 
@@ -2014,7 +2023,7 @@ const PDV = {
         // Cliente de atacado leva o preço de atacado no item, mas o acréscimo é
         // do meio de pagamento — continua valendo.
         if (forma === 'cartao_debito') return Math.max(0, parseFloat(this.configLoja.percentual_debito) || 0);
-        if (forma === 'cartao_credito') return Math.max(0, parseFloat(this.configLoja.percentual_credito) || 0);
+        if (forma === 'cartao_credito' || forma === 'credishop') return Math.max(0, parseFloat(this.configLoja.percentual_credito) || 0);
         return 0;
     },
 
@@ -2440,7 +2449,8 @@ const PDV = {
             'boleto': 'Boleto',
             'crediario': 'Crediario',
             'transferencia': 'Transferencia',
-            'vale': 'Vale'
+            'vale': 'Vale',
+            'credishop': 'Credishop'
         };
 
         document.getElementById('modalPagamentoTitle').textContent = 'Pagamento - ' + (formaLabels[forma] || forma);
@@ -2743,7 +2753,7 @@ const PDV = {
             'dinheiro': 'Dinheiro', 'cartao_credito': 'Credito',
             'cartao_debito': 'Debito', 'pix': 'PIX',
             'boleto': 'Boleto', 'crediario': 'Crediario',
-            'transferencia': 'Transf.', 'vale': 'Vale'
+            'transferencia': 'Transf.', 'vale': 'Vale', 'credishop': 'Credishop'
         };
 
         list.innerHTML = this.pagamentos.map((p, idx) => `
@@ -2810,7 +2820,7 @@ const PDV = {
         if (!cfg.fiscal_ativo) return 'recibo';
 
         const formas = this.pagamentos.map(p => p.forma);
-        const temCartao = formas.includes('cartao_credito') || formas.includes('cartao_debito');
+        const temCartao = formas.includes('cartao_credito') || formas.includes('cartao_debito') || formas.includes('credishop');
 
         if (cfg.exists && cfg.cupom_automatico_cartao && temCartao) return 'auto';
         if (cfg.exists && cfg.cpf_emite_fiscal && this.clienteId) return 'auto';

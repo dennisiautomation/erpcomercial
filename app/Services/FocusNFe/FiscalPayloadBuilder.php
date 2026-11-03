@@ -32,6 +32,7 @@ class FiscalPayloadBuilder
         'cheque'            => '02',
         'cartao_credito'    => '03',
         'credito'           => '03',
+        'credishop'         => '03', // cartão de crédito de rede própria (03/11/2026)
         'cartao_debito'     => '04',
         'debito'            => '04',
         'crediario'         => '05',
@@ -510,7 +511,7 @@ class FiscalPayloadBuilder
                     'forma_pagamento' => self::FORMAS_PAGAMENTO[$pg['forma'] ?? $venda->forma_pagamento] ?? '99',
                     'valor_pagamento' => $this->fmt($pg['valor'] ?? $venda->total, 2),
                 ];
-                if (in_array($pg['forma'] ?? '', ['credito', 'debito', 'cartao_credito', 'cartao_debito'])) {
+                if (in_array($pg['forma'] ?? '', ['credito', 'debito', 'cartao_credito', 'cartao_debito', 'credishop'])) {
                     $forma['bandeira_operadora'] = $pg['bandeira'] ?? '99';
                     if (! empty($pg['cnpj_credenciadora'])) {
                         $forma['cnpj_credenciadora'] = Cnpj::limpar($pg['cnpj_credenciadora']);

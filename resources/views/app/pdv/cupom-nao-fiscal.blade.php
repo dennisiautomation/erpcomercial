@@ -367,6 +367,7 @@
             'pix' => 'PIX',
             'boleto' => 'Boleto',
             'crediario' => 'Crediario',
+            'credishop' => 'Credishop',
             'transferencia' => 'Transferencia',
             'vale' => 'Vale',
             'misto' => 'Misto',

@@ -253,7 +253,12 @@ class PdvController extends Controller
             'itens.*.unidade_origem_id'=> 'nullable|integer|exists:unidades,id',
             'estoque_id'               => 'nullable|integer',
             'pagamentos'               => 'required|array|min:1',
-            'pagamentos.*.forma'       => 'required|string',
+            'pagamentos.*.forma'       => ['required', 'string', function ($attr, $valor, $falha) {
+                // Credishop só para empresa com a chave ligada (03/11/2026)
+                if ($valor === 'credishop' && ! auth()->user()?->empresa?->pdvCredishop()) {
+                    $falha('Forma de pagamento Credishop não está habilitada para esta empresa.');
+                }
+            }],
             'pagamentos.*.valor'       => 'required|numeric|min:0.01',
             'pagamentos.*.parcelas'    => 'nullable|integer|min:1|max:24',
             'juros_parcelamento'       => 'nullable|boolean',
@@ -739,7 +744,7 @@ class PdvController extends Controller
                 $deveEmitirNfce = false;
             } elseif ($escolhaOperador !== 'cupom_fiscal' && $deveEmitirNfce && $configLojaEmissao->exists) {
                 $formas = array_column($request->pagamentos, 'forma');
-                $temCartao = (bool) array_intersect($formas, ['cartao_credito', 'cartao_debito']);
+                $temCartao = (bool) array_intersect($formas, ['cartao_credito', 'cartao_debito', 'credishop']);
 
                 $deveEmitirNfce =
                     ($configLojaEmissao->cupom_automatico_cartao && $temCartao)

@@ -556,6 +556,23 @@
                         Funcionários). <strong>Dono e IA365 aparecem em qualquer loja</strong>, e quem
                         não tem loja vinculada aparece em todas. Independente da opção acima.
                     </small>
+
+                    @php $credishop = (bool) old('pdv_credishop', $empresa->pdv_credishop ?? false); @endphp
+                    <div class="form-check form-switch mt-3">
+                        <input type="hidden" name="pdv_credishop" value="0">
+                        <input class="form-check-input" type="checkbox" role="switch" value="1"
+                               id="pdv_credishop" name="pdv_credishop"
+                               @checked($credishop)>
+                        <label class="form-check-label" for="pdv_credishop">
+                            Forma de pagamento Credishop no PDV
+                        </label>
+                    </div>
+                    <small class="text-muted d-block mt-2">
+                        <i class="bi bi-info-circle me-1"></i>
+                        Marcado, o PDV de todas as lojas da empresa ganha o botão <strong>Credishop</strong>.
+                        Conta como cartão de crédito: preço do cartão, acréscimo do crédito e NFC-e com
+                        forma 03.
+                    </small>
                 </div>
             </div>
 

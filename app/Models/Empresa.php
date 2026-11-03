@@ -26,6 +26,7 @@ class Empresa extends Model
         'exige_documento_cadastro',
         'vendedor_apenas_pdv',
         'pdv_vendedores_da_loja',
+        'pdv_credishop',
         'cep',
         'logradouro',
         'numero',
@@ -81,6 +82,7 @@ class Empresa extends Model
             'exige_documento_cadastro'      => 'boolean',
             'vendedor_apenas_pdv'           => 'boolean',
             'pdv_vendedores_da_loja'        => 'boolean',
+            'pdv_credishop'                 => 'boolean',
         ];
     }
 
@@ -119,6 +121,17 @@ class Empresa extends Model
     public function pdvVendedoresDaLoja(): bool
     {
         return (bool) ($this->pdv_vendedores_da_loja ?? false);
+    }
+
+    /**
+     * O PDV oferece a forma de pagamento Credishop? (03/11/2026)
+     *
+     * Default false — só a STILO VINTE usa. O servidor recusa a forma para
+     * empresa sem a chave (botão escondido não impede POST forjado).
+     */
+    public function pdvCredishop(): bool
+    {
+        return (bool) ($this->pdv_credishop ?? false);
     }
 
     /** Visualiza estoque de outras unidades da mesma empresa? */
