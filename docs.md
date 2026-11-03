@@ -7414,3 +7414,13 @@ vendedor sem permissão, `/login` 200, 0 erro novo.
 **Deploy:** o Dennis rodou `/home/ubuntu/erp-backups/pre-trocar-vendedor-20261103-1028/deploy-trocar-vendedor.sh` (`git archive` +
 `route:cache` + `view:cache` + USR2 + `queue:restart`). Rollback: foto `erp-com-app:pre-trocar-vendedor-20261103-1028` ou os
 arquivos de `…/arquivos/` + `route:cache` + `view:cache` + USR2.
+
+### STILO: política multi-loja "Visualizar apenas" (03/11/2026, ~11:00 BRT, só dado)
+- A STILO estava em `politica_estoque_inter_unidade = ver_e_vender`: com a peça zerada na loja e saldo em outra, o PDV abria
+  "Vender de outra loja?" e o **Cancelar tirava o item da venda** — o caixa não conseguia vender sem estoque.
+- Pedido do Dennis: a STILO não vende peça de outra loja e precisa vender sem estoque → `ver_apenas`. Agora o PDV só avisa
+  "Sem estoque local. Disponível em outras: …", a peça entra e a venda fecha (saldo da loja fica negativo); `vende_remoto=não`.
+- Conferido pela rota `/app/pdv/estoque/{produto}` como caixa da loja 9 (produto zerado ali e com saldo na 02, 03 e 05):
+  `pode_vender_remoto=false`. Volta: admin › Editar empresa › Política multi-loja › "Ver e vender".
+- Nota: com "Ver e vender" não existe a opção "vender desta loja mesmo assim" na janela — se outra empresa pedir, é mudança no PDV.
+
