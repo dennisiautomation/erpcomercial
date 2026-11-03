@@ -163,6 +163,25 @@
                             </select>
                         </div>
                     </div>
+                    {{-- Vale (03/11/2026): código + complemento se o saldo não cobrir o total --}}
+                    <div id="faturarValeBox" class="border rounded p-2 mb-2" style="display:none">
+                        <label class="form-label small fw-semibold mb-1" for="faturarValeCodigo">Código do vale</label>
+                        <div class="input-group input-group-sm mb-1">
+                            <input type="text" name="vale_codigo" id="faturarValeCodigo" class="form-control text-uppercase" maxlength="20"
+                                   placeholder="VT-XXXX-XXXX" value="{{ old('vale_codigo') }}" autocomplete="off">
+                            <button type="button" class="btn btn-outline-secondary" id="faturarValeConsultar">Consultar</button>
+                        </div>
+                        <div id="faturarValeInfo" class="small mb-2"></div>
+                        <label class="form-label small fw-semibold mb-1" for="faturarComplemento">Se o saldo não cobrir, pagar o restante com</label>
+                        <select name="forma_complemento" id="faturarComplemento" class="form-select form-select-sm">
+                            <option value="">— nenhum (o vale cobre tudo) —</option>
+                            @foreach($formasFaturar as $val => $label)
+                                @if($val !== 'vale')
+                                    <option value="{{ $val }}" @selected(old('forma_complemento') === $val)>{{ $label }}</option>
+                                @endif
+                            @endforeach
+                        </select>
+                    </div>
                     <div class="small text-muted mb-3">
                         Valor da venda: <strong>R$ {{ number_format($pedido->total, 2, ',', '.') }}</strong> (total do pedido).
                         @if($quadroOrcamento)
@@ -231,8 +250,32 @@
         var forma = document.getElementById('faturarForma');
         var box = document.getElementById('faturarParcelasBox');
         if (!forma || !box) return;
-        function mostrar() { box.style.display = forma.value === 'cartao_credito' ? '' : 'none'; }
+        var valeBox = document.getElementById('faturarValeBox');
+        var comp = document.getElementById('faturarComplemento');
+        function mostrar() {
+            var ehVale = forma.value === 'vale';
+            valeBox.style.display = ehVale ? '' : 'none';
+            var credito = ehVale ? comp.value === 'cartao_credito' : forma.value === 'cartao_credito';
+            box.style.display = credito ? '' : 'none';
+        }
         forma.addEventListener('change', mostrar);
+        comp.addEventListener('change', mostrar);
+        var info = document.getElementById('faturarValeInfo');
+        var total = {{ (float) $pedido->total }};
+        document.getElementById('faturarValeConsultar').addEventListener('click', function () {
+            var cod = document.getElementById('faturarValeCodigo').value.trim();
+            if (!cod) { info.textContent = 'Digite o código.'; return; }
+            info.textContent = 'Consultando...';
+            fetch('{{ url('/app/pdv/vale') }}/' + encodeURIComponent(cod), {headers: {'Accept': 'application/json'}})
+                .then(function (r) { return r.json().then(function (j) { return {ok: r.ok, j: j}; }); })
+                .then(function (x) {
+                    if (!x.ok) { info.innerHTML = '<span class="text-danger"></span>'; info.firstChild.textContent = x.j.error || 'Vale indisponível.'; return; }
+                    var saldo = Number(x.j.saldo), f = function (v) { return v.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'}); };
+                    info.textContent = 'Saldo ' + f(saldo) + (x.j.validade ? ' · válido até ' + x.j.validade : '') +
+                        (saldo + 0.005 < total ? ' — falta ' + f(total - saldo) + ': escolha a forma do restante.' : ' — cobre o pedido.');
+                })
+                .catch(function () { info.textContent = 'Não consegui consultar agora.'; });
+        });
         mostrar();
     })();
     </script>

@@ -491,6 +491,10 @@ class PedidoController extends Controller
         'cartao_credito' => 'Cartão de crédito',
         'boleto'         => 'Boleto',
         'transferencia'  => 'Transferência',
+        // 03/11/2026: as duas que só existiam no PDV. Crediário grava como o PDV
+        // (conta já paga, sem fiado em aberto); vale exige código e baixa o saldo.
+        'crediario'      => 'Crediário',
+        'vale'           => 'Vale (crédito de troca)',
     ];
 
     /** Condição de pagamento do pedido → forma sugerida no Faturar. */
@@ -507,8 +511,12 @@ class PedidoController extends Controller
             'documento'       => 'required|in:nenhum,recibo,cupom_fiscal,nota_fiscal',
             'forma_pagamento' => 'required|in:' . implode(',', array_keys(self::FORMAS_FATURAR)),
             'parcelas'        => 'nullable|integer|min:1|max:24',
+            'vale_codigo'     => 'required_if:forma_pagamento,vale|nullable|string|max:20',
+            // Complemento: o que o vale não cobrir (saldo menor que o total)
+            'forma_complemento' => 'nullable|in:' . implode(',', array_diff(array_keys(self::FORMAS_FATURAR), ['vale'])),
         ], [
             'forma_pagamento.required' => 'Escolha a forma de pagamento.',
+            'vale_codigo.required_if'  => 'Informe o código do vale.',
         ]);
 
         if ($pedido->status->value !== 'confirmado') {
@@ -538,7 +546,9 @@ class PedidoController extends Controller
         }
 
         $formaPagamento = $request->forma_pagamento;
-        $parcelas = $formaPagamento === 'cartao_credito' ? max(1, (int) $request->input('parcelas', 1)) : null;
+        // Parcelas valem para o crédito: forma principal ou complemento do vale
+        $formaComCartao = $formaPagamento === 'vale' ? $request->input('forma_complemento') : $formaPagamento;
+        $parcelas = $formaComCartao === 'cartao_credito' ? max(1, (int) $request->input('parcelas', 1)) : null;
 
         // Caixa (28/10/2026, DK Med): a venda do pedido entra no caixa aberto de
         // quem fatura, na loja DO PEDIDO — como no PDV. Sem caixa aberto, não
@@ -549,7 +559,53 @@ class PedidoController extends Controller
             return back()->with('error', 'Abra o caixa nesta loja antes de faturar: a venda do pedido entra no caixa, como no PDV.');
         }
 
-        $venda = DB::transaction(function () use ($pedido, $formaPagamento, $parcelas, $caixa, $caixaSvc) {
+        try {
+        $venda = DB::transaction(function () use ($pedido, $formaPagamento, $parcelas, $caixa, $caixaSvc, $request) {
+            // Pagamentos da venda. O total é o do pedido: a forma só é registrada
+            // (não aplica desconto à vista nem juros — isso fica no orçamento/pedido).
+            $total = round((float) $pedido->total, 2);
+            $vale = null;
+            if ($formaPagamento === 'vale') {
+                // Mesma regra do PDV: código desta empresa, ativo, na validade, com
+                // saldo — com lock, para dois caixas não gastarem o mesmo crédito.
+                $vale = \App\Models\Vale::withoutGlobalScopes()
+                    ->where('empresa_id', $pedido->empresa_id)
+                    ->where('codigo', \App\Models\Vale::normalizarCodigo((string) $request->vale_codigo))
+                    ->lockForUpdate()->first();
+                if (! $vale) {
+                    throw new \DomainException('Vale não encontrado. Informe o código impresso no comprovante da troca.');
+                }
+                if ($motivoVale = $vale->motivoIndisponivel()) {
+                    throw new \DomainException($motivoVale);
+                }
+                $valorVale = min($total, round((float) $vale->saldo, 2));
+                $resto = round($total - $valorVale, 2);
+                $complemento = $request->input('forma_complemento');
+                if ($resto > 0.005 && ! $complemento) {
+                    throw new \DomainException('O vale ' . $vale->codigo . ' tem saldo de R$ ' . number_format((float) $vale->saldo, 2, ',', '.')
+                        . ', menor que o total (R$ ' . number_format($total, 2, ',', '.') . '). Escolha a forma que paga o restante (R$ ' . number_format($resto, 2, ',', '.') . ').');
+                }
+                $pagamentos = [[
+                    'forma'               => 'vale',
+                    'valor'               => $valorVale,
+                    'vale_codigo'         => $vale->codigo,
+                    'vale_saldo_restante' => round((float) $vale->saldo - $valorVale, 2),
+                ]];
+                if ($resto > 0.005) {
+                    $pagamentos[] = array_filter([
+                        'forma'    => $complemento,
+                        'valor'    => $resto,
+                        'parcelas' => $parcelas,
+                    ], fn ($v) => $v !== null);
+                }
+            } else {
+                $pagamentos = [array_filter([
+                    'forma'    => $formaPagamento,
+                    'valor'    => $total,
+                    'parcelas' => $parcelas,
+                ], fn ($v) => $v !== null)];
+            }
+
             $ultimoNumero = Venda::withoutGlobalScopes()
                 ->where('empresa_id', $pedido->empresa_id)
                 ->max('numero');
@@ -566,14 +622,8 @@ class PedidoController extends Controller
                 'desconto_percentual' => $pedido->desconto_percentual ?? 0,
                 'desconto_valor'      => $pedido->desconto_valor ?? 0,
                 'total'               => $pedido->total,
-                'forma_pagamento'     => $formaPagamento,
-                // O total é o do pedido: a forma só é registrada (não aplica
-                // desconto à vista nem juros — isso fica no orçamento/pedido).
-                'pagamento_detalhes'  => [array_filter([
-                    'forma'    => $formaPagamento,
-                    'valor'    => (float) $pedido->total,
-                    'parcelas' => $parcelas,
-                ], fn ($v) => $v !== null)],
+                'forma_pagamento'     => count($pagamentos) > 1 ? 'misto' : $formaPagamento,
+                'pagamento_detalhes'  => $pagamentos,
                 'troco'               => 0,
                 'status'              => StatusVenda::Concluida,
                 'tipo'                => 'pedido',
@@ -600,12 +650,20 @@ class PedidoController extends Controller
             // Entrada no caixa (uma por forma, com venda_id: o cancelamento estorna
             // por ele) + baixa da conta a receber aberta na confirmação.
             $caixaSvc->lancarVenda($venda, $caixa, $venda->pagamento_detalhes, (int) auth()->id());
-            $this->baixarContaReceberDoPedido($pedido, $venda, $formaPagamento, $parcelas);
+            $this->baixarContaReceberDoPedido($pedido, $venda, $pagamentos);
+
+            // Vale: baixa o saldo e deixa o uso ligado à venda (o cancelamento estorna por ele)
+            if ($vale) {
+                $vale->abater((float) $pagamentos[0]['valor'], 'venda', $venda->id);
+            }
 
             $pedido->update(['status' => StatusPedido::Faturado]);
 
             return $venda;
         });
+        } catch (\DomainException $e) {
+            return back()->withInput()->with('error', $e->getMessage());
+        }
 
         // Emissão fora da transaction: falha fiscal não desfaz o faturamento
         switch ($documento) {
@@ -742,8 +800,10 @@ class PedidoController extends Controller
      * pagas na hora. Sem conta (pedido confirmado pela API do agente), nasce
      * uma já paga, como na venda de balcão.
      */
-    private function baixarContaReceberDoPedido(Pedido $pedido, Venda $venda, string $forma, ?int $parcelas): void
+    private function baixarContaReceberDoPedido(Pedido $pedido, Venda $venda, array $pagamentos): void
     {
+        // A conta aberta na confirmação é aproveitada pelo 1º pagamento; os
+        // demais (vale + complemento) criam as suas.
         $conta = ContaReceber::withoutGlobalScopes()
             ->where('empresa_id', $pedido->empresa_id)
             ->where('pedido_id', $pedido->id)
@@ -751,65 +811,68 @@ class PedidoController extends Controller
             ->orderBy('id')
             ->first();
 
-        $total = (float) $venda->total;
-        $parcelas = max(1, (int) ($parcelas ?? 1));
-        $formaLabel = ucfirst(str_replace('_', ' ', $forma));
-        $regra = in_array($forma, ['cartao_credito', 'cartao_debito'], true)
-            ? AdquirenteTaxa::paraPagamento((int) $pedido->empresa_id, $forma, $parcelas)
-            : null;
+        $gravar = function (array $dados) use (&$conta) {
+            if ($conta) {
+                $conta->update($dados);
+                $conta = null;
+            } else {
+                ContaReceber::create($dados);
+            }
+        };
 
-        $base = [
-            'empresa_id'      => $pedido->empresa_id,
-            'unidade_id'      => $pedido->unidade_id,
-            'cliente_id'      => $pedido->cliente_id,
-            'venda_id'        => $venda->id,
-            'pedido_id'       => $pedido->id,
-            'forma_pagamento' => $forma,
-        ];
+        foreach ($pagamentos as $pgto) {
+            $forma = (string) $pgto['forma'];
+            $total = round((float) $pgto['valor'], 2);
+            $parcelas = max(1, (int) ($pgto['parcelas'] ?? 1));
+            $formaLabel = ucfirst(str_replace('_', ' ', $forma));
+            $regra = in_array($forma, ['cartao_credito', 'cartao_debito'], true)
+                ? AdquirenteTaxa::paraPagamento((int) $pedido->empresa_id, $forma, $parcelas)
+                : null;
 
-        if ($regra) {
-            $valorParcela = round($total / $parcelas, 2);
-            $acumulado = 0;
-            for ($i = 1; $i <= $parcelas; $i++) {
-                $valorEsta = $i === $parcelas ? round($total - $acumulado, 2) : $valorParcela;
-                $acumulado = round($acumulado + $valorEsta, 2);
+            $base = [
+                'empresa_id'      => $pedido->empresa_id,
+                'unidade_id'      => $pedido->unidade_id,
+                'cliente_id'      => $pedido->cliente_id,
+                'venda_id'        => $venda->id,
+                'pedido_id'       => $pedido->id,
+                'forma_pagamento' => $forma,
+            ];
 
-                $dados = $base + [
-                    'descricao'          => "Pedido #{$pedido->numero} - {$formaLabel} {$i}/{$parcelas} ({$regra->nome})",
-                    'valor'              => $valorEsta,
-                    'valor_pago'         => 0,
-                    'vencimento'         => now()->addDays($regra->prazo_dias + 30 * ($i - 1)),
-                    'pago_em'            => null,
-                    'adquirente_taxa_id' => $regra->id,
-                    'taxa_percentual'    => $regra->taxa_percentual,
-                    'valor_liquido'      => round($valorEsta * (1 - ((float) $regra->taxa_percentual) / 100), 2),
-                    'parcela'            => $i,
-                    'total_parcelas'     => $parcelas,
-                    'status'             => 'pendente',
-                ];
+            if ($regra) {
+                $valorParcela = round($total / $parcelas, 2);
+                $acumulado = 0;
+                for ($i = 1; $i <= $parcelas; $i++) {
+                    $valorEsta = $i === $parcelas ? round($total - $acumulado, 2) : $valorParcela;
+                    $acumulado = round($acumulado + $valorEsta, 2);
 
-                if ($i === 1 && $conta) {
-                    $conta->update($dados);
-                } else {
-                    ContaReceber::create($dados);
+                    $gravar($base + [
+                        'descricao'          => "Pedido #{$pedido->numero} - {$formaLabel} {$i}/{$parcelas} ({$regra->nome})",
+                        'valor'              => $valorEsta,
+                        'valor_pago'         => 0,
+                        'vencimento'         => now()->addDays($regra->prazo_dias + 30 * ($i - 1)),
+                        'pago_em'            => null,
+                        'adquirente_taxa_id' => $regra->id,
+                        'taxa_percentual'    => $regra->taxa_percentual,
+                        'valor_liquido'      => round($valorEsta * (1 - ((float) $regra->taxa_percentual) / 100), 2),
+                        'parcela'            => $i,
+                        'total_parcelas'     => $parcelas,
+                        'status'             => 'pendente',
+                    ]);
                 }
+                continue;
             }
 
-            return;
+            $gravar($base + [
+                'descricao'      => "Pedido #{$pedido->numero} - {$formaLabel}",
+                'valor'          => $total,
+                'valor_pago'     => $total,
+                'vencimento'     => now(),
+                'pago_em'        => now(),
+                'parcela'        => 1,
+                'total_parcelas' => 1,
+                'status'         => 'paga',
+            ]);
         }
-
-        $dados = $base + [
-            'descricao'      => "Pedido #{$pedido->numero} - {$formaLabel}",
-            'valor'          => $total,
-            'valor_pago'     => $total,
-            'vencimento'     => now(),
-            'pago_em'        => now(),
-            'parcela'        => 1,
-            'total_parcelas' => 1,
-            'status'         => 'paga',
-        ];
-
-        $conta ? $conta->update($dados) : ContaReceber::create($dados);
     }
 
     /** Baixa o estoque dos itens do pedido (chamado no faturamento). */
