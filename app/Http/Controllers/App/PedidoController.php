@@ -78,7 +78,9 @@ class PedidoController extends Controller
         $produtos = Produto::where('empresa_id', session('empresa_id'))->where('status', 'ativo')->orderBy('descricao')->get();
         $servicos = Servico::where('empresa_id', session('empresa_id'))->where('status', 'ativo')->orderBy('descricao')->get();
 
-        return view('app.pedidos.create', compact('vendedores', 'produtos', 'servicos'));
+        $tabelaDaCondicao = $this->tabelaDaCondicao(\App\Models\ConfiguracaoLoja::daUnidade());
+
+        return view('app.pedidos.create', compact('vendedores', 'produtos', 'servicos', 'tabelaDaCondicao'));
     }
 
     public function store(Request $request)
@@ -309,7 +311,32 @@ class PedidoController extends Controller
         $produtos = Produto::where('empresa_id', session('empresa_id'))->where('status', 'ativo')->orderBy('descricao')->get();
         $servicos = Servico::where('empresa_id', session('empresa_id'))->where('status', 'ativo')->orderBy('descricao')->get();
 
-        return view('app.pedidos.edit', compact('pedido', 'vendedores', 'produtos', 'servicos'));
+        $configLoja = \App\Models\ConfiguracaoLoja::daUnidade($pedido->empresa_id, $pedido->unidade_id);
+        $tabelaDaCondicao = $this->tabelaDaCondicao($configLoja);
+        $tabela = app(\App\Services\TabelaPrecoService::class);
+        $precosDosItens = $pedido->itens->mapWithKeys(fn ($i) => [
+            $i->id => $i->produto ? $tabela->precosDoProduto($i->produto, $configLoja) : null,
+        ]);
+
+        return view('app.pedidos.edit', compact('pedido', 'vendedores', 'produtos', 'servicos', 'tabelaDaCondicao', 'precosDosItens'));
+    }
+
+    /**
+     * Condição de pagamento → tabela de preço do item (03/11/2026). Na tela do
+     * pedido a troca da condição repreça os itens, como a forma faz no PDV:
+     * À vista/PIX = Dinheiro/PIX, Cartão = crédito; prazo e boleto (e "Selecione")
+     * ficam no preço cadastrado. A regra é a mesma do PDV (TabelaPrecoService).
+     */
+    private function tabelaDaCondicao(\App\Models\ConfiguracaoLoja $config): array
+    {
+        $tabela = app(\App\Services\TabelaPrecoService::class);
+        $mapa = ['' => $tabela->modalidadeDoCadastro($config)];
+        foreach (array_keys(self::CONDICOES_LABELS) as $condicao) {
+            $forma = self::FORMA_DA_CONDICAO[$condicao] ?? 'boleto';
+            $mapa[$condicao] = $tabela->modalidadeDosPagamentos([$forma], $config);
+        }
+
+        return $mapa;
     }
 
     public function update(Request $request, Pedido $pedido)

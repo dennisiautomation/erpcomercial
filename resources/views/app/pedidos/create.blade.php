@@ -280,10 +280,27 @@ document.addEventListener('DOMContentLoaded', function() {
     const clientesBuscarUrl = '{{ route("app.search.clientes") }}';
     const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
 
+    // Condição de pagamento → tabela de preço (03/11/2026): trocar a condição
+    // repreça os itens como a forma de pagamento faz no PDV.
+    const tabelaDaCondicao = @json($tabelaDaCondicao);
+    const condicaoSelect = document.getElementById('campo-condicao_pagamento');
+    function precoNaCondicao(precos) {
+        const tabela = tabelaDaCondicao[condicaoSelect.value] ?? tabelaDaCondicao[''];
+        return precos && precos[tabela] != null ? parseFloat(precos[tabela]) : null;
+    }
+    condicaoSelect.addEventListener('change', function() {
+        document.querySelectorAll('#itensBody tr[data-precos]').forEach(row => {
+            const preco = precoNaCondicao(JSON.parse(row.dataset.precos));
+            if (preco !== null) row.querySelector('.item-preco').value = preco.toFixed(2);
+        });
+        calcularTotais();
+    });
+
     function addItemRow(data = null) {
         const idx = itemIndex;
         const row = document.createElement('tr');
         row.setAttribute('data-index', idx);
+        if (data && data.precos) row.dataset.precos = JSON.stringify(data.precos);
         row.innerHTML = `
             <td class="ps-3 text-muted item-num">${idx + 1}</td>
             <td>
@@ -389,7 +406,8 @@ document.addEventListener('DOMContentLoaded', function() {
                             servicoIdInput.value = '';
                             descricaoInput.value = p.descricao;
                             buscaInput.value = p.descricao;
-                            row.querySelector('.item-preco').value = parseFloat(p.preco_venda).toFixed(2);
+                            if (p.precos) row.dataset.precos = JSON.stringify(p.precos); else delete row.dataset.precos;
+                            row.querySelector('.item-preco').value = (precoNaCondicao(p.precos) ?? parseFloat(p.preco_venda)).toFixed(2);
                             resultadosDiv.style.display = 'none';
                             calcularTotais();
                         });

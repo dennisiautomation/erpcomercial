@@ -71,6 +71,8 @@ class SearchController extends Controller
             'codigo_interno' => $p->codigo_interno,
             'preco_venda'    => number_format($tabela->precoDoCadastro($p, $config), 2, '.', ''),
             'unidade_medida' => $p->unidade_medida,
+            // As 3 tabelas: o pedido repreça o item quando muda a condição (03/11/2026)
+            'precos'         => $tabela->precosDoProduto($p, $config),
         ]);
 
         return response()->json($produtos);

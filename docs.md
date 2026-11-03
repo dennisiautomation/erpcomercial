@@ -7447,3 +7447,15 @@ arquivos de `…/arquivos/` + `route:cache` + `view:cache` + USR2.
   e conferir o vendedor da venda). Pós-deploy: 4 arquivos = commit `97e05d1`, rota no ar; pedido #6 (id 89) como Pedro Teixeira (dono)
   200 com o botão, como Operador loja 03 200 sem o botão; `/login` 200. Rollback: foto `erp-com-app:pre-pedido-trocar-vendedor-20261103-1119`.
 
+
+### Pedido repreça os itens pela condição de pagamento (03/11/2026)
+- Pedido do Dennis (STILO): no pedido, trocar a condição para "À vista" não mudava o valor, como a forma de pagamento faz no PDV.
+  O item ficava sempre no "preço cadastrado" da loja (`SearchController::produtos` / `PdvController::buscarProduto`).
+- Agora `pedidos/create` e `pedidos/edit` repreçam os itens ao trocar a condição: **À vista/PIX = tabela Dinheiro/PIX, Cartão = crédito,
+  30/60/90 dias, Boleto e "Selecione" = preço cadastrado** (na loja com `preco_base='cartao'`, o do cartão). O mapa vem do servidor
+  (`PedidoController::tabelaDaCondicao`, usando `TabelaPrecoService::modalidadeDosPagamentos` — a mesma regra do PDV). A busca geral de
+  produtos passou a devolver `precos` (as tabelas); no editar, os itens já gravados recebem as tabelas da loja do pedido.
+- Igual ao PDV: trocar a condição **sobrescreve** o preço digitado à mão nas linhas de produto (serviço não muda). O servidor continua
+  gravando o `preco_unitario` que a tela manda. Não muda: Faturar (a forma escolhida no Faturar não repreça o pedido), orçamento, venda balcão.
+- Validação `scripts/validar-pedido-preco-condicao-03nov.py` (navegador no container do Playwright, ambiente descartável) **19 ✅ / 0 ❌**:
+  novo pedido, editar rascunho, loja na regra do cartão e gravação; regressão `validar-pedido-trocar-vendedor-03nov.py` 17 ✅ / 0 ❌.
