@@ -7462,3 +7462,20 @@ arquivos de `…/arquivos/` + `route:cache` + `view:cache` + USR2.
 - Pós-deploy: 4 arquivos = commit `e526472`; `/login` 200; na STILO a tela do pedido traz o mapa certo por loja (loja 9 regra do cartão:
   vazio/prazo/boleto = crédito; loja 10: vazio/prazo/boleto = PIX; nas duas À vista/PIX = PIX e Cartão = crédito) e a busca devolve as
   tabelas (ex.: Saia Alfaiataria Luana CURTA PIX 30 / cartão 33). Rollback: foto `erp-com-app:pre-pedido-preco-condicao-20261103-1321`.
+
+
+## PDV: bipe deixava a quantidade em 2 (e outros efeitos do leitor) — branch `correcao-bipe` (03/11/2026) — **NÃO EM PRODUÇÃO**
+
+**Relato (STILO VINTE):** ao bipar, a quantidade do item vai sozinha para 2. Só o PDV soma +1 ao reler um produto já na lista (`addProduto`).
+Nos logs de acesso (03/11, 6 IPs da STILO) 8 de 22 bipes completos tiveram 2ª adição em ≤6 s: 3 sem nova leitura (2–3 s depois, um IP) e 5 com nova leitura em 1–2 s.
+Dados da STILO limpos: 648 produtos, 0 códigos repetidos, 0 buscas ambíguas.
+
+**Defeitos reproduzidos (leitor simulado em Chrome, JS real do PDV) e corrigidos em `pdv/index.blade.php`:**
+1. **Lista de busca reaparecia depois de cada bipe** — o Enter adiciona e limpa o campo, mas a busca por texto (debounce 300 ms) ainda disparava e reabria a lista com o produto; tocar nela = +1.
+   Agora `cancelarBuscaPendente()` no bipe e `searchSeq` descarta resposta velha (`searchProdutos` só mostra se o campo ainda é o termo).
+2. **Quantidade virava o código de barras** — com o foco na caixinha de quantidade, os dígitos do leitor entravam nela. Agora rajada rápida + Enter nessa caixinha é tratada como leitura (restaura o valor, solta o foco, adiciona o produto). Digitar a quantidade à mão continua igual.
+3. **Enter do leitor apertava o botão com foco** (abriu o modal de pagamento no meio da bipagem) — `preventDefault` + `blur`.
+4. **Releitura do leitor (modo contínuo/apresentação):** o mesmo código em <300 ms (janela deslizante) conta como UM bipe. **Muda comportamento:** dois bipes legítimos do mesmo item com menos de 300 ms entre si contam como um.
+
+**Não consegui provar** qual causa o operador da STILO vê quando diz "sem clicar": se a lista reaparecendo (3 casos no log têm esse desenho) ou o leitor relendo (5 casos). Teste de campo: bipar uma etiqueta no Bloco de Notas — se o código sair 2×, é o leitor.
+**Validação:** `scripts/validar-pdv-bipe-03nov.mjs` (navegador, ambiente descartável `cs-*`) **13 ✅ / 0 ❌** (antes da correção: lista reabria, quantidade virava o código, Enter abria o pagamento). Só JavaScript; sem migration; deploy = arquivo + `view:cache` + USR2.

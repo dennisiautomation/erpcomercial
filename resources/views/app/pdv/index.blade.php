@@ -1586,6 +1586,8 @@ const PDV = {
     barcodeTimeout: null,
     lastCupomHtml: '',
     searchTimeout: null,
+    searchSeq: 0,
+    ultimaLeitura: null,
 
     // ===== INIT =====
     init() {
@@ -1744,7 +1746,10 @@ const PDV = {
     bindBarcodeDetection() {
         document.addEventListener('keypress', (e) => {
             const inInput = e.target === document.getElementById('searchInput');
-            if (e.target.tagName === 'INPUT' && !inInput) return;
+            // Caixinha de quantidade do item: o bipe NÃO pode digitar o código nela (a
+            // quantidade virava o número do código). Rajada rápida + Enter = leitor.
+            const emQtd = !!(e.target.closest && e.target.closest('.qty-control') && e.target.tagName === 'INPUT');
+            if (e.target.tagName === 'INPUT' && !inInput && !emQtd) return;
 
             // Barcode scanners type fast
             if (this.barcodeTimeout) clearTimeout(this.barcodeTimeout);
@@ -1752,6 +1757,11 @@ const PDV = {
             if (e.key === 'Enter' && this.barcodeBuffer.length >= 4) {
                 const code = this.barcodeBuffer;
                 this.barcodeBuffer = '';
+                // O Enter final do leitor não pode apertar o botão que estiver com foco
+                // (abria o pagamento no meio da bipagem) nem confirmar a caixinha de quantidade.
+                e.preventDefault();
+                if (emQtd) { e.target.value = e.target.defaultValue; }
+                if (emQtd || ['BUTTON', 'A'].includes(e.target.tagName)) e.target.blur();
                 this.searchAndAddByCode(code);
                 if (inInput) {
                     document.getElementById('searchInput').value = '';
@@ -1769,7 +1779,24 @@ const PDV = {
         });
     },
 
+    // A busca por texto tem espera de 300 ms; o bipe (Enter) adiciona na hora e limpa o campo,
+    // mas a busca pendente ainda disparava e REABRIA a lista com o produto recém-lido — um
+    // toque nela somava +1. Cancela a pendente e invalida a que já está no ar.
+    cancelarBuscaPendente() {
+        clearTimeout(this.searchTimeout);
+        this.searchTimeout = null;
+        this.searchSeq = (this.searchSeq || 0) + 1;
+        this.closeDropdown();
+    },
+
     async searchAndAddByCode(code) {
+        this.cancelarBuscaPendente();
+        // Releitura do leitor (modo contínuo/apresentação, ou os dois caminhos do mesmo Enter):
+        // o mesmo código em menos de 300 ms é UM bipe só.
+        const agora = Date.now();
+        const repetida = this.ultimaLeitura && this.ultimaLeitura.code === code && agora - this.ultimaLeitura.t < 300;
+        this.ultimaLeitura = { code, t: agora }; // janela deslizante: leitor em modo contínuo continua contando como um só
+        if (repetida) return;
         try {
             const resp = await fetch(`/app/pdv/produto/${encodeURIComponent(code)}`, {
                 headers: { 'X-Requested-With': 'XMLHttpRequest' }
@@ -1827,12 +1854,15 @@ const PDV = {
     },
 
     async searchProdutos(term) {
+        const seq = this.searchSeq = (this.searchSeq || 0) + 1;
         try {
             const resp = await fetch(`/app/pdv/produto/${encodeURIComponent(term)}`, {
                 headers: { 'X-Requested-With': 'XMLHttpRequest' }
             });
             const produtos = await resp.json();
             this.cachePrecos(produtos);
+            // Resposta velha (o campo já foi limpo/mudou, ou um bipe cancelou): não reabre a lista
+            if (seq !== this.searchSeq || document.getElementById('searchInput').value.trim() !== term) return;
             this.showSearchResults(produtos);
         } catch (err) {
             console.error('Search error:', err);
