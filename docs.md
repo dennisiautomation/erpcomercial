@@ -7437,3 +7437,13 @@ arquivos de `…/arquivos/` + `route:cache` + `view:cache` + USR2.
   editar, imprimir, converter em pedido; sem excluir). Pós-deploy como Operador loja 03: `/app/orcamentos`, `/app/orcamentos/create`
   e `/app/pedidos` 200, excluir = não. Rollback: foto `erp-com-app:pre-caixa-orcamentos-20261103-1050`.
 
+### Trocar vendedor também no pedido (03/11/2026) — EM PRODUÇÃO ~11:25 BRT
+- Print da STILO: pedido #6 **Confirmado** no nome da Jessiane, sem como corrigir — o Editar só vale para rascunho.
+- Ação `pedidos:trocar_vendedor` (admin/dono/gerente) + `POST /app/pedidos/{pedido}/vendedor` → `PedidoController::trocarVendedor`:
+  muda só `pedidos.vendedor_id`, com evento `vendedor_trocado` na auditoria. Vale para **rascunho e confirmado**; faturado, entregue e
+  cancelado não (no faturado a troca é na venda). O faturamento já leva `$pedido->vendedor_id` para a venda.
+- Mesma lista do F3 pela loja do pedido (`PdvController::filtrarOperadoresPelaLoja`); botão + janela em `pedidos/show`.
+- Validação `scripts/validar-pedido-trocar-vendedor-03nov.py` em ambiente descartável **17 ✅ / 0 ❌** (inclui faturar um pedido trocado
+  e conferir o vendedor da venda). Pós-deploy: 4 arquivos = commit `97e05d1`, rota no ar; pedido #6 (id 89) como Pedro Teixeira (dono)
+  200 com o botão, como Operador loja 03 200 sem o botão; `/login` 200. Rollback: foto `erp-com-app:pre-pedido-trocar-vendedor-20261103-1119`.
+
