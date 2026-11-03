@@ -7464,7 +7464,7 @@ arquivos de `…/arquivos/` + `route:cache` + `view:cache` + USR2.
   tabelas (ex.: Saia Alfaiataria Luana CURTA PIX 30 / cartão 33). Rollback: foto `erp-com-app:pre-pedido-preco-condicao-20261103-1321`.
 
 
-## Pedido fatura em Crediário e Vale + cancelar troca/devolução (03/11/2026) — branch `pedido-crediario-vale-troca-cancelar-03nov`, **NÃO EM PRODUÇÃO**
+## Pedido fatura em Crediário e Vale + cancelar troca/devolução (03/11/2026) — branch `alteracao-pagamento-cancelamento`, **NÃO EM PRODUÇÃO**
 
 Pedido do Dennis: (1) liberar nos pedidos as duas formas que só existiam no PDV — **Crediário** e **Vale**; (2) permitir
 cancelar uma troca já realizada. Branch sobre a `main` = produção (`afcf780`); nada foi deployado nem mesclado.
