@@ -7325,3 +7325,37 @@ cobrado**; vale VT-JVWB-7M7K (troca de peça paga em dinheiro) compra na tabela 
 cartão; php-fpm e as 2 filas reiniciadas 12:33; 0 erro novo no log (2503 = antes); `/login` e `/` 200.
 **Pendente:** mesclar na `main` + push (rebuild sem isso desfaz a correção — armadilha 52); avisar STILO/Dona Douro/N S Borba
 da troca de peça paga no cartão; cancelar os 2 vales de teste da STILO se o Dennis mandar.
+
+
+## Credishop no PDV só para a STILO + STILO zerada e importada do Gestão Click (03/11/2026)
+
+### Credishop (branch `credishop-stilo-03nov` @`0a6ff02`) — EM PRODUÇÃO 03/11 ~09:20 BRT
+- Chave nova `empresas.pdv_credishop` (migration `2026_11_03_120000`, nasce desligada; liga só a empresa 3 STILO VINTE).
+  Switch no admin da plataforma (Editar empresa, junto das chaves do PDV).
+- Botão "Credishop" no PDV (`data-forma="credishop"`) só com a chave; o servidor recusa a forma sem a chave (closure no
+  `validate()` de `registrarVenda` — botão escondido não impede POST forjado).
+- Credishop = cartão de crédito de rede própria: `TabelaPrecoService::FORMA_MODALIDADE` e JS `modalidadeDaForma` → `credito`;
+  acréscimo do crédito na regra `por_parte`; NFC-e `tPag 03` com bloco de cartão; conta como cartão no cupom automático;
+  rótulo em `MovimentacaoCaixa::FORMAS_LABELS` e no cupom. Sem parcelas (o select de parcelas é só do `cartao_credito`).
+- Validação: `scripts/validar-credishop-03nov.py` em ambiente descartável (`cs-*`) **24 ✅ / 0 ❌**; lint PHP + 254 views 0 erro.
+- Deploy por `git archive` + migration + `view:cache` + USR2 (o Dennis rodou `/home/ubuntu/erp-backups/pre-credishop-20261103-0915/deploy-credishop.sh`;
+  o classificador barrou o Claude). Rollback: foto `erp-com-app:pre-credishop-20261103-0915` ou os arquivos de `…/arquivos/`.
+- **Pendente:** mesclar na `main` antes do próximo rebuild (armadilha 52).
+
+### STILO: vendas de teste apagadas e catálogo/estoque do Gestão Click (só dados, sem código)
+- 09:05 BRT: apagadas as 18 vendas de teste (25/07–01/11), 2 trocas, 2 vales, 4 caixas, 34 lançamentos de caixa, 19 contas a
+  receber, 18 comissões, 8 notas e 30 movimentos de estoque. Backup `/home/ubuntu/erp-backups/pre-limpeza-stilo-20261103-0905/`.
+  A NFC-e nº 1 (série 2, loja 04, 25/07) estava AUTORIZADA: saiu do banco, continua emitida na SEFAZ.
+- 09:33 BRT: importação do Gestão Click (API `api.beteltecnologia.com`, credencial da integração do Gersen, coleta só leitura
+  `/home/ubuntu/stilo-gc-import/coletar-gc.sh`). O RPA `rpa-stilovinte` (Playwright, Windows, reCAPTCHA manual) só EXPORTA
+  planilhas do GC — não importa nada no ERP.
+  - Casamento por **nome** (o GC trocou os códigos: hoje são EAN-13 `20…`; o ERP tinha `000001…`): 388 atualizados + 132 novos.
+  - Cadastro é da empresa: `preco_venda` = "Valor em dinheiro ou PIX", débito/crédito fixos = "Valor em cartão" (formato clássico,
+    válido nas duas regras de preço — ver 01/11); produto só com a tabela "BAZAR RIVERSIDE" usa a do bazar; NCM e custo do GC;
+    **código do GC no `codigo_barras`** (o leitor bipa a etiqueta do GC). Código interno segue sequencial do ERP.
+  - Estoque por loja, entrada `importacao_saldo_inicial` no estoque de venda: GC 01 JS MATRIZ→9, 02 JS FILIAL→13,
+    **03 PRIME FILIAL→14 "03 JS FILIAL"**, 04 PRIME MATRIZ→10, 05 PRIME FILIAL→15, 06 PRIME FILIAL→16 = 1.442 lançamentos,
+    10.686 peças. Outlet (18) e Barroso (17) ficaram em 0; negativo do GC entrou como 0.
+  - Validação produto a produto (preço nas 8 lojas, NCM, código de barras, estoque das 6 lojas, Outlet/Barroso 0): 10 ✅ / 1 ❌,
+    o ❌ era a conta esperada do teste (contou o produto apagado "aaaa"; real 515 + 132 = 647).
+  - Backup `/home/ubuntu/erp-backups/pre-import-gc-stilo-20261103-0933/` (produtos, preços, plano e coleta).
