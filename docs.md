@@ -7464,7 +7464,7 @@ arquivos de `…/arquivos/` + `route:cache` + `view:cache` + USR2.
   tabelas (ex.: Saia Alfaiataria Luana CURTA PIX 30 / cartão 33). Rollback: foto `erp-com-app:pre-pedido-preco-condicao-20261103-1321`.
 
 
-## PDV: bipe deixava a quantidade em 2 (e outros efeitos do leitor) — branch `correcao-bipe` (03/11/2026) — **NÃO EM PRODUÇÃO**
+## PDV: bipe deixava a quantidade em 2 (e outros efeitos do leitor) — branch `correcao-bipe` (03/11/2026) — **EM PRODUÇÃO 03/11/2026**
 
 **Relato (STILO VINTE):** ao bipar, a quantidade do item vai sozinha para 2. Só o PDV soma +1 ao reler um produto já na lista (`addProduto`).
 Nos logs de acesso (03/11, 6 IPs da STILO) 8 de 22 bipes completos tiveram 2ª adição em ≤6 s: 3 sem nova leitura (2–3 s depois, um IP) e 5 com nova leitura em 1–2 s.
@@ -7479,3 +7479,6 @@ Dados da STILO limpos: 648 produtos, 0 códigos repetidos, 0 buscas ambíguas.
 
 **Não consegui provar** qual causa o operador da STILO vê quando diz "sem clicar": se a lista reaparecendo (3 casos no log têm esse desenho) ou o leitor relendo (5 casos). Teste de campo: bipar uma etiqueta no Bloco de Notas — se o código sair 2×, é o leitor.
 **Validação:** `scripts/validar-pdv-bipe-03nov.mjs` (navegador, ambiente descartável `cs-*`) **13 ✅ / 0 ❌** (antes da correção: lista reabria, quantidade virava o código, Enter abria o pagamento). Só JavaScript; sem migration; deploy = arquivo + `view:cache` + USR2.
+
+### Deploy (03/11/2026)
+docker cp dos arquivos (container conferido = main, md5 um a um) + migration + route:cache + view:cache + USR2 + queue:restart, 03/11 ~20:15 UTC (17:15 BRT). Foto erp-com-app:pre-bipe-pagamento-20261103-2014; backup e script em /home/ubuntu/erp-backups/pre-bipe-pagamento-20261103-2014/. Pós-deploy: 14 arquivos = branch, 4 colunas novas, rota trocas.cancelar no ar, /app/pdv, /app/trocas e /app/pedidos 200 (dono STILO), views com erro 0, /login 200. **Pendente: mesclar os PRs #8 e #9 na main** (rebuild sem isso desfaz — armadilha 52).
