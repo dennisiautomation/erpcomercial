@@ -7495,7 +7495,7 @@ cancelar uma troca já realizada. Branch sobre a `main` = produção (`afcf780`)
   informam e-mail+senha de um gerente (mesma regra da troca fora da política, `troca_senha_gerente`). `cancelado_por` = quem autorizou.
 - **Telas:** botão + modal em `trocas/show` listando o que será desfeito; faixa vermelha CANCELADA; selo na lista; selo no comprovante térmico.
 - **Limite conhecido:** troca antiga que abateu parcelas (`valor_abatido_parcelas > 0` sem `abatimentos`) **não cancela sozinha** (mensagem pede ajuste à mão).
-  Como o PDV grava crediário/boleto como já pagos, deve ser raro — **medir em produção (só leitura) antes do deploy**.
+  Como o PDV grava crediário/boleto como já pagos, deve ser raro — **medido em produção em 03/11 (só leitura): 267 devoluções, 0 com `valor_abatido_parcelas > 0`, 0 contas crediário/boleto — o limite não afeta nenhuma troca existente**.
 
 ### Validação (ambiente descartável `cs-*`, mysql `erp_teste`; produção intocada)
 - `scripts/validar-pedido-crediario-vale-03nov.py` **29 ✅ / 0 ❌** (crediário; vale cobre tudo; saldo menor recusa; vale+PIX; vale inexistente/cancelado/vencido/de outra empresa/sem código;
