@@ -7464,7 +7464,7 @@ arquivos de `…/arquivos/` + `route:cache` + `view:cache` + USR2.
   tabelas (ex.: Saia Alfaiataria Luana CURTA PIX 30 / cartão 33). Rollback: foto `erp-com-app:pre-pedido-preco-condicao-20261103-1321`.
 
 
-## Pedido fatura em Crediário e Vale + cancelar troca/devolução (03/11/2026) — branch `alteracao-pagamento-cancelamento`, **NÃO EM PRODUÇÃO**
+## Pedido fatura em Crediário e Vale + cancelar troca/devolução (03/11/2026) — branch `alteracao-pagamento-cancelamento`, **EM PRODUÇÃO 03/11/2026**
 
 Pedido do Dennis: (1) liberar nos pedidos as duas formas que só existiam no PDV — **Crediário** e **Vale**; (2) permitir
 cancelar uma troca já realizada. Branch sobre a `main` = produção (`afcf780`); nada foi deployado nem mesclado.
@@ -7505,3 +7505,6 @@ cancelar uma troca já realizada. Branch sobre a `main` = produção (`afcf780`)
 - `php -l` nos PHP alterados; views compiladas (`view:cache`) sem erro. **phpunit não rodou** (a imagem não tem dev deps).
 - ⚠️ Pegadinha de ambiente: o `php artisan serve` do `cs-app` roda com opcache sem validar timestamps — **depois de editar PHP, reiniciar o serve**, senão testa código velho.
 - **Antes do deploy:** consulta só-leitura na produção (quantas devoluções têm `valor_abatido_parcelas > 0`), foto da imagem, migration `--force`, `view:cache`, USR2, e mesclar na `main` (armadilha 52).
+
+### Deploy (03/11/2026)
+docker cp dos arquivos (container conferido = main, md5 um a um) + migration + route:cache + view:cache + USR2 + queue:restart, 03/11 ~20:15 UTC (17:15 BRT). Foto erp-com-app:pre-bipe-pagamento-20261103-2014; backup e script em /home/ubuntu/erp-backups/pre-bipe-pagamento-20261103-2014/. Pós-deploy: 14 arquivos = branch, 4 colunas novas, rota trocas.cancelar no ar, /app/pdv, /app/trocas e /app/pedidos 200 (dono STILO), views com erro 0, /login 200. **Pendente: mesclar os PRs #8 e #9 na main** (rebuild sem isso desfaz — armadilha 52).
