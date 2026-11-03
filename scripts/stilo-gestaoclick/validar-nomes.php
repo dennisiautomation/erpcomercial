@@ -1,0 +1,11 @@
+<?php use Illuminate\Support\Facades\DB;
+$lista = collect(json_decode(file_get_contents('/tmp/renomear.json'), true));
+$ok=0;$ko=0; $t=function($n,$c) use(&$ok,&$ko){ echo ($c?'✅':'❌')," $n\n"; $c?$ok++:$ko++; };
+$atuais = DB::table('produtos')->whereIn('id', $lista->pluck('id'))->pluck('descricao','id');
+$t('638 nomes iguais à prévia', $lista->every(fn($x) => ($atuais[$x['id']] ?? null) === $x['depois']));
+$t('nenhum produto da STILO com $ no nome', DB::table('produtos')->where('empresa_id',3)->whereNull('deleted_at')->where('descricao','like','%$%')->count() === 0);
+$t('nenhum nome vazio', DB::table('produtos')->where('empresa_id',3)->whereNull('deleted_at')->whereRaw("trim(descricao) = ''")->count() === 0);
+$t('preços não mudaram (soma preco_venda igual)', abs(DB::table('produtos')->where('empresa_id',3)->whereNull('deleted_at')->sum('preco_venda') - (float) getenv('SOMA')) < 0.01);
+$t('estoque não mudou (10.686 peças)', (int) DB::table('estoque_movimentacoes')->where('empresa_id',3)->sum('quantidade') === 10686);
+$t('outras empresas intocadas (nenhum produto alterado agora)', DB::table('produtos')->where('empresa_id','<>',3)->where('updated_at','>=', now()->subMinutes(10))->count() === 0);
+echo "TOTAL $ok ✅ / $ko ❌\n";
