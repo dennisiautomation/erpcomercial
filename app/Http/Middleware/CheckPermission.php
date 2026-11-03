@@ -59,10 +59,12 @@ class CheckPermission
             'vendedor' => ['ver', 'criar', 'editar', 'excluir'],
             'consulta' => ['ver'],
         ],
+        // trocar_vendedor (03/11/2026): corrige o vendedor de venda finalizada
+        // (esqueceu o F3) — só quem gerencia; rota própria, a venda segue sem edição.
         'vendas' => [
-            'admin' => ['ver', 'criar', 'editar', 'excluir'],
-            'dono' => ['ver', 'criar', 'editar', 'excluir'],
-            'gerente' => ['ver', 'criar', 'editar', 'excluir'],
+            'admin' => ['ver', 'criar', 'editar', 'excluir', 'trocar_vendedor'],
+            'dono' => ['ver', 'criar', 'editar', 'excluir', 'trocar_vendedor'],
+            'gerente' => ['ver', 'criar', 'editar', 'excluir', 'trocar_vendedor'],
             'vendedor' => ['ver', 'criar'],
             'caixa' => ['ver', 'criar'],
             'consulta' => ['ver'],

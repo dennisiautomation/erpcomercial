@@ -302,7 +302,79 @@ class VendaController extends Controller
         $venda->load(['cliente', 'vendedor', 'itens.produto', 'itens.servico', 'caixa', 'pedido', 'notasFiscais', 'contasReceber',
             'devolucoes.itens.produto', 'devolucoes.itens.vendaItem', 'devolucoes.vale', 'devolucoes.vendaNova', 'devolucoes.user']);
 
-        return view('app.vendas.show', compact('venda'));
+        // Trocar vendedor (03/11/2026): mesma lista do F3 do PDV, pela loja da venda
+        $vendedoresTroca = collect();
+        if (\App\Http\Middleware\CheckPermission::canUser(auth()->user(), 'vendas', 'trocar_vendedor')) {
+            $vendedoresTroca = PdvController::filtrarOperadoresPelaLoja(
+                $this->vendedoresDaEmpresa($venda->empresa_id),
+                $venda->empresa,
+                (int) $venda->unidade_id
+            );
+        }
+        $comissaoPaga = $venda->comissoes()->where('status', 'paga')->exists();
+
+        return view('app.vendas.show', compact('venda', 'vendedoresTroca', 'comissaoPaga'));
+    }
+
+    /**
+     * Corrige o vendedor de uma venda finalizada (03/11/2026) — o caixa esqueceu o
+     * F3 e a venda ficou no nome de quem estava logado. Muda SÓ o vendedor e a
+     * comissão dele (mesmo valor: a do PDV é fixa, não depende de quem vendeu);
+     * itens, valores, caixa e nota não mudam. Comissão já paga trava a troca.
+     */
+    public function trocarVendedor(Request $request, Venda $venda)
+    {
+        $validos = PdvController::filtrarOperadoresPelaLoja(
+            $this->vendedoresDaEmpresa($venda->empresa_id),
+            $venda->empresa,
+            (int) $venda->unidade_id
+        );
+        $dados = $request->validate([
+            'vendedor_id' => ['required', 'integer', function ($attr, $valor, $falha) use ($validos) {
+                if (! $validos->contains('id', (int) $valor)) {
+                    $falha('Vendedor inválido para a loja desta venda.');
+                }
+            }],
+        ]);
+
+        $status = $venda->status instanceof StatusVenda ? $venda->status->value : $venda->status;
+        if ($status === 'cancelada') {
+            return back()->with('error', 'Venda cancelada não troca de vendedor.');
+        }
+        if ($venda->comissoes()->where('status', 'paga')->exists()) {
+            return back()->with('error', 'A comissão desta venda já foi paga — não dá para trocar o vendedor.');
+        }
+
+        $antigo = $venda->vendedor;
+        $novo = $validos->firstWhere('id', (int) $dados['vendedor_id']);
+        if ((int) $venda->vendedor_id === (int) $novo->id) {
+            return back()->with('success', 'A venda já está com este vendedor.');
+        }
+
+        DB::transaction(function () use ($venda, $novo, $antigo) {
+            $venda->update(['vendedor_id' => $novo->id]);
+            $venda->comissoes()->update(['user_id' => $novo->id, 'updated_at' => now()]);
+
+            activity('Venda')
+                ->performedOn($venda)
+                ->causedBy(auth()->user())
+                ->event('vendedor_trocado')
+                ->withProperties(['de' => ['id' => $antigo?->id, 'nome' => $antigo?->name], 'para' => ['id' => $novo->id, 'nome' => $novo->name]])
+                ->log('Vendedor trocado de ' . ($antigo?->name ?? '—') . ' para ' . $novo->name);
+        });
+
+        return back()->with('success', 'Vendedor da venda #' . ($venda->numero ?? $venda->id) . ' trocado para ' . $novo->name . '.');
+    }
+
+    /** Quem pode ser vendedor de uma venda — os mesmos perfis do F3 do PDV. */
+    private function vendedoresDaEmpresa(int $empresaId)
+    {
+        return User::where('empresa_id', $empresaId)
+            ->where('status', 'ativo')
+            ->whereIn('perfil', ['caixa', 'vendedor', 'gerente', 'dono'])
+            ->select('id', 'name', 'perfil')
+            ->orderBy('name')
+            ->get();
     }
 
     /** Recibo/cupom imprimível da venda (com dados fiscais quando houver NFC-e). */

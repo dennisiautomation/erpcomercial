@@ -133,6 +133,17 @@
                     <div class="col-6">
                         <small class="text-muted d-block">Vendedor</small>
                         <span>{{ $venda->vendedor->name ?? '-' }}</span>
+                        {{-- Trocar vendedor (03/11/2026): só dono/gerente, venda não cancelada --}}
+                        @php $statusVenda = $venda->status instanceof \App\Enums\StatusVenda ? $venda->status->value : $venda->status; @endphp
+                        @if($vendedoresTroca->isNotEmpty() && $statusVenda !== 'cancelada')
+                            @if($comissaoPaga)
+                                <small class="d-block text-muted mt-1"><i class="bi bi-lock me-1"></i>Comissão já paga — vendedor não pode ser trocado</small>
+                            @else
+                                <button type="button" class="btn btn-sm btn-outline-primary mt-1 d-block" data-bs-toggle="modal" data-bs-target="#modalTrocarVendedor">
+                                    <i class="bi bi-person-gear me-1"></i>Trocar vendedor
+                                </button>
+                            @endif
+                        @endif
                     </div>
                 </div>
             </div>
@@ -475,6 +486,39 @@
 <!-- Iframe para impressão de recibo -->
 <iframe id="reciboFrame" style="display:none"></iframe>
 
+
+@if($vendedoresTroca->isNotEmpty() && !$comissaoPaga)
+<div class="modal fade" id="modalTrocarVendedor" tabindex="-1" aria-labelledby="modalTrocarVendedorLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <form method="POST" action="{{ route('app.vendas.trocar-vendedor', $venda) }}" class="modal-content">
+            @csrf
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalTrocarVendedorLabel"><i class="bi bi-person-gear me-1"></i>Trocar vendedor</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-2">Venda feita no nome de <strong>{{ $venda->vendedor->name ?? '—' }}</strong>.</p>
+                <label for="vendedor_id" class="form-label">Vendedor correto</label>
+                <select name="vendedor_id" id="vendedor_id" class="form-select" required>
+                    <option value="">Escolha…</option>
+                    @foreach($vendedoresTroca as $v)
+                        @continue((int) $v->id === (int) $venda->vendedor_id)
+                        <option value="{{ $v->id }}">{{ $v->name }} ({{ $v->perfil instanceof \App\Enums\Perfil ? $v->perfil->label() : $v->perfil }})</option>
+                    @endforeach
+                </select>
+                <small class="text-muted d-block mt-2">
+                    Muda só o vendedor e a comissão desta venda. Itens, valores, caixa e nota fiscal continuam iguais.
+                    A troca fica registrada na auditoria.
+                </small>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+                <button type="submit" class="btn btn-primary">Salvar vendedor</button>
+            </div>
+        </form>
+    </div>
+</div>
+@endif
 @endsection
 
 @push('scripts')

@@ -17,7 +17,7 @@ class Venda extends Model
 {
     use HasFactory, SoftDeletes, BelongsToEmpresa, BelongsToUnidade, AuditableModel;
 
-    protected $auditFields = ['status', 'total', 'cliente_id', 'cancelamento_motivo', 'canceled_at'];
+    protected $auditFields = ['status', 'total', 'cliente_id', 'vendedor_id', 'cancelamento_motivo', 'canceled_at'];
 
     protected $fillable = [
         'empresa_id',

@@ -125,13 +125,14 @@ class PdvController extends Controller
      * algumas dezenas de nomes, e `whereHas('unidades')` traria os global scopes de
      * `Unidade` para dentro da subconsulta sem necessidade.
      */
-    private static function filtrarOperadoresPelaLoja($operadores, ?\App\Models\Empresa $empresa)
+    public static function filtrarOperadoresPelaLoja($operadores, ?\App\Models\Empresa $empresa, ?int $unidadeId = null)
     {
         if (! $empresa?->pdvVendedoresDaLoja() || $operadores->isEmpty()) {
             return $operadores;
         }
 
-        $unidadeId = (int) session('unidade_id');
+        // Trocar vendedor (03/11/2026) filtra pela loja DA VENDA, não da sessão
+        $unidadeId = $unidadeId ?? (int) session('unidade_id');
 
         $vinculos = \Illuminate\Support\Facades\DB::table('unidade_user')
             ->whereIn('user_id', $operadores->pluck('id'))

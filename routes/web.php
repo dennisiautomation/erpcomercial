@@ -304,6 +304,9 @@ Route::middleware(['auth', 'suspensao', 'unidade', \App\Http\Middleware\Restring
     Route::get('vendas/{venda}/recibo', [App\VendaController::class, 'recibo'])
         ->name('vendas.recibo')
         ->middleware('permission:vendas');
+    Route::post('vendas/{venda}/vendedor', [App\VendaController::class, 'trocarVendedor'])
+        ->name('vendas.trocar-vendedor')
+        ->middleware('permission:vendas,trocar_vendedor');
     Route::resource('vendas', App\VendaController::class)
         ->except(['edit', 'update']) // venda concluída não é editável (cancelar/devolver são os fluxos)
         ->middleware('permission:vendas');
