@@ -561,8 +561,10 @@
         // No estilo "nome no topo" o nome é o layout: usa o NOME FANTASIA, que é
         // como a loja se chama na rua. A razão social ("... COMERCIO LTDA") não
         // cabe na largura e saía cortada com reticências.
+        // No layout livre também é o nome fantasia: é o que o editor mostra na
+        // caixa "Nome da loja" (04/11/2026 — saía a razão social, cortada).
         $empresa = auth()->user()->empresa;
-        $empresaNome = $ehNomeTopo
+        $empresaNome = ($ehNomeTopo || $layoutLivre)
             ? ($empresa->nome_fantasia ?: $empresa->razao_social ?: 'Empresa')
             : ($empresa->razao_social ?? $empresa->nome_fantasia ?? 'Empresa');
         // Logo da empresa substitui o nome na etiqueta (vale para todas as unidades)

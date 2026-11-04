@@ -70,6 +70,32 @@ class EtiquetaFormato extends Model
         'termica-tag-35x60'   => ['w' => 35.0, 'h' => 60.0, 'rotulo' => 'Tag de roupa 35×60 mm · 3 colunas'],
     ];
 
+    /**
+     * O que cada formato FIXO imprime hoje, em mm e pt — espelho do CSS do
+     * print.blade (04/11/2026). É daqui que o editor parte quando o lojista
+     * clica em "layout" num formato fixo: antes ele partia do arranjo por
+     * fórmula de layout(), calibrado para formato próprio, e abria uma
+     * etiqueta diferente da que saía na impressora (STILO, Tag 35×60: sem
+     * logo, sem Cartão/PIX, descrição de 2 linhas, preço menor).
+     *
+     * padding = [topo, direita, baixo, esquerda]; descricao = [pt, linhas];
+     * digitos = pt dos números em linha própria (null = saem dentro do SVG
+     * das barras, estilo JsBarcode); empresa/codigo = null quando o formato
+     * esconde o item; ordem 'hiper' = descrição → código → barras → preço.
+     */
+    public const LAYOUT_FIXOS = [
+        '2x5'                => ['padding' => [4, 4, 4, 4],         'gap' => 0.5, 'vertical' => 'centro', 'empresa' => 8,    'descricao' => [9, 2],   'barras' => 28,  'digitos' => null, 'preco' => 16,   'codigo' => 7,    'ordem' => 'padrao'],
+        '3x7'                => ['padding' => [2, 2, 2, 2],         'gap' => 0.5, 'vertical' => 'centro', 'empresa' => 6,    'descricao' => [7, 2],   'barras' => 18,  'digitos' => null, 'preco' => 12,   'codigo' => 6,    'ordem' => 'padrao'],
+        '4x10'               => ['padding' => [1.5, 1.5, 1.5, 1.5], 'gap' => 0.3, 'vertical' => 'centro', 'empresa' => 5,    'descricao' => [5.5, 1], 'barras' => 12,  'digitos' => null, 'preco' => 9,    'codigo' => 5,    'ordem' => 'padrao'],
+        'termica-40x25'      => ['padding' => [1, 1, 1, 1],         'gap' => 0.3, 'vertical' => 'centro', 'empresa' => 5,    'descricao' => [6, 1],   'barras' => 9,   'digitos' => null, 'preco' => 9,    'codigo' => null, 'ordem' => 'padrao'],
+        'termica-50x30'      => ['padding' => [1, 1, 1, 1],         'gap' => 0.3, 'vertical' => 'centro', 'empresa' => 5,    'descricao' => [6, 1],   'barras' => 12,  'digitos' => null, 'preco' => 9,    'codigo' => null, 'ordem' => 'padrao'],
+        'termica-60x40'      => ['padding' => [1, 1, 1, 1],         'gap' => 0.3, 'vertical' => 'centro', 'empresa' => 6,    'descricao' => [8, 2],   'barras' => 16,  'digitos' => null, 'preco' => 12,   'codigo' => null, 'ordem' => 'padrao'],
+        'termica-33x22'      => ['padding' => [1, 1, 1, 1],         'gap' => 0.3, 'vertical' => 'centro', 'empresa' => null, 'descricao' => [6, 1],   'barras' => 6.5, 'digitos' => 7.5,  'preco' => 9,    'codigo' => null, 'ordem' => 'padrao'],
+        'termica-36x20-2col' => ['padding' => [0.6, 0.5, 0.6, 0.5], 'gap' => 0.2, 'vertical' => 'centro', 'empresa' => null, 'descricao' => [6, 1],   'barras' => 6,   'digitos' => 8,    'preco' => 10.5, 'codigo' => 5.5,  'ordem' => 'hiper'],
+        // Tag de roupa: furo no topo, por isso os 7 mm de padding em cima
+        'termica-tag-35x60'  => ['padding' => [7, 2, 2, 2],         'gap' => 1,   'vertical' => 'topo',   'empresa' => 6,    'descricao' => [7, 3],   'barras' => 10,  'digitos' => 9,    'preco' => 13,   'codigo' => 5,    'ordem' => 'padrao'],
+    ];
+
     /** Este registro guarda só o desenho de um formato fixo, não um formato próprio. */
     public function ehPersonalizacaoDeFixo(): bool
     {
@@ -224,6 +250,12 @@ class EtiquetaFormato extends Model
      */
     public function layoutInicial(): array
     {
+        // Personalização de formato fixo parte do que o fixo imprime, não da
+        // fórmula de formato próprio (ver LAYOUT_FIXOS).
+        if ($this->ehPersonalizacaoDeFixo() && isset(self::LAYOUT_FIXOS[$this->formato_base])) {
+            return $this->layoutInicialDoFixo(self::LAYOUT_FIXOS[$this->formato_base]);
+        }
+
         $L = $this->layout(false);
         $w = $this->largura_mm;
         $h = $this->altura_mm;
@@ -265,6 +297,140 @@ class EtiquetaFormato extends Model
         }
 
         return $this->encaixarNaAltura($itens, $h, $p);
+    }
+
+    /**
+     * Converte a receita de LAYOUT_FIXOS em itens posicionados: a mesma pilha
+     * que o print.blade monta por CSS (logo/nome → descrição → barras →
+     * números → preço → código), com os mesmos corpos. Logo só se a empresa
+     * tem; Cartão/PIX só se a empresa trabalha com preço de cartão — é o que
+     * a impressão decide produto a produto, e o editor mostra o caso da casa.
+     */
+    private function layoutInicialDoFixo(array $R): array
+    {
+        [$pt, $pr, $pb, $pl] = $R['padding'];
+        $w = $this->largura_mm;
+        $h = $this->altura_mm;
+        $largura = max(1, $w - $pl - $pr);
+        $alturaUtil = max(1, $h - $pt - $pb);
+        $gap = (float) $R['gap'];
+
+        // Altura da caixa de um texto de N pontos, com a folga da entrelinha.
+        $caixa = fn (float $pt) => round($pt * self::MM_POR_PT * 1.35, 1);
+
+        $itens = [];
+        $y = (float) $pt;
+        $empilhar = function (array $el, float $altura, ?float $w = null) use (&$itens, &$y, $pl, $largura, $gap) {
+            $w = $w === null ? $largura : min($w, $largura);
+            $itens[] = array_merge([
+                'x' => round($pl + ($largura - $w) / 2, 1), 'y' => round($y, 1), 'w' => round($w, 1), 'h' => $altura,
+            ], $el);
+            $y += $altura + $gap;
+        };
+
+        $empresa = function () use ($R, $empilhar, $caixa, $largura) {
+            if ($R['empresa'] === null) {
+                return;
+            }
+            if ($this->empresaTemLogo()) {
+                // .empresa-logo img { max-width: 82%; max-height: 7mm }
+                $empilhar(['tipo' => 'empresa_logo'], 7.0, round($largura * 0.82, 1));
+            } else {
+                $empilhar(['tipo' => 'empresa_nome', 'tamanho' => $R['empresa'], 'negrito' => true], $caixa($R['empresa']));
+            }
+        };
+        $descricao = fn () => $empilhar(
+            ['tipo' => 'descricao', 'tamanho' => $R['descricao'][0], 'negrito' => true],
+            round($caixa($R['descricao'][0]) * $R['descricao'][1], 1)
+        );
+        $barras = function () use ($R, $empilhar, $caixa) {
+            if ($R['digitos'] !== null) {
+                $empilhar(['tipo' => 'codigo_barras'], (float) $R['barras']);
+                $empilhar(['tipo' => 'digitos_barras', 'tamanho' => $R['digitos'], 'fonte' => 'Courier New', 'negrito' => true], $caixa($R['digitos']));
+
+                return;
+            }
+            // Números dentro do SVG (JsBarcode): o bloco de barras inclui a
+            // linha de dígitos, aqui separada em item próprio na mesma altura.
+            $digitos = round(max(5, min(9, $R['barras'] * 0.3)), 1);
+            $empilhar(['tipo' => 'codigo_barras'], round(max(3, $R['barras'] - $caixa($digitos)), 1));
+            $empilhar(['tipo' => 'digitos_barras', 'tamanho' => $digitos], $caixa($digitos));
+        };
+        $preco = function () use ($R, $empilhar, $caixa, $largura) {
+            if ($this->empresaTemPrecoDuplo()) {
+                // O fixo imprime "Cartão R$ 110,00" no corpo do preço único e
+                // deixa estourar a largura (Tag 35×60 a 13pt sai cortada). O
+                // editor parte do mesmo corpo, limitado ao que cabe: ~16
+                // caracteres → pt ≤ largura/3,3 (mesma conta de layout()).
+                $pt = round(min($R['preco'], $largura / 3.3), 1);
+                $empilhar(['tipo' => 'preco_cartao', 'tamanho' => $pt, 'negrito' => true], $caixa($pt));
+                $empilhar(['tipo' => 'preco_pix', 'tamanho' => $pt, 'negrito' => true], $caixa($pt));
+            } else {
+                $empilhar(['tipo' => 'preco', 'tamanho' => $R['preco'], 'negrito' => true], $caixa($R['preco']));
+            }
+        };
+        $codigo = function () use ($R, $empilhar, $caixa) {
+            if ($R['codigo'] !== null) {
+                $empilhar(['tipo' => 'codigo_interno', 'tamanho' => $R['codigo']], $caixa($R['codigo']));
+            }
+        };
+
+        if ($R['ordem'] === 'hiper') {
+            $descricao(); $codigo(); $barras(); $preco();
+        } else {
+            $empresa(); $descricao(); $barras(); $preco(); $codigo();
+        }
+
+        if ($itens === []) {
+            return [];
+        }
+
+        // Altura ocupada (sem o gap depois do último item)
+        $ocupado = $y - $gap - $pt;
+        if ($ocupado > $alturaUtil) {
+            // Passou da etiqueta: comprime proporcionalmente, como encaixarNaAltura
+            $fator = $alturaUtil / max(0.1, $ocupado);
+            foreach ($itens as &$el) {
+                $el['y'] = round($pt + ($el['y'] - $pt) * $fator, 1);
+                $el['h'] = round($el['h'] * $fator, 1);
+                if (isset($el['tamanho'])) {
+                    $el['tamanho'] = round($el['tamanho'] * $fator, 1);
+                }
+            }
+            unset($el);
+        } elseif ($R['vertical'] === 'centro') {
+            // justify-content: center do CSS
+            $desloca = round(($alturaUtil - $ocupado) / 2, 1);
+            foreach ($itens as &$el) {
+                $el['y'] = round($el['y'] + $desloca, 1);
+            }
+            unset($el);
+        }
+
+        return $itens;
+    }
+
+    /** A empresa tem logo cadastrada (a impressão troca o nome pela imagem). */
+    public function empresaTemLogo(): bool
+    {
+        return (bool) Empresa::query()->whereKey($this->empresa_id)->value('logo');
+    }
+
+    /**
+     * A empresa imprime etiqueta dupla (Cartão + PIX)? A impressão decide por
+     * produto (crédito > dinheiro/PIX); aqui basta a casa ter preço de cartão
+     * em algum produto ou acréscimo/desconto de cartão em alguma loja.
+     */
+    public function empresaTemPrecoDuplo(): bool
+    {
+        return ProdutoPreco::query()
+                ->where('empresa_id', $this->empresa_id)
+                ->whereIn('modalidade', ['credito', 'dinheiro_pix'])
+                ->exists()
+            || ConfiguracaoLoja::query()
+                ->where('empresa_id', $this->empresa_id)
+                ->where(fn ($q) => $q->where('percentual_credito', '>', 0)->orWhere('desconto_avista_percentual', '>', 0))
+                ->exists();
     }
 
     /**

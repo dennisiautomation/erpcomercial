@@ -54,6 +54,10 @@ class RelatorioController extends Controller
                 $q->where('unidade_id', $lojaFiltro);
             } elseif ($lojas->isNotEmpty()) {
                 $q->whereIn('unidade_id', $lojas->pluck('id'));
+            } else {
+                // Perfil sem filtro (vendedor/caixa/...): preso à loja da sessão,
+                // como o UnidadeScope fazia — ele sai da consulta logo abaixo.
+                $q->where('unidade_id', (int) session('unidade_id'));
             }
         };
 
@@ -71,7 +75,12 @@ class RelatorioController extends Controller
             : null;
 
         // Canceladas ficam fora do faturamento (antes entravam — 03/09/2026)
-        $query = Venda::with(['cliente', 'vendedor', 'unidade:id,nome'])
+        // Sem o UnidadeScope (04/11/2026): ele prende todo perfil que não é
+        // admin/dono à loja da SESSÃO, por cima do filtro — o gerente escolhia
+        // outra loja vinculada ou "Todas" e via sempre só a loja atual (STILO).
+        // Quem recorta agora é $escopoLoja, com a lista do lojasParaFiltro.
+        $query = Venda::withoutGlobalScope(\App\Scopes\UnidadeScope::class)
+            ->with(['cliente', 'vendedor', 'unidade:id,nome'])
             ->where('empresa_id', $empresaId)
             ->where('status', '!=', StatusVenda::Cancelada)
             ->tap($escopoLoja)
