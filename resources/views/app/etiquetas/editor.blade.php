@@ -50,6 +50,10 @@
     .etq-item.selecionado {
         outline: 1px solid #0d6efd;
         box-shadow: 0 0 0 2px rgba(13, 110, 253, .18);
+        /* Por cima dos vizinhos: a alça fica no canto de fora do item e, sem
+           isto, o item seguinte (ex.: as barras logo abaixo da descrição) a
+           cobria — o puxão pegava o vizinho e "não aumentava" (STILO, 04/11). */
+        z-index: 2;
     }
 
     .etq-item .etq-conteudo {
@@ -162,6 +166,8 @@
                     Dados de exemplo do seu cadastro. Setas do teclado movem 0,5 mm
                     (com Shift, 0,1 mm) e Delete tira o item da etiqueta.
                 </p>
+                {{-- Preenchido pelo JS quando algum item invade a caixa das barras --}}
+                <div class="alert alert-warning small py-2 px-3 mt-2 mb-0 d-none" id="avisoBarras"></div>
             </div>
         </div>
     </div>
@@ -340,6 +346,24 @@
         renderCanvas();
         renderLista();
         renderPropriedades();
+        avisarBarras();
+    }
+
+    // Texto ou desenho em cima das barras estraga a leitura: o leitor passa
+    // pelos dígitos impressos e não decodifica. A tela avisa, não impede.
+    function avisarBarras() {
+        const aviso = document.getElementById('avisoBarras');
+        const barras = elementos.find(e => e.tipo === 'codigo_barras');
+        if (!barras) { aviso.classList.add('d-none'); return; }
+        const cruza = elementos.filter(e => e !== barras
+            && e.x < barras.x + barras.w && e.x + e.w > barras.x
+            && e.y < barras.y + barras.h && e.y + e.h > barras.y);
+        if (cruza.length === 0) { aviso.classList.add('d-none'); return; }
+        const nomes = cruza.map(e => CAMPOS[e.tipo] || DESENHOS[e.tipo] || e.tipo).join(', ');
+        aviso.innerHTML = '<i class="bi bi-exclamation-triangle me-1"></i><strong>' + nomes
+            + '</strong> está em cima do código de barras — o leitor não lê barras cobertas. '
+            + 'Afaste o item ou diminua a altura das barras.';
+        aviso.classList.remove('d-none');
     }
 
     function renderCanvas() {
@@ -382,7 +406,7 @@
                 try {
                     JsBarcode(svg, String(EXEMPLO.codigo_barras || '1234567890'), {
                         format: /^\d{13}$/.test(String(EXEMPLO.codigo_barras)) ? 'EAN13' : 'CODE128',
-                        displayValue: false, margin: 10, width: 2, height: 30
+                        displayValue: false, margin: 22, width: 2, height: 30   // mesma zona de silêncio da impressão
                     });
                 } catch (e) {
                     try {
@@ -471,7 +495,14 @@
             linha.appendChild(chk);
             linha.appendChild(nome);
             if (dentro) {
-                linha.addEventListener('click', function () { selecionar(indice); });
+                // O clique no checkbox NÃO seleciona: selecionar() refaz esta lista
+                // no meio do clique, o checkbox é trocado por outro e o navegador
+                // desfaz a desmarcação (o `change` nunca chega) — "não deixa
+                // desativar nada" (STILO, 04/11/2026). Só o nome seleciona.
+                linha.addEventListener('click', function (ev) {
+                    if (ev.target === chk) return;
+                    selecionar(indice);
+                });
             }
             $lista.appendChild(linha);
         });
@@ -609,6 +640,7 @@
                 // campo a cada tecla (e fecharia o seletor de cor no meio do uso).
                 renderCanvas();
                 renderLista();
+                avisarBarras();
             });
         });
 

@@ -686,12 +686,16 @@
                     // Layout livre: o SVG carrega só as barras e preenche o box
                     // que o lojista desenhou. Os dígitos, quando ele quer, são um
                     // item separado — por isso displayValue fica desligado aqui.
+                    // margin 22 = 11 módulos de zona de silêncio por lado (o que o
+                    // EAN-13 exige à esquerda; CODE128 pede 10). Com 10 (5 módulos)
+                    // o leitor não achava o início das barras na etiqueta da STILO
+                    // (04/11/2026). O box do lojista continua mandando no tamanho.
                     barOpts = {
                         format: format,
                         width: 2,
                         height: 30,
                         displayValue: false,
-                        margin: 10
+                        margin: 22
                     };
                 @endif
 
