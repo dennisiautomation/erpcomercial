@@ -249,6 +249,17 @@
                     @error('comissao_percentual') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
                 </div>
 
+                <div class="col-md-7">
+                    <label class="form-label">Produtos</label>
+                    <div class="form-check form-switch mt-2">
+                        <input type="hidden" name="pode_editar_produtos" value="0">
+                        <input class="form-check-input" type="checkbox" role="switch" name="pode_editar_produtos" id="pode_editar_produtos" value="1"
+                               @checked(old('pode_editar_produtos', $funcionario->pode_editar_produtos))>
+                        <label class="form-check-label" for="pode_editar_produtos">Pode cadastrar e editar produtos</label>
+                    </div>
+                    <div class="form-text">Para vendedor ou caixa que cuida do cadastro. Dono e gerente já podem; excluir continua só com eles.</div>
+                </div>
+
                 <div class="col-md-4">
                     <label for="status" class="form-label required-dot">Status</label>
                     <select name="status" id="status" class="form-select @error('status') is-invalid @enderror" required>

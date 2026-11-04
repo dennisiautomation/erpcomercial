@@ -47,18 +47,9 @@ class SearchController extends Controller
     {
         $q = $request->input('q', '');
 
-        $produtos = Produto::where('empresa_id', $this->empresaId())
-            ->where(function ($query) use ($q) {
-                $query->where('descricao', 'like', "%{$q}%")
-                      ->orWhere('codigo_interno', 'like', "%{$q}%")
-                      ->orWhere('codigo_barras', 'like', "%{$q}%")
-                      ->orWhere('sku', 'like', "%{$q}%");
-            })
-            ->where('status', 'ativo')
-            ->select('id', 'descricao', 'codigo_interno', 'preco_venda', 'unidade_medida')
-            ->with('precos:id,produto_id,modalidade,valor')
-            ->limit(10)
-            ->get();
+        // Mesma busca do PDV (código exato primeiro, depois descrição por
+        // palavras em qualquer ordem) — 04/11/2026, DONA DOURO "não localiza".
+        $produtos = \App\Http\Controllers\App\PdvController::buscarProdutosDaEmpresa((int) $this->empresaId(), (string) $q, 20);
 
         // Orçamento, pedido e venda balcão recebem o "preço cadastrado" da regra da
         // loja: na regra do cartão, o do cartão — também no produto com cartão fixo,

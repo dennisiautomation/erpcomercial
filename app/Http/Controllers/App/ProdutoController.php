@@ -300,9 +300,9 @@ class ProdutoController extends Controller
         // Perfil que só tem a ação 'foto' (vendedor): a rota deixa passar, mas
         // o salvar da tela de edição grava SOMENTE a imagem — preço/fiscal e
         // demais campos ficam intocados (25/08/2026).
-        $user = $request->user();
-        $perfilStr = $user->is_admin ? 'admin' : ($user->perfil instanceof \App\Enums\Perfil ? $user->perfil->value : (string) $user->perfil);
-        if (! \App\Http\Middleware\CheckPermission::can($perfilStr, 'produtos', 'editar')) {
+        // canUser (e não can): o vendedor com a chave `pode_editar_produtos`
+        // edita tudo, não só a foto (04/11/2026).
+        if (! \App\Http\Middleware\CheckPermission::canUser($request->user(), 'produtos', 'editar')) {
             $request->validate(
                 ['foto' => 'required|image|max:10240'],
                 ['foto.required' => 'Selecione a nova foto — seu perfil altera apenas a imagem do produto.']

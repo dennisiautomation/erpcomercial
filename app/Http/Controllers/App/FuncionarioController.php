@@ -79,6 +79,7 @@ class FuncionarioController extends Controller
             'telefone'            => 'nullable|string|max:20',
             'perfil'              => ['required', Rule::enum(Perfil::class)],
             'comissao_percentual' => 'nullable|numeric|min:0|max:100',
+            'pode_editar_produtos' => 'nullable|boolean',
             'unidades'            => 'nullable|array',
             'unidades.*'          => 'exists:unidades,id',
         ]);
@@ -92,6 +93,7 @@ class FuncionarioController extends Controller
             'telefone'            => $validated['telefone'] ?? null,
             'perfil'              => $validated['perfil'],
             'comissao_percentual' => $validated['comissao_percentual'] ?? null,
+            'pode_editar_produtos' => $request->boolean('pode_editar_produtos'),
             'status'              => 'ativo',
         ]);
 
@@ -145,12 +147,15 @@ class FuncionarioController extends Controller
             'telefone'            => 'nullable|string|max:20',
             'perfil'              => ['required', Rule::enum(Perfil::class)],
             'comissao_percentual' => 'nullable|numeric|min:0|max:100',
+            'pode_editar_produtos' => 'nullable|boolean',
             'status'              => 'required|in:ativo,inativo',
             'unidades'            => 'nullable|array',
             'unidades.*'          => 'exists:unidades,id',
         ]);
 
         $data = collect($validated)->except(['password', 'unidades'])->toArray();
+        // Switch desmarcado não vem no POST: grava false, não "mantém".
+        $data['pode_editar_produtos'] = $request->boolean('pode_editar_produtos');
 
         if (!empty($validated['password'])) {
             $data['password'] = Hash::make($validated['password']);

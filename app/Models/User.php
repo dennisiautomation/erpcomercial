@@ -32,6 +32,7 @@ class User extends Authenticatable
         'status',
         'is_admin',
         'pode_ver_financeiro',
+        'pode_editar_produtos',
     ];
 
     protected $hidden = [
@@ -47,6 +48,7 @@ class User extends Authenticatable
             'perfil' => Perfil::class,
             'is_admin' => 'boolean',
             'pode_ver_financeiro' => 'boolean',
+            'pode_editar_produtos' => 'boolean',
             'comissao_percentual' => 'decimal:2',
         ];
     }

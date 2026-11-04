@@ -239,6 +239,13 @@ class CheckPermission
             return true;
         }
 
+        // Chave por USUÁRIO (04/11/2026, DONA DOURO): vendedor/caixa com
+        // `pode_editar_produtos` cadastra e edita produtos sem virar gerente.
+        // Vem antes do modo "só PDV": quem ganhou a chave ganhou a tela.
+        if ($modulo === 'produtos' && in_array($acao, ['ver', 'criar', 'editar', 'foto'], true) && $user->pode_editar_produtos) {
+            return true;
+        }
+
         if (self::modoPdv($user) && ! in_array($modulo, self::MODULOS_MODO_PDV, true)) {
             return false;
         }

@@ -203,17 +203,7 @@ class PdvController extends Controller
 
     public function buscarProduto(Request $request, $codigo, TabelaPrecoService $tabelaPrecos)
     {
-        $produtos = Produto::where('empresa_id', session('empresa_id'))
-            ->where('status', 'ativo')
-            ->where(function ($q) use ($codigo) {
-                $q->where('codigo_barras', $codigo)
-                  ->orWhere('codigo_interno', $codigo)
-                  ->orWhere('descricao', 'like', "%{$codigo}%");
-            })
-            ->select('id', 'codigo_interno', 'codigo_barras', 'descricao', 'preco_venda', 'unidade_medida')
-            ->with('precos:id,produto_id,modalidade,valor')
-            ->limit(20)
-            ->get();
+        $produtos = self::buscarProdutosDaEmpresa((int) session('empresa_id'), (string) $codigo, 50);
 
         // Tabelas de preço por forma de pagamento (dinheiro_pix/debito/credito)
         $configLoja = ConfiguracaoLoja::daUnidade();
@@ -227,6 +217,60 @@ class PdvController extends Controller
         });
 
         return response()->json($produtos);
+    }
+
+    /**
+     * Busca de produto do PDV (e da busca de orçamento/pedido, que chama daqui).
+     *
+     * 1) Código exato (barras, interno ou SKU) devolve SÓ esses produtos: o
+     *    leitor bipa e a peça entra direto, sem cair numa lista por causa de
+     *    uma descrição que contenha os mesmos dígitos.
+     * 2) Senão, descrição por PALAVRAS, cada uma em qualquer ordem e com
+     *    qualquer espaçamento ("colar cruz dourado" acha "COLAR CRUZ MICRO
+     *    ZIRCONIA DOURADO"; "linha zirconia" acha "ANEL 3 LINHA  ZIRCONIA").
+     *    Antes era UM LIKE com o texto inteiro, limitado a 20 sem ordem: a
+     *    DONA DOURO (2.369 produtos, 86 com espaço duplo, 9 "BRACELETE LISO
+     *    BRANCO") digitava e "não localizava" (04/11/2026).
+     * Ordem: começa pelo termo → contém; depois alfabética.
+     */
+    public static function buscarProdutosDaEmpresa(int $empresaId, string $termo, int $limite = 50)
+    {
+        $termo = trim(preg_replace('/\s+/u', ' ', $termo));
+        $palavras = array_values(array_filter(explode(' ', $termo), fn ($p) => $p !== ''));
+
+        $base = fn () => Produto::where('empresa_id', $empresaId)
+            ->where('status', 'ativo')
+            ->select('id', 'codigo_interno', 'codigo_barras', 'sku', 'descricao', 'preco_venda', 'unidade_medida')
+            ->with('precos:id,produto_id,modalidade,valor');
+
+        if ($termo === '') {
+            return collect();
+        }
+
+        $exatos = $base()
+            ->where(fn ($q) => $q->where('codigo_barras', $termo)
+                ->orWhere('codigo_interno', $termo)
+                ->orWhere('sku', $termo))
+            ->orderBy('descricao')
+            ->limit($limite)
+            ->get();
+        if ($exatos->isNotEmpty()) {
+            return $exatos;
+        }
+
+        return $base()
+            ->where(function ($q) use ($palavras, $termo) {
+                $q->where(function ($q2) use ($palavras) {
+                    foreach ($palavras as $p) {
+                        $q2->where('descricao', 'like', '%' . addcslashes($p, '%_\\') . '%');
+                    }
+                })
+                ->orWhere('codigo_barras', 'like', addcslashes($termo, '%_\\') . '%')
+                ->orWhere('codigo_interno', 'like', addcslashes($termo, '%_\\') . '%');
+            })
+            ->orderByRaw('CASE WHEN descricao LIKE ? THEN 0 ELSE 1 END, descricao', [addcslashes($termo, '%_\\') . '%'])
+            ->limit($limite)
+            ->get();
     }
 
     public function buscarCliente(Request $request, $termo)
