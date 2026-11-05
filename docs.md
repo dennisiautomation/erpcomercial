@@ -7905,3 +7905,10 @@ Pedido do Dennis: "tem a opção de salvar e depois continuar editando? pode nã
 sugestão; editar agendada e vigente recusada; excluir rascunho); suíte **281 ✅ / 2 ❌** (os 2 pré-existentes); navegador
 `validar-promocoes-rascunho-05nov.browser.py` **20 ✅** (Ana e Maria/gerente em sessões separadas) + assistente completo **49 ✅**.
 Detalhe achado no teste: o `ERP` do erp-core é `const` (não fica em `window.ERP`) — usar `typeof ERP !== 'undefined'`.
+
+**EM PRODUÇÃO 05/11/2026 10:28 BRT (ordem do Dennis "Pode subir")** — rascunho + editar agendada + passo 4 sem cortes, juntos.
+`/home/ubuntu/erp-backups/pre-promocoes-rascunho-20261105/deploy.sh`: arquivos do ar = `main`, dump das 3 tabelas de promoção
+(`promocoes.sql.gz`; havia 0 promoções), foto `erp-com-app:pre-promocoes-rascunho-20261105` (`d097f786d6f3`), `migrate`,
+`route:cache` (2 rotas novas), `view:cache` 0 erro, USR2, `queue:restart`. Depois: colunas criadas, 2/2 rotas; renderizado como o
+dono da STILO: "Salvar rascunho", CSS do passo 4 e aviso ao sair presentes; filtro "Rascunhos" na lista; 194 preços iguais; 0 erro
+novo no log. Rollback: foto + `migrate:rollback --step=1` (se não houver rascunho salvo; com rascunho, apagar antes — datas nulas).
