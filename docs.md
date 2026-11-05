@@ -7801,3 +7801,39 @@ segue `PRINCIPAL`) e `configuracoes_loja` id 19 `pdv_escolher_estoque` false →
 São Luis", começando no de venda). Antes/depois em `/home/ubuntu/erp-backups/pre-dk-sai-de-20261105/ajustes-dk-dados.txt`.
 Desfazer: nome de volta para `Principal` e a chave para false.
 **Chamado** `ticket-1793821244630-y6gv8o` **concluído** 08:46 BRT no nome do Dennis (44 min); aviso entregue no grupo Suporte ERP DK.
+
+## Promoções por período — assistente, duplicar e preço em todo lugar (05/11/2026) — branch `promocoes-05nov`
+
+**Pedido do Dennis:** assistente passo a passo para criar períodos de promoção: datas → lojas → produtos → preço de cada um (R$ ou
+% de desconto) + nome; poder duplicar a promoção depois de concluída e, na próxima, já sugerir a lista de produtos e valores.
+**Decisões (05/11):** preço da promoção = **preço à vista** (Dinheiro/PIX), cartão com o acréscimo da loja por cima; produto em duas
+promoções na mesma loja e no mesmo dia = **bloqueado ao salvar**; vale no **agente do WhatsApp**; cliente de **atacado fica com o
+preço de atacado** (a promoção não entra no atacado).
+
+**Tabelas** (`2026_11_05_120000_create_promocoes`): `promocoes` (nome, `data_inicio`/`data_fim` em dias inteiros, `encerrada_em`,
+`origem_id` = de qual foi duplicada), `promocao_unidade` (lojas), `promocao_itens` (`tipo` preco|percentual, `valor`,
+`preco_referencia` = à vista quando foi montada). Status calculado: agendada → em andamento → concluída; "encerrada antes do fim"
+quando alguém encerra (vale até o dia anterior ao encerramento — encerrar hoje tira hoje).
+
+**Preço — um lugar só:** `TabelaPrecoService::precosDoProduto()` agora = `precosSemPromocao()` + promoção do dia da loja da config
+(`PromocaoService`, `scoped`, cache por loja/dia na requisição). Como PDV (busca e registro da venda), pedido (repreço pela
+condição), busca do orçamento/pedido, etiqueta e troca sem cupom já passam por ali, todos pegam a promoção sem mexer neles.
+- Regra 'avista': PIX = promo; débito/crédito = promo + % da loja. Regra 'cartao': cartão = promo ÷ (1 − desconto à vista).
+- Preço fixo de cartão do produto (`produto_precos`) não vale durante a promoção; atacado não muda; a promoção nunca aumenta preço.
+- `precosParaTela`/`gravarDaTela` (cadastro do produto) seguem SEM promoção — o preço cadastrado não muda.
+- PDV: a busca devolve `promocao` (nome) e a lista mostra "· PROMOÇÃO".
+- Agente (`IntegracaoAgenteController`): com `unidade_id` (busca, `GET /produtos/{id}?unidade_id=`) o `preco` vem promocional + bloco
+  `promocao` {nome, termina_em, preco_normal, preco_promocional}; sem loja, preço de sempre. `POST /pedidos` cobra a promoção da loja do pedido.
+
+**Telas** (Cadastros → Promoções, permissão `produtos,editar`): lista com filtro por situação + Duplicar; assistente em 5 passos
+(período, lojas, produtos com busca igual à do PDV + "Adicionar todos", preços com "mesmo % para todos", revisão de/por); a tela
+nova sugere "Usar a lista da última promoção" (com os preços); detalhe com Duplicar, Encerrar agora e Excluir (só agendada).
+Lojas oferecidas: dono/admin = todas as ativas; demais perfis = as vinculadas. Sobreposição: o erro lista produto, promoção, período e lojas.
+
+**Validação:** `tests/Feature/App/PromocaoTest.php` **16 ✅** (preço nas 2 regras, cartão fixo, dias/lojas, encerrar, PDV, criar,
+conflito, sem conflito, validações, duplicar/sugestão, telas/permissão/outra empresa, excluir, agente busca + pedido, cache);
+suíte completa **265 ✅ / 2 ❌** (os 2 pré-existentes); navegador `scripts/validar-promocoes-05nov.browser.py` (cs-*, servidor
+próprio na 8298 com `opcache.enable=0` — o `artisan serve` da 8297 guarda rotas velhas no opcache) **37 ✅ / 0 ❌**; promoções de teste apagadas.
+
+**Deploy (só com ordem do Dennis):** tem **migration** (3 tabelas novas, nada alterado) + arquivos novos → tar dos arquivos da branch +
+`migrate --force` + `view:cache` + USR2 + `queue:restart`; foto antes. Rollback = foto (as tabelas novas podem ficar, ninguém lê).

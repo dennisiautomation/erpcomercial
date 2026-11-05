@@ -275,6 +275,17 @@ Route::middleware(['auth', 'suspensao', 'unidade', \App\Http\Middleware\Restring
         ->name('produtos.preco')
         ->middleware('permission:produtos,editar');
     Route::resource('produtos', App\ProdutoController::class)->except(['update'])->middleware('permission:produtos');
+    // Promoções por período (05/11/2026) — quem edita preço de produto
+    Route::middleware('permission:produtos,editar')->prefix('promocoes')->name('promocoes.')->group(function () {
+        Route::get('/', [App\PromocaoController::class, 'index'])->name('index');
+        Route::get('/nova', [App\PromocaoController::class, 'create'])->name('create');
+        Route::get('/buscar-produtos', [App\PromocaoController::class, 'buscarProdutos'])->name('buscar-produtos');
+        Route::post('/', [App\PromocaoController::class, 'store'])->name('store');
+        Route::get('/{promocao}', [App\PromocaoController::class, 'show'])->name('show');
+        Route::get('/{promocao}/itens', [App\PromocaoController::class, 'itens'])->name('itens');
+        Route::post('/{promocao}/encerrar', [App\PromocaoController::class, 'encerrar'])->name('encerrar');
+        Route::delete('/{promocao}', [App\PromocaoController::class, 'destroy'])->name('destroy');
+    });
     Route::resource('fornecedores', App\FornecedorController::class)->middleware('permission:produtos');
     Route::resource('categorias', App\CategoriaController::class)->middleware('permission:produtos');
     Route::resource('servicos', App\ServicoController::class)->middleware('permission:produtos');

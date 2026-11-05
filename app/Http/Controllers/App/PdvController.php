@@ -213,6 +213,8 @@ class PdvController extends Controller
             // O preço da busca e da peça sem cupom no F6 é o "preço cadastrado" da
             // regra da loja — na regra do cartão, o do cartão (01/11/2026)
             $dados['preco_venda'] = $dados['precos'][$tabelaPrecos->modalidadeDoCadastro($configLoja)];
+            // Promoção do dia nesta loja (05/11/2026) — só para o aviso na lista; o preço já vem nela
+            $dados['promocao'] = $tabelaPrecos->promocaoDoProduto($p, $configLoja)?->promocao?->nome;
             return $dados;
         });
 

@@ -48,8 +48,62 @@ class TabelaPrecoService
         // Demais formas (boleto, crediario, transferencia, vale) usam a tabela base
     ];
 
-    /** Preços das 3 modalidades para um produto (override > regra geral > base). */
+    /**
+     * Preços das 3 modalidades (+ atacado) para um produto NA LOJA DA CONFIG, já com a
+     * promoção do dia quando houver (05/11/2026). É por aqui que PDV, pedido, busca do
+     * orçamento, etiqueta e troca leem o preço — a promoção vale em todos sem mexer neles.
+     *
+     * Promoção = preço À VISTA (Dinheiro/PIX). O cartão leva a regra da loja por cima:
+     * - regra de sempre ('avista'): débito/crédito = promo + % de acréscimo da loja;
+     * - regra do cartão ('cartao'): cartão = promo ÷ (1 − desconto à vista), a mesma
+     *   relação que a loja usa sem promoção.
+     * Preço fixo de cartão do produto (produto_precos) não vale durante a promoção.
+     * Atacado não muda. A promoção nunca aumenta um preço.
+     */
     public function precosDoProduto(Produto $produto, ConfiguracaoLoja $config): array
+    {
+        $precos = $this->precosSemPromocao($produto, $config);
+        $item = $this->promocaoDoProduto($produto, $config);
+
+        if (! $item) {
+            return $precos;
+        }
+
+        $avista = $item->precoPromocional($precos['dinheiro_pix']);
+        if ($avista >= $precos['dinheiro_pix']) {
+            return $precos;
+        }
+
+        if ($config->precoBaseCartao()) {
+            $desconto = max(0.0, min(99.99, (float) $config->desconto_avista_percentual));
+            $cartao = round($avista / (1 - $desconto / 100), 2);
+            $debito = $credito = $cartao;
+        } else {
+            $debito = round($avista * (1 + ((float) $config->percentual_debito) / 100), 2);
+            $credito = round($avista * (1 + ((float) $config->percentual_credito) / 100), 2);
+        }
+
+        return [
+            'dinheiro_pix' => $avista,
+            'debito'       => min($debito, $precos['debito']),
+            'credito'      => min($credito, $precos['credito']),
+            'atacado'      => $precos['atacado'],
+        ];
+    }
+
+    /** Item de promoção que vale hoje para o produto na loja da config (ou null). */
+    public function promocaoDoProduto(Produto $produto, ConfiguracaoLoja $config): ?\App\Models\PromocaoItem
+    {
+        if (! $produto->id || ! $config->empresa_id || ! $config->unidade_id) {
+            return null;
+        }
+
+        return app(\App\Services\PromocaoService::class)
+            ->itemVigente((int) $config->empresa_id, (int) $config->unidade_id, (int) $produto->id);
+    }
+
+    /** Preços das 3 modalidades para um produto, SEM promoção (override > regra geral > base). */
+    public function precosSemPromocao(Produto $produto, ConfiguracaoLoja $config): array
     {
         $base = (float) $produto->preco_venda;
 

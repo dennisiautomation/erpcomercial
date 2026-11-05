@@ -741,15 +741,15 @@
                     {{-- ---- Cadastros ---- --}}
                     <li class="sidebar-heading">Cadastros</li>
                     <li class="nav-item">
-                        <a class="nav-link nav-toggle {{ request()->routeIs('app.clientes.*', 'app.produtos.*', 'app.fornecedores.*', 'app.categorias.*', 'app.servicos.*', 'app.funcionarios.*', 'app.etiquetas.*') ? '' : 'collapsed' }}"
+                        <a class="nav-link nav-toggle {{ request()->routeIs('app.clientes.*', 'app.produtos.*', 'app.fornecedores.*', 'app.categorias.*', 'app.servicos.*', 'app.funcionarios.*', 'app.etiquetas.*', 'app.promocoes.*') ? '' : 'collapsed' }}"
                            data-bs-toggle="collapse" href="#menuCadastros" role="button"
-                           aria-expanded="{{ request()->routeIs('app.clientes.*', 'app.produtos.*', 'app.fornecedores.*', 'app.categorias.*', 'app.servicos.*', 'app.funcionarios.*', 'app.etiquetas.*') ? 'true' : 'false' }}"
+                           aria-expanded="{{ request()->routeIs('app.clientes.*', 'app.produtos.*', 'app.fornecedores.*', 'app.categorias.*', 'app.servicos.*', 'app.funcionarios.*', 'app.etiquetas.*', 'app.promocoes.*') ? 'true' : 'false' }}"
                            aria-controls="menuCadastros">
                             <i class="bi bi-journal-bookmark nav-icon"></i>
                             <span class="nav-text">Cadastros</span>
                             <i class="bi bi-chevron-right toggle-icon"></i>
                         </a>
-                        <div class="collapse {{ request()->routeIs('app.clientes.*', 'app.produtos.*', 'app.fornecedores.*', 'app.categorias.*', 'app.servicos.*', 'app.funcionarios.*', 'app.etiquetas.*') ? 'show' : '' }}" id="menuCadastros">
+                        <div class="collapse {{ request()->routeIs('app.clientes.*', 'app.produtos.*', 'app.fornecedores.*', 'app.categorias.*', 'app.servicos.*', 'app.funcionarios.*', 'app.etiquetas.*', 'app.promocoes.*') ? 'show' : '' }}" id="menuCadastros">
                             <ul class="nav flex-column submenu">
                                 <li class="nav-item">
                                     <a class="nav-link {{ request()->routeIs('app.clientes.*') ? 'active' : '' }}"
@@ -779,6 +779,12 @@
                                     <a class="nav-link {{ request()->routeIs('app.etiquetas.*') ? 'active' : '' }}"
                                        href="{{ route('app.etiquetas.index') }}">Etiquetas</a>
                                 </li>
+                                @if(\App\Http\Middleware\CheckPermission::canUser(auth()->user(), 'produtos', 'editar'))
+                                <li class="nav-item">
+                                    <a class="nav-link {{ request()->routeIs('app.promocoes.*') ? 'active' : '' }}"
+                                       href="{{ route('app.promocoes.index') }}">Promoções</a>
+                                </li>
+                                @endif
                             </ul>
                         </div>
                     </li>

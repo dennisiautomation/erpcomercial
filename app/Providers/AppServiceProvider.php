@@ -20,6 +20,9 @@ class AppServiceProvider extends ServiceProvider
     {
         // Traduções em resources/lang (o diretório lang/ na raiz não existe)
         $this->app->useLangPath(resource_path('lang'));
+
+        // Cache das promoções da loja/dia vive uma requisição (ou um job da fila)
+        $this->app->scoped(\App\Services\PromocaoService::class);
     }
 
     public function boot(): void

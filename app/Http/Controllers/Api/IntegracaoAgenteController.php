@@ -298,7 +298,7 @@ class IntegracaoAgenteController extends Controller
                     ? SaldoEstoque::naUnidade($unidadeId, $produto->id)
                     : (float) ($saldosEmpresa[$produto->id] ?? 0.0);
 
-                return $this->produtoParaResposta($produto, $estoque)
+                return $this->produtoParaResposta($produto, $estoque, $unidadeId)
                     + ['similaridade' => in_array($id, $idsTextuais, true) ? 1.0 : ($similaridades[$id] ?? 0.0)];
             })
             ->filter()
@@ -336,7 +336,7 @@ class IntegracaoAgenteController extends Controller
                         ? SaldoEstoque::naUnidade($unidadeId, $produto->id)
                         : (float) ($saldosFb[$produto->id] ?? 0.0);
 
-                    return $this->produtoParaResposta($produto, $estoque) + ['similaridade' => 0.0];
+                    return $this->produtoParaResposta($produto, $estoque, $unidadeId) + ['similaridade' => 0.0];
                 })
                 ->when(! $incluirSemEstoque, fn ($c) => $c->filter(fn ($p) => $p['estoque'] > 0))
                 ->take($limite)
@@ -378,7 +378,7 @@ class IntegracaoAgenteController extends Controller
         return response()->json([
             // descricao_detalhada saiu daqui: vem do produtoParaResposta(), que
             // agora a entrega em toda resposta de produto.
-            'dados' => $this->produtoParaResposta($produto, (float) ($saldos[$produto->id] ?? 0.0))
+            'dados' => $this->produtoParaResposta($produto, (float) ($saldos[$produto->id] ?? 0.0), $request->integer('unidade_id') ?: null)
                 + ['estoque_por_loja' => $this->estoquePorLoja($token->empresa_id, $produto->id)],
         ]);
     }
@@ -834,7 +834,8 @@ class IntegracaoAgenteController extends Controller
             foreach ($validated['itens'] as $item) {
                 $produto = $produtos[(int) $item['produto_id']];
                 $quantidade = (float) $item['quantidade'];
-                $preco = (float) $produto->preco_venda;
+                // Promoção da loja do pedido vale (05/11/2026); sem promoção, o preço de sempre
+                $preco = $this->promocaoDaLoja($produto, (int) $validated['unidade_id'])['preco'] ?? (float) $produto->preco_venda;
                 $totalLinha = round($quantidade * $preco, 2);
                 $subtotal += $totalLinha;
 
@@ -1347,8 +1348,48 @@ class IntegracaoAgenteController extends Controller
     }
 
     /** @return array<string, mixed> */
-    private function produtoParaResposta(Produto $produto, float $estoque): array
+    /**
+     * Promoção do dia na loja (05/11/2026): o agente informa e vende pelo preço da
+     * promoção, que é o preço à vista. Sem loja informada não há promoção (cada loja
+     * tem as suas) — o pedido, que sempre tem loja, cobra o preço dela.
+     *
+     * @return array{preco: float, promocao: array<string, mixed>}|null
+     */
+    private function promocaoDaLoja(Produto $produto, ?int $unidadeId): ?array
     {
+        if (! $unidadeId) {
+            return null;
+        }
+
+        $config = \App\Models\ConfiguracaoLoja::daUnidade((int) $produto->empresa_id, $unidadeId);
+        $tabela = app(\App\Services\TabelaPrecoService::class);
+        $item = $tabela->promocaoDoProduto($produto, $config);
+        if (! $item) {
+            return null;
+        }
+
+        $normal = $tabela->precosSemPromocao($produto, $config)['dinheiro_pix'];
+        $promo = $tabela->precosDoProduto($produto, $config)['dinheiro_pix'];
+        if ($promo >= $normal) {
+            return null;
+        }
+
+        return [
+            'preco' => $promo,
+            'promocao' => [
+                'nome' => $item->promocao->nome,
+                'termina_em' => $item->promocao->ultimoDia()->toDateString(),
+                'preco_normal' => $normal,
+                'preco_promocional' => $promo,
+                'observacao' => 'Preço promocional à vista (PIX/dinheiro). No cartão a loja aplica o acréscimo dela.',
+            ],
+        ];
+    }
+
+    private function produtoParaResposta(Produto $produto, float $estoque, ?int $unidadeId = null): array
+    {
+        $promocao = $this->promocaoDaLoja($produto, $unidadeId);
+
         $precosModalidade = $produto->precos
             ->mapWithKeys(fn ($p) => [$p->modalidade => (float) $p->valor]);
 
@@ -1365,8 +1406,9 @@ class IntegracaoAgenteController extends Controller
             'descricao_detalhada' => $detalhada !== '' ? $detalhada : null,
             'codigo' => $produto->codigo_interno,
             'categoria' => $produto->categoria?->nome,
-            'preco' => (float) $produto->preco_venda,
-            'precos_modalidade' => $precosModalidade->isEmpty() ? null : $precosModalidade,
+            'preco' => $promocao['preco'] ?? (float) $produto->preco_venda,
+            'promocao' => $promocao['promocao'] ?? null,
+            'precos_modalidade' => $promocao ? null : ($precosModalidade->isEmpty() ? null : $precosModalidade),
             'unidade_medida' => $produto->unidade_medida,
             'estoque' => $estoque,
             'foto_url' => $produto->foto

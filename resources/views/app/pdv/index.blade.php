@@ -1894,7 +1894,7 @@ const PDV = {
             <div class="search-result-item" onclick="PDV.addProdutoById(${p.id}, '${(p.descricao||'').replace(/'/g, "\\'")}', ${p.preco_venda}, '${p.codigo_interno||''}', '${p.codigo_barras||''}')">
                 <div>
                     <div class="prod-name">${p.descricao}</div>
-                    <div class="prod-code">${p.codigo_interno || ''} ${p.codigo_barras ? '| ' + p.codigo_barras : ''}</div>
+                    <div class="prod-code">${p.codigo_interno || ''} ${p.codigo_barras ? '| ' + p.codigo_barras : ''}${p.promocao ? ' <span style="color:var(--accent-green);font-weight:600">· PROMOÇÃO</span>' : ''}</div>
                 </div>
                 <div class="prod-price">${this.formatMoney(p.preco_venda)}</div>
             </div>
