@@ -7928,3 +7928,10 @@ Promoções já estava liberada para a chave (rota `permission:produtos,editar` 
 vendedor COM a chave **9 ✅** (sem o aviso, campos livres, salva pela tela, descrição nova, preço intacto, foto na tela do produto,
 Promoções com loja, sem erro de JS); SEM a chave **4 ✅** (continua só foto). Banco do cs restaurado. Sem migration.
 **Deploy:** 3 arquivos (2 views + 1 controller) + `view:cache` + USR2. Lição: teste de permissão de tela tem que passar pela TELA.
+
+**EM PRODUÇÃO 05/11/2026 ~16:20 BRT (ordem do Dennis "Pode subir").** `/home/ubuntu/erp-backups/pre-editar-produto-chave-20261105/deploy.sh`:
+os 3 arquivos do ar eram os da `main` (md5), foto `erp-com-app:pre-editar-produto-chave-20261105`, arquivos antigos em `…/arquivos/`,
+md5 conferido, `view:cache` 0 erro, USR2. Depois: `/login` 200; Mirella (70) e Manoel (71) com a chave e `canUser(editar)` = true;
+**Manoel tem 0 lojas vinculadas** (o ajuste de Promoções vale para ele); tela de editar renderizada como a Mirella no produto do print
+(5840 BRINCO PRATA OVAL ZIRCONIA): sem "apenas a foto", sem o bloco que trava os campos; 0 erro novo no log.
+Rollback = a foto, ou `…/arquivos/` + `view:cache` + USR2.
