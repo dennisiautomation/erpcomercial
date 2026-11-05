@@ -7788,7 +7788,7 @@ A DK é **uma loja com dois estoques**: o sistema não sabe em que cidade a pess
 1 estoque automática); suíte completa **257 ✅ / 2 ❌** (os 2 pré-existentes); navegador (cs-*, 2º estoque de teste criado e
 apagado, servidor próprio 8298) **9 ✅**: Sai de vazio e `required`; Trocas e F6 vêm vazios e avisam sem registrar; sem erro de JS.
 
-**EM PRODUÇÃO 05/11/2026 11:37 BRT (ordem do Dennis "Pode subir").** `/home/ubuntu/erp-backups/pre-dk-sai-de-20261105/deploy-dk-sai-de.sh`:
+**EM PRODUÇÃO 05/11/2026 08:37 BRT (11:37 UTC; ordem do Dennis "Pode subir").** `/home/ubuntu/erp-backups/pre-dk-sai-de-20261105/deploy-dk-sai-de.sh`:
 os 17 arquivos do ar eram os da `main` (conferido), foto `erp-com-app:pre-dk-sai-de-20261105` (`2ab74f808ff7`), arquivos antigos em
 `…/arquivos/`, dump de `orcamentos` + `pedidos` em `…/orcamentos-pedidos.sql.gz` (a 1ª tentativa parou ANTES de mexer em nada:
 o dump com `erp_user` saiu vazio — o roteiro agora usa o root do container e aborta com dump vazio); md5 conferido, `migrate`
