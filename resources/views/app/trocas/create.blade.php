@@ -76,8 +76,9 @@
                                 <input type="hidden" name="itens[{{ $i }}][retorna_estoque]" value="0">
                                 <input type="checkbox" class="form-check-input" name="itens[{{ $i }}][retorna_estoque]" value="1" @checked(! $item['e_servico']) @disabled($item['e_servico']) title="Desmarque se a peça está avariada e não volta à prateleira">
                                 @if($estoques->count() > 1)
-                                <select name="itens[{{ $i }}][estoque_id]" class="form-select form-select-sm mt-1">
-                                    @foreach($estoques as $e)<option value="{{ $e->id }}" @selected($e->permite_venda)>{{ $e->nome }}</option>@endforeach
+                                <select name="itens[{{ $i }}][estoque_id]" class="form-select form-select-sm mt-1 troca-estoque-destino" aria-label="Em qual estoque a peça entra">
+                                    <option value="">Entra em qual estoque?</option>
+                                    @foreach($estoques as $e)<option value="{{ $e->id }}" @selected((int) old("itens.$i.estoque_id") === (int) $e->id)>{{ $e->nome }}</option>@endforeach
                                 </select>
                                 @endif
                             </td>
@@ -171,6 +172,20 @@
         document.getElementById('gerenteWrap').style.display = motivos.length ? 'block' : 'none';
         document.getElementById('gerenteMotivo').textContent = motivos.join(' + ');
     }
+    // Loja com mais de um estoque: a peça que volta precisa do estoque escolhido (05/11/2026)
+    document.getElementById('formDevolucao')?.addEventListener('submit', e => {
+        const falta = [...document.querySelectorAll('#tabelaItens tbody tr')].some(tr => {
+            const sel = tr.querySelector('.troca-estoque-destino');
+            const volta = tr.querySelector('input[type=checkbox][name$="[retorna_estoque]"]');
+            const qtd = parseFloat(tr.querySelector('.qtd-dev')?.value) || 0;
+            return sel && volta?.checked && qtd > 0 && !sel.value;
+        });
+        if (falta) {
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            alert('Escolha em qual estoque cada peça devolvida entra.');
+        }
+    }, true);
     document.querySelectorAll('.qtd-dev').forEach(i => i.addEventListener('input', recalc));
     document.querySelectorAll('input[name="sobra_destino"]').forEach(r => r.addEventListener('change', gerente));
     recalc(); gerente();

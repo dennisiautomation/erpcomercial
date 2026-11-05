@@ -158,7 +158,7 @@ class OrcamentoController extends Controller
             $orcamento = Orcamento::create([
                 'empresa_id'          => $empresaId,
                 'unidade_id'          => $unidadeId,
-                'estoque_id'          => \App\Services\SaldoEstoque::estoqueEscolhidoId((int) $unidadeId, $request->estoque_id),
+                'estoque_id'          => \App\Services\SaldoEstoque::estoqueEscolhidoObrigatorio((int) $unidadeId, $request->estoque_id),
                 'cliente_id'          => $request->cliente_id,
                 'vendedor_id'         => $request->vendedor_id,
                 'numero'              => $numero,
@@ -334,7 +334,7 @@ class OrcamentoController extends Controller
 
             $orcamento->update([
                 'cliente_id'          => $request->cliente_id,
-                'estoque_id'          => \App\Services\SaldoEstoque::estoqueEscolhidoId((int) $orcamento->unidade_id, $request->estoque_id),
+                'estoque_id'          => \App\Services\SaldoEstoque::estoqueEscolhidoObrigatorio((int) $orcamento->unidade_id, $request->estoque_id),
                 'vendedor_id'         => $request->vendedor_id,
                 'validade_ate'        => $request->validade_ate,
                 'subtotal'            => $subtotal,

@@ -224,7 +224,7 @@ class TrocaService
                 'info'            => $info,
                 'quantidade'      => $qtd,
                 'retorna_estoque' => $retorna,
-                'estoque_id'      => $retorna ? $this->resolverEstoque($linha['estoque_id'] ?? null, $unidadeSessao) : null,
+                'estoque_id'      => $retorna ? $this->resolverEstoque($linha['estoque_id'] ?? null, $unidadeSessao, $info['descricao'] ?? '') : null,
                 'condicao'        => $retorna ? 'revenda' : 'avariado',
                 'total'           => round($info['valor_unitario'] * $qtd, 2),
             ];
@@ -406,8 +406,14 @@ class TrocaService
         return max(0, ($subtotal - $desconto + $acrescimo) / $subtotal);
     }
 
-    private function resolverEstoque(?int $estoqueId, int $unidadeId): int
+    private function resolverEstoque(?int $estoqueId, int $unidadeId, string $descricao = ''): int
     {
+        // Loja com mais de um estoque (DK: Teresina e São Luís na mesma loja): quem recebe a
+        // peça ESCOLHE em qual estoque ela entra — o sistema não sabe em que cidade a troca
+        // está sendo feita, e marcar um sozinho jogava a peça no estoque errado (05/11/2026).
+        $variosEstoques = Estoque::withoutGlobalScopes()
+            ->where('unidade_id', $unidadeId)->where('status', 'ativo')->count() > 1;
+
         if ($estoqueId) {
             $ok = Estoque::withoutGlobalScopes()
                 ->where('id', $estoqueId)
@@ -417,6 +423,10 @@ class TrocaService
             if ($ok) {
                 return $estoqueId;
             }
+        }
+
+        if ($variosEstoques) {
+            throw new \DomainException('Escolha em qual estoque a peça devolvida entra' . ($descricao !== '' ? " (\"{$descricao}\")" : '') . '.');
         }
 
         $padrao = SaldoEstoque::estoqueDeVendaId($unidadeId);

@@ -7770,3 +7770,20 @@ que nada deve mudar); suíte completa **254 ✅ / 2 ❌** (os 2 pré-existentes)
 
 **Deploy (só com ordem do Dennis):** migration (1 coluna em 2 tabelas) + tar + `view:cache` + USR2 + foto antes. Na DK, junto
 (com OK): ligar "Estoque na venda (PDV)" (o "Sai de" do fechamento da venda, pergunta do Wellington) e renomear `Principal` → `Teresina`.
+
+### Escolha obrigatória — "Sai de" e troca (05/11/2026, mesma branch, pedido do Dennis: "ele deve selecionar no caso da DK")
+A DK é **uma loja com dois estoques**: o sistema não sabe em que cidade a pessoa está. Então, em loja com 2+ estoques ativos
+(hoje só a DK), **nada vem marcado** e a escolha é obrigatória:
+- **"Sai de"** (orçamento e pedido, novo e editar): primeira opção "Escolha de onde sai…", `required`; o servidor recusa sem
+  escolha ou com estoque de outra loja (`SaldoEstoque::estoqueEscolhidoObrigatorio` → erro em `estoque_id`). Pedido antigo sem
+  `estoque_id` pede a escolha ao ser editado; se for faturado sem editar, baixa do estoque de venda.
+- **Troca** (tela Trocas e F6 do PDV): o campo "Em qual estoque a peça entra" vinha marcado no estoque de venda (Teresina) —
+  a peça que voltava em São Luís entrava em Teresina. Agora vem vazio; a tela e o F6 avisam antes de enviar e o
+  `TrocaService::resolverEstoque` recusa a peça que volta ao estoque sem estoque escolhido. Peça avariada (não volta) não pede.
+  A peça entra no estoque da cidade que RECEBE — que a pessoa escolhe.
+- Loja com um estoque só: nada muda (sem campo, baixa e troca automáticas).
+- Na tela de Trocas o botão tem `data-confirm`: o modal aparece primeiro e o aviso de estoque depois do "Confirmar".
+
+**Validação:** `SaiDeOrcamentoPedidoTest` **8 ✅** (+ obrigatório, outra loja, pedido antigo, troca obriga escolher, troca em loja de
+1 estoque automática); suíte completa **257 ✅ / 2 ❌** (os 2 pré-existentes); navegador (cs-*, 2º estoque de teste criado e
+apagado, servidor próprio 8298) **9 ✅**: Sai de vazio e `required`; Trocas e F6 vêm vazios e avisam sem registrar; sem erro de JS.

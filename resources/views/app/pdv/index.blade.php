@@ -3347,7 +3347,9 @@ const PDV = {
         const estoques = this.estoquesLoja || [];
         const estWrap = document.getElementById('trocaEstoqueWrap');
         if (estoques.length > 1) {
-            document.getElementById('trocaEstoque').innerHTML = estoques.map(e => `<option value="${e.id}" ${e.permite_venda ? 'selected' : ''}>${e.nome}</option>`).join('');
+            // Loja com mais de um estoque: quem recebe ESCOLHE (05/11/2026) — nada vem marcado
+            document.getElementById('trocaEstoque').innerHTML = '<option value="">Escolha o estoque…</option>'
+                + estoques.map(e => `<option value="${e.id}">${e.nome}</option>`).join('');
             estWrap.style.display = 'block';
         } else {
             estWrap.style.display = 'none';
@@ -3506,6 +3508,12 @@ const PDV = {
             });
         });
         if (!itens.length) { this.showAlert('Marque a quantidade de pelo menos um item para devolver', 'warning'); return; }
+        if (document.getElementById('trocaEstoqueWrap').style.display !== 'none'
+            && itens.some(i => i.retorna_estoque) && !document.getElementById('trocaEstoque').value) {
+            this.showAlert('Escolha em qual estoque a peça devolvida entra', 'warning');
+            document.getElementById('trocaEstoque').focus();
+            return;
+        }
 
         const payload = {
             venda_id: s.venda ? s.venda.id : null,

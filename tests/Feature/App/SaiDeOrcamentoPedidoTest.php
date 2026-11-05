@@ -137,25 +137,122 @@ class SaiDeOrcamentoPedidoTest extends TestCase
         $this->assertEquals(10.0, SaldoEstoque::noEstoque($this->principal, $this->produto->id));
     }
 
-    public function test_estoque_de_outra_loja_ou_inativo_e_ignorado(): void
+    public function test_sai_de_e_obrigatorio_nada_vem_marcado_e_estoque_de_outra_loja_nao_vale(): void
     {
+        $this->eu()->get(route('app.pedidos.create'))->assertOk()
+            ->assertSee('<option value="" selected>Escolha de onde sai…</option>', false);
+
+        // Sem escolher
+        $this->eu()->post(route('app.pedidos.store'), [
+            'cliente_id' => $this->cliente->id, 'itens' => $this->itens(),
+        ])->assertSessionHasErrors('estoque_id');
+        $this->eu()->post(route('app.orcamentos.store'), [
+            'cliente_id' => $this->cliente->id, 'validade_ate' => now()->addDays(10)->toDateString(), 'itens' => $this->itens(),
+        ])->assertSessionHasErrors('estoque_id');
+
+        // Estoque de outra loja
         $outra = Unidade::withoutGlobalScopes()->create([
             'empresa_id' => $this->empresa->id, 'nome' => 'Outra', 'cnpj' => $this->unidade->cnpj,
             'cep' => '01001000', 'logradouro' => 'Rua', 'numero' => '1', 'bairro' => 'Centro',
             'cidade' => 'São Paulo', 'uf' => 'SP', 'telefone' => '11999999999', 'status' => 'ativa',
         ]);
-        $deOutraLoja = $this->estoquePrincipal($outra);
-
         $this->eu()->post(route('app.pedidos.store'), [
-            'cliente_id' => $this->cliente->id, 'estoque_id' => $deOutraLoja, 'itens' => $this->itens(),
-        ])->assertSessionHasNoErrors();
-        $this->assertNull(Pedido::withoutGlobalScopes()->latest('id')->first()->estoque_id);
+            'cliente_id' => $this->cliente->id, 'estoque_id' => $this->estoquePrincipal($outra), 'itens' => $this->itens(),
+        ])->assertSessionHasErrors('estoque_id');
 
-        // Escolhido e depois inativado: a baixa cai no estoque de venda
-        $pedido = Pedido::withoutGlobalScopes()->latest('id')->first();
-        $pedido->update(['estoque_id' => $this->saoLuis->id, 'status' => StatusPedido::Confirmado]);
-        $this->saoLuis->update(['status' => 'inativo']);
+        $this->assertSame(0, Pedido::withoutGlobalScopes()->count());
+        $this->assertSame(0, Orcamento::withoutGlobalScopes()->count());
+    }
+
+    public function test_pedido_antigo_sem_sai_de_obriga_escolher_ao_editar_e_baixa_cai_no_de_venda(): void
+    {
+        $pedido = Pedido::withoutGlobalScopes()->create([
+            'empresa_id' => $this->empresa->id, 'unidade_id' => $this->unidade->id, 'cliente_id' => $this->cliente->id,
+            'numero' => 1, 'subtotal' => 300, 'total' => 300, 'status' => StatusPedido::Rascunho,
+        ]);
+        \App\Models\PedidoItem::create(['pedido_id' => $pedido->id, 'produto_id' => $this->produto->id,
+            'descricao' => 'x', 'quantidade' => 3, 'preco_unitario' => 100, 'total' => 300]);
+
+        $this->eu()->get(route('app.pedidos.edit', $pedido))->assertOk()
+            ->assertSee('<option value="" selected>Escolha de onde sai…</option>', false);
+        $this->eu()->put(route('app.pedidos.update', $pedido), [
+            'cliente_id' => $this->cliente->id, 'itens' => $this->itens(),
+        ])->assertSessionHasErrors('estoque_id');
+
+        // Sem editar (pedido de antes da mudança): o faturamento baixa do estoque de venda
+        $pedido->update(['status' => StatusPedido::Confirmado]);
         $this->eu()->post(route('app.pedidos.update-status', $pedido), ['status' => 'faturado']);
         $this->assertEquals(7.0, SaldoEstoque::noEstoque($this->principal, $this->produto->id));
+
+        // Escolhido e depois inativado: idem
+        $p2 = Pedido::withoutGlobalScopes()->create([
+            'empresa_id' => $this->empresa->id, 'unidade_id' => $this->unidade->id, 'cliente_id' => $this->cliente->id,
+            'estoque_id' => $this->saoLuis->id, 'numero' => 2, 'subtotal' => 300, 'total' => 300, 'status' => StatusPedido::Confirmado,
+        ]);
+        \App\Models\PedidoItem::create(['pedido_id' => $p2->id, 'produto_id' => $this->produto->id,
+            'descricao' => 'x', 'quantidade' => 3, 'preco_unitario' => 100, 'total' => 300]);
+        $this->saoLuis->update(['status' => 'inativo']);
+        $this->eu()->post(route('app.pedidos.update-status', $p2), ['status' => 'faturado']);
+        $this->assertEquals(4.0, SaldoEstoque::noEstoque($this->principal, $this->produto->id));
+    }
+
+    /** Venda de pedido que saiu de São Luís, faturada, pronta para a troca. */
+    private function vendaDeSaoLuis(): Venda
+    {
+        $this->eu()->post(route('app.pedidos.store'), [
+            'cliente_id' => $this->cliente->id, 'condicao_pagamento' => 'pix',
+            'estoque_id' => $this->saoLuis->id, 'itens' => $this->itens(),
+        ])->assertSessionHasNoErrors();
+        $pedido = Pedido::withoutGlobalScopes()->latest('id')->first();
+        $this->eu()->post(route('app.pedidos.update-status', $pedido), ['status' => 'confirmado']);
+        $this->openCaixa($this->empresa, $this->unidade, $this->dono);
+        $this->eu()->post(route('app.pedidos.faturar', $pedido), ['documento' => 'nenhum', 'forma_pagamento' => 'dinheiro'])
+            ->assertSessionHasNoErrors();
+
+        return Venda::withoutGlobalScopes()->where('pedido_id', $pedido->id)->firstOrFail();
+    }
+
+    public function test_troca_em_loja_com_dois_estoques_obriga_escolher_onde_a_peca_entra(): void
+    {
+        $venda = $this->vendaDeSaoLuis();
+        $item = $venda->itens()->first();
+        $this->assertEquals(7.0, SaldoEstoque::noEstoque($this->saoLuis->id, $this->produto->id));
+
+        $tela = $this->eu()->get(route('app.trocas.create', ['venda' => $venda->id]))->assertOk();
+        $tela->assertSee('<option value="">Entra em qual estoque?</option>', false);
+        $tela->assertDontSee('" selected>São Luis', false);
+
+        $base = ['venda_id' => $venda->id, 'motivo' => 'defeito', 'sobra_destino' => 'vale'];
+
+        // Sem escolher: recusa, nada muda
+        $this->eu()->post(route('app.trocas.store'), $base + ['itens' => [[
+            'venda_item_id' => $item->id, 'quantidade' => 1, 'retorna_estoque' => 1,
+        ]]])->assertSessionHas('error', fn ($m) => str_contains($m, 'Escolha em qual estoque'));
+        $this->assertEquals(7.0, SaldoEstoque::noEstoque($this->saoLuis->id, $this->produto->id));
+        $this->assertEquals(10.0, SaldoEstoque::noEstoque($this->principal, $this->produto->id));
+
+        // Recebida em Teresina: entra em Teresina (o vendedor escolheu)
+        $this->eu()->post(route('app.trocas.store'), $base + ['itens' => [[
+            'venda_item_id' => $item->id, 'quantidade' => 1, 'retorna_estoque' => 1, 'estoque_id' => $this->principal,
+        ]]])->assertSessionHas('success');
+        $this->assertEquals(11.0, SaldoEstoque::noEstoque($this->principal, $this->produto->id));
+
+        // Peça avariada (não volta ao estoque) não pede estoque
+        $this->eu()->post(route('app.trocas.store'), $base + ['itens' => [[
+            'venda_item_id' => $item->id, 'quantidade' => 1, 'retorna_estoque' => 0,
+        ]]])->assertSessionHas('success');
+        $this->assertEquals(7.0, SaldoEstoque::noEstoque($this->saoLuis->id, $this->produto->id));
+    }
+
+    public function test_troca_em_loja_com_um_estoque_continua_automatica(): void
+    {
+        $venda = $this->vendaDeSaoLuis();
+        $item = $venda->itens()->first();
+        $this->saoLuis->update(['status' => 'inativo']);
+
+        $this->eu()->post(route('app.trocas.store'), ['venda_id' => $venda->id, 'motivo' => 'defeito', 'sobra_destino' => 'vale',
+            'itens' => [['venda_item_id' => $item->id, 'quantidade' => 1, 'retorna_estoque' => 1]]])
+            ->assertSessionHas('success');
+        $this->assertEquals(11.0, SaldoEstoque::noEstoque($this->principal, $this->produto->id));
     }
 }

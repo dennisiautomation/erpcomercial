@@ -154,7 +154,7 @@ class PedidoController extends Controller
             $pedido = Pedido::create([
                 'empresa_id'          => $empresaId,
                 'unidade_id'          => $unidadeId,
-                'estoque_id'          => SaldoEstoque::estoqueEscolhidoId((int) $unidadeId, $request->estoque_id),
+                'estoque_id'          => SaldoEstoque::estoqueEscolhidoObrigatorio((int) $unidadeId, $request->estoque_id),
                 'cliente_id'          => $request->cliente_id,
                 'vendedor_id'         => $request->vendedor_id,
                 'numero'              => $numero,
@@ -413,7 +413,7 @@ class PedidoController extends Controller
 
             $pedido->update([
                 'cliente_id'          => $request->cliente_id,
-                'estoque_id'          => SaldoEstoque::estoqueEscolhidoId((int) $pedido->unidade_id, $request->estoque_id),
+                'estoque_id'          => SaldoEstoque::estoqueEscolhidoObrigatorio((int) $pedido->unidade_id, $request->estoque_id),
                 'vendedor_id'         => $request->vendedor_id,
                 'condicao_pagamento'  => $request->condicao_pagamento,
                 // Canal da venda (05/09): a tela pré-seleciona Presencial; o Gersen lê

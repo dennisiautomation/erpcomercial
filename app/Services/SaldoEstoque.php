@@ -236,6 +236,24 @@ class SaldoEstoque
         return static::estoquesParaEscolher($unidadeId)->contains('id', $escolhido) ? $escolhido : null;
     }
 
+    /**
+     * "Sai de" obrigatório (05/11/2026): em loja com mais de um estoque o vendedor TEM de
+     * escolher — nada vem marcado. Loja com um estoque só: null (estoque de venda, como sempre).
+     *
+     * @throws \Illuminate\Validation\ValidationException
+     */
+    public static function estoqueEscolhidoObrigatorio(?int $unidadeId, mixed $escolhido): ?int
+    {
+        if (static::estoquesParaEscolher($unidadeId)->isEmpty()) {
+            return null;
+        }
+
+        return static::estoqueEscolhidoId($unidadeId, $escolhido)
+            ?? throw \Illuminate\Validation\ValidationException::withMessages([
+                'estoque_id' => 'Escolha de qual estoque o produto sai (campo "Sai de").',
+            ]);
+    }
+
     /** Só o id, que é o que a maioria dos call sites precisa. */
     public static function estoqueDeVendaId(int $unidadeId): ?int
     {
