@@ -503,7 +503,20 @@ class PromocaoController extends Controller
             ? Unidade::withoutGlobalScopes()->where('empresa_id', session('empresa_id'))
             : $user->unidades()->wherePivot('user_id', $user->id)->where('unidades.empresa_id', session('empresa_id'));
 
-        return $q->where('unidades.status', 'ativa')->orderBy('nome')->get(['unidades.id', 'unidades.nome']);
+        $lojas = $q->where('unidades.status', 'ativa')->orderBy('nome')->get(['unidades.id', 'unidades.nome']);
+
+        // Sem vínculo em unidade_user (comum no vendedor que ganhou a chave
+        // `pode_editar_produtos`): oferece a loja da sessão, em vez de um
+        // assistente sem loja nenhuma (05/11/2026).
+        if ($lojas->isEmpty() && session('unidade_id')) {
+            $lojas = Unidade::withoutGlobalScopes()
+                ->where('empresa_id', session('empresa_id'))
+                ->where('id', session('unidade_id'))
+                ->where('status', 'ativa')
+                ->get(['id', 'nome']);
+        }
+
+        return $lojas;
     }
 
     private function itensParaTela(Promocao $promocao, TabelaPrecoService $tabela): array

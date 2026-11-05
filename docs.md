@@ -7912,3 +7912,19 @@ Detalhe achado no teste: o `ERP` do erp-core é `const` (não fica em `window.ER
 `route:cache` (2 rotas novas), `view:cache` 0 erro, USR2, `queue:restart`. Depois: colunas criadas, 2/2 rotas; renderizado como o
 dono da STILO: "Salvar rascunho", CSS do passo 4 e aviso ao sair presentes; filtro "Rascunhos" na lista; 194 preços iguais; 0 erro
 novo no log. Rollback: foto + `migrate:rollback --step=1` (se não houver rascunho salvo; com rascunho, apagar antes — datas nulas).
+
+## DONA DOURO: vendedora com a chave não conseguia SALVAR a edição do produto (05/11/2026) — branch `dona-douro-editar-produto-chave-05nov`
+
+**Relato (print da Mirella, 05/11):** ao editar o "BRINCO PRATA OVAL ZIRCONIA" a tela dizia "Seu perfil altera **apenas a foto**" e o
+salvar voltava com "descrição / preço de venda / status são obrigatórios" — os dados estavam na tela, mas não iam.
+**Causa:** a entrega de 04/11 trocou o `update` para `CheckPermission::canUser` (lê a chave `pode_editar_produtos`), mas a VIEW
+`produtos/edit.blade.php` ainda decidia o modo "só foto" por `can(perfil)` → para o perfil vendedor, os campos ficavam `disabled`,
+o navegador não envia campo desabilitado e o servidor (que já via a chave) validou o formulário inteiro vazio. O roteiro de 04/11
+salvava por POST direto, sem passar pela tela — por isso não pegou.
+**Correção:** `edit.blade.php` (modo só foto) e `show.blade.php` (formulário de foto) passam a usar `canUser($user, …)`.
+`PromocaoController::lojasDoUsuario`: quem não tem vínculo em `unidade_user` recebe a loja da sessão (antes: assistente sem loja).
+Promoções já estava liberada para a chave (rota `permission:produtos,editar` e menu usam `canUser`).
+**Validação:** `scripts/validar-editar-produto-chave-05nov.browser.py` (navegador, cs-*, servidor próprio 8298 sem opcache):
+vendedor COM a chave **9 ✅** (sem o aviso, campos livres, salva pela tela, descrição nova, preço intacto, foto na tela do produto,
+Promoções com loja, sem erro de JS); SEM a chave **4 ✅** (continua só foto). Banco do cs restaurado. Sem migration.
+**Deploy:** 3 arquivos (2 views + 1 controller) + `view:cache` + USR2. Lição: teste de permissão de tela tem que passar pela TELA.

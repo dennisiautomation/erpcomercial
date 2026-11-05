@@ -207,11 +207,7 @@
 
             @php
                 $userFoto = auth()->user();
-                $podeFotoProduto = \App\Http\Middleware\CheckPermission::can(
-                    $userFoto->is_admin ? 'admin' : ($userFoto->perfil instanceof \App\Enums\Perfil ? $userFoto->perfil->value : (string) $userFoto->perfil),
-                    'produtos',
-                    'foto'
-                );
+                $podeFotoProduto = \App\Http\Middleware\CheckPermission::canUser($userFoto, 'produtos', 'foto');
             @endphp
             @if($produto->foto || $podeFotoProduto)
                 <hr>

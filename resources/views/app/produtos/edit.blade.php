@@ -5,11 +5,10 @@
 @section('content')
 @php
     $userEdit = auth()->user();
-    $apenasFotoProduto = ! \App\Http\Middleware\CheckPermission::can(
-        $userEdit->is_admin ? 'admin' : ($userEdit->perfil instanceof \App\Enums\Perfil ? $userEdit->perfil->value : (string) $userEdit->perfil),
-        'produtos',
-        'editar'
-    );
+    // canUser (e não can por perfil): o vendedor/caixa com a chave
+    // `pode_editar_produtos` edita tudo — por perfil a tela travava os campos e
+    // mandava só a foto, e o servidor (canUser) recusava descrição/preço vazios (05/11/2026).
+    $apenasFotoProduto = ! \App\Http\Middleware\CheckPermission::canUser($userEdit, 'produtos', 'editar');
 @endphp
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
