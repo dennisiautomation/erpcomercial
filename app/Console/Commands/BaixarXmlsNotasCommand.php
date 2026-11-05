@@ -19,11 +19,12 @@ class BaixarXmlsNotasCommand extends Command
     public function handle(): int
     {
         $notas = NotaFiscal::withoutGlobalScopes()
+            ->where('status', '!=', \App\Enums\StatusNotaFiscal::Rejeitada) // rejeitada não tem XML (canceladas sim)
             ->whereNotNull('chave_acesso')
             ->whereNotNull('xml_url')
             ->get();
 
-        $ok = 0; $baixados = 0; $falha = 0;
+        $ok = 0; $baixados = 0; $falha = 0; $rejeitadas = 0;
 
         foreach ($notas as $nota) {
             if ($nota->temXmlLocal()) {
@@ -34,13 +35,17 @@ class BaixarXmlsNotasCommand extends Command
             if ($nota->salvarXmlLocal()) {
                 $this->info("  ✓ nota {$nota->id} ({$nota->chave_acesso}) baixada");
                 $baixados++;
+            } elseif ($nota->foiRejeitadaNaFocus()) {
+                // SEFAZ rejeitou depois da resposta "autorizado" — status já corrigido pela consulta
+                $this->warn("  ! nota {$nota->id} foi rejeitada pela SEFAZ depois — ignorada");
+                $rejeitadas++;
             } else {
                 $this->warn("  ✗ nota {$nota->id} ({$nota->chave_acesso}) indisponível");
                 $falha++;
             }
         }
 
-        $this->info("Cópias locais: {$ok} já existiam · {$baixados} baixadas agora · {$falha} indisponíveis");
+        $this->info("Cópias locais: {$ok} já existiam · {$baixados} baixadas agora · {$falha} indisponíveis · {$rejeitadas} rejeitadas depois");
 
         return $falha > 0 ? self::FAILURE : self::SUCCESS;
     }

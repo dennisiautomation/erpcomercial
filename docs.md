@@ -7703,3 +7703,28 @@ Dados da STILO limpos: 648 produtos, 0 códigos repetidos, 0 buscas ambíguas.
 
 ### Deploy (03/11/2026)
 docker cp dos arquivos (container conferido = main, md5 um a um) + migration + route:cache + view:cache + USR2 + queue:restart, 03/11 ~20:15 UTC (17:15 BRT). Foto erp-com-app:pre-bipe-pagamento-20261103-2014; backup e script em /home/ubuntu/erp-backups/pre-bipe-pagamento-20261103-2014/. Pós-deploy: 14 arquivos = branch, 4 colunas novas, rota trocas.cancelar no ar, /app/pdv, /app/trocas e /app/pedidos 200 (dono STILO), views com erro 0, /login 200. **Pendente: mesclar os PRs #8 e #9 na main** (rebuild sem isso desfaz — armadilha 52).
+
+## STILO: 97 NFC-e rejeitadas por número já usado + webhook recusado (401) + XML da nota 148 (05/11/2026) — branch `stilo-webhook-xml-05nov`
+
+**Achado (análise de 05/11):** desde 03/11 a STILO (empresa 3) teve **99 NFC-e** emitidas pelo ERP: **97 rejeitadas** "Duplicidade de
+NF-e, com diferença na Chave de Acesso" (o número já existe na SEFAZ, com chave de **ago/2026** = Gestão Click) e **2 "autorizadas"**
+(notas 122 e 148) que a SEFAZ **rejeitou depois** (613, "Chave de Acesso difere da existente em BD"). Na Focus, as 2 empresas da STILO
+(235712 = CNPJ 23.237.062/0001-17, lojas 9/13/14/18; 235729 = CNPJ 25.105.231/0001-90, lojas 10/15/16, e a 17 inativa) usam a
+**série 2** de NFC-e em produção — a mesma do Gestão Click. Próximo número na Focus: 4612 e 4948. Cada rejeição queima um número.
+
+**Corrigido no banco (05/11, só sincronia com a Focus):** notas 122 (venda 11383) e 148 (venda 11501) passaram a **rejeitada** pelo
+`NFCeService::consultar`. Era a 148 que fazia o `fiscal:baixar-xmls-notas` sair com erro toda noite (404 no XML).
+
+**Pendente — decisão do Dennis (configuração, sem código):** série nova de NFC-e para as 2 empresas da STILO na Focus
+(`serie_nfce_producao` + `proximo_numero_nfce_producao = 1`, como a DK foi para a série 10) e `serie_nfce` nas configs das lojas.
+Avisar a contabilidade.
+
+**Código (esta branch):**
+1. **Webhook** (`FocusNFeWebhookController`): com `ref`, a config é a da **loja da nota**; sem `ref`, entre as lojas do mesmo CNPJ fica a
+   do segredo que veio no `Authorization`. Antes pegava sempre a 1ª loja do CNPJ: o aviso das outras lojas levava 401 (32× no log,
+   "unidade 9") e, ao contrário, o segredo da 1ª loja era aceito para nota de outra loja — agora não.
+2. **XML** (`NotaFiscal::foiRejeitadaNaFocus`, `BaixarXmlNotaJob`, `fiscal:baixar-xmls-notas`): XML que não baixa → reconsulta a nota;
+   se a SEFAZ rejeitou, o status vira rejeitada e para de tentar. O cron não varre mais nota rejeitada (cancelada continua).
+
+**Validação:** `tests/Feature/Fiscal/WebhookMesmoCnpjTest.php` **6 ✅** (com o código da `main`: **4 ❌**) + `WebhookTest` 6 ✅;
+ambiente isolado `erp-suite-*` (rede 10.61.0.0/24).

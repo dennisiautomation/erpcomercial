@@ -183,6 +183,43 @@ class NotaFiscal extends Model
         return false;
     }
 
+    /**
+     * O XML não baixa (404 na Focus): reconsulta a nota e diz se a SEFAZ a REJEITOU.
+     * Caso da STILO (05/11/2026): a Focus respondeu "autorizado" na emissão e depois a SEFAZ
+     * rejeitou (613, número já usado pelo sistema antigo) — o ERP seguia com "autorizada" e o
+     * download do XML falhava para sempre (job em loop e o cron diário com exit 1).
+     * Só NF-e/NFC-e; na dúvida (erro de rede, outro tipo) devolve false e nada muda.
+     */
+    public function foiRejeitadaNaFocus(): bool
+    {
+        try {
+            $unidade = \App\Models\Unidade::withoutGlobalScopes()->find($this->unidade_id);
+            if (! $unidade) {
+                return false;
+            }
+
+            $service = match ($this->tipo) {
+                \App\Enums\TipoNotaFiscal::NFCe => \App\Services\FocusNFe\NFCeService::forUnidade($unidade),
+                \App\Enums\TipoNotaFiscal::NFe  => \App\Services\FocusNFe\NFeService::forUnidade($unidade),
+                default => null,
+            };
+            if (! $service) {
+                return false;
+            }
+
+            $atualizada = $service->consultar($this);
+
+            return $atualizada->status === \App\Enums\StatusNotaFiscal::Rejeitada;
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('[XmlLocal] não deu para reconsultar a nota', [
+                'nota_id' => $this->id,
+                'erro'    => $e->getMessage(),
+            ]);
+
+            return false;
+        }
+    }
+
     public function empresa(): BelongsTo
     {
         return $this->belongsTo(Empresa::class);

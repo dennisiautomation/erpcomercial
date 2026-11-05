@@ -34,6 +34,12 @@ class BaixarXmlNotaJob implements ShouldQueue
         }
 
         if (! $nota->salvarXmlLocal()) {
+            // Na última tentativa, confere se a SEFAZ rejeitou a nota: se a SEFAZ rejeitou
+            // depois (status atualizado pela consulta), não há XML para guardar.
+            if ($this->attempts() >= $this->tries && $nota->foiRejeitadaNaFocus()) {
+                return;
+            }
+
             // lança para cair no retry com backoff
             throw new \RuntimeException("XML da nota {$this->notaId} ainda indisponível na Focus");
         }

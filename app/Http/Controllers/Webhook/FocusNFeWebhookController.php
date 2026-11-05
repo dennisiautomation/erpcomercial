@@ -36,19 +36,23 @@ class FocusNFeWebhookController extends Controller
 
         Log::info('Webhook Focus NFe recebido', $payload + ['ip' => $request->ip()]);
 
-        // Tenta localizar config pelo cnpj_emitente (quando a Focus envia)
-        $config = $this->resolveConfig($request);
-
-        // Se temos ref, tenta achar a nota — se config não veio via cnpj, cai na unidade da nota
+        // Se temos ref, a nota diz de qual loja ela é — essa config vale mais que a do CNPJ.
+        // (05/11/2026) Várias lojas com o MESMO CNPJ (STILO: 7 lojas, 2 CNPJs) dividem a mesma
+        // empresa na Focus, e cada loja cadastra seu gatilho com o próprio segredo; achar a config
+        // só pelo CNPJ pegava sempre a 1ª loja e recusava (401) o aviso das outras.
         $ref = $request->input('ref');
         $nota = $ref ? NotaFiscal::withoutGlobalScopes()->where('focus_ref', $ref)->first() : null;
 
-        if (! $config && $nota) {
+        $config = null;
+        if ($nota) {
             $config = ConfiguracaoFiscal::withoutGlobalScopes()
                 ->where('empresa_id', $nota->empresa_id)
                 ->where('unidade_id', $nota->unidade_id)
                 ->first();
         }
+
+        // Sem nota: localiza pelo cnpj_emitente — entre as lojas desse CNPJ, a do segredo que veio
+        $config ??= $this->resolveConfig($request);
 
         // Valida Authorization apenas quando a config tem webhook_secret definido.
         // Unidades antigas (sem secret) continuam aceitas — o modelo revenda gera secret
@@ -185,14 +189,18 @@ class FocusNFeWebhookController extends Controller
             return null;
         }
 
-        // Procura a unidade que tem esse CNPJ (ou a empresa, caso a unidade não tenha)
-        $config = ConfiguracaoFiscal::withoutGlobalScopes()
+        // Procura a unidade que tem esse CNPJ (ou a empresa, caso a unidade não tenha).
+        // Várias lojas podem ter o mesmo CNPJ: fica a do segredo que veio no Authorization;
+        // se nenhuma bater, a 1ª (e a validação recusa, como antes).
+        $configs = ConfiguracaoFiscal::withoutGlobalScopes()
             ->whereHas('unidade', fn ($q) => $q->whereRaw("UPPER(REPLACE(REPLACE(REPLACE(cnpj, '.', ''), '/', ''), '-', '')) = ?", [$cnpj]))
             ->with(['unidade', 'empresa'])
-            ->first();
+            ->orderBy('id')
+            ->get();
 
-        if ($config) {
-            return $config;
+        if ($configs->isNotEmpty()) {
+            return $configs->first(fn ($c) => ! empty($c->webhook_secret) && $this->authorizationValid($request, $c))
+                ?? $configs->first();
         }
 
         // Fallback: match pelo CNPJ da empresa
