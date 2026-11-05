@@ -7873,3 +7873,11 @@ teste criado e apagado, promoções de teste apagadas).
 (01 Matriz JS): botão "Adicionar todos os produtos da loja" e colunas do cartão; `todos-produtos` da STILO = **381 com preço, 7 sem preço
 (fora)**; 194 preços iguais com e sem promoção (ainda não há promoção salva); 0 erro novo no log.
 Rollback = foto (as colunas podem ficar) ou `…/arquivos/` + `route:cache` + `view:cache` + USR2 + `queue:restart`.
+
+### Promoções — passo 4 (Preços) sem seletores cortados (05/11/2026) — branch `promocoes-layout-precos-05nov`
+Achado ao gerar o manual (área 11): a 1440 px os seletores "Como" cortavam ("% descont…", "Regra da lo…") e os preços "Normal"
+quebravam em duas linhas. Só CSS em `promocoes/create.blade.php`: tabela `min-width: 1020px`, células com padding menor, seletor
+`min-width: 128px`, valor 78–96 px, produto 150 px, preços `nowrap`. Medido no navegador (cs-*): 1440 px cabe inteira (texto dos
+seletores inteiro, preço numa linha, sem rolagem); 1280 px a tabela rola 80 px de lado dentro do quadro; 390 px rola dentro do
+quadro; a página nunca rola de lado. Roteiro do assistente 49 ✅. Lição: trocar o .blade no mesmo segundo em que foi compilado
+deixa a versão antiga em cache — `php artisan view:clear` entre as versões.

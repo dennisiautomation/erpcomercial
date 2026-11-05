@@ -30,7 +30,16 @@
     .promo-resultados .list-group-item { display: flex; justify-content: space-between; align-items: center; gap: .75rem; }
     .promo-lojas label { display: flex; gap: .5rem; align-items: center; padding: .6rem .8rem; border: 1px solid var(--bs-border-color);
         border-radius: .5rem; cursor: pointer; }
-    .promo-precos input.form-control-sm, .promo-precos select.form-select-sm { min-width: 90px; }
+    /* Passo 4 (05/11/2026): em tela de notebook os seletores cortavam ("% descont…", "Regra da lo…") e os
+       preços quebravam em duas linhas ("R$" em cima). Larguras mínimas + preço sem quebra; o que não couber
+       rola de lado dentro da tabela (.table-responsive), nunca a página. */
+    .promo-precos table { min-width: 1020px; }
+    .promo-precos.table-responsive .erp-table thead th,
+    .promo-precos.table-responsive .erp-table tbody td { padding: .55rem .5rem; vertical-align: middle; }
+    .promo-precos td:first-child { min-width: 150px; }
+    .promo-precos select.form-select-sm { min-width: 128px; padding-right: 1.75rem; }
+    .promo-precos input.form-control-sm { min-width: 78px; max-width: 96px; }
+    .promo-precos .text-end { white-space: nowrap; }
     .promo-de { text-decoration: line-through; color: var(--bs-secondary-color); }
 </style>
 @endpush
