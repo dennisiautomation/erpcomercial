@@ -7715,7 +7715,7 @@ NF-e, com diferença na Chave de Acesso" (o número já existe na SEFAZ, com cha
 **Corrigido no banco (05/11, só sincronia com a Focus):** notas 122 (venda 11383) e 148 (venda 11501) passaram a **rejeitada** pelo
 `NFCeService::consultar`. Era a 148 que fazia o `fiscal:baixar-xmls-notas` sair com erro toda noite (404 no XML).
 
-**Série nova — FEITO 05/11/2026 ~12:30 BRT (ordem do Dennis: "testa séries menores e pode fazer"):** teste por emissão real, só com
+**Série nova — FEITO 05/11/2026 07:42 BRT (ordem do Dennis: "testa séries menores e pode fazer"):** teste por emissão real, só com
 venda **sem cliente** (a NFC-e manda e-mail ao cliente que tem e-mail), série a série a partir da 1 com próximo nº 1:
 - **CNPJ 23.237.062/0001-17** (Focus 235712; lojas 9, 13, 14, 18): **série 1** livre → venda 11342 virou a nota 156, nº 1, autorizada.
 - **CNPJ 25.105.231/0001-90** (Focus 235729; lojas 10, 15, 16 e a 17 inativa): série 1 **já usada** (nº 1 de 07/2026, a NFC-e de teste
