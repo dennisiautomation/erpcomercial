@@ -80,7 +80,10 @@ class PedidoController extends Controller
 
         $tabelaDaCondicao = $this->tabelaDaCondicao(\App\Models\ConfiguracaoLoja::daUnidade());
 
-        return view('app.pedidos.create', compact('vendedores', 'produtos', 'servicos', 'tabelaDaCondicao'));
+        // "Sai de" (05/11/2026): só quando a loja tem mais de um estoque
+        $estoquesSaida = SaldoEstoque::estoquesParaEscolher((int) session('unidade_id'));
+
+        return view('app.pedidos.create', compact('vendedores', 'produtos', 'servicos', 'tabelaDaCondicao', 'estoquesSaida'));
     }
 
     public function store(Request $request)
@@ -88,6 +91,7 @@ class PedidoController extends Controller
         $request->validate([
             'cliente_id'              => 'required|exists:clientes,id',
             'vendedor_id'             => 'nullable|exists:users,id',
+            'estoque_id'              => 'nullable|integer',
             'condicao_pagamento'      => 'nullable|string|max:255',
             'canal'                   => 'nullable|' . CanalVenda::regraIn(),
             'desconto_percentual'     => 'nullable|numeric|min:0|max:100',
@@ -150,6 +154,7 @@ class PedidoController extends Controller
             $pedido = Pedido::create([
                 'empresa_id'          => $empresaId,
                 'unidade_id'          => $unidadeId,
+                'estoque_id'          => SaldoEstoque::estoqueEscolhidoId((int) $unidadeId, $request->estoque_id),
                 'cliente_id'          => $request->cliente_id,
                 'vendedor_id'         => $request->vendedor_id,
                 'numero'              => $numero,
@@ -318,7 +323,9 @@ class PedidoController extends Controller
             $i->id => $i->produto ? $tabela->precosDoProduto($i->produto, $configLoja) : null,
         ]);
 
-        return view('app.pedidos.edit', compact('pedido', 'vendedores', 'produtos', 'servicos', 'tabelaDaCondicao', 'precosDosItens'));
+        $estoquesSaida = SaldoEstoque::estoquesParaEscolher((int) $pedido->unidade_id);
+
+        return view('app.pedidos.edit', compact('pedido', 'vendedores', 'produtos', 'servicos', 'tabelaDaCondicao', 'precosDosItens', 'estoquesSaida'));
     }
 
     /**
@@ -348,6 +355,7 @@ class PedidoController extends Controller
         $request->validate([
             'cliente_id'              => 'required|exists:clientes,id',
             'vendedor_id'             => 'nullable|exists:users,id',
+            'estoque_id'              => 'nullable|integer',
             'condicao_pagamento'      => 'nullable|string|max:255',
             'canal'                   => 'nullable|' . CanalVenda::regraIn(),
             'desconto_percentual'     => 'nullable|numeric|min:0|max:100',
@@ -405,6 +413,7 @@ class PedidoController extends Controller
 
             $pedido->update([
                 'cliente_id'          => $request->cliente_id,
+                'estoque_id'          => SaldoEstoque::estoqueEscolhidoId((int) $pedido->unidade_id, $request->estoque_id),
                 'vendedor_id'         => $request->vendedor_id,
                 'condicao_pagamento'  => $request->condicao_pagamento,
                 // Canal da venda (05/09): a tela pré-seleciona Presencial; o Gersen lê
@@ -883,7 +892,9 @@ class PedidoController extends Controller
                 SaldoEstoque::registrar(
                     $pedido->empresa_id,
                     $pedido->unidade_id,
-                    SaldoEstoque::estoqueDeVendaId($pedido->unidade_id),
+                    // "Sai de" escolhido no pedido (05/11/2026), validado de novo na baixa
+                    SaldoEstoque::estoqueEscolhidoId((int) $pedido->unidade_id, $pedido->estoque_id)
+                        ?? SaldoEstoque::estoqueDeVendaId($pedido->unidade_id),
                     (int) $item->produto_id,
                     TipoMovimentacaoEstoque::Saida->value,
                     -(float) $item->quantidade,

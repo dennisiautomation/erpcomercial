@@ -138,6 +138,7 @@
             <td class="loja">
                 <h1>{{ $cabecalho['nome'] }}</h1>
                 @if($cabecalho['loja'])<div class="linha">Loja: <b>{{ $cabecalho['loja'] }}</b></div>@endif
+                @if($pedido->estoque)<div class="linha">Sai de: <b>{{ $pedido->estoque->nome }}</b></div>@endif
                 <div class="linha">
                     @if($cabecalho['cnpj'])CNPJ {{ $cabecalho['cnpj'] }}@endif
                     @if($cabecalho['cnpj'] && $telefone) · @endif

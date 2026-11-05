@@ -19,6 +19,7 @@ class Orcamento extends Model
     protected $fillable = [
         'empresa_id',
         'unidade_id',
+        'estoque_id', // "Sai de" (05/11/2026); null = estoque de venda da loja
         'cliente_id',
         'vendedor_id',
         'numero',
@@ -80,5 +81,11 @@ class Orcamento extends Model
     public function pedido(): HasOne
     {
         return $this->hasOne(Pedido::class);
+    }
+
+    /** Estoque de onde o produto sai ("Sai de", 05/11/2026). Null = estoque de venda da loja. */
+    public function estoque(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(Estoque::class)->withoutGlobalScopes();
     }
 }

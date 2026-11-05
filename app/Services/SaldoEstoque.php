@@ -199,6 +199,43 @@ class SaldoEstoque
             ->first();
     }
 
+    /**
+     * Estoques ativos da loja para o "Sai de" do orçamento e do pedido (05/11/2026).
+     * Vazio quando a loja tem um estoque só — aí o campo nem aparece. O de venda vem primeiro.
+     *
+     * @return \Illuminate\Support\Collection<int, Estoque>
+     */
+    public static function estoquesParaEscolher(?int $unidadeId): \Illuminate\Support\Collection
+    {
+        if (! $unidadeId) {
+            return collect();
+        }
+
+        $estoques = Estoque::withoutGlobalScopes()
+            ->where('unidade_id', $unidadeId)
+            ->where('status', 'ativo')
+            ->orderByDesc('permite_venda')
+            ->orderByDesc('is_padrao')
+            ->orderBy('id')
+            ->get(['id', 'nome', 'unidade_id']);
+
+        return $estoques->count() > 1 ? $estoques : collect();
+    }
+
+    /**
+     * Estoque escolhido no orçamento/pedido, validado: tem de ser desta loja e ativo, e a
+     * loja tem de ter mais de um estoque. Senão null (= estoque de venda, como sempre).
+     */
+    public static function estoqueEscolhidoId(?int $unidadeId, mixed $escolhido): ?int
+    {
+        $escolhido = (int) $escolhido;
+        if (! $escolhido) {
+            return null;
+        }
+
+        return static::estoquesParaEscolher($unidadeId)->contains('id', $escolhido) ? $escolhido : null;
+    }
+
     /** Só o id, que é o que a maioria dos call sites precisa. */
     public static function estoqueDeVendaId(int $unidadeId): ?int
     {

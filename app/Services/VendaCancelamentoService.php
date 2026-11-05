@@ -98,6 +98,19 @@ class VendaCancelamentoService
                         ->latest('id')
                         ->value('estoque_id');
 
+                    // Venda que veio de pedido: a baixa foi registrada no PEDIDO (05/11/2026 —
+                    // com o "Sai de" ela pode ter saído de outro estoque que não o de venda)
+                    if (! $estoqueDeOrigem && $venda->pedido_id) {
+                        $estoqueDeOrigem = EstoqueMovimentacao::withoutGlobalScopes()
+                            ->where('origem_tipo', \App\Models\Pedido::class)
+                            ->where('origem_id', $venda->pedido_id)
+                            ->where('produto_id', $item->produto_id)
+                            ->where('tipo', TipoMovimentacaoEstoque::Saida->value)
+                            ->where('unidade_id', $venda->unidade_id)
+                            ->latest('id')
+                            ->value('estoque_id');
+                    }
+
                     SaldoEstoque::registrar(
                         $venda->empresa_id,
                         $venda->unidade_id,

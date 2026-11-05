@@ -85,6 +85,7 @@
                             @endforeach
                         </select>
                     </div>
+                    @include('app.partials.campo-sai-de', ['estoqueSelecionado' => $pedido->estoque_id])
                     <div class="mb-0">
                         <label for="campo-condicao_pagamento" class="form-label small fw-semibold">Condicao de Pagamento</label>
                         <select id="campo-condicao_pagamento" name="condicao_pagamento" class="form-select">

@@ -20,6 +20,7 @@ class Pedido extends Model
     protected $fillable = [
         'empresa_id',
         'unidade_id',
+        'estoque_id', // "Sai de" (05/11/2026); null = estoque de venda da loja
         'cliente_id',
         'vendedor_id',
         'orcamento_id',
@@ -85,5 +86,11 @@ class Pedido extends Model
     public function venda(): HasOne
     {
         return $this->hasOne(Venda::class);
+    }
+
+    /** Estoque de onde o produto sai ("Sai de", 05/11/2026). Null = estoque de venda da loja. */
+    public function estoque(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(Estoque::class)->withoutGlobalScopes();
     }
 }

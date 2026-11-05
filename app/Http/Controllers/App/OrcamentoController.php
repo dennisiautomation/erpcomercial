@@ -74,7 +74,10 @@ class OrcamentoController extends Controller
         $parcelasPadrao = $configLoja->orcamento_parcelas;
         $descontoAvistaPadrao = app(\App\Services\OrcamentoPagamentoService::class)->descontoPadrao($configLoja);
 
-        return view('app.orcamentos.create', compact('vendedores', 'produtos', 'servicos', 'condicoesPadrao', 'observacoesPadrao', 'configLoja', 'parcelasPadrao', 'descontoAvistaPadrao'));
+        // "Sai de" (05/11/2026): só quando a loja tem mais de um estoque
+        $estoquesSaida = \App\Services\SaldoEstoque::estoquesParaEscolher((int) session('unidade_id'));
+
+        return view('app.orcamentos.create', compact('vendedores', 'produtos', 'servicos', 'condicoesPadrao', 'observacoesPadrao', 'configLoja', 'parcelasPadrao', 'descontoAvistaPadrao', 'estoquesSaida'));
     }
 
     public function store(Request $request)
@@ -82,6 +85,7 @@ class OrcamentoController extends Controller
         $request->validate([
             'cliente_id'              => 'required|exists:clientes,id',
             'vendedor_id'             => 'nullable|exists:users,id',
+            'estoque_id'              => 'nullable|integer',
             'validade_ate'            => 'required|date|after_or_equal:today',
             'desconto_percentual'     => 'nullable|numeric|min:0|max:100',
             'desconto_valor'          => 'nullable|numeric|min:0',
@@ -154,6 +158,7 @@ class OrcamentoController extends Controller
             $orcamento = Orcamento::create([
                 'empresa_id'          => $empresaId,
                 'unidade_id'          => $unidadeId,
+                'estoque_id'          => \App\Services\SaldoEstoque::estoqueEscolhidoId((int) $unidadeId, $request->estoque_id),
                 'cliente_id'          => $request->cliente_id,
                 'vendedor_id'         => $request->vendedor_id,
                 'numero'              => $numero,
@@ -249,7 +254,9 @@ class OrcamentoController extends Controller
             ? (float) $orcamento->desconto_avista_percentual
             : app(\App\Services\OrcamentoPagamentoService::class)->descontoPadrao($configLoja);
 
-        return view('app.orcamentos.edit', compact('orcamento', 'vendedores', 'produtos', 'servicos', 'condicoesPadrao', 'configLoja', 'parcelasPadrao', 'descontoAvistaPadrao'));
+        $estoquesSaida = \App\Services\SaldoEstoque::estoquesParaEscolher((int) $orcamento->unidade_id);
+
+        return view('app.orcamentos.edit', compact('orcamento', 'vendedores', 'produtos', 'servicos', 'condicoesPadrao', 'configLoja', 'parcelasPadrao', 'descontoAvistaPadrao', 'estoquesSaida'));
     }
 
     public function update(Request $request, Orcamento $orcamento)
@@ -261,6 +268,7 @@ class OrcamentoController extends Controller
         $request->validate([
             'cliente_id'              => 'required|exists:clientes,id',
             'vendedor_id'             => 'nullable|exists:users,id',
+            'estoque_id'              => 'nullable|integer',
             'validade_ate'            => 'required|date',
             'desconto_percentual'     => 'nullable|numeric|min:0|max:100',
             'desconto_valor'          => 'nullable|numeric|min:0',
@@ -326,6 +334,7 @@ class OrcamentoController extends Controller
 
             $orcamento->update([
                 'cliente_id'          => $request->cliente_id,
+                'estoque_id'          => \App\Services\SaldoEstoque::estoqueEscolhidoId((int) $orcamento->unidade_id, $request->estoque_id),
                 'vendedor_id'         => $request->vendedor_id,
                 'validade_ate'        => $request->validade_ate,
                 'subtotal'            => $subtotal,
@@ -376,6 +385,7 @@ class OrcamentoController extends Controller
             $pedido = Pedido::create([
                 'empresa_id'          => $orcamento->empresa_id,
                 'unidade_id'          => $orcamento->unidade_id,
+                'estoque_id'          => $orcamento->estoque_id, // "Sai de" vai junto (05/11/2026)
                 'cliente_id'          => $orcamento->cliente_id,
                 'vendedor_id'         => $orcamento->vendedor_id,
                 'orcamento_id'        => $orcamento->id,

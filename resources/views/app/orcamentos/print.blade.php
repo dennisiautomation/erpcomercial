@@ -101,6 +101,7 @@
                 <h1>{{ $cabecalho['nome'] }}</h1>
                 @if($cabecalho['razao'])<div class="razao">{{ $cabecalho['razao'] }}</div>@endif
                 @if($cabecalho['loja'] ?? null)<div class="loja">Loja: {{ $cabecalho['loja'] }}</div>@endif
+                @if($orcamento->estoque)<div class="loja">Sai de: {{ $orcamento->estoque->nome }}</div>@endif
                 @if($cabecalho['cnpj'])<div class="linha">CNPJ {{ $cabecalho['cnpj'] }}</div>@endif
                 @foreach($cabecalho['endereco'] as $linha)
                     <div class="linha">{{ $linha }}</div>

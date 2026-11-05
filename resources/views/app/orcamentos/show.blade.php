@@ -115,6 +115,9 @@
                     <div class="col-6">
                         <small class="text-muted d-block">Loja de saída</small>
                         <span><i class="bi bi-shop me-1"></i>{{ $orcamento->unidade->nome ?? '-' }}</span>
+                        @if($orcamento->estoque)
+                            <small class="d-block text-muted"><i class="bi bi-box-seam me-1"></i>Sai de: <strong>{{ $orcamento->estoque->nome }}</strong></small>
+                        @endif
                     </div>
                     @if($orcamento->pedido)
                         <div class="col-12">

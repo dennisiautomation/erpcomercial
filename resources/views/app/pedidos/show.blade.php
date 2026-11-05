@@ -306,6 +306,9 @@
                     <div class="col-6">
                         <small class="text-muted d-block">Loja de saída</small>
                         <span><i class="bi bi-shop me-1"></i>{{ $pedido->unidade->nome ?? '-' }}</span>
+                        @if($pedido->estoque)
+                            <small class="d-block text-muted"><i class="bi bi-box-seam me-1"></i>Sai de: <strong>{{ $pedido->estoque->nome }}</strong></small>
+                        @endif
                     </div>
                     <div class="col-6">
                         <small class="text-muted d-block">Canal da venda</small>

@@ -87,6 +87,7 @@
                             @endforeach
                         </select>
                     </div>
+                    @include('app.partials.campo-sai-de', ['estoqueSelecionado' => $orcamento->estoque_id])
                     <div class="mb-0">
                         <label for="campo-validade_ate" class="form-label small fw-semibold">Validade <span class="text-danger">*</span></label>
                         <input id="campo-validade_ate" type="date" name="validade_ate" class="form-control" value="{{ $orcamento->validade_ate?->format('Y-m-d') }}" required>

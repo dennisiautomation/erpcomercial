@@ -7741,3 +7741,32 @@ os 4 arquivos do ar eram os da `main` (conferido), foto `erp-com-app:pre-stilo-w
 md5 conferido, USR2 no php-fpm + `queue:restart` (2 `queue:work` novos). Depois: `/login` 200; `fiscal:baixar-xmls-notas` **exit 0**
 (21 já existiam, 0 indisponíveis); webhook na produção com a nota 148 (loja 16) e o mesmo status que ela já tinha: segredo da loja 16
 **200** (antes 401), da loja 10 (mesmo CNPJ) **401**, errado **401**; 0 erro novo no laravel.log. Rollback = a foto, ou `…/arquivos/` + USR2 + `queue:restart`.
+
+## DK Med: "Sai de" no orçamento e no pedido — de qual estoque o produto sai (05/11/2026) — branch `dk-sai-de-orcamento-pedido-05nov`
+
+**Chamado** `ticket-1793821244630-y6gv8o` (Suporte ERP DK, 04/11): "identificar de qual loja está saindo o produto, se de São Luís
+ou de Teresina", no orçamento e no pedido (prints da Maria Isanara); no grupo: **escolhido manualmente pelo vendedor**.
+**Como a DK é no ERP:** empresa 7, **uma loja só ("Matriz", unidade 28) com dois estoques**: `Principal` (id 28, Teresina) e
+`São Luis` (id 31). A "Loja de saída" de 28/10 só mostrava a loja (Matriz) — não resolvia. No PDV o "Sai de" já existe
+(22/10), mas está **desligado na DK** (`configuracoes_loja.pdv_escolher_estoque = false`).
+
+**O que mudou:**
+- Migration `2026_11_05_150000_add_estoque_id_to_orcamentos_e_pedidos`: `estoque_id` nullable (FK `estoques`, null = estoque de venda).
+- `SaldoEstoque::estoquesParaEscolher($unidade)` (ativos da loja, o de venda primeiro; **vazio com um estoque só**) e
+  `estoqueEscolhidoId($unidade, $id)` (aceita só estoque ativo desta loja; senão null).
+- Campo **"Sai de"** (`app/partials/campo-sai-de.blade.php`) abaixo do Vendedor em orçamento e pedido (novo e editar). Começa no
+  estoque de venda; só aparece em loja com 2+ estoques ativos — **as outras empresas não veem nada**.
+- Orçamento → pedido leva o `estoque_id`. Detalhe (orçamento e pedido) mostra "Sai de: X" sob a Loja de saída; folhas A4 imprimem "Sai de: X".
+- **Baixa:** `PedidoController::baixarEstoquePedido` (Faturar e o caminho antigo `update-status → faturado`) sai do estoque escolhido,
+  validado de novo na hora (inativado depois → estoque de venda).
+- **Cancelar venda de pedido** (`VendaCancelamentoService`): a baixa de pedido é registrada com `origem_tipo = Pedido`; antes o
+  cancelamento só achava a de `Venda` e devolvia ao estoque de venda. Agora procura também a do pedido (`venda.pedido_id`) e
+  devolve ao estoque de onde saiu.
+- Fora: troca de peça vendida por pedido (`TrocaService`) volta ao estoque de venda, como antes; pedido do agente (API) sem "Sai de".
+
+**Validação:** `tests/Feature/App/SaiDeOrcamentoPedidoTest.php` **5 ✅** (com o código da `main`: 3 ❌; os 2 que passam são os casos em
+que nada deve mudar); suíte completa **254 ✅ / 2 ❌** (os 2 pré-existentes); navegador (cs-*, 2º estoque de teste criado e apagado)
+**9 ✅** — campo nas telas novas de orçamento e pedido, opções, troca, sem erro de JS.
+
+**Deploy (só com ordem do Dennis):** migration (1 coluna em 2 tabelas) + tar + `view:cache` + USR2 + foto antes. Na DK, junto
+(com OK): ligar "Estoque na venda (PDV)" (o "Sai de" do fechamento da venda, pergunta do Wellington) e renomear `Principal` → `Teresina`.
