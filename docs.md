@@ -7866,3 +7866,10 @@ ter a opção de valor à vista e no cartão definir o valor de cada um".
 **Validação:** `PromocaoTest` **20 ✅** (+4: cartão R$, cartão %, gravar/validar/duplicar/detalhe, todos os produtos sem os de R$ 0);
 suíte **277 ✅ / 2 ❌** (os 2 pré-existentes); navegador `validar-promocoes-05nov.browser.py` **49 ✅ / 0 ❌** (cs-*, brinde de R$ 0 de
 teste criado e apagado, promoções de teste apagadas).
+
+**EM PRODUÇÃO 05/11/2026 09:05 BRT (ordem do Dennis "Pode subir").** `/home/ubuntu/erp-backups/pre-promocoes-cartao-20261105/deploy-promocoes-cartao.sh`
+(mesmo roteiro do deploy das promoções): arquivos do ar = `main`, foto `erp-com-app:pre-promocoes-cartao-20261105` (`7b2dc3c797ad`),
+`migrate` (3 colunas), `route:cache`, `view:cache` 0 erro, USR2, `queue:restart`. Depois: `/login` 200; renderizado como o dono da STILO
+(01 Matriz JS): botão "Adicionar todos os produtos da loja" e colunas do cartão; `todos-produtos` da STILO = **381 com preço, 7 sem preço
+(fora)**; 194 preços iguais com e sem promoção (ainda não há promoção salva); 0 erro novo no log.
+Rollback = foto (as colunas podem ficar) ou `…/arquivos/` + `route:cache` + `view:cache` + USR2 + `queue:restart`.
