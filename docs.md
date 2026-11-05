@@ -7787,3 +7787,13 @@ A DK é **uma loja com dois estoques**: o sistema não sabe em que cidade a pess
 **Validação:** `SaiDeOrcamentoPedidoTest` **8 ✅** (+ obrigatório, outra loja, pedido antigo, troca obriga escolher, troca em loja de
 1 estoque automática); suíte completa **257 ✅ / 2 ❌** (os 2 pré-existentes); navegador (cs-*, 2º estoque de teste criado e
 apagado, servidor próprio 8298) **9 ✅**: Sai de vazio e `required`; Trocas e F6 vêm vazios e avisam sem registrar; sem erro de JS.
+
+**EM PRODUÇÃO 05/11/2026 11:37 BRT (ordem do Dennis "Pode subir").** `/home/ubuntu/erp-backups/pre-dk-sai-de-20261105/deploy-dk-sai-de.sh`:
+os 17 arquivos do ar eram os da `main` (conferido), foto `erp-com-app:pre-dk-sai-de-20261105` (`2ab74f808ff7`), arquivos antigos em
+`…/arquivos/`, dump de `orcamentos` + `pedidos` em `…/orcamentos-pedidos.sql.gz` (a 1ª tentativa parou ANTES de mexer em nada:
+o dump com `erp_user` saiu vazio — o roteiro agora usa o root do container e aborta com dump vazio); md5 conferido, `migrate`
+(2 colunas), `view:cache` 0 erro, USR2, `queue:restart`. Depois: `/login` 200; colunas criadas e vazias; só a loja 28 (DK) tem
+2+ estoques ativos; renderizado em produção com a Maria Isanara (DK): pedido e orçamento novos com "Escolha de onde sai… |
+Principal | São Luis" obrigatório, troca com "Entra em qual estoque?" vazio; outra empresa (2) sem o campo; 0 erro novo no log.
+**Rollback:** foto + `migrate:rollback --step=1`, ou `…/arquivos/` + `view:cache` + USR2 + `queue:restart`.
+**Não feito (aguarda OK):** ligar "Estoque na venda (PDV)" na DK e renomear `Principal` → `Teresina`. Chamado ainda aberto.
