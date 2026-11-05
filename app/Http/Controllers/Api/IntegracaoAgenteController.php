@@ -1369,8 +1369,9 @@ class IntegracaoAgenteController extends Controller
         }
 
         $normal = $tabela->precosSemPromocao($produto, $config)['dinheiro_pix'];
-        $promo = $tabela->precosDoProduto($produto, $config)['dinheiro_pix'];
-        if ($promo >= $normal) {
+        $comPromo = $tabela->precosDoProduto($produto, $config);
+        $promo = $comPromo['dinheiro_pix'];
+        if ($promo >= $normal && ! $item->temCartao()) {
             return null;
         }
 
@@ -1381,7 +1382,11 @@ class IntegracaoAgenteController extends Controller
                 'termina_em' => $item->promocao->ultimoDia()->toDateString(),
                 'preco_normal' => $normal,
                 'preco_promocional' => $promo,
-                'observacao' => 'Preço promocional à vista (PIX/dinheiro). No cartão a loja aplica o acréscimo dela.',
+                // Cartão da promoção (05/11/2026): definido no produto ou pela regra da loja
+                'preco_cartao_promocional' => $comPromo['credito'],
+                'observacao' => $item->temCartao()
+                    ? 'Preço promocional à vista (PIX/dinheiro) em "preco"; no cartão vale "preco_cartao_promocional".'
+                    : 'Preço promocional à vista (PIX/dinheiro). No cartão a loja aplica o acréscimo dela ("preco_cartao_promocional").',
             ],
         ];
     }

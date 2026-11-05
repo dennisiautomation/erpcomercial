@@ -86,12 +86,44 @@ class PromocaoController extends Controller
         $config = ConfiguracaoLoja::daUnidade();
         $produtos = \App\Http\Controllers\App\PdvController::buscarProdutosDaEmpresa((int) session('empresa_id'), $termo, 50);
 
-        return response()->json($produtos->map(fn ($p) => [
+        return response()->json($produtos->map(fn ($p) => $this->linhaProduto($p, $tabela, $config))->values());
+    }
+
+    /**
+     * "Adicionar todos" (05/11/2026, STILO): todos os produtos ativos da empresa, sem buscar.
+     * Fica de fora produto sem preço (brinde a R$ 0,00 não tem como entrar em promoção).
+     */
+    public function todosProdutos(TabelaPrecoService $tabela): JsonResponse
+    {
+        $config = ConfiguracaoLoja::daUnidade();
+        $produtos = Produto::where('empresa_id', session('empresa_id'))
+            ->where('status', 'ativo')
+            ->with('precos')
+            ->orderBy('descricao')
+            ->limit(5000)
+            ->get();
+
+        $linhas = $produtos->map(fn ($p) => $this->linhaProduto($p, $tabela, $config));
+        $comPreco = $linhas->filter(fn ($l) => $l['preco_referencia'] > 0)->values();
+
+        return response()->json([
+            'itens' => $comPreco,
+            'sem_preco' => $linhas->count() - $comPreco->count(),
+        ]);
+    }
+
+    /** Linha de produto do assistente: preço à vista e do cartão (crédito) desta loja, sem promoção. */
+    private function linhaProduto(Produto $p, TabelaPrecoService $tabela, ConfiguracaoLoja $config): array
+    {
+        $precos = $tabela->precosSemPromocao($p, $config);
+
+        return [
             'produto_id' => $p->id,
             'descricao' => $p->descricao,
             'codigo' => $p->codigo_barras ?: ($p->codigo_interno ?: $p->sku),
-            'preco_referencia' => $tabela->precosSemPromocao($p, $config)['dinheiro_pix'],
-        ])->values());
+            'preco_referencia' => $precos['dinheiro_pix'],
+            'preco_cartao_referencia' => $precos['credito'],
+        ];
     }
 
     public function store(Request $request, PromocaoService $promocoes, TabelaPrecoService $tabela)
@@ -109,6 +141,9 @@ class PromocaoController extends Controller
             'itens.*.produto_id' => ['required', 'integer', 'distinct'],
             'itens.*.tipo' => ['required', 'in:preco,percentual'],
             'itens.*.valor' => ['required', 'numeric', 'gt:0', 'max:9999999'],
+            // Cartão (05/11/2026): vazio = regra da loja (acréscimo sobre o à vista)
+            'itens.*.cartao_tipo' => ['nullable', 'in:preco,percentual'],
+            'itens.*.cartao_valor' => ['nullable', 'required_with:itens.*.cartao_tipo', 'numeric', 'gt:0', 'max:9999999'],
             'origem_id' => ['nullable', 'integer'],
         ], [
             'data_inicio.after_or_equal' => 'A promoção não pode começar antes de hoje.',
@@ -118,6 +153,8 @@ class PromocaoController extends Controller
             'itens.required' => 'Adicione pelo menos um produto.',
             'itens.*.produto_id.distinct' => 'Um produto apareceu duas vezes na lista.',
             'itens.*.valor.gt' => 'Todo produto precisa de preço ou % maior que zero.',
+            'itens.*.cartao_valor.required_with' => 'Informe o valor do cartão (ou deixe "Regra da loja").',
+            'itens.*.cartao_valor.gt' => 'O valor do cartão tem que ser maior que zero.',
         ], [
             'data_inicio' => 'início', 'data_fim' => 'fim',
         ]);
@@ -137,7 +174,21 @@ class PromocaoController extends Controller
             if ($item['tipo'] === 'percentual' && (float) $item['valor'] >= 100) {
                 $erros["itens.{$i}.valor"] = "{$produto->descricao}: o desconto tem que ser menor que 100%.";
             }
-            $referencia = $tabela->precosSemPromocao($produto, $config)['dinheiro_pix'];
+            $normais = $tabela->precosSemPromocao($produto, $config);
+            $referencia = $normais['dinheiro_pix'];
+            if ($referencia <= 0) {
+                $erros["itens.{$i}.produto_id"] = "{$produto->descricao}: está sem preço (R$ 0,00) — não dá para entrar em promoção.";
+                continue;
+            }
+            $cartaoTipo = $item['cartao_tipo'] ?? null;
+            if ($cartaoTipo === 'percentual' && (float) ($item['cartao_valor'] ?? 0) >= 100) {
+                $erros["itens.{$i}.cartao_valor"] = "{$produto->descricao}: o desconto do cartão tem que ser menor que 100%.";
+            }
+            if ($cartaoTipo === 'preco' && (float) ($item['cartao_valor'] ?? 0) >= $normais['credito']) {
+                $erros["itens.{$i}.cartao_valor"] = "{$produto->descricao}: o preço do cartão na promoção (R$ "
+                    . number_format((float) $item['cartao_valor'], 2, ',', '.') . ') não é menor que o do cartão normal (R$ '
+                    . number_format($normais['credito'], 2, ',', '.') . ').';
+            }
             if ($item['tipo'] === 'preco' && (float) $item['valor'] >= $referencia) {
                 $erros["itens.{$i}.valor"] = "{$produto->descricao}: o preço da promoção (R$ "
                     . number_format((float) $item['valor'], 2, ',', '.') . ') não é menor que o preço à vista (R$ '
@@ -174,11 +225,16 @@ class PromocaoController extends Controller
 
             foreach ($dados['itens'] as $item) {
                 $produto = $produtos->get((int) $item['produto_id']);
+                $normais = $tabela->precosSemPromocao($produto, $config);
+                $temCartao = ! empty($item['cartao_tipo']) && (float) ($item['cartao_valor'] ?? 0) > 0;
                 $promocao->itens()->create([
                     'produto_id' => $produto->id,
                     'tipo' => $item['tipo'],
                     'valor' => round((float) $item['valor'], 2),
-                    'preco_referencia' => $tabela->precosSemPromocao($produto, $config)['dinheiro_pix'],
+                    'preco_referencia' => $normais['dinheiro_pix'],
+                    'cartao_tipo' => $temCartao ? $item['cartao_tipo'] : null,
+                    'cartao_valor' => $temCartao ? round((float) $item['cartao_valor'], 2) : null,
+                    'preco_cartao_referencia' => $normais['credito'],
                 ]);
             }
 
@@ -195,12 +251,14 @@ class PromocaoController extends Controller
         $config = ConfiguracaoLoja::daUnidade();
 
         $linhas = $promocao->itens->map(function ($item) use ($tabela, $config) {
-            $atual = $item->produto ? $tabela->precosSemPromocao($item->produto, $config)['dinheiro_pix'] : null;
+            $normais = $item->produto ? $tabela->precosSemPromocao($item->produto, $config) : null;
 
             return [
                 'item' => $item,
-                'preco_atual' => $atual,
-                'preco_promocao' => $atual !== null ? $item->precoPromocional($atual) : null,
+                'preco_atual' => $normais['dinheiro_pix'] ?? null,
+                'preco_promocao' => $normais ? $item->precoPromocional($normais['dinheiro_pix']) : null,
+                'cartao_atual' => $normais['credito'] ?? null,
+                'cartao_promocao' => $normais ? $item->precoCartaoPromocional($normais['credito']) : null,
             ];
         });
 
@@ -250,13 +308,11 @@ class PromocaoController extends Controller
 
         return $promocao->itens
             ->filter(fn ($i) => $i->produto && ($i->produto->status ?? 'ativo') === 'ativo')
-            ->map(fn ($i) => [
-                'produto_id' => $i->produto_id,
-                'descricao' => $i->produto->descricao,
-                'codigo' => $i->produto->codigo_barras ?: ($i->produto->codigo_interno ?: $i->produto->sku),
-                'preco_referencia' => $tabela->precosSemPromocao($i->produto, $config)['dinheiro_pix'],
+            ->map(fn ($i) => $this->linhaProduto($i->produto, $tabela, $config) + [
                 'tipo' => $i->tipo,
                 'valor' => (float) $i->valor,
+                'cartao_tipo' => $i->temCartao() ? $i->cartao_tipo : '',
+                'cartao_valor' => $i->temCartao() ? (float) $i->cartao_valor : '',
             ])->values()->all();
     }
 }

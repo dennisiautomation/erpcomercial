@@ -294,6 +294,92 @@ class PromocaoTest extends TestCase
         $this->assertSame([$vigente->id], Promocao::withoutGlobalScopes()->pluck('id')->all());
     }
 
+    /* ---------------- cartão por produto + todos os produtos (05/11, STILO) ---------------- */
+
+    private function promoComCartao(string $cartaoTipo, float $cartaoValor): Promocao
+    {
+        $p = $this->promocao([[$this->produto, 'percentual', 20]], [$this->unidade]);
+        $p->itens()->first()->update(['cartao_tipo' => $cartaoTipo, 'cartao_valor' => $cartaoValor]);
+
+        return $p;
+    }
+
+    public function test_cartao_em_reais_vale_para_debito_e_credito(): void
+    {
+        $this->promoComCartao('preco', 90);
+
+        $this->assertEquals(
+            ['dinheiro_pix' => 80.0, 'debito' => 90.0, 'credito' => 90.0, 'atacado' => 100.0],
+            $this->precos($this->produto, $this->unidade)
+        );
+    }
+
+    public function test_cartao_em_percentual_sobre_o_normal_de_cada_um(): void
+    {
+        $this->promoComCartao('percentual', 15); // débito normal 105, crédito normal 110
+
+        $p = $this->precos($this->produto, $this->unidade);
+        $this->assertSame(80.0, $p['dinheiro_pix']);
+        $this->assertSame(89.25, $p['debito']);
+        $this->assertSame(93.5, $p['credito']);
+    }
+
+    public function test_assistente_grava_o_cartao_e_valida(): void
+    {
+        $u = $this->actingAsUser($this->dono, $this->unidade);
+        $itens = fn (array $extra) => ['itens' => [['produto_id' => $this->produto->id, 'tipo' => 'percentual', 'valor' => 20] + $extra]];
+
+        // Cartão maior ou igual ao cartão normal (110)
+        $u->post(route('app.promocoes.store'), $this->payload($itens(['cartao_tipo' => 'preco', 'cartao_valor' => 110])))
+            ->assertSessionHasErrors('itens.0.cartao_valor');
+        // % de 100
+        $u->post(route('app.promocoes.store'), $this->payload($itens(['cartao_tipo' => 'percentual', 'cartao_valor' => 100])))
+            ->assertSessionHasErrors('itens.0.cartao_valor');
+        // Escolheu cartão e não pôs valor
+        $u->post(route('app.promocoes.store'), $this->payload($itens(['cartao_tipo' => 'preco', 'cartao_valor' => ''])))
+            ->assertSessionHasErrors('itens.0.cartao_valor');
+        $this->assertSame(0, Promocao::withoutGlobalScopes()->count());
+
+        // Certo: cartão R$ 95; e outro produto pela regra da loja (vazio)
+        $u->post(route('app.promocoes.store'), $this->payload(['itens' => [
+            ['produto_id' => $this->produto->id, 'tipo' => 'percentual', 'valor' => 20, 'cartao_tipo' => 'preco', 'cartao_valor' => 95],
+            ['produto_id' => $this->outro->id, 'tipo' => 'preco', 'valor' => 39.9, 'cartao_tipo' => '', 'cartao_valor' => ''],
+        ]]))->assertSessionHasNoErrors();
+
+        $p = Promocao::withoutGlobalScopes()->with('itens')->sole();
+        $i1 = $p->itens->firstWhere('produto_id', $this->produto->id);
+        $i2 = $p->itens->firstWhere('produto_id', $this->outro->id);
+        $this->assertSame('preco', $i1->cartao_tipo);
+        $this->assertEquals(95, $i1->cartao_valor);
+        $this->assertEquals(110, $i1->preco_cartao_referencia);
+        $this->assertNull($i2->cartao_tipo);
+
+        // Duplicar traz o cartão junto
+        $this->actingAsUser($this->dono, $this->unidade)->get(route('app.promocoes.create', ['duplicar' => $p->id]))
+            ->assertOk()->assertSee('"cartao_tipo":"preco","cartao_valor":95', false);
+        // Detalhe mostra o cartão
+        Carbon::setTestNow('2026-11-12 10:00:00');
+        $this->actingAsUser($this->dono, $this->unidade)->get(route('app.promocoes.show', $p))
+            ->assertOk()->assertSee('R$ 95,00')->assertSee('regra da loja');
+    }
+
+    public function test_todos_os_produtos_sem_buscar_e_sem_os_de_preco_zero(): void
+    {
+        $brinde = $this->createProduto($this->empresa, ['descricao' => 'Brinde Esmalte', 'preco_venda' => 0]);
+        $this->createProduto($this->empresa, ['descricao' => 'Inativo', 'preco_venda' => 30, 'status' => 'inativo']);
+
+        $r = $this->actingAsUser($this->dono, $this->unidade)->getJson(route('app.promocoes.todos-produtos'))->assertOk()->json();
+        $ids = collect($r['itens'])->pluck('produto_id')->all();
+        $this->assertEqualsCanonicalizing([$this->produto->id, $this->outro->id], $ids);
+        $this->assertSame(1, $r['sem_preco']);
+        $this->assertEquals(110, collect($r['itens'])->firstWhere('produto_id', $this->produto->id)['preco_cartao_referencia']);
+
+        // E o servidor recusa produto sem preço, se vier
+        $this->actingAsUser($this->dono, $this->unidade)->post(route('app.promocoes.store'), $this->payload(['itens' => [
+            ['produto_id' => $brinde->id, 'tipo' => 'percentual', 'valor' => 10],
+        ]]))->assertSessionHasErrors('itens.0.produto_id');
+    }
+
     /* ---------------- agente WhatsApp ---------------- */
 
     public function test_agente_informa_e_vende_pelo_preco_da_promocao_da_loja(): void

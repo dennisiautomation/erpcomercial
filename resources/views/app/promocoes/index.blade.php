@@ -11,7 +11,7 @@
 <div class="page-header">
     <div>
         <h4><i class="bi bi-megaphone me-2"></i>Promoções</h4>
-        <div class="subtitle">Preço promocional por período, nas lojas escolhidas. O preço da promoção é o à vista; o cartão leva o acréscimo da loja.</div>
+        <div class="subtitle">Preço promocional por período, nas lojas escolhidas: à vista e no cartão de cada produto.</div>
     </div>
     <a href="{{ route('app.promocoes.create') }}" class="btn btn-erp btn-erp-primary">
         <i class="bi bi-plus-lg me-1"></i> Nova promoção

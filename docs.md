@@ -7843,3 +7843,26 @@ usa cache de rotas — rota nova sem isso dá 404), `view:cache` 0 erro, USR2, `
 sem login, 8 rotas, 0 promoções; **194 preços de 8 lojas iguais com e sem a camada de promoção**; renderizado como Pedro (dono STILO:
 lista, assistente, 7 lojas) e Maria Isanara (gerente DK: 1 loja); busca do PDV traz o campo `promocao`; 0 erro novo no log.
 Rollback = foto (as tabelas novas podem ficar) ou `…/arquivos/` + apagar os de `novos.txt` + `route:cache` + `view:cache` + USR2 + `queue:restart`.
+
+### Promoções: preço do CARTÃO por produto + "Adicionar todos os produtos" (05/11/2026, pedido do Pedro/STILO) — branch `promocoes-cartao-todos-05nov`
+Print do Pedro (STILO, 01 Matriz JS): "o adicionar todos tem que adicionar todos os produtos sem buscar e na próxima tela temos que
+ter a opção de valor à vista e no cartão definir o valor de cada um".
+- Migration `2026_11_05_170000_add_cartao_to_promocao_itens`: `cartao_tipo` (preco|percentual, null = **regra da loja**),
+  `cartao_valor`, `preco_cartao_referencia` (crédito normal quando montada).
+- **Preço** (`TabelaPrecoService::precosDoProduto`): com cartão definido, débito e crédito = R$ fixo, ou % sobre o normal de CADA
+  um (débito normal × (1 − %), crédito normal × (1 − %)); sem cartão, como antes (acréscimo da loja sobre o à vista da promoção).
+  Nunca sobe preço (`min` com o normal).
+- **Assistente:** passo 3 ganhou **"Adicionar todos os produtos da loja"** (`GET promocoes/todos-produtos`: todos os ativos da empresa,
+  **sem os de preço R$ 0,00** — os brindes da STILO — com aviso de quantos ficaram de fora); "Adicionar todos" virou "Adicionar os
+  resultados"; resultado sem preço aparece como "sem preço". Passo 4: colunas **À vista** (normal, como, valor, fica por) e
+  **Cartão** (normal = crédito da loja, Regra da loja/%/R$, valor, fica por); em lote: "% à vista para todos", "% no cartão para
+  todos" e "Cartão pela regra da loja em todos". Revisão e detalhe mostram de/por do à vista e do cartão. Duplicar e "usar a lista da
+  última" trazem o cartão.
+- **Servidor:** recusa produto sem preço, cartão ≥ cartão normal, % do cartão ≥ 100 e cartão escolhido sem valor.
+- **Agente:** bloco `promocao` ganhou `preco_cartao_promocional` (crédito com a promoção).
+- Observação: na regra de split `por_parte` o item fica sempre no à vista e o acréscimo vai no pagamento — o cartão definido na
+  promoção não entra nessa regra (nenhuma loja da STILO usa).
+
+**Validação:** `PromocaoTest` **20 ✅** (+4: cartão R$, cartão %, gravar/validar/duplicar/detalhe, todos os produtos sem os de R$ 0);
+suíte **277 ✅ / 2 ❌** (os 2 pré-existentes); navegador `validar-promocoes-05nov.browser.py` **49 ✅ / 0 ❌** (cs-*, brinde de R$ 0 de
+teste criado e apagado, promoções de teste apagadas).

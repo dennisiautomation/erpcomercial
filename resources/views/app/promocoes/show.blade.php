@@ -48,7 +48,7 @@
 <div class="erp-card">
     <div class="card-body p-0">
         <div class="px-3 pt-3 small text-muted">
-            Preços à vista (Dinheiro/PIX) desta loja hoje. No cartão vale o acréscimo da regra de cada loja.
+            Preços desta loja hoje. Cartão "regra da loja": cada loja soma o acréscimo do cartão sobre o à vista da promoção.
         </div>
         <div class="table-responsive">
             <table class="erp-table">
@@ -56,9 +56,11 @@
                     <tr>
                         <th>Produto</th>
                         <th>Código</th>
-                        <th class="text-end">Promoção</th>
-                        <th class="text-end">Preço normal</th>
-                        <th class="text-end">Preço na promoção</th>
+                        <th class="text-end">Promoção à vista</th>
+                        <th class="text-end">À vista normal</th>
+                        <th class="text-end">À vista na promoção</th>
+                        <th class="text-end">Cartão normal</th>
+                        <th class="text-end">Cartão na promoção</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -72,6 +74,15 @@
                             </td>
                             <td class="text-end text-muted">{{ $brl($l['preco_atual']) }}</td>
                             <td class="text-end"><strong>{{ $brl($l['preco_promocao']) }}</strong></td>
+                            <td class="text-end text-muted">{{ $brl($l['cartao_atual']) }}</td>
+                            <td class="text-end">
+                                @if($item->temCartao())
+                                    <strong>{{ $brl($l['cartao_promocao']) }}</strong>
+                                    @if($item->cartao_tipo === 'percentual')<span class="small text-muted">({{ number_format((float) $item->cartao_valor, 2, ',', '.') }}%)</span>@endif
+                                @else
+                                    <span class="small text-muted">regra da loja</span>
+                                @endif
+                            </td>
                         </tr>
                     @endforeach
                 </tbody>

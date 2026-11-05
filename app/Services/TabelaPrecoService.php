@@ -53,7 +53,8 @@ class TabelaPrecoService
      * promoção do dia quando houver (05/11/2026). É por aqui que PDV, pedido, busca do
      * orçamento, etiqueta e troca leem o preço — a promoção vale em todos sem mexer neles.
      *
-     * Promoção = preço À VISTA (Dinheiro/PIX). O cartão leva a regra da loja por cima:
+     * Promoção = preço À VISTA (Dinheiro/PIX). Se a promoção define o CARTÃO do produto (R$ ou %
+     * sobre o normal — 05/11/2026), vale ele; senão o cartão leva a regra da loja por cima:
      * - regra de sempre ('avista'): débito/crédito = promo + % de acréscimo da loja;
      * - regra do cartão ('cartao'): cartão = promo ÷ (1 − desconto à vista), a mesma
      *   relação que a loja usa sem promoção.
@@ -69,15 +70,17 @@ class TabelaPrecoService
             return $precos;
         }
 
-        $avista = $item->precoPromocional($precos['dinheiro_pix']);
-        if ($avista >= $precos['dinheiro_pix']) {
-            return $precos;
-        }
+        $avista = min($item->precoPromocional($precos['dinheiro_pix']), $precos['dinheiro_pix']);
 
-        if ($config->precoBaseCartao()) {
+        if ($item->temCartao()) {
+            // Cartão definido na promoção (05/11/2026): R$ fixo (débito = crédito) ou % sobre o normal de cada um
+            $debito = $item->precoCartaoPromocional($precos['debito']);
+            $credito = $item->precoCartaoPromocional($precos['credito']);
+        } elseif ($avista >= $precos['dinheiro_pix']) {
+            return $precos;
+        } elseif ($config->precoBaseCartao()) {
             $desconto = max(0.0, min(99.99, (float) $config->desconto_avista_percentual));
-            $cartao = round($avista / (1 - $desconto / 100), 2);
-            $debito = $credito = $cartao;
+            $debito = $credito = round($avista / (1 - $desconto / 100), 2);
         } else {
             $debito = round($avista * (1 + ((float) $config->percentual_debito) / 100), 2);
             $credito = round($avista * (1 + ((float) $config->percentual_credito) / 100), 2);

@@ -16,6 +16,8 @@ SHOTS = os.environ.get("SHOTS", "/s/out-promocoes-05nov")
 os.makedirs(SHOTS, exist_ok=True)
 OK = FAIL = 0
 HOJE = datetime.date.today()
+ESPERADO_TODOS = int(os.environ.get("ESPERADO_TODOS", "0"))  # produtos ativos com preço > 0 da empresa demo
+SEM_PRECO = int(os.environ.get("SEM_PRECO", "0"))
 NOME = "VAL05NOV Promo Teste"
 
 
@@ -95,18 +97,32 @@ with sync_playwright() as pw:
     check("10% em todos: Mouse fica por R$ 539,91", "R$ 539,91" in txt, txt)
     # Notebook em preço fixo
     linha_nb = page.locator("#promo-tabela-precos tr", has_text="Notebook")
-    linha_nb.locator("select").select_option("preco")
-    linha_nb.locator("input").fill("4500")
+    linha_nb.locator("select[data-tipo]").select_option("preco")
+    linha_nb.locator("input[data-valor]").fill("4500")
     check("Notebook por R$ 4.500,00", "R$ 4.500,00" in linha_nb.inner_text(), linha_nb.inner_text())
+    # Cartão (05/11, STILO): Notebook R$ 4.700 no cartão; Mouse 5% sobre o cartão normal
+    check("cartão começa na regra da loja", "regra da loja" in linha_nb.inner_text(), linha_nb.inner_text())
+    linha_nb.locator("select[data-cartao-tipo]").select_option("preco")
+    linha_nb.locator("input[data-cartao-valor]").fill("4700")
+    check("Notebook cartão por R$ 4.700,00", "R$ 4.700,00" in linha_nb.inner_text(), linha_nb.inner_text())
+    linha_ms = page.locator("#promo-tabela-precos tr", has_text="Mouse")
+    linha_ms.locator("select[data-cartao-tipo]").select_option("percentual")
+    n = len(dialogos)
+    page.click("#promo-avancar")
+    check("cartão escolhido sem valor não avança", len(dialogos) == n + 1 and "cartão" in dialogos[-1], dialogos[-1:])
+    linha_ms.locator("input[data-cartao-valor]").fill("5")
+    check("Mouse cartão 5% = R$ 569,91", "R$ 569,91" in linha_ms.inner_text(), linha_ms.inner_text())
     page.click("#promo-avancar")
     rev = page.inner_text("#promo-revisao")
     check("revisão: nome, período e loja", NOME in rev and "Loja Centro" in rev and HOJE.strftime("%d/%m/%Y") in rev, rev)
     check("revisão: de/por", "R$ 599,90" in rev and "R$ 539,91" in rev, rev)
+    check("revisão: cartão R$ 4.700,00 e R$ 569,91", "R$ 4.700,00" in rev and "R$ 569,91" in rev, rev)
     page.screenshot(path=f"{SHOTS}/1-revisao.png", full_page=True)
     page.click("#promo-salvar")
     page.wait_for_load_state("networkidle")
     check("salvou e abriu a promoção", "/app/promocoes/" in page.url and "criada com 2 produto" in page.content(), page.url)
     check("tela da promoção: Em andamento + R$ 539,91", "Em andamento" in page.content() and "R$ 539,91" in page.content())
+    check("tela da promoção: cartão R$ 4.700,00 e R$ 569,91", "R$ 4.700,00" in page.content() and "R$ 569,91" in page.content())
     id1 = re.search(r"/app/promocoes/(\d+)", page.url).group(1)
     page.screenshot(path=f"{SHOTS}/2-promocao.png", full_page=True)
 
@@ -115,6 +131,7 @@ with sync_playwright() as pw:
     mouse = next((p for p in r if "Mouse" in p["descricao"]), {})
     check("PDV: Mouse com aviso de promoção", mouse.get("promocao") == NOME, mouse.get("promocao"))
     check("PDV: Mouse R$ 539,91 no Dinheiro/PIX", abs(float(mouse.get("precos", {}).get("dinheiro_pix", 0)) - 539.91) < 0.001, mouse.get("precos"))
+    check("PDV: Mouse R$ 569,91 no crédito", abs(float(mouse.get("precos", {}).get("credito", 0)) - 569.91) < 0.001, mouse.get("precos"))
 
     # ---- Duplicar com o mesmo período = bloqueado ----
     page.click("a:has-text('Duplicar')")
@@ -130,6 +147,7 @@ with sync_playwright() as pw:
     check("duplicar: 2 produtos já na lista", page.inner_text("#promo-qtd") == "2")
     page.click("#promo-avancar")
     check("duplicar: preços da original (10% e R$ 4.500)", "R$ 539,91" in page.inner_text("#promo-tabela-precos") and "R$ 4.500,00" in page.inner_text("#promo-tabela-precos"))
+    check("duplicar: cartão da original (R$ 4.700 e 5%)", "R$ 4.700,00" in page.inner_text("#promo-tabela-precos") and "R$ 569,91" in page.inner_text("#promo-tabela-precos"))
     page.click("#promo-avancar")
     page.click("#promo-salvar")
     page.wait_for_load_state("networkidle")
@@ -166,6 +184,27 @@ with sync_playwright() as pw:
     check("usar esta lista: 2 produtos", page.inner_text("#promo-qtd") == "2")
     page.click("#promo-avancar")
     check("usar esta lista: veio com os preços", "R$ 4.500,00" in page.inner_text("#promo-tabela-precos"))
+
+    # ---- Adicionar todos os produtos da loja (sem buscar) ----
+    page.goto(f"{BASE}/app/promocoes/nova")
+    page.fill("#promo-nome", NOME + " 4")
+    page.fill("#promo-inicio", iso(HOJE + datetime.timedelta(days=30)))
+    page.dispatch_event("#promo-inicio", "change")
+    page.click("#promo-avancar"); page.click("#promo-todas-lojas"); page.click("#promo-avancar")
+    n = len(dialogos)
+    page.click("#promo-add-catalogo")
+    page.wait_for_function("document.querySelector('#promo-qtd').innerText !== '0'", timeout=8000)
+    page.wait_for_timeout(300)
+    qtd = int(page.inner_text("#promo-qtd"))
+    check(f"todos os produtos com preço entraram ({qtd})", qtd == ESPERADO_TODOS, f"{qtd} x {ESPERADO_TODOS}")
+    check("aviso de quantos entraram e quantos ficaram de fora", len(dialogos) == n + 1 and f"{ESPERADO_TODOS} produto(s) adicionados" in dialogos[-1]
+          and (SEM_PRECO == 0 or f"{SEM_PRECO} sem preço" in dialogos[-1]), dialogos[-1:])
+    page.click("#promo-avancar")
+    page.fill("#promo-pct-todos", "10"); page.click("#promo-aplicar-pct")
+    page.fill("#promo-pct-cartao-todos", "5"); page.click("#promo-aplicar-pct-cartao")
+    check("% em lote no à vista e no cartão para todos", page.locator("#promo-tabela-precos select[data-cartao-tipo]").evaluate_all("els => els.every(e => e.value === 'percentual')"))
+    page.click("#promo-cartao-regra")
+    check("'Cartão pela regra da loja em todos' volta para a regra", page.locator("#promo-tabela-precos select[data-cartao-tipo]").evaluate_all("els => els.every(e => e.value === '')"))
 
     # ---- Encerrar a 1ª (modal do ERP) → PDV volta ao normal ----
     page.goto(f"{BASE}/app/promocoes/{id1}")

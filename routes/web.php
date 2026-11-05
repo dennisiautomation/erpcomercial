@@ -280,6 +280,7 @@ Route::middleware(['auth', 'suspensao', 'unidade', \App\Http\Middleware\Restring
         Route::get('/', [App\PromocaoController::class, 'index'])->name('index');
         Route::get('/nova', [App\PromocaoController::class, 'create'])->name('create');
         Route::get('/buscar-produtos', [App\PromocaoController::class, 'buscarProdutos'])->name('buscar-produtos');
+        Route::get('/todos-produtos', [App\PromocaoController::class, 'todosProdutos'])->name('todos-produtos');
         Route::post('/', [App\PromocaoController::class, 'store'])->name('store');
         Route::get('/{promocao}', [App\PromocaoController::class, 'show'])->name('show');
         Route::get('/{promocao}/itens', [App\PromocaoController::class, 'itens'])->name('itens');
