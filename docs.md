@@ -7835,5 +7835,11 @@ conflito, sem conflito, validações, duplicar/sugestão, telas/permissão/outra
 suíte completa **265 ✅ / 2 ❌** (os 2 pré-existentes); navegador `scripts/validar-promocoes-05nov.browser.py` (cs-*, servidor
 próprio na 8298 com `opcache.enable=0` — o `artisan serve` da 8297 guarda rotas velhas no opcache) **37 ✅ / 0 ❌**; promoções de teste apagadas.
 
-**Deploy (só com ordem do Dennis):** tem **migration** (3 tabelas novas, nada alterado) + arquivos novos → tar dos arquivos da branch +
-`migrate --force` + `view:cache` + USR2 + `queue:restart`; foto antes. Rollback = foto (as tabelas novas podem ficar, ninguém lê).
+**EM PRODUÇÃO 05/11/2026 08:52 BRT (ordem do Dennis "Pode subir").** Branch rebaseada sobre a `main` (só o docs.md conflitou),
+suíte de novo **273 ✅ / 2 ❌** e navegador **37 ✅** no código junto com o "Sai de" da DK. `/home/ubuntu/erp-backups/pre-promocoes-20261105/deploy-promocoes.sh`:
+os 9 arquivos alterados eram os da `main` e os 10 novos não existiam no ar; foto `erp-com-app:pre-promocoes-20261105` (`92400ea7a984`),
+arquivos antigos em `…/arquivos/`, lista dos novos em `…/novos.txt`; md5 conferido, `migrate` (3 tabelas), **`route:cache`** (produção
+usa cache de rotas — rota nova sem isso dá 404), `view:cache` 0 erro, USR2, `queue:restart`. Depois: `/login` 200, `/app/promocoes` 302
+sem login, 8 rotas, 0 promoções; **194 preços de 8 lojas iguais com e sem a camada de promoção**; renderizado como Pedro (dono STILO:
+lista, assistente, 7 lojas) e Maria Isanara (gerente DK: 1 loja); busca do PDV traz o campo `promocao`; 0 erro novo no log.
+Rollback = foto (as tabelas novas podem ficar) ou `…/arquivos/` + apagar os de `novos.txt` + `route:cache` + `view:cache` + USR2 + `queue:restart`.
