@@ -7796,4 +7796,8 @@ o dump com `erp_user` saiu vazio — o roteiro agora usa o root do container e a
 2+ estoques ativos; renderizado em produção com a Maria Isanara (DK): pedido e orçamento novos com "Escolha de onde sai… |
 Principal | São Luis" obrigatório, troca com "Entra em qual estoque?" vazio; outra empresa (2) sem o campo; 0 erro novo no log.
 **Rollback:** foto + `migrate:rollback --step=1`, ou `…/arquivos/` + `view:cache` + USR2 + `queue:restart`.
-**Não feito (aguarda OK):** ligar "Estoque na venda (PDV)" na DK e renomear `Principal` → `Teresina`. Chamado ainda aberto.
+**Ajustes de dados na DK — 05/11 08:44 BRT (ordem do Dennis "Sim, os três"):** estoque 28 `Principal` → **`Teresina`** (só o nome; código
+segue `PRINCIPAL`) e `configuracoes_loja` id 19 `pdv_escolher_estoque` false → **true** (o PDV mostra "Sai de: Teresina (venda) |
+São Luis", começando no de venda). Antes/depois em `/home/ubuntu/erp-backups/pre-dk-sai-de-20261105/ajustes-dk-dados.txt`.
+Desfazer: nome de volta para `Principal` e a chave para false.
+**Chamado** `ticket-1793821244630-y6gv8o` **concluído** 08:46 BRT no nome do Dennis (44 min); aviso entregue no grupo Suporte ERP DK.
