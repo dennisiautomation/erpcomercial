@@ -7715,9 +7715,16 @@ NF-e, com diferença na Chave de Acesso" (o número já existe na SEFAZ, com cha
 **Corrigido no banco (05/11, só sincronia com a Focus):** notas 122 (venda 11383) e 148 (venda 11501) passaram a **rejeitada** pelo
 `NFCeService::consultar`. Era a 148 que fazia o `fiscal:baixar-xmls-notas` sair com erro toda noite (404 no XML).
 
-**Pendente — decisão do Dennis (configuração, sem código):** série nova de NFC-e para as 2 empresas da STILO na Focus
-(`serie_nfce_producao` + `proximo_numero_nfce_producao = 1`, como a DK foi para a série 10) e `serie_nfce` nas configs das lojas.
-Avisar a contabilidade.
+**Série nova — FEITO 05/11/2026 ~12:30 BRT (ordem do Dennis: "testa séries menores e pode fazer"):** teste por emissão real, só com
+venda **sem cliente** (a NFC-e manda e-mail ao cliente que tem e-mail), série a série a partir da 1 com próximo nº 1:
+- **CNPJ 23.237.062/0001-17** (Focus 235712; lojas 9, 13, 14, 18): **série 1** livre → venda 11342 virou a nota 156, nº 1, autorizada.
+- **CNPJ 25.105.231/0001-90** (Focus 235729; lojas 10, 15, 16 e a 17 inativa): série 1 **já usada** (nº 1 de 07/2026, a NFC-e de teste
+  de julho — nota 157 rejeitada) → **série 3** livre → venda 11341 virou a nota 158, nº 1, autorizada.
+- As duas reconsultadas 20 s depois (seguem autorizadas, não é contingência) e o XML local baixou. Focus: próximo nº 2 nas duas.
+- `configuracoes_fiscais.serie_nfce` das 8 lojas trocado (2 → 1 ou 3, pela empresa da Focus). Antes: série 2, próx. 4612 / 4948.
+- ⚠️ Loja 17 (Barroso, inativa) tem CNPJ 23.237.062 mas está ligada à empresa Focus 235729 (25.105.231) — conferir antes de reativar.
+- Falta: avisar a contabilidade (séries 1 e 3 novas; série 2 era do Gestão Click) e decidir o que fazer com as outras ~95 vendas
+  sem NFC-e de 03–04/11 (reemitir = nota com a data de hoje).
 
 **Código (esta branch):**
 1. **Webhook** (`FocusNFeWebhookController`): com `ref`, a config é a da **loja da nota**; sem `ref`, entre as lojas do mesmo CNPJ fica a
