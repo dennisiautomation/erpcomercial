@@ -7735,3 +7735,9 @@ venda **sem cliente** (a NFC-e manda e-mail ao cliente que tem e-mail), série a
 
 **Validação:** `tests/Feature/Fiscal/WebhookMesmoCnpjTest.php` **6 ✅** (com o código da `main`: **4 ❌**) + `WebhookTest` 6 ✅;
 ambiente isolado `erp-suite-*` (rede 10.61.0.0/24).
+
+**EM PRODUÇÃO 05/11/2026 07:46 BRT (ordem do Dennis "Pode subir").** `/home/ubuntu/erp-backups/pre-stilo-webhook-xml-20261105/deploy-stilo-webhook-xml.sh`:
+os 4 arquivos do ar eram os da `main` (conferido), foto `erp-com-app:pre-stilo-webhook-xml-20261105` e arquivos antigos em `…/arquivos/`,
+md5 conferido, USR2 no php-fpm + `queue:restart` (2 `queue:work` novos). Depois: `/login` 200; `fiscal:baixar-xmls-notas` **exit 0**
+(21 já existiam, 0 indisponíveis); webhook na produção com a nota 148 (loja 16) e o mesmo status que ela já tinha: segredo da loja 16
+**200** (antes 401), da loja 10 (mesmo CNPJ) **401**, errado **401**; 0 erro novo no laravel.log. Rollback = a foto, ou `…/arquivos/` + USR2 + `queue:restart`.
