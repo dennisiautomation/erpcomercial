@@ -7595,7 +7595,7 @@ rollback = foto `erp-com-app:pre-etiqueta-editor-20261104` ou `…/arquivos/` + 
 
 
 
-## Busca de Produtos e filtro de Gerar Etiquetas com a regra do PDV (05/11/2026) — branch `busca-produtos-etiquetas-05nov`, NÃO deployada
+## Busca de Produtos e filtro de Gerar Etiquetas com a regra do PDV (05/11/2026) — branch `busca-produtos-etiquetas-05nov` — EM PRODUÇÃO 09:55 BRT
 
 **Relato (vídeo da STILO, 04/11 20:41):** no PDV a busca acha "short saia", "calca", "biquini" do jeito que se digita; na
 tela de **Produtos** e na de **Gerar Etiquetas** só achava digitando igual ao cadastro ("Short / Saia…", "CALÇA", "Biquíni").
@@ -7619,3 +7619,7 @@ Lint PHP + 254 views compiladas 0 erro.
 **Deploy (só com ordem do Dennis):** 2 arquivos, sem migration — `/home/ubuntu/erp-backups/pre-busca-produtos-etiquetas-20261105/deploy-busca-produtos-etiquetas.sh`
 (aborta se o arquivo do ar não for o da `main` — armadilha 82; guarda os arquivos do ar em `…/arquivos/` e tira a foto
 `erp-com-app:pre-busca-produtos-etiquetas-20261105`). Rollback = a foto ou `…/arquivos/` + `view:cache` + USR2.
+
+**EM PRODUÇÃO 05/11/2026 09:55 BRT (ordem do Dennis "Pode subir").** Os 2 arquivos do ar eram os da `main` (conferido pelo script),
+foto `erp-com-app:pre-busca-produtos-etiquetas-20261105` e arquivos antigos em `…/arquivos/`; commit `8e5976e` (md5 conferido),
+views 0 erro, `/login` 200, 0 erro novo no laravel.log. Mesclada na `main` (fast-forward) e pushada.
