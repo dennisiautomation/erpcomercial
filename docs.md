@@ -7685,5 +7685,21 @@ cancelar uma troca já realizada. Branch sobre a `main` = produção (`afcf780`)
 - ⚠️ Pegadinha de ambiente: o `php artisan serve` do `cs-app` roda com opcache sem validar timestamps — **depois de editar PHP, reiniciar o serve**, senão testa código velho.
 - **Antes do deploy:** consulta só-leitura na produção (quantas devoluções têm `valor_abatido_parcelas > 0`), foto da imagem, migration `--force`, `view:cache`, USR2, e mesclar na `main` (armadilha 52).
 
+## PDV: bipe deixava a quantidade em 2 (e outros efeitos do leitor) — branch `correcao-bipe` (03/11/2026) — **EM PRODUÇÃO 03/11/2026**
+
+**Relato (STILO VINTE):** ao bipar, a quantidade do item vai sozinha para 2. Só o PDV soma +1 ao reler um produto já na lista (`addProduto`).
+Nos logs de acesso (03/11, 6 IPs da STILO) 8 de 22 bipes completos tiveram 2ª adição em ≤6 s: 3 sem nova leitura (2–3 s depois, um IP) e 5 com nova leitura em 1–2 s.
+Dados da STILO limpos: 648 produtos, 0 códigos repetidos, 0 buscas ambíguas.
+
+**Defeitos reproduzidos (leitor simulado em Chrome, JS real do PDV) e corrigidos em `pdv/index.blade.php`:**
+1. **Lista de busca reaparecia depois de cada bipe** — o Enter adiciona e limpa o campo, mas a busca por texto (debounce 300 ms) ainda disparava e reabria a lista com o produto; tocar nela = +1.
+   Agora `cancelarBuscaPendente()` no bipe e `searchSeq` descarta resposta velha (`searchProdutos` só mostra se o campo ainda é o termo).
+2. **Quantidade virava o código de barras** — com o foco na caixinha de quantidade, os dígitos do leitor entravam nela. Agora rajada rápida + Enter nessa caixinha é tratada como leitura (restaura o valor, solta o foco, adiciona o produto). Digitar a quantidade à mão continua igual.
+3. **Enter do leitor apertava o botão com foco** (abriu o modal de pagamento no meio da bipagem) — `preventDefault` + `blur`.
+4. **Releitura do leitor (modo contínuo/apresentação):** o mesmo código em <300 ms (janela deslizante) conta como UM bipe. **Muda comportamento:** dois bipes legítimos do mesmo item com menos de 300 ms entre si contam como um.
+
+**Não consegui provar** qual causa o operador da STILO vê quando diz "sem clicar": se a lista reaparecendo (3 casos no log têm esse desenho) ou o leitor relendo (5 casos). Teste de campo: bipar uma etiqueta no Bloco de Notas — se o código sair 2×, é o leitor.
+**Validação:** `scripts/validar-pdv-bipe-03nov.mjs` (navegador, ambiente descartável `cs-*`) **13 ✅ / 0 ❌** (antes da correção: lista reabria, quantidade virava o código, Enter abria o pagamento). Só JavaScript; sem migration; deploy = arquivo + `view:cache` + USR2.
+
 ### Deploy (03/11/2026)
 docker cp dos arquivos (container conferido = main, md5 um a um) + migration + route:cache + view:cache + USR2 + queue:restart, 03/11 ~20:15 UTC (17:15 BRT). Foto erp-com-app:pre-bipe-pagamento-20261103-2014; backup e script em /home/ubuntu/erp-backups/pre-bipe-pagamento-20261103-2014/. Pós-deploy: 14 arquivos = branch, 4 colunas novas, rota trocas.cancelar no ar, /app/pdv, /app/trocas e /app/pedidos 200 (dono STILO), views com erro 0, /login 200. **Pendente: mesclar os PRs #8 e #9 na main** (rebuild sem isso desfaz — armadilha 52).
