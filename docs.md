@@ -6615,6 +6615,14 @@ Lote de correções na branch `fix/auditoria-bugs-mai2026`, após varredura de s
     mesmo jeito**: o PDV fecha a conta na tela e o servidor reprecifica; se divergirem, a venda volta "Pagamento
     insuficiente" (o vale da troca era 'cadastro' no servidor e não entrava na conta da tela).
 
+95. **Os scripts de validação dividem o MESMO banco descartável (`cs-mysql`/`erp_teste`) e mexem nele** (05/11/2026). Um
+    script muda o que o outro espera: o do pedido (03/11) põe o produto 3 a R$ 299,90 com cartão fixo, e o do editor de etiqueta
+    (04/11) espera "Saia Chita" a R$ 45,00; o editor salva o layout do formato 7 durante o teste (a rodada seguinte já parte de
+    outro desenho); o usuário 4 estava "Vendedor Demo", mas os de troca de vendedor esperam "Carlos Oliveira". Isso dá ❌ falso.
+    Antes de chamar um ❌ de regressão, confira o preparo do script contra o banco e devolva o estado que ele espera (o layout da
+    STILO usado em 04/11 estava em `layout13.json`, no scratchpad daquela sessão). Script novo: preparar e desfazer os próprios
+    dados (ex.: `sku VAL05NOV*`), não depender de registro do seed que outro script altera.
+
 ## Próximos passos
 
 ### Estado do repositório (25/10/2026)
@@ -7623,3 +7631,14 @@ Lint PHP + 254 views compiladas 0 erro.
 **EM PRODUÇÃO 05/11/2026 09:55 BRT (ordem do Dennis "Pode subir").** Os 2 arquivos do ar eram os da `main` (conferido pelo script),
 foto `erp-com-app:pre-busca-produtos-etiquetas-20261105` e arquivos antigos em `…/arquivos/`; commit `8e5976e` (md5 conferido),
 views 0 erro, `/login` 200, 0 erro novo no laravel.log. Mesclada na `main` (fast-forward) e pushada.
+
+### Rodada de testes depois do deploy (05/11/2026, ~10:30 BRT) — código da `main` `685327d` (= produção)
+- **phpunit completo** (ambiente isolado `erp-suite-*`, rede própria 10.61.0.0/24, mysql + pgvector, vendor dev em cache
+  `erp-validacao/.vendor/ce58aab910b2`): **243 ✅ / 2 ❌**, os 2 pré-existentes de sempre (PdvTest fechamento, LoginTest trava).
+- **Scripts das entregas recentes** (ambiente `cs-*`): busca Produtos/Etiquetas 05/11 **28 ✅**; relatório do gerente + etiqueta
+  04/11 **31 ✅**; DONA DOURO busca/permissão 04/11 **38 ✅**; editor de etiqueta 04/11 **15 ✅**; Credishop 03/11 **24 ✅**; trocar
+  vendedor da venda 03/11 **23 ✅**; trocar vendedor do pedido 03/11 **17 ✅**; pedido repreça pela condição 03/11 **19 ✅**. Todos 0 ❌.
+  Na 1ª passada, 4 deles deram ❌ por causa do estado do banco de teste (armadilha 95), não do código; tudo verde depois de
+  devolver o estado que cada um espera.
+- Fora da rodada: `validar-pdv-troca-01nov.mjs` (precisa do ambiente `pct-*` + puppeteer, que não estão no ar).
+
