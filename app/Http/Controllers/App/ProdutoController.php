@@ -21,12 +21,22 @@ class ProdutoController extends Controller
         $query = Produto::with(['categoria:id,nome', 'precos:id,produto_id,modalidade,valor']);
 
         if ($request->filled('busca')) {
-            $busca = $request->busca;
-            $query->where(function ($q) use ($busca) {
-                $q->where('descricao', 'like', "%{$busca}%")
-                  ->orWhere('codigo_barras', 'like', "%{$busca}%")
-                  ->orWhere('sku', 'like', "%{$busca}%")
-                  ->orWhere('codigo_interno', 'like', "%{$busca}%");
+            // Mesma regra do PDV (PdvController::buscarProdutosDaEmpresa): descrição por palavras, em
+            // qualquer ordem e com qualquer espaçamento/traço/barra entre elas ("short saia" acha
+            // "Short / Saia ..."). Acento e cedilha o banco já ignora (utf8mb4_unicode_ci). Códigos
+            // seguem pelo termo inteiro, por pedaço, como antes.
+            $busca = trim(preg_replace('/\s+/u', ' ', $request->busca));
+            $termo = '%' . addcslashes($busca, '%_\\') . '%';
+            $palavras = array_values(array_filter(preg_split('/[\s\/\-]+/u', $busca), fn ($p) => $p !== ''));
+            $query->where(function ($q) use ($termo, $palavras) {
+                $q->where(function ($q2) use ($palavras) {
+                    foreach ($palavras as $p) {
+                        $q2->where('descricao', 'like', '%' . addcslashes($p, '%_\\') . '%');
+                    }
+                })
+                  ->orWhere('codigo_barras', 'like', $termo)
+                  ->orWhere('sku', 'like', $termo)
+                  ->orWhere('codigo_interno', 'like', $termo);
             });
         }
 

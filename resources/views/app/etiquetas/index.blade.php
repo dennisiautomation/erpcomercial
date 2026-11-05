@@ -306,7 +306,7 @@
                     </thead>
                     <tbody id="tabelaProdutos">
                         @foreach($produtos as $index => $produto)
-                            <tr class="produto-row" data-descricao="{{ strtolower($produto->descricao) }}" data-codigo="{{ strtolower($produto->codigo_interno ?? '') }}" data-barras="{{ strtolower($produto->codigo_barras ?? '') }}">
+                            <tr class="produto-row" data-descricao="{{ mb_strtolower($produto->descricao) }}" data-codigo="{{ mb_strtolower($produto->codigo_interno ?? '') }}" data-barras="{{ mb_strtolower($produto->codigo_barras ?? '') }}">
                                 <td class="text-center">
                                     <input type="checkbox" class="form-check-input produto-check" data-index="{{ $index }}" value="{{ $produto->id }}">
                                 </td>
@@ -379,14 +379,19 @@ document.addEventListener('DOMContentLoaded', function() {
     const btnSelecionarTodos = document.getElementById('btnSelecionarTodos');
     const btnLimparSelecao = document.getElementById('btnLimparSelecao');
 
-    // Filtro de busca
+    // Filtro de busca — mesma regra do PDV: sem acento/cedilha, descrição por palavras em qualquer
+    // ordem (traço, barra e espaço duplo não contam); códigos pelo termo inteiro.
+    const semAcento = s => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+    rows.forEach(row => { row._desc = semAcento(row.dataset.descricao); });
     buscaInput.addEventListener('input', function() {
-        const termo = this.value.toLowerCase();
+        const termo = semAcento(this.value).trim();
+        const palavras = termo.split(/[\s\/\-]+/).filter(Boolean);
         rows.forEach(row => {
-            const desc = row.dataset.descricao;
             const cod = row.dataset.codigo;
             const barras = row.dataset.barras;
-            const match = desc.includes(termo) || cod.includes(termo) || barras.includes(termo);
+            const match = termo === ''
+                || palavras.every(p => row._desc.includes(p))
+                || cod.includes(termo) || barras.includes(termo);
             row.style.display = match ? '' : 'none';
         });
     });

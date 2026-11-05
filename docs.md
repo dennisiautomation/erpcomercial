@@ -7564,7 +7564,7 @@ Conferido em produção (só leitura): "linha zirconia" na DONA DOURO acha o "AN
 Mesclada na `main` (fast-forward) e pushada.
 
 
-## Editor de etiqueta: "não deixa desativar nem aumentar" (04/11/2026) — branch `etiqueta-editor-checkbox-barras-04nov`, NÃO deployada
+## Editor de etiqueta: "não deixa desativar nem aumentar" (04/11/2026) — branch `etiqueta-editor-checkbox-barras-04nov` — EM PRODUÇÃO ~18:15 BRT
 
 **Relato (Dennis, print do editor da STILO como Pedro):** não conseguia alterar, desativar nem aumentar itens; e a etiqueta
 não lia. Depois ele disse que "está ok, ele testou" — o que segue ficou pronto e validado, sem subir.
@@ -7593,3 +7593,29 @@ impressão sem o item desmarcado e com nome fantasia, 0 erro de JS; 254 views co
 compiladas 0 erro, `/login` 200, 0 erro no log. Script `/home/ubuntu/erp-backups/pre-etiqueta-editor-20261104/deploy-etiqueta-editor.sh`;
 rollback = foto `erp-com-app:pre-etiqueta-editor-20261104` ou `…/arquivos/` + `view:cache` + USR2. Mesclada na `main` e pushada.
 
+
+
+## Busca de Produtos e filtro de Gerar Etiquetas com a regra do PDV (05/11/2026) — branch `busca-produtos-etiquetas-05nov`, NÃO deployada
+
+**Relato (vídeo da STILO, 04/11 20:41):** no PDV a busca acha "short saia", "calca", "biquini" do jeito que se digita; na
+tela de **Produtos** e na de **Gerar Etiquetas** só achava digitando igual ao cadastro ("Short / Saia…", "CALÇA", "Biquíni").
+
+**Causa:** o PDV (`PdvController::buscarProdutosDaEmpresa`, seção da DONA DOURO de 04/11) busca palavra por palavra; acento e
+cedilha o banco já ignora (`utf8mb4_unicode_ci`). (1) `ProdutoController::index` fazia `descricao LIKE '%termo inteiro%'` — o
+"/" ou "-" entre as palavras do cadastro quebrava a busca. (2) Etiquetas filtra no navegador com `includes` do termo inteiro,
+sensível a acento; e a linha guardava `strtolower` (não baixa "Ç"/"Í"), então nem "calça" achava "CALÇA".
+
+**Fix:** (1) Produtos: descrição por palavras em qualquer ordem (separadas por espaço, "/" ou "-"; `%`/`_` escapados); código de
+barras, SKU e código interno seguem por pedaço do termo inteiro, como antes. (2) Etiquetas: `mb_strtolower` nos `data-*` e
+filtro que tira acento (`normalize('NFD')`), quebra o termo em palavras (espaço, "/", "-") e exige todas, em qualquer ordem;
+códigos pelo termo inteiro. "Selecionar todos" segue marcando só os visíveis. PDV não mexido.
+
+**Validação:** `scripts/validar-busca-produtos-etiquetas-05nov.browser.py` (Playwright, ambiente `cs-*`, 5 produtos de teste
+`sku VAL05NOV*` na empresa demo 1) **28 ✅ / 0 ❌** depois; com o código da `main` **14 ❌** (o defeito do vídeo). Casos:
+"short saia", "saia short", "short-saia", "calca", "calça pantalona", "biquini", "BIQUINI estampado", espaço duplo, código
+interno, EAN inteiro e por pedaço, "short calca" = nada, "%" não é curinga, campo vazio mostra todos, sem erro de JS.
+Lint PHP + 254 views compiladas 0 erro.
+
+**Deploy (só com ordem do Dennis):** 2 arquivos, sem migration — `/home/ubuntu/erp-backups/pre-busca-produtos-etiquetas-20261105/deploy-busca-produtos-etiquetas.sh`
+(aborta se o arquivo do ar não for o da `main` — armadilha 82; guarda os arquivos do ar em `…/arquivos/` e tira a foto
+`erp-com-app:pre-busca-produtos-etiquetas-20261105`). Rollback = a foto ou `…/arquivos/` + `view:cache` + USR2.
