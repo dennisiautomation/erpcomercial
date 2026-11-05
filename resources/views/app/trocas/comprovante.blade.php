@@ -36,6 +36,7 @@
 <hr class="line">
 <div class="titulo">COMPROVANTE DE {{ strtoupper($devolucao->tipoLabel()) }}</div>
 <div class="sub">Nº {{ $devolucao->id }} · {{ $devolucao->created_at->format('d/m/Y H:i') }}</div>
+@if($devolucao->status === 'cancelada')<div class="titulo" style="font-size:15px;border:2px solid #000;margin:4px 0;">*** CANCELADO ***</div><div class="sub">{{ $devolucao->cancelado_em?->format('d/m/Y H:i') }} — {{ $devolucao->motivo_cancelamento }}</div>@endif
 <hr class="line">
 @if($devolucao->venda)<div class="row"><span>Venda de origem:</span><span>#{{ $devolucao->venda->numero }} ({{ $devolucao->venda->created_at?->format('d/m/Y') }})</span></div>@else<div class="row"><span>Origem:</span><span>peça sem venda no sistema</span></div>@endif
 @if($devolucao->venda?->cliente)

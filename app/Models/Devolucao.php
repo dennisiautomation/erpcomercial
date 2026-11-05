@@ -49,6 +49,10 @@ class Devolucao extends Model
         'aprovado_por',
         'status',
         'observacoes',
+        'cancelado_por',
+        'cancelado_em',
+        'motivo_cancelamento',
+        'abatimentos',
     ];
 
     protected function casts(): array
@@ -58,6 +62,8 @@ class Devolucao extends Model
             'valor_sobra'            => 'decimal:2',
             'valor_abatido_parcelas' => 'decimal:2',
             'fora_politica'          => 'boolean',
+            'cancelado_em'           => 'datetime',
+            'abatimentos'            => 'array',
         ];
     }
 
@@ -118,6 +124,16 @@ class Devolucao extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function canceladoPor(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'cancelado_por');
+    }
+
+    public function estaCancelada(): bool
+    {
+        return $this->status === 'cancelada';
     }
 
     public function aprovador(): BelongsTo

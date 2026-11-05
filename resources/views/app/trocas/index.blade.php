@@ -79,7 +79,7 @@
         @forelse($devolucoes as $dev)
         <tr>
             <td class="text-nowrap"><small>{{ $dev->created_at->format('d/m/Y H:i') }}</small></td>
-            <td><span class="badge {{ $dev->tipo === 'troca' ? 'bg-info text-dark' : 'bg-warning text-dark' }}">{{ $dev->tipoLabel() }}</span>
+            <td><span class="badge {{ $dev->tipo === 'troca' ? 'bg-info text-dark' : 'bg-warning text-dark' }}">{{ $dev->tipoLabel() }}</span>@if($dev->estaCancelada()) <span class="badge bg-danger">CANCELADA</span>@endif
                 @if($dev->fora_politica)<i class="bi bi-shield-lock text-warning ms-1" title="Fora da política — {{ $dev->motivo_fora_politica }}"></i>@endif</td>
             <td>@if($dev->venda)<a href="{{ route('app.vendas.show', $dev->venda) }}">#{{ $dev->venda->numero }}</a>@else <small class="text-muted">sem venda</small>@endif</td>
             <td>{{ $dev->venda->cliente->nome_razao_social ?? 'Consumidor' }}</td>

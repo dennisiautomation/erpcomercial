@@ -7642,3 +7642,48 @@ views 0 erro, `/login` 200, 0 erro novo no laravel.log. Mesclada na `main` (fast
   devolver o estado que cada um espera.
 - Fora da rodada: `validar-pdv-troca-01nov.mjs` (precisa do ambiente `pct-*` + puppeteer, que não estão no ar).
 
+
+## Pedido fatura em Crediário e Vale + cancelar troca/devolução (03/11/2026) — branch `alteracao-pagamento-cancelamento`, **EM PRODUÇÃO 03/11/2026**
+
+Pedido do Dennis: (1) liberar nos pedidos as duas formas que só existiam no PDV — **Crediário** e **Vale**; (2) permitir
+cancelar uma troca já realizada. Branch sobre a `main` = produção (`afcf780`); nada foi deployado nem mesclado.
+
+### 1. Faturar o pedido (`PedidoController::faturar`, modal em `pedidos/show`) — commit `7315154`
+- `FORMAS_FATURAR` ganhou `crediario` e `vale`. **Crediário grava como o PDV**: conta a receber já `paga`, sem fiado em aberto
+  (fiado de verdade seria outra frente — a troca já espera parcela `pendente` em `FORMAS_ABATIVEIS`).
+- **Vale**: campo do código (botão "Consultar" usa `GET /app/pdv/vale/{codigo}`) + select "se o saldo não cobrir, pagar o restante com".
+  Servidor repete a regra do PDV (mesma empresa, ativo, validade, saldo, `lockForUpdate`) e baixa por `Vale::abater(…,'venda',$venda->id)` —
+  o cancelamento da venda já devolve o saldo. Saldo menor que o total **sem complemento recusa** (nada muda). Com complemento a venda sai
+  `misto` com 2 linhas em `pagamento_detalhes` (a do vale leva `vale_codigo` e `vale_saldo_restante`), 2 entradas no caixa e 2 contas pagas.
+- `baixarContaReceberDoPedido` agora recebe a lista de pagamentos (a conta aberta na confirmação é aproveitada pelo 1º).
+- Credishop **não** entra no Faturar (é chave da STILO, só PDV). O total do pedido continua não mudando com a forma.
+- NFC-e/NF-e: crediário sai `05`, vale `05` (Crédito Loja) pelo `FiscalPayloadBuilder` — **não emiti nota real para testar**.
+
+### 2. Cancelar troca/devolução
+- **Migration** `2026_11_03_180000_cancelar_troca`: `devolucoes.cancelado_por`, `cancelado_em`, `motivo_cancelamento`, `abatimentos` (JSON
+  `[{conta_id, valor}]`, gravado a partir de agora por `abaterParcelas`). O status `cancelada` já existia no enum desde abril e telas/relatórios já o ignoravam.
+- **`VendaCancelamentoService`** (novo): o corpo do `VendaController::destroy` foi extraído sem mudar regra, para a troca reutilizar
+  (`liberaTroca=true` só pelo cancelamento da troca; senão a venda com troca segue bloqueada).
+- **`TrocaService::cancelar()`** — tudo ou nada, em transação: cancela a **venda nova** da troca (devolve o vale que ela gastou) → tira do estoque as peças que
+  voltaram (bloqueia se o saldo não cobre: peça já revendida) → **cancela o vale** (bloqueia se foi gasto em OUTRA venda; líquido dos estornos) →
+  repõe na gaveta o dinheiro devolvido (devolução em dinheiro, ou a sobra do vale paga pela venda nova) → reabre as parcelas abatidas →
+  marca `cancelada` + quem/quando/motivo → venda de origem `devolvida` volta a `concluida`.
+- **Caixa:** a volta do dinheiro entra como **Suprimento** ("Estorno do dinheiro devolvido — cancelamento de …"), não como tipo novo — evitou `ALTER` do ENUM e mexer
+  no resumo/fechamento. Vai para o caixa de onde o dinheiro saiu, se ainda aberto; senão o caixa aberto de quem cancela; sem nenhum, recusa.
+- **Autorização:** rota `POST /app/trocas/{id}/cancelar` com `permission:trocas,criar` + motivo obrigatório. Gerente/dono/admin autoriza sozinho; vendedor/caixa
+  informam e-mail+senha de um gerente (mesma regra da troca fora da política, `troca_senha_gerente`). `cancelado_por` = quem autorizou.
+- **Telas:** botão + modal em `trocas/show` listando o que será desfeito; faixa vermelha CANCELADA; selo na lista; selo no comprovante térmico.
+- **Limite conhecido:** troca antiga que abateu parcelas (`valor_abatido_parcelas > 0` sem `abatimentos`) **não cancela sozinha** (mensagem pede ajuste à mão).
+  Como o PDV grava crediário/boleto como já pagos, deve ser raro — **medido em produção em 03/11 (só leitura): 267 devoluções, 0 com `valor_abatido_parcelas > 0`, 0 contas crediário/boleto — o limite não afeta nenhuma troca existente**.
+
+### Validação (ambiente descartável `cs-*`, mysql `erp_teste`; produção intocada)
+- `scripts/validar-pedido-crediario-vale-03nov.py` **29 ✅ / 0 ❌** (crediário; vale cobre tudo; saldo menor recusa; vale+PIX; vale inexistente/cancelado/vencido/de outra empresa/sem código;
+  `credishop` forjado; cancelar a venda devolve o saldo; dinheiro e crédito 3x como antes).
+- `scripts/validar-troca-cancelar-03nov.py` **53 ✅ / 0 ❌** (A sem venda nova, com gerente certo/errado/ausente e sem motivo; B com venda nova; C vale gasto em outra venda → recusa e depois cancela;
+  D peça já vendida; E/E2 dinheiro com e sem caixa; H sobra do vale em dinheiro; F parcelas; G cancelar venda comum refatorado + telas 200).
+- `php -l` nos PHP alterados; views compiladas (`view:cache`) sem erro. **phpunit não rodou** (a imagem não tem dev deps).
+- ⚠️ Pegadinha de ambiente: o `php artisan serve` do `cs-app` roda com opcache sem validar timestamps — **depois de editar PHP, reiniciar o serve**, senão testa código velho.
+- **Antes do deploy:** consulta só-leitura na produção (quantas devoluções têm `valor_abatido_parcelas > 0`), foto da imagem, migration `--force`, `view:cache`, USR2, e mesclar na `main` (armadilha 52).
+
+### Deploy (03/11/2026)
+docker cp dos arquivos (container conferido = main, md5 um a um) + migration + route:cache + view:cache + USR2 + queue:restart, 03/11 ~20:15 UTC (17:15 BRT). Foto erp-com-app:pre-bipe-pagamento-20261103-2014; backup e script em /home/ubuntu/erp-backups/pre-bipe-pagamento-20261103-2014/. Pós-deploy: 14 arquivos = branch, 4 colunas novas, rota trocas.cancelar no ar, /app/pdv, /app/trocas e /app/pedidos 200 (dono STILO), views com erro 0, /login 200. **Pendente: mesclar os PRs #8 e #9 na main** (rebuild sem isso desfaz — armadilha 52).

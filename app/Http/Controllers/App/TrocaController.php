@@ -165,9 +165,38 @@ class TrocaController extends Controller
 
     public function show(Devolucao $devolucao)
     {
-        $devolucao->load(['itens.produto', 'itens.estoque', 'venda.cliente', 'venda.unidade', 'vendaNova', 'vale.usos.venda', 'user', 'aprovador', 'unidade', 'caixa']);
+        $devolucao->load(['itens.produto', 'itens.estoque', 'venda.cliente', 'venda.unidade', 'vendaNova', 'vale.usos.venda', 'user', 'aprovador', 'unidade', 'caixa', 'canceladoPor']);
 
         return view('app.trocas.show', compact('devolucao'));
+    }
+
+    /** Desfaz a troca/devolução (03/11/2026) — regras em TrocaService::cancelar. */
+    public function cancelar(Request $request, Devolucao $devolucao, TrocaService $trocas)
+    {
+        $request->validate([
+            'motivo_cancelamento' => 'required|string|min:3|max:500',
+            'gerente_email'       => 'nullable|string|max:255',
+            'gerente_senha'       => 'nullable|string|max:255',
+        ], ['motivo_cancelamento.required' => 'Informe o motivo do cancelamento.']);
+
+        try {
+            $trocas->cancelar(
+                $devolucao,
+                $request->user(),
+                ConfiguracaoLoja::daUnidade((int) $devolucao->empresa_id, (int) $devolucao->unidade_id),
+                $request->motivo_cancelamento,
+                $request->gerente_email,
+                $request->gerente_senha
+            );
+        } catch (\DomainException $e) {
+            return back()->withInput($request->except('gerente_senha'))->with('error', $e->getMessage());
+        } catch (\Throwable $e) {
+            Log::error('[Trocas] Erro ao cancelar troca.', ['devolucao_id' => $devolucao->id, 'error' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+
+            return back()->with('error', 'Erro ao cancelar a troca: ' . $e->getMessage());
+        }
+
+        return redirect()->route('app.trocas.show', $devolucao)->with('success', 'Troca cancelada: estoque, vale e caixa foram desfeitos.');
     }
 
     public function comprovante(Devolucao $devolucao)

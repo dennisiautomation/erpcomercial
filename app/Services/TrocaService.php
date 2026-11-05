@@ -319,7 +319,8 @@ class TrocaService
 
             // Parcelas em aberto (crediário/boleto) são abatidas antes de
             // qualquer crédito: o cliente não leva vale enquanto ainda deve a venda.
-            $abatido = $venda ? $this->abaterParcelas($venda, $valorDevolvido, $devolucao) : 0.0;
+            $abatimentos = [];
+            $abatido = $venda ? $this->abaterParcelas($venda, $valorDevolvido, $devolucao, $abatimentos) : 0.0;
             $sobra = round($valorDevolvido - $abatido, 2);
 
             $formaSobra = 'nenhuma';
@@ -360,6 +361,7 @@ class TrocaService
                 'forma_sobra'            => $formaSobra,
                 'valor_sobra'            => max(0, $sobra),
                 'valor_abatido_parcelas' => $abatido,
+                'abatimentos'            => $abatimentos ?: null,
                 'vale_id'                => $vale?->id,
             ]);
 
@@ -425,7 +427,7 @@ class TrocaService
         return $padrao;
     }
 
-    private function abaterParcelas(Venda $venda, float $valor, Devolucao $devolucao): float
+    private function abaterParcelas(Venda $venda, float $valor, Devolucao $devolucao, array &$detalhe = []): float
     {
         $restante = $valor;
         $abatido = 0.0;
@@ -458,6 +460,7 @@ class TrocaService
             ]);
             $restante = round($restante - $abate, 2);
             $abatido = round($abatido + $abate, 2);
+            $detalhe[] = ['conta_id' => $conta->id, 'valor' => round($abate, 2)];
         }
 
         return $abatido;
@@ -497,6 +500,198 @@ class TrocaService
         ];
     }
 
+    /* ------------------------------------------------------------------ */
+    /*  Cancelamento (03/11/2026)                                          */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * Desfaz uma troca/devolução já registrada — tudo ou nada.
+     *
+     * Desfaz, na ordem: a venda nova da troca (estoque, caixa e vale dela),
+     * a peça que voltou ao estoque, o que a sobra virou (vale cancelado, dinheiro
+     * de volta à gaveta) e o abatimento das parcelas. Bloqueia, sem mexer em
+     * nada, quando o vale já foi usado em OUTRA venda, a peça já não está no
+     * estoque, não há caixa aberto para receber o dinheiro de volta, ou a venda
+     * nova tem documento fiscal vivo / outra troca em cima.
+     *
+     * @throws \DomainException
+     */
+    public function cancelar(Devolucao $devolucao, User $user, ConfiguracaoLoja $config, ?string $motivo, ?string $gerenteEmail = null, ?string $gerenteSenha = null): Devolucao
+    {
+        $motivo = trim((string) $motivo);
+        if (mb_strlen($motivo) < 3) {
+            throw new \DomainException('Informe o motivo do cancelamento.');
+        }
+
+        // Autorização: mesma regra da troca fora da política (quem já é gerente/dono
+        // autoriza sozinho; os demais digitam e-mail e senha de um gerente).
+        $aprovador = $user;
+        if ($config->troca_senha_gerente && ! $this->ehGerente($user)) {
+            $aprovador = $this->autenticarGerente((int) $devolucao->empresa_id, $gerenteEmail, $gerenteSenha, 'Cancelar uma troca');
+        }
+
+        return DB::transaction(function () use ($devolucao, $user, $aprovador, $motivo) {
+            $dev = Devolucao::withoutGlobalScopes()->lockForUpdate()->findOrFail($devolucao->id);
+            if ($dev->status !== 'concluida') {
+                throw new \DomainException('Só uma troca/devolução concluída pode ser cancelada (esta está ' . $dev->status . ').');
+            }
+            $dev->load(['itens', 'venda']);
+            $rotulo = $dev->tipoLabel() . " #{$dev->id}";
+
+            // 1. Venda nova da troca: sai primeiro (devolve o vale que ela gastou)
+            $vendaNova = $dev->venda_nova_id ? Venda::withoutGlobalScopes()->find($dev->venda_nova_id) : null;
+            if ($vendaNova && $vendaNova->status !== StatusVenda::Cancelada) {
+                $outra = Devolucao::withoutGlobalScopes()
+                    ->where('venda_id', $vendaNova->id)->where('status', '!=', 'cancelada')->where('id', '!=', $dev->id)->exists();
+                if ($outra) {
+                    throw new \DomainException("A venda nova #{$vendaNova->numero} desta troca já tem outra troca/devolução registrada. Cancele essa primeiro.");
+                }
+                $vendaNova->load('itens');
+                app(VendaCancelamentoService::class)->cancelar($vendaNova, (int) $user->id, true);
+            }
+
+            // Caixa que recebe o dinheiro de volta (só se houver dinheiro a repor)
+            $vale = $dev->vale_id ? Vale::withoutGlobalScopes()->lockForUpdate()->find($dev->vale_id) : null;
+            $usosDinheiroNova = $vale && $vendaNova
+                ? $vale->usos()->where('tipo', 'dinheiro')->where('venda_id', $vendaNova->id)->get()
+                : collect();
+            $precisaCaixa = $dev->forma_sobra === 'dinheiro' || $usosDinheiroNova->isNotEmpty();
+            $caixa = null;
+            if ($precisaCaixa) {
+                // O caixa de onde o dinheiro saiu: o da devolução em dinheiro ou, na sobra do
+                // vale devolvida pela venda nova, o da movimentação "Sobra do vale ..."
+                $caixaOrigemId = $dev->caixa_id ?: ($vale
+                    ? MovimentacaoCaixa::withoutGlobalScopes()->where('tipo', TipoMovimentacaoCaixa::Devolucao)
+                        ->where('descricao', 'like', "Sobra do vale {$vale->codigo}%")->value('caixa_id')
+                    : null);
+                $original = $caixaOrigemId ? Caixa::withoutGlobalScopes()->find($caixaOrigemId) : null;
+                $caixa = ($original && $original->status->value === 'aberto')
+                    ? $original
+                    : app(LancamentoCaixaService::class)->caixaAbertoDoUsuario((int) $dev->unidade_id, (int) $user->id);
+                if (! $caixa) {
+                    throw new \DomainException('O dinheiro devolvido ao cliente volta para a gaveta: abra o seu caixa nesta loja para cancelar a troca.');
+                }
+            }
+
+            // 2. Peças que voltaram ao estoque saem de novo
+            foreach ($dev->itens as $item) {
+                if (! $item->retorna_estoque || ! $item->produto_id || ! $item->estoque_id) {
+                    continue;
+                }
+                $saldo = SaldoEstoque::noEstoque((int) $item->estoque_id, (int) $item->produto_id);
+                if ($saldo + 0.0005 < (float) $item->quantidade) {
+                    $nome = $item->produto?->descricao ?? 'produto';
+                    throw new \DomainException("A peça \"{$nome}\" já não está no estoque (saldo " . rtrim(rtrim(number_format($saldo, 3, ',', ''), '0'), ',')
+                        . ", precisa de " . rtrim(rtrim(number_format((float) $item->quantidade, 3, ',', ''), '0'), ',') . '): foi vendida depois da troca. Desfaça essa venda antes.');
+                }
+                SaldoEstoque::registrar(
+                    (int) $dev->empresa_id,
+                    (int) $dev->unidade_id,
+                    (int) $item->estoque_id,
+                    (int) $item->produto_id,
+                    TipoMovimentacaoEstoque::Saida->value,
+                    -(float) $item->quantidade,
+                    [
+                        'custo_unitario' => $item->valor_unitario,
+                        'origem_tipo'    => Devolucao::class,
+                        'origem_id'      => $dev->id,
+                        'observacoes'    => "Cancelamento de {$rotulo}",
+                        'user_id'        => $user->id,
+                    ]
+                );
+            }
+
+            // 3. O que a sobra virou
+            if ($vale) {
+                // Uso em qualquer venda que não seja a nova (líquido dos estornos) = vale gasto
+                $liquidoPorVenda = [];
+                foreach ($vale->usos()->get() as $uso) {
+                    if ($vendaNova && (int) $uso->venda_id === (int) $vendaNova->id) {
+                        continue;
+                    }
+                    $liquidoPorVenda[(int) $uso->venda_id] = ($liquidoPorVenda[(int) $uso->venda_id] ?? 0)
+                        + ($uso->tipo === 'estorno' ? -1 : 1) * (float) $uso->valor;
+                }
+                $usadas = array_keys(array_filter($liquidoPorVenda, fn ($v) => $v > 0.005));
+                if ($usadas) {
+                    $numeros = Venda::withoutGlobalScopes()->whereIn('id', $usadas)->pluck('numero')->map(fn ($n) => '#' . $n)->implode(', ');
+                    throw new \DomainException("O vale {$vale->codigo} já foi usado em outra venda ({$numeros}). Cancele essa venda (o saldo volta ao vale) e depois cancele a troca.");
+                }
+
+                // A sobra em dinheiro que a venda nova devolveu pela gaveta volta para ela
+                foreach ($usosDinheiroNova as $uso) {
+                    MovimentacaoCaixa::create([
+                        'empresa_id'      => $dev->empresa_id,
+                        'unidade_id'      => $caixa->unidade_id,
+                        'caixa_id'        => $caixa->id,
+                        'tipo'            => TipoMovimentacaoCaixa::Suprimento,
+                        'valor'           => $uso->valor,
+                        'forma_pagamento' => 'dinheiro',
+                        'descricao'       => "Estorno da sobra do vale {$vale->codigo} — cancelamento de {$rotulo}",
+                        'user_id'         => $user->id,
+                    ]);
+                    $vale->estornar((float) $uso->valor, $uso->venda_id, $user->id);
+                }
+
+                $vale->refresh();
+                $vale->update([
+                    'status'      => 'cancelado',
+                    'observacoes' => trim(($vale->observacoes ? $vale->observacoes . "\n" : '')
+                        . "Cancelado com {$rotulo} por {$user->name} em " . now()->format('d/m/Y H:i')),
+                ]);
+            }
+
+            if ($dev->forma_sobra === 'dinheiro') {
+                // A saída da devolução foi uma movimentação 'devolucao' (−); a volta entra como suprimento (+)
+                MovimentacaoCaixa::create([
+                    'empresa_id'      => $dev->empresa_id,
+                    'unidade_id'      => $caixa->unidade_id,
+                    'caixa_id'        => $caixa->id,
+                    'tipo'            => TipoMovimentacaoCaixa::Suprimento,
+                    'valor'           => $dev->valor_sobra,
+                    'forma_pagamento' => 'dinheiro',
+                    'descricao'       => "Estorno do dinheiro devolvido — cancelamento de {$rotulo}",
+                    'user_id'         => $user->id,
+                ]);
+            }
+
+            // 4. Parcelas abatidas voltam a dever
+            if ((float) $dev->valor_abatido_parcelas > 0) {
+                if (empty($dev->abatimentos)) {
+                    throw new \DomainException('Esta troca abateu parcelas em aberto antes do registro conta a conta existir; o cancelamento automático não sabe quais. Ajuste as parcelas à mão ou fale com o suporte.');
+                }
+                foreach ($dev->abatimentos as $ab) {
+                    $conta = ContaReceber::withoutGlobalScopes()->lockForUpdate()->find($ab['conta_id'] ?? 0);
+                    if (! $conta || $conta->status === 'cancelada') {
+                        continue;
+                    }
+                    $novoPago = max(0, round((float) $conta->valor_pago - (float) $ab['valor'], 2));
+                    $conta->update([
+                        'valor_pago'  => $novoPago,
+                        'status'      => $novoPago >= (float) $conta->valor - 0.005 ? 'paga' : 'pendente',
+                        'pago_em'     => $novoPago >= (float) $conta->valor - 0.005 ? $conta->pago_em : null,
+                        'observacoes' => trim(($conta->observacoes ? $conta->observacoes . "\n" : '')
+                            . 'Abatimento de R$ ' . number_format((float) $ab['valor'], 2, ',', '.') . " desfeito: cancelamento de {$rotulo}"),
+                    ]);
+                }
+            }
+
+            // 5. Marca a devolução e reabre a venda de origem
+            $dev->update([
+                'status'              => 'cancelada',
+                'cancelado_por'       => $aprovador->id,
+                'cancelado_em'        => now(),
+                'motivo_cancelamento' => $motivo,
+            ]);
+
+            if ($dev->venda && $dev->venda->status === StatusVenda::Devolvida) {
+                $dev->venda->update(['status' => StatusVenda::Concluida]);
+            }
+
+            return $dev->fresh(['itens.produto', 'vale', 'venda', 'vendaNova', 'canceladoPor']);
+        });
+    }
+
     public function ehGerente(User $user): bool
     {
         $perfil = $user->perfil instanceof \App\Enums\Perfil ? $user->perfil->value : (string) $user->perfil;
@@ -505,10 +700,10 @@ class TrocaService
     }
 
     /** Gerente/dono da empresa autenticado pelo e-mail + senha digitados no balcão. */
-    private function autenticarGerente(int $empresaId, ?string $email, ?string $senha): User
+    private function autenticarGerente(int $empresaId, ?string $email, ?string $senha, string $contexto = 'Esta troca está fora da política da loja e'): User
     {
         if (! $email || ! $senha) {
-            throw new \DomainException('Esta troca está fora da política da loja e precisa da autorização de um gerente: informe e-mail e senha do gerente.');
+            throw new \DomainException($contexto . ' precisa da autorização de um gerente: informe e-mail e senha do gerente.');
         }
 
         $gerente = User::withoutGlobalScopes()
