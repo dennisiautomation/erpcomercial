@@ -25,14 +25,18 @@ class Promocao extends Model
     protected $table = 'promocoes';
 
     protected $fillable = [
-        'empresa_id', 'nome', 'data_inicio', 'data_fim',
-        'encerrada_em', 'encerrada_por', 'origem_id', 'criada_por',
+        'empresa_id', 'nome', 'situacao', 'rascunho', 'data_inicio', 'data_fim',
+        'encerrada_em', 'encerrada_por', 'origem_id', 'criada_por', 'atualizada_por',
     ];
+
+    public const RASCUNHO = 'rascunho';
+    public const PUBLICADA = 'publicada';
 
     protected $casts = [
         'data_inicio' => 'date',
         'data_fim' => 'date',
         'encerrada_em' => 'datetime',
+        'rascunho' => 'array',
     ];
 
     public function itens(): HasMany
@@ -55,9 +59,34 @@ class Promocao extends Model
         return $this->belongsTo(User::class, 'criada_por');
     }
 
-    /** Último dia em que a promoção vale (o dia anterior ao encerramento antecipado). */
-    public function ultimoDia(): CarbonInterface
+    public function atualizador(): BelongsTo
     {
+        return $this->belongsTo(User::class, 'atualizada_por');
+    }
+
+    public function eRascunho(): bool
+    {
+        return $this->situacao === self::RASCUNHO;
+    }
+
+    /** Pode abrir no assistente para mudar: rascunho, ou publicada que ainda não começou. */
+    public function podeEditar(): bool
+    {
+        return $this->eRascunho() || $this->status() === 'agendada';
+    }
+
+    /** Só a publicada vale para preço, conflito e "lista da última". */
+    public function scopePublicadas(Builder $q): Builder
+    {
+        return $q->where('situacao', self::PUBLICADA);
+    }
+
+    /** Último dia em que a promoção vale (o dia anterior ao encerramento antecipado). */
+    public function ultimoDia(): ?CarbonInterface
+    {
+        if (! $this->data_fim) {
+            return null;
+        }
         if ($this->encerrada_em) {
             $vespera = $this->encerrada_em->copy()->startOfDay()->subDay();
 
@@ -69,6 +98,10 @@ class Promocao extends Model
 
     public function status(?CarbonInterface $hoje = null): string
     {
+        if ($this->eRascunho()) {
+            return 'rascunho';
+        }
+
         $hoje = ($hoje ?? now())->copy()->startOfDay();
         $ultimo = $this->ultimoDia();
         $antecipada = $this->encerrada_em && $ultimo->lt($this->data_fim);
@@ -90,6 +123,7 @@ class Promocao extends Model
             'vigente' => 'Em andamento',
             'encerrada' => 'Concluída',
             'encerrada_antes' => 'Encerrada antes do fim',
+            'rascunho' => 'Rascunho',
         };
     }
 
@@ -98,7 +132,8 @@ class Promocao extends Model
     {
         $d = $dia->toDateString();
 
-        return $q->whereDate('data_inicio', '<=', $d)
+        return $q->where('situacao', self::PUBLICADA)
+            ->whereDate('data_inicio', '<=', $d)
             ->whereDate('data_fim', '>=', $d)
             ->where(fn ($w) => $w->whereNull('encerrada_em')->orWhereDate('encerrada_em', '>', $d));
     }

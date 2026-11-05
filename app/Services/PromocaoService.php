@@ -67,6 +67,7 @@ class PromocaoService
 
         $promocoes = Promocao::withoutGlobalScopes()
             ->where('empresa_id', $empresaId)
+            ->where('situacao', Promocao::PUBLICADA) // rascunho não conta
             ->when($ignorarPromocaoId, fn ($q) => $q->whereKeyNot($ignorarPromocaoId))
             ->whereDate('data_inicio', '<=', $fim->toDateString())
             ->whereDate('data_fim', '>=', $inicio->toDateString())

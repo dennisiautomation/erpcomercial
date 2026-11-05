@@ -29,8 +29,9 @@ class PromocaoController extends Controller
         $filtro = (string) $request->query('status', '');
 
         $promocoes = Promocao::query()
-            ->with(['unidades' => fn ($q) => $q->withoutGlobalScopes()])
+            ->with(['unidades' => fn ($q) => $q->withoutGlobalScopes(), 'atualizador:id,name'])
             ->withCount('itens')
+            ->orderByRaw("situacao = 'rascunho' desc")
             ->orderByDesc('data_inicio')
             ->orderByDesc('id')
             ->get();
@@ -53,9 +54,9 @@ class PromocaoController extends Controller
         }
 
         // Sugestão: a lista da última promoção criada (05/11 — "já sugere a lista anterior")
-        $ultima = $base ? null : Promocao::withCount('itens')->latest('id')->first();
+        $ultima = $base ? null : Promocao::publicadas()->withCount('itens')->latest('id')->first();
 
-        $inicial = [
+        $inicial = $this->estadoVazio() + [
             'nome' => $base ? $base->nome : '',
             'data_inicio' => '',
             'data_fim' => '',
@@ -64,7 +65,146 @@ class PromocaoController extends Controller
             'origem_id' => $base?->id,
         ];
 
-        return view('app.promocoes.create', compact('lojas', 'inicial', 'base', 'ultima'));
+        $editando = null;
+
+        return view('app.promocoes.create', compact('lojas', 'inicial', 'base', 'ultima', 'editando'));
+    }
+
+    /**
+     * Continuar um rascunho ou mudar uma promoção que ainda não começou (05/11/2026). Qualquer
+     * atendente com acesso a Promoções continua o rascunho de outro — o rodapé diz quem salvou por último.
+     */
+    public function editar(Promocao $promocao, TabelaPrecoService $tabela)
+    {
+        if (! $promocao->podeEditar()) {
+            return redirect()->route('app.promocoes.show', $promocao)
+                ->with('error', 'Só dá para mudar rascunho ou promoção que ainda não começou. Use "Duplicar".');
+        }
+
+        $promocao->load(['itens.produto', 'unidades' => fn ($q) => $q->withoutGlobalScopes(), 'atualizador:id,name', 'criador:id,name']);
+        $lojas = $this->lojasDoUsuario();
+
+        if ($promocao->eRascunho()) {
+            $r = $promocao->rascunho ?? [];
+            $inicial = [
+                'nome' => (string) ($r['nome'] ?? ''),
+                'data_inicio' => (string) ($r['data_inicio'] ?? ''),
+                'data_fim' => (string) ($r['data_fim'] ?? ''),
+                'unidades' => collect($r['unidades'] ?? [])->map(fn ($u) => (int) $u)->intersect($lojas->pluck('id'))->values()->all(),
+                'itens' => $this->itensDoRascunho($r['itens'] ?? [], $tabela),
+                'origem_id' => $promocao->origem_id,
+            ];
+        } else {
+            $inicial = [
+                'nome' => $promocao->nome,
+                'data_inicio' => $promocao->data_inicio->toDateString(),
+                'data_fim' => $promocao->data_fim->toDateString(),
+                'unidades' => $promocao->unidades->pluck('id')->intersect($lojas->pluck('id'))->values()->all(),
+                'itens' => $this->itensParaTela($promocao, $tabela),
+                'origem_id' => $promocao->origem_id,
+            ];
+        }
+        $inicial += $this->estadoVazio();
+        $inicial['promocao_id'] = $promocao->id;
+        $inicial['versao'] = $this->versao($promocao);
+
+        $editando = [
+            'rascunho' => $promocao->eRascunho(),
+            'salvo_por' => $promocao->atualizador?->name ?? $promocao->criador?->name,
+            'salvo_em' => $promocao->updated_at?->format('d/m/Y H:i'),
+        ];
+        $base = null;
+        $ultima = $promocao->eRascunho() && empty($inicial['itens'])
+            ? Promocao::publicadas()->withCount('itens')->latest('id')->first() : null;
+
+        return view('app.promocoes.create', compact('lojas', 'inicial', 'base', 'ultima', 'editando'));
+    }
+
+    /**
+     * "Salvar rascunho" (AJAX, 05/11/2026): guarda o assistente como está, mesmo incompleto. Não mexe
+     * em preço. Se outra pessoa salvou depois que você abriu (versão diferente), não sobrescreve: 409.
+     */
+    public function salvarRascunho(Request $request, TabelaPrecoService $tabela): JsonResponse
+    {
+        $dados = $request->validate([
+            'promocao_id' => ['nullable', 'integer'],
+            'versao' => ['nullable', 'string', 'max:40'],
+            'nome' => ['nullable', 'string', 'max:120'],
+            'data_inicio' => ['nullable', 'date'],
+            'data_fim' => ['nullable', 'date'],
+            'unidades' => ['nullable', 'array'],
+            'unidades.*' => ['integer'],
+            'itens' => ['nullable', 'array', 'max:5000'],
+            'itens.*.produto_id' => ['required', 'integer'],
+            'itens.*.tipo' => ['nullable', 'in:preco,percentual'],
+            'itens.*.valor' => ['nullable', 'numeric', 'min:0', 'max:9999999'],
+            'itens.*.cartao_tipo' => ['nullable', 'in:preco,percentual'],
+            'itens.*.cartao_valor' => ['nullable', 'numeric', 'min:0', 'max:9999999'],
+            'origem_id' => ['nullable', 'integer'],
+        ]);
+
+        $promocao = null;
+        if (! empty($dados['promocao_id'])) {
+            $promocao = Promocao::find((int) $dados['promocao_id']);
+            if (! $promocao || ! $promocao->eRascunho()) {
+                return response()->json(['message' => 'Este rascunho não existe mais (foi salvo como promoção ou excluído). Recarregue a lista.'], 409);
+            }
+            if (($dados['versao'] ?? '') !== $this->versao($promocao)) {
+                return response()->json(['message' => $this->avisoVersao($promocao)], 409);
+            }
+        }
+
+        $empresaId = (int) session('empresa_id');
+        $lojas = $this->lojasDoUsuario()->pluck('id');
+        $ids = collect($dados['itens'] ?? [])->pluck('produto_id')->map(fn ($i) => (int) $i)->unique();
+        $daEmpresa = Produto::where('empresa_id', $empresaId)->whereIn('id', $ids)->pluck('id')->flip();
+
+        $estado = [
+            'nome' => trim((string) ($dados['nome'] ?? '')),
+            'data_inicio' => $dados['data_inicio'] ?? null,
+            'data_fim' => $dados['data_fim'] ?? null,
+            'unidades' => collect($dados['unidades'] ?? [])->map(fn ($u) => (int) $u)->intersect($lojas)->values()->all(),
+            'itens' => collect($dados['itens'] ?? [])
+                ->filter(fn ($i) => $daEmpresa->has((int) $i['produto_id']))
+                ->unique('produto_id')
+                ->map(fn ($i) => [
+                    'produto_id' => (int) $i['produto_id'],
+                    'tipo' => $i['tipo'] ?? 'percentual',
+                    'valor' => isset($i['valor']) && $i['valor'] !== '' ? (float) $i['valor'] : null,
+                    'cartao_tipo' => $i['cartao_tipo'] ?? null,
+                    'cartao_valor' => isset($i['cartao_valor']) && $i['cartao_valor'] !== '' ? (float) $i['cartao_valor'] : null,
+                ])->values()->all(),
+        ];
+
+        $atributos = [
+            'nome' => $estado['nome'] !== '' ? $estado['nome'] : 'Rascunho sem nome',
+            'data_inicio' => $estado['data_inicio'],
+            'data_fim' => $estado['data_fim'],
+            'rascunho' => $estado,
+            'atualizada_por' => auth()->id(),
+        ];
+
+        if ($promocao) {
+            $promocao->update($atributos);
+        } else {
+            $origem = ! empty($dados['origem_id']) ? Promocao::whereKey((int) $dados['origem_id'])->value('id') : null;
+            $promocao = Promocao::create($atributos + [
+                'empresa_id' => $empresaId,
+                'situacao' => Promocao::RASCUNHO,
+                'origem_id' => $origem,
+                'criada_por' => auth()->id(),
+            ]);
+        }
+        $promocao->refresh();
+
+        return response()->json([
+            'id' => $promocao->id,
+            'versao' => $this->versao($promocao),
+            'salvo_em' => $promocao->updated_at->format('d/m/Y H:i'),
+            'salvo_por' => auth()->user()->name,
+            'produtos' => count($estado['itens']),
+            'url' => route('app.promocoes.editar', $promocao),
+        ]);
     }
 
     /** Lista de produtos e preços de uma promoção, para o assistente (sugestão da última). */
@@ -145,6 +285,9 @@ class PromocaoController extends Controller
             'itens.*.cartao_tipo' => ['nullable', 'in:preco,percentual'],
             'itens.*.cartao_valor' => ['nullable', 'required_with:itens.*.cartao_tipo', 'numeric', 'gt:0', 'max:9999999'],
             'origem_id' => ['nullable', 'integer'],
+            // Continuando um rascunho ou mudando uma agendada (05/11/2026)
+            'promocao_id' => ['nullable', 'integer'],
+            'versao' => ['nullable', 'string', 'max:40'],
         ], [
             'data_inicio.after_or_equal' => 'A promoção não pode começar antes de hoje.',
             'data_fim.after_or_equal' => 'O fim tem que ser no mesmo dia do início ou depois.',
@@ -158,6 +301,17 @@ class PromocaoController extends Controller
         ], [
             'data_inicio' => 'início', 'data_fim' => 'fim',
         ]);
+
+        $editada = null;
+        if (! empty($dados['promocao_id'])) {
+            $editada = Promocao::find((int) $dados['promocao_id']);
+            if (! $editada || ! $editada->podeEditar()) {
+                throw ValidationException::withMessages(['promocao_id' => 'Esta promoção não pode mais ser mudada (já começou, foi encerrada ou excluída). Use "Duplicar".']);
+            }
+            if (($dados['versao'] ?? '') !== $this->versao($editada)) {
+                throw ValidationException::withMessages(['versao' => $this->avisoVersao($editada)]);
+            }
+        }
 
         $erros = [];
         $produtos = Produto::where('empresa_id', $empresaId)
@@ -198,7 +352,7 @@ class PromocaoController extends Controller
 
         $inicio = Carbon::parse($dados['data_inicio']);
         $fim = Carbon::parse($dados['data_fim']);
-        $conflitos = $promocoes->conflitos($empresaId, $produtos->keys()->all(), array_map('intval', $dados['unidades']), $inicio, $fim);
+        $conflitos = $promocoes->conflitos($empresaId, $produtos->keys()->all(), array_map('intval', $dados['unidades']), $inicio, $fim, $editada?->id);
         if ($conflitos->isNotEmpty()) {
             $erros['conflitos'] = $conflitos->take(15)->map(fn ($c) => "{$c['produto']} já está na promoção \"{$c['promocao']}\" ({$c['periodo']}, {$c['lojas']})")
                 ->push($conflitos->count() > 15 ? '… e mais ' . ($conflitos->count() - 15) . ' produto(s).' : null)
@@ -209,18 +363,29 @@ class PromocaoController extends Controller
             throw ValidationException::withMessages($erros);
         }
 
-        $promocao = DB::transaction(function () use ($dados, $empresaId, $produtos, $tabela, $config, $inicio, $fim) {
+        $promocao = DB::transaction(function () use ($dados, $empresaId, $produtos, $tabela, $config, $inicio, $fim, $editada) {
             $origem = ! empty($dados['origem_id'])
                 ? Promocao::whereKey((int) $dados['origem_id'])->value('id') : null;
 
-            $promocao = Promocao::create([
-                'empresa_id' => $empresaId,
+            $campos = [
                 'nome' => trim($dados['nome']),
+                'situacao' => Promocao::PUBLICADA,
+                'rascunho' => null,
                 'data_inicio' => $inicio->toDateString(),
                 'data_fim' => $fim->toDateString(),
-                'origem_id' => $origem,
-                'criada_por' => auth()->id(),
-            ]);
+                'atualizada_por' => auth()->id(),
+            ];
+            if ($editada) {
+                $editada->update($campos + ['origem_id' => $editada->origem_id ?? $origem]);
+                $editada->itens()->delete();
+                $promocao = $editada;
+            } else {
+                $promocao = Promocao::create($campos + [
+                    'empresa_id' => $empresaId,
+                    'origem_id' => $origem,
+                    'criada_por' => auth()->id(),
+                ]);
+            }
             $promocao->unidades()->sync(array_map('intval', $dados['unidades']));
 
             foreach ($dados['itens'] as $item) {
@@ -242,11 +407,15 @@ class PromocaoController extends Controller
         });
 
         return redirect()->route('app.promocoes.show', $promocao)
-            ->with('success', "Promoção \"{$promocao->nome}\" criada com {$promocao->itens()->count()} produto(s).");
+            ->with('success', "Promoção \"{$promocao->nome}\" " . ($editada ? 'salva' : 'criada') . " com {$promocao->itens()->count()} produto(s).");
     }
 
     public function show(Promocao $promocao, TabelaPrecoService $tabela)
     {
+        if ($promocao->eRascunho()) {
+            return redirect()->route('app.promocoes.editar', $promocao);
+        }
+
         $promocao->load(['itens.produto', 'unidades' => fn ($q) => $q->withoutGlobalScopes(), 'origem', 'criador']);
         $config = ConfiguracaoLoja::daUnidade();
 
@@ -268,7 +437,7 @@ class PromocaoController extends Controller
     /** Encerra agora: a promoção para de valer hoje mesmo (e a agendada nem começa). */
     public function encerrar(Promocao $promocao)
     {
-        if (in_array($promocao->status(), ['encerrada', 'encerrada_antes'], true)) {
+        if (in_array($promocao->status(), ['encerrada', 'encerrada_antes', 'rascunho'], true)) {
             return back()->with('error', 'Esta promoção já está encerrada.');
         }
 
@@ -281,7 +450,7 @@ class PromocaoController extends Controller
     /** Excluir só a que ainda não começou (a que já valeu fica no histórico). */
     public function destroy(Promocao $promocao)
     {
-        if ($promocao->status() !== 'agendada') {
+        if (! in_array($promocao->status(), ['agendada', 'rascunho'], true)) {
             return back()->with('error', 'Só dá para excluir promoção que ainda não começou. Use "Encerrar".');
         }
 
@@ -289,6 +458,41 @@ class PromocaoController extends Controller
         $promocao->delete();
 
         return redirect()->route('app.promocoes.index')->with('success', "Promoção \"{$nome}\" excluída.");
+    }
+
+    private function estadoVazio(): array
+    {
+        return ['promocao_id' => null, 'versao' => null];
+    }
+
+    /** "Versão" do registro para não sobrescrever o que outra pessoa salvou depois. */
+    private function versao(Promocao $p): string
+    {
+        return (string) optional($p->updated_at)->format('Y-m-d H:i:s.u');
+    }
+
+    private function avisoVersao(Promocao $p): string
+    {
+        $p->loadMissing('atualizador:id,name');
+
+        return ($p->atualizador?->name ?? 'Outra pessoa') . ' salvou esta promoção às ' . $p->updated_at->format('H:i')
+            . ' de ' . $p->updated_at->format('d/m') . ', depois que você abriu. Para não apagar o que foi feito, abra de novo pela lista de Promoções.';
+    }
+
+    /** Itens do rascunho para a tela, com nome e preços normais de hoje. */
+    private function itensDoRascunho(array $itens, TabelaPrecoService $tabela): array
+    {
+        $config = ConfiguracaoLoja::daUnidade();
+        $produtos = Produto::where('empresa_id', session('empresa_id'))
+            ->whereIn('id', collect($itens)->pluck('produto_id'))->with('precos')->get()->keyBy('id');
+
+        return collect($itens)->filter(fn ($i) => $produtos->has($i['produto_id']))
+            ->map(fn ($i) => $this->linhaProduto($produtos[$i['produto_id']], $tabela, $config) + [
+                'tipo' => $i['tipo'] ?? 'percentual',
+                'valor' => $i['valor'] ?? '',
+                'cartao_tipo' => $i['cartao_tipo'] ?? '',
+                'cartao_valor' => $i['cartao_valor'] ?? '',
+            ])->values()->all();
     }
 
     /** Lojas em que o usuário pode criar promoção: dono/admin = todas; demais = as vinculadas. */

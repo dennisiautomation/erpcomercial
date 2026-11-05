@@ -282,6 +282,8 @@ Route::middleware(['auth', 'suspensao', 'unidade', \App\Http\Middleware\Restring
         Route::get('/buscar-produtos', [App\PromocaoController::class, 'buscarProdutos'])->name('buscar-produtos');
         Route::get('/todos-produtos', [App\PromocaoController::class, 'todosProdutos'])->name('todos-produtos');
         Route::post('/', [App\PromocaoController::class, 'store'])->name('store');
+        Route::post('/rascunho', [App\PromocaoController::class, 'salvarRascunho'])->name('rascunho');
+        Route::get('/{promocao}/editar', [App\PromocaoController::class, 'editar'])->name('editar');
         Route::get('/{promocao}', [App\PromocaoController::class, 'show'])->name('show');
         Route::get('/{promocao}/itens', [App\PromocaoController::class, 'itens'])->name('itens');
         Route::post('/{promocao}/encerrar', [App\PromocaoController::class, 'encerrar'])->name('encerrar');

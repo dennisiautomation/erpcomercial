@@ -25,6 +25,9 @@
     </div>
     <div class="d-flex gap-2 flex-wrap">
         <a href="{{ route('app.promocoes.index') }}" class="btn btn-erp btn-erp-outline"><i class="bi bi-arrow-left me-1"></i> Voltar</a>
+        @if($status === 'agendada')
+            <a href="{{ route('app.promocoes.editar', $promocao) }}" class="btn btn-erp btn-erp-outline"><i class="bi bi-pencil me-1"></i> Editar</a>
+        @endif
         <a href="{{ route('app.promocoes.create', ['duplicar' => $promocao->id]) }}" class="btn btn-erp btn-erp-primary">
             <i class="bi bi-copy me-1"></i> Duplicar
         </a>

@@ -7881,3 +7881,27 @@ quebravam em duas linhas. Só CSS em `promocoes/create.blade.php`: tabela `min-w
 seletores inteiro, preço numa linha, sem rolagem); 1280 px a tabela rola 80 px de lado dentro do quadro; 390 px rola dentro do
 quadro; a página nunca rola de lado. Roteiro do assistente 49 ✅. Lição: trocar o .blade no mesmo segundo em que foi compilado
 deixa a versão antiga em cache — `php artisan view:clear` entre as versões.
+
+### Promoções — rascunho (salvar e continuar depois, inclusive outro atendente) + editar agendada (05/11/2026) — branch `promocoes-rascunho-05nov`
+Pedido do Dennis: "tem a opção de salvar e depois continuar editando? pode não dar tempo de finalizar" + "pode ser por outro atendente também".
+- Migration `2026_11_05_190000_add_rascunho_to_promocoes`: `situacao` (`rascunho`|`publicada`, padrão publicada), `rascunho` (JSON
+  com o estado do assistente), `atualizada_por`; `data_inicio`/`data_fim` aceitam vazio (rascunho sem período).
+- **Rascunho não vale:** `scopeValendoEm` e `PromocaoService::conflitos` só olham `publicada`; "usar a lista da última" só sugere
+  publicada. O rascunho guarda o assistente cru (pode faltar data, loja, preço) — itens/lojas de verdade só nascem ao publicar.
+- **Assistente:** botão **"Salvar rascunho"** em todos os passos (`POST promocoes/rascunho`, AJAX; o endereço vira
+  `/promocoes/{id}/editar`); rodapé "Salvo por X em dd/mm hh:mm"; aviso do navegador ao sair com mudança não salva. Os números
+  dos passos agora navegam livre (dá para montar os produtos antes das datas); o "Avançar" confere o passo atual e o "Salvar
+  promoção" confere tudo.
+- **Outro atendente continua:** lista mostra o rascunho primeiro, com "Salvo por…", **Continuar** e excluir. Qualquer usuário com
+  acesso a Promoções abre e continua; lojas fora do alcance dele somem da escolha.
+- **Sem atropelar:** a versão é o `updated_at`. Salvar (rascunho ou publicar) com a tela aberta antes do último salvamento dá
+  409/erro "Fulano salvou às hh:mm… abra de novo" e não sobrescreve.
+- **Publicar** o rascunho grava no MESMO registro (vira publicada, itens/lojas criados, JSON limpo).
+- **Editar agendada** (ainda não começou): botão **Editar** no detalhe → assistente com "Salvar alterações" (sem rascunho); troca
+  período, lojas, itens. Em andamento/concluída: não edita (redireciona com aviso; servidor recusa) — duplicar/encerrar.
+- Excluir: rascunho ou agendada.
+
+**Validação:** `PromocaoTest` **24 ✅** (+4: rascunho incompleto/outro atendente/versão/publicar; rascunho fora de conflito e de
+sugestão; editar agendada e vigente recusada; excluir rascunho); suíte **281 ✅ / 2 ❌** (os 2 pré-existentes); navegador
+`validar-promocoes-rascunho-05nov.browser.py` **20 ✅** (Ana e Maria/gerente em sessões separadas) + assistente completo **49 ✅**.
+Detalhe achado no teste: o `ERP` do erp-core é `const` (não fica em `window.ERP`) — usar `typeof ERP !== 'undefined'`.

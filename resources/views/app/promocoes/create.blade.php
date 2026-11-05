@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Nova promoção')
+@section('title', $editando ? ($editando['rascunho'] ? 'Continuar rascunho' : 'Editar promoção') : 'Nova promoção')
 
 @php
     // Volta do servidor com erro: o que a pessoa já tinha montado (old) vale mais que o inicial
@@ -11,6 +11,9 @@
         'unidades' => array_map('intval', old('unidades', $inicial['unidades'])),
         'itens' => array_values(old('itens', $inicial['itens'])),
         'origem_id' => old('origem_id', $inicial['origem_id']),
+        // Rascunho/edição (05/11/2026): qual registro e em que versão ele foi aberto
+        'promocao_id' => old('promocao_id', $inicial['promocao_id'] ?? null),
+        'versao' => old('versao', $inicial['versao'] ?? null),
     ];
     $passoComErro = $errors->hasAny(['nome', 'data_inicio', 'data_fim']) ? 1
         : ($errors->hasAny(['unidades', 'unidades.*']) ? 2
@@ -48,9 +51,15 @@
 <div class="fade-in">
 <div class="page-header">
     <div>
-        <h4><i class="bi bi-megaphone me-2"></i>{{ $base ? 'Duplicar promoção' : 'Nova promoção' }}</h4>
+        <h4><i class="bi bi-megaphone me-2"></i>{{ $editando ? ($editando['rascunho'] ? 'Continuar rascunho' : 'Editar promoção') : ($base ? 'Duplicar promoção' : 'Nova promoção') }}</h4>
         <div class="subtitle">
-            @if($base)
+            @if($editando)
+                @if($editando['rascunho'])
+                    Rascunho: ainda não vale no PDV. Continue de onde parou e, no fim, clique em <strong>Salvar promoção</strong>.
+                @else
+                    Promoção agendada (ainda não começou): mude o que precisar e salve.
+                @endif
+            @elseif($base)
                 Começando com os produtos e preços de <strong>{{ $base->nome }}</strong>. Escolha o novo período e confira.
             @else
                 Período, lojas, produtos e preços à vista e no cartão de cada produto.
@@ -193,11 +202,18 @@
         <div class="card-body" id="promo-revisao"></div>
     </div>
 
-    <div class="d-flex justify-content-between mt-3">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-3">
         <button type="button" class="btn btn-erp btn-erp-outline" id="promo-voltar"><i class="bi bi-arrow-left me-1"></i> Voltar</button>
-        <div class="d-flex gap-2">
+        <div class="d-flex gap-2 align-items-center flex-wrap justify-content-end">
+            <span class="small text-muted" id="promo-rascunho-info">@if($editando && $editando['salvo_por'])Salvo por {{ $editando['salvo_por'] }} em {{ $editando['salvo_em'] }}@endif</span>
+            @if(! $editando || $editando['rascunho'])
+                <button type="button" class="btn btn-erp btn-erp-outline" id="promo-salvar-rascunho" data-url="{{ route('app.promocoes.rascunho') }}"
+                        title="Guarda o que já foi feito para continuar depois (você ou outro atendente). Rascunho não muda preço.">
+                    <i class="bi bi-floppy me-1"></i> Salvar rascunho
+                </button>
+            @endif
             <button type="button" class="btn btn-erp btn-erp-primary" id="promo-avancar">Avançar <i class="bi bi-arrow-right ms-1"></i></button>
-            <button type="submit" class="btn btn-erp btn-erp-primary d-none" id="promo-salvar"><i class="bi bi-check-lg me-1"></i> Salvar promoção</button>
+            <button type="submit" class="btn btn-erp btn-erp-primary d-none" id="promo-salvar"><i class="bi bi-check-lg me-1"></i> {{ $editando && ! $editando['rascunho'] ? 'Salvar alterações' : 'Salvar promoção' }}</button>
         </div>
     </div>
 </form>
@@ -508,7 +524,13 @@
         renderPrecos();
     });
 
-    document.querySelectorAll('#promo-passos button').forEach(b => b.addEventListener('click', () => irPara(Number(b.dataset.ir))));
+    // Números dos passos: navegação livre (05/11/2026 — com o rascunho dá para montar os produtos antes das
+    // datas). O "Avançar" confere o passo atual e o "Salvar promoção" confere tudo.
+    document.querySelectorAll('#promo-passos button').forEach(b => b.addEventListener('click', () => {
+        passo = Number(b.dataset.ir);
+        render();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }));
     $('#promo-avancar').addEventListener('click', () => {
         const p = problemasDoPasso(passo);
         if (p.length) { alert(p.slice(0, 8).join('\n') + (p.length > 8 ? '\n…' : '')); return; }
@@ -521,7 +543,8 @@
             const p = problemasDoPasso(k);
             if (p.length) { e.preventDefault(); alert(p.slice(0, 8).join('\n')); passo = k; render(); return; }
         }
-        const campos = [['nome', estado.nome], ['data_inicio', estado.data_inicio], ['data_fim', estado.data_fim], ['origem_id', estado.origem_id || '']];
+        const campos = [['nome', estado.nome], ['data_inicio', estado.data_inicio], ['data_fim', estado.data_fim], ['origem_id', estado.origem_id || ''],
+            ['promocao_id', estado.promocao_id || ''], ['versao', estado.versao || '']];
         estado.unidades.forEach(u => campos.push(['unidades[]', u]));
         estado.itens.forEach((i, k) => {
             ['produto_id', 'tipo', 'valor', 'descricao', 'codigo', 'preco_referencia', 'preco_cartao_referencia', 'cartao_tipo', 'cartao_valor']
@@ -535,6 +558,41 @@
         });
         $('#promo-salvar').disabled = true;
     });
+
+    // ---- Salvar rascunho (05/11/2026): guarda no sistema; outro atendente pode continuar ----
+    let alterado = false;
+    document.getElementById('promo-form').addEventListener('input', () => { alterado = true; });
+    document.getElementById('promo-form').addEventListener('click', e => { if (e.target.closest('[data-add],[data-tirar],#promo-add-catalogo,#promo-add-todos,#promo-usar-ultima,#promo-aplicar-pct,#promo-aplicar-pct-cartao,#promo-cartao-regra,#promo-todas-lojas,#promo-limpar')) alterado = true; });
+    $('#promo-salvar-rascunho')?.addEventListener('click', async e => {
+        const btn = e.currentTarget;
+        btn.disabled = true;
+        try {
+            const corpo = {
+                promocao_id: estado.promocao_id || null, versao: estado.versao || null, origem_id: estado.origem_id || null,
+                nome: estado.nome, data_inicio: estado.data_inicio || null, data_fim: estado.data_fim || null,
+                unidades: estado.unidades,
+                itens: estado.itens.map(i => ({ produto_id: i.produto_id, tipo: i.tipo, valor: i.valor === '' ? null : i.valor,
+                    cartao_tipo: i.cartao_tipo || null, cartao_valor: i.cartao_valor === '' ? null : i.cartao_valor })),
+            };
+            const r = await fetch(btn.dataset.url, { method: 'POST', body: JSON.stringify(corpo), headers: {
+                'Content-Type': 'application/json', Accept: 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content } });
+            const d = await r.json().catch(() => ({}));
+            if (!r.ok) throw new Error(d.message || (r.status === 419 || r.status === 401 ? 'Sua sessão expirou. Entre de novo (o que não foi salvo se perde).' : 'Erro ' + r.status));
+            estado.promocao_id = d.id; estado.versao = d.versao; alterado = false;
+            $('#promo-rascunho-info').textContent = `Rascunho salvo por ${d.salvo_por} em ${d.salvo_em}`;
+            if (!location.pathname.endsWith('/editar')) history.replaceState(null, '', d.url);
+            (typeof ERP !== 'undefined' && ERP.toast) ? ERP.toast('Rascunho salvo. Dá para continuar depois pela lista de Promoções.', 'success') : alert('Rascunho salvo.');
+        } catch (err) {
+            (typeof ERP !== 'undefined' && ERP.toast) ? ERP.toast(err.message, 'danger', { duration: 0 }) : alert(err.message);
+        } finally {
+            btn.disabled = false;
+        }
+    });
+    // Sair sem salvar avisa (o que não foi salvo se perde)
+    let enviando = false;
+    document.getElementById('promo-form').addEventListener('submit', () => { enviando = true; });
+    window.addEventListener('beforeunload', e => { if (alterado && !enviando) { e.preventDefault(); e.returnValue = ''; } });
 
     render();
 })();

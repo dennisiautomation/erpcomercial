@@ -380,6 +380,120 @@ class PromocaoTest extends TestCase
         ]]))->assertSessionHasErrors('itens.0.produto_id');
     }
 
+    /* ---------------- rascunho: salvar e continuar depois, por outro atendente (05/11) ---------------- */
+
+    public function test_rascunho_incompleto_salva_nao_muda_preco_e_outro_atendente_continua(): void
+    {
+        // Ana começa: só nome e um produto, sem datas nem preço
+        $r = $this->actingAsUser($this->dono, $this->unidade)->postJson(route('app.promocoes.rascunho'), [
+            'nome' => 'Black Friday', 'unidades' => [$this->unidade->id],
+            'itens' => [['produto_id' => $this->produto->id, 'tipo' => 'percentual', 'valor' => null]],
+        ])->assertOk()->json();
+
+        $p = Promocao::withoutGlobalScopes()->findOrFail($r['id']);
+        $this->assertSame('rascunho', $p->status());
+        $this->assertNull($p->data_inicio);
+        $this->assertSame(1, $r['produtos']);
+        $this->assertSame(100.0, $this->precos($this->produto, $this->unidade)['dinheiro_pix'], 'rascunho não muda preço');
+
+        // Aparece na lista como Rascunho, com quem salvou
+        $this->actingAsUser($this->dono, $this->unidade)->get(route('app.promocoes.index'))
+            ->assertOk()->assertSee('Rascunho')->assertSee('Continuar')->assertSee('Salvo por ' . $this->dono->name);
+        // "Ver" do rascunho abre o assistente
+        $this->actingAsUser($this->dono, $this->unidade)->get(route('app.promocoes.show', $p))
+            ->assertRedirect(route('app.promocoes.editar', $p));
+
+        // Bruno (gerente da mesma loja) abre e continua
+        $gerente = $this->createUser($this->empresa, $this->unidade, 'gerente');
+        $gerente->unidades()->attach($this->unidade->id);
+        $tela = $this->actingAsUser($gerente, $this->unidade)->get(route('app.promocoes.editar', $p))->assertOk();
+        $tela->assertSee('Continuar rascunho')->assertSee('"nome":"Black Friday"', false)
+            ->assertSee('"produto_id":' . $this->produto->id, false)->assertSee('Salvar rascunho');
+
+        $this->travar(1);
+        $r2 = $this->actingAsUser($gerente, $this->unidade)->postJson(route('app.promocoes.rascunho'), [
+            'promocao_id' => $p->id, 'versao' => $r['versao'], 'nome' => 'Black Friday',
+            'data_inicio' => '2026-11-27', 'data_fim' => '2026-11-29', 'unidades' => [$this->unidade->id],
+            'itens' => [['produto_id' => $this->produto->id, 'tipo' => 'percentual', 'valor' => 30]],
+        ])->assertOk()->json();
+        $this->assertSame($p->id, $r2['id']);
+        $this->assertSame($gerente->id, $p->fresh()->atualizada_por);
+
+        // Ana, com a tela antiga (versão de antes), não sobrescreve o que o Bruno fez
+        $this->actingAsUser($this->dono, $this->unidade)->postJson(route('app.promocoes.rascunho'), [
+            'promocao_id' => $p->id, 'versao' => $r['versao'], 'nome' => 'Outra coisa',
+        ])->assertStatus(409)->assertJsonPath('message', fn ($m) => str_contains($m, $gerente->name));
+        $this->assertSame('Black Friday', $p->fresh()->nome);
+
+        // Bruno publica: mesmo registro, vira promoção de verdade
+        $this->actingAsUser($gerente, $this->unidade)->post(route('app.promocoes.store'), $this->payload([
+            'promocao_id' => $p->id, 'versao' => $r2['versao'], 'nome' => 'Black Friday',
+            'data_inicio' => '2026-11-27', 'data_fim' => '2026-11-29',
+            'itens' => [['produto_id' => $this->produto->id, 'tipo' => 'percentual', 'valor' => 30]],
+        ]))->assertRedirect(route('app.promocoes.show', $p))->assertSessionHasNoErrors();
+
+        $p->refresh();
+        $this->assertSame('publicada', $p->situacao);
+        $this->assertNull($p->rascunho);
+        $this->assertSame('agendada', $p->status());
+        $this->assertCount(1, $p->itens);
+        $this->assertSame(1, Promocao::withoutGlobalScopes()->count());
+    }
+
+    public function test_rascunho_nao_bloqueia_conflito_nem_vira_a_lista_sugerida(): void
+    {
+        $publicada = $this->promocao([[$this->produto, 'percentual', 10]], [$this->loja2], '2026-12-01', '2026-12-05', 'Dezembro');
+        $this->actingAsUser($this->dono, $this->unidade)->postJson(route('app.promocoes.rascunho'), [
+            'nome' => 'Rascunho com o mesmo produto', 'data_inicio' => '2026-11-12', 'data_fim' => '2026-11-15',
+            'unidades' => [$this->unidade->id], 'itens' => [['produto_id' => $this->produto->id, 'tipo' => 'percentual', 'valor' => 50]],
+        ])->assertOk();
+
+        // O rascunho (mais novo) não bloqueia e não é sugerido: a sugestão é a última PUBLICADA
+        $this->actingAsUser($this->dono, $this->unidade)->post(route('app.promocoes.store'), $this->payload())->assertSessionHasNoErrors();
+        $this->actingAsUser($this->dono, $this->unidade)->get(route('app.promocoes.create'))
+            ->assertSee('Semana do Biquíni')->assertDontSee('Usar a lista da última promoção, <strong>Rascunho', false);
+        $this->assertTrue($publicada->exists);
+    }
+
+    public function test_editar_agendada_troca_os_itens_e_em_andamento_nao_edita(): void
+    {
+        $agendada = $this->promocao([[$this->produto, 'percentual', 10]], [$this->unidade], '2026-12-01', '2026-12-05', 'Natal');
+        $u = $this->actingAsUser($this->dono, $this->unidade);
+        $tela = $u->get(route('app.promocoes.editar', $agendada))->assertOk();
+        $tela->assertSee('Editar promoção')->assertSee('Salvar alterações')->assertDontSee('id="promo-salvar-rascunho"', false);
+        $versao = $agendada->fresh()->updated_at->format('Y-m-d H:i:s.u');
+
+        $u->post(route('app.promocoes.store'), $this->payload([
+            'promocao_id' => $agendada->id, 'versao' => $versao, 'nome' => 'Natal',
+            'data_inicio' => '2026-12-01', 'data_fim' => '2026-12-10',
+            'itens' => [['produto_id' => $this->outro->id, 'tipo' => 'preco', 'valor' => 40]],
+        ]))->assertSessionHasNoErrors();
+        $agendada->refresh();
+        $this->assertSame([$this->outro->id], $agendada->itens->pluck('produto_id')->all());
+        $this->assertSame('2026-12-10', $agendada->data_fim->toDateString());
+        $this->assertSame(1, Promocao::withoutGlobalScopes()->count());
+
+        // Em andamento: não abre para editar e o servidor recusa
+        $vigente = $this->promocao([[$this->produto, 'percentual', 20]], [$this->loja2]);
+        $u->get(route('app.promocoes.editar', $vigente))->assertRedirect(route('app.promocoes.show', $vigente))->assertSessionHas('error');
+        $u->post(route('app.promocoes.store'), $this->payload([
+            'promocao_id' => $vigente->id, 'versao' => $vigente->updated_at->format('Y-m-d H:i:s.u'), 'unidades' => [$this->loja2->id],
+        ]))->assertSessionHasErrors('promocao_id');
+    }
+
+    public function test_excluir_rascunho(): void
+    {
+        $id = $this->actingAsUser($this->dono, $this->unidade)->postJson(route('app.promocoes.rascunho'), ['nome' => 'Teste'])->json('id');
+        $this->actingAsUser($this->dono, $this->unidade)->delete(route('app.promocoes.destroy', $id))->assertRedirect(route('app.promocoes.index'));
+        $this->assertSame(0, Promocao::withoutGlobalScopes()->count());
+    }
+
+    /** O "relógio" do teste anda (a versão é o updated_at). */
+    private function travar(int $segundos): void
+    {
+        Carbon::setTestNow(now()->addSeconds($segundos));
+    }
+
     /* ---------------- agente WhatsApp ---------------- */
 
     public function test_agente_informa_e_vende_pelo_preco_da_promocao_da_loja(): void

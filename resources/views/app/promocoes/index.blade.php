@@ -3,7 +3,7 @@
 @section('title', 'Promoções')
 
 @php
-    $classe = ['agendada' => 'pendente', 'vigente' => 'ativa', 'encerrada' => 'fechado', 'encerrada_antes' => 'cancelada'];
+    $classe = ['agendada' => 'pendente', 'vigente' => 'ativa', 'encerrada' => 'fechado', 'encerrada_antes' => 'cancelada', 'rascunho' => 'rascunho'];
 @endphp
 
 @section('content')
@@ -24,6 +24,7 @@
             <label for="filtro-status" class="form-label">Situação</label>
             <select id="filtro-status" name="status" class="form-select" onchange="this.form.submit()">
                 <option value="">Todas</option>
+                <option value="rascunho" @selected($filtro === 'rascunho')>Rascunhos</option>
                 <option value="vigente" @selected($filtro === 'vigente')>Em andamento</option>
                 <option value="agendada" @selected($filtro === 'agendada')>Agendadas</option>
                 <option value="encerrada" @selected($filtro === 'encerrada')>Concluídas</option>
@@ -50,14 +51,27 @@
                 <tbody>
                     @forelse($promocoes as $p)
                         <tr>
-                            <td><a href="{{ route('app.promocoes.show', $p) }}"><strong>{{ $p->nome }}</strong></a></td>
-                            <td class="text-nowrap">{{ $p->data_inicio->format('d/m/Y') }} a {{ $p->data_fim->format('d/m/Y') }}</td>
+                            <td>
+                                <a href="{{ $p->eRascunho() ? route('app.promocoes.editar', $p) : route('app.promocoes.show', $p) }}"><strong>{{ $p->nome }}</strong></a>
+                                @if($p->eRascunho())
+                                    <div class="small text-muted">Salvo por {{ $p->atualizador?->name ?? '—' }} em {{ $p->updated_at->format('d/m H:i') }}</div>
+                                @endif
+                            </td>
+                            <td class="text-nowrap">{{ $p->data_inicio ? $p->data_inicio->format('d/m/Y') : '—' }} a {{ $p->data_fim ? $p->data_fim->format('d/m/Y') : '—' }}</td>
                             <td>{{ $p->unidades->pluck('nome')->join(', ') }}</td>
-                            <td class="text-center">{{ $p->itens_count }}</td>
+                            <td class="text-center">{{ $p->eRascunho() ? count($p->rascunho['itens'] ?? []) : $p->itens_count }}</td>
                             <td class="text-center"><span class="badge-status {{ $classe[$p->status()] }}">{{ $p->statusRotulo() }}</span></td>
                             <td class="text-center text-nowrap">
-                                <a href="{{ route('app.promocoes.show', $p) }}" class="btn btn-sm btn-erp btn-erp-outline" title="Ver"><i class="bi bi-eye"></i></a>
-                                <a href="{{ route('app.promocoes.create', ['duplicar' => $p->id]) }}" class="btn btn-sm btn-erp btn-erp-outline" title="Duplicar: nova promoção com estes produtos e preços"><i class="bi bi-copy"></i> Duplicar</a>
+                                @if($p->eRascunho())
+                                    <a href="{{ route('app.promocoes.editar', $p) }}" class="btn btn-sm btn-erp btn-erp-primary" title="Continuar de onde parou"><i class="bi bi-pencil-square me-1"></i>Continuar</a>
+                                    <form method="POST" action="{{ route('app.promocoes.destroy', $p) }}" class="d-inline" data-confirm="Excluir este rascunho?">
+                                        @csrf @method('DELETE')
+                                        <button class="btn btn-sm btn-erp btn-erp-outline text-danger" title="Excluir rascunho"><i class="bi bi-trash"></i></button>
+                                    </form>
+                                @else
+                                    <a href="{{ route('app.promocoes.show', $p) }}" class="btn btn-sm btn-erp btn-erp-outline" title="Ver"><i class="bi bi-eye"></i></a>
+                                    <a href="{{ route('app.promocoes.create', ['duplicar' => $p->id]) }}" class="btn btn-sm btn-erp btn-erp-outline" title="Duplicar: nova promoção com estes produtos e preços"><i class="bi bi-copy"></i> Duplicar</a>
+                                @endif
                             </td>
                         </tr>
                     @empty
