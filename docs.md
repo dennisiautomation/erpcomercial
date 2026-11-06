@@ -8067,3 +8067,10 @@ tipo (Pedido verde, Importada cinza) e o canal embaixo quando não é presencial
 lista e soma só os seus, tipo inválido ignorado, canal WhatsApp/Online, Pedido+Presencial vazio, status cancelada nos cartões,
 busca nos cartões, badges; navegador sem erro de JS. Sem migration, sem rota nova.
 **Deploy:** `VendaController.php`, `Models/Venda.php`, `vendas/index.blade.php` + `view:cache` + USR2; foto antes `erp-com-app:pre-vendas-filtro-tipo-20261106`.
+**Achado no preparo do deploy — código no ar SEM commit:** `VendaController.php`, `Services/VendaCancelamentoService.php` e
+`vendas/show.blade.php` estavam em produção com mtime **05/11/2026 14:47 BRT** e diferentes da `main`, sem commit em nenhuma branch
+(nem no disco fora do container): **cancelar venda com NFC-e fora do prazo da SEFAZ** (`PRAZO_CANCELAMENTO_NFCE_MIN = 30`;
+`notaForaDoPrazo()`; a confirmação avisa e manda `ignorar_nota_vencida=1`; cancela só a venda — estoque/caixa/vale — e registra
+activity `cancelada_nota_vencida`; a nota segue autorizada, "avise o contador"). Subir o `VendaController` da `main` teria
+APAGADO isso. Os 3 arquivos foram copiados do container como estão no commit `3a2dc29` (separado) e a correção do filtro foi
+aplicada por cima. Lição: conferir md5 de TODO arquivo do deploy contra a produção ANTES (o script de deploy já para nesse caso).
