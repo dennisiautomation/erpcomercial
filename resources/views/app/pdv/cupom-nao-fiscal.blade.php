@@ -181,21 +181,28 @@
 {{-- ===== HEADER ===== --}}
 <div class="header center">
     <div class="empresa-nome">{{ $venda->empresa->nome_fantasia ?? $venda->empresa->razao_social ?? 'EMPRESA' }}</div>
-    @if($venda->empresa->cnpj ?? null)
-        <div class="info-line">CNPJ: {{ $venda->empresa->cnpj }}</div>
+    @php $cnpjCupom = $venda->unidade?->cnpj ?: ($venda->empresa->cnpj ?? null); @endphp
+    @if($cnpjCupom)
+        <div class="info-line">CNPJ: {{ $cnpjCupom }}</div>
     @endif
-    @if(($venda->empresa->logradouro ?? null) || ($venda->empresa->cidade ?? null))
+    @php
+        // Endereço/telefone da unidade da venda; cai no da empresa se a unidade não tiver endereço.
+        $uEnd = $venda->unidade;
+        $end = ($uEnd && ($uEnd->logradouro || $uEnd->cidade)) ? $uEnd : $venda->empresa;
+        $foneCupom = ($uEnd && $uEnd->logradouro && $uEnd->telefone) ? $uEnd->telefone : ($venda->empresa->telefone ?? null);
+    @endphp
+    @if(($end->logradouro ?? null) || ($end->cidade ?? null))
         <div class="info-line">
-            {{ $venda->empresa->logradouro ?? '' }}{{ $venda->empresa->numero ? ', ' . $venda->empresa->numero : '' }}
-            {{ $venda->empresa->bairro ? ' - ' . $venda->empresa->bairro : '' }}
+            {{ $end->logradouro ?? '' }}{{ $end->numero ? ', ' . $end->numero : '' }}
+            {{ $end->bairro ? ' - ' . $end->bairro : '' }}
         </div>
         <div class="info-line">
-            {{ $venda->empresa->cidade ?? '' }}{{ $venda->empresa->uf ? ' - ' . $venda->empresa->uf : '' }}
-            {{ $venda->empresa->cep ? ' CEP: ' . $venda->empresa->cep : '' }}
+            {{ $end->cidade ?? '' }}{{ $end->uf ? ' - ' . $end->uf : '' }}
+            {{ $end->cep ? ' CEP: ' . $end->cep : '' }}
         </div>
     @endif
-    @if($venda->empresa->telefone ?? null)
-        <div class="info-line">Fone: {{ $venda->empresa->telefone }}</div>
+    @if($foneCupom)
+        <div class="info-line">Fone: {{ $foneCupom }}</div>
     @endif
 </div>
 

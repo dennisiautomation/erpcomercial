@@ -8111,3 +8111,9 @@ os 6 arquivos do ar = `main` (md5), foto `erp-com-app:pre-vendas-origem-20261106
 todas R$ 6.224,00 (95 na lista, 91 concluídas); **Loja** R$ 4.663,00 (74/70); **WhatsApp** R$ 1.561,00 (21/21); Online e Histórico 0
 nesse dia. Selo WhatsApp na lista; selects Tipo/Canal saíram; cancelamento com NFC-e fora do prazo intacto. Rollback = a foto, ou
 `…/arquivos/` + `view:cache` + USR2.
+
+**Varredura produção × `main` (06/11/2026 ~09:50 BRT, md5 dos 630 arquivos de app/resources/routes/config/database):** além dos 3
+arquivos do cancelamento com NFC-e fora do prazo (já no `3a2dc29`), só **`resources/views/app/pdv/cupom-nao-fiscal.blade.php`** estava
+diferente — no ar desde **05/11/2026 14:23 BRT**, sem commit: o cupom não fiscal passa a imprimir o **CNPJ, endereço e telefone da
+LOJA da venda** (`unidade`), caindo nos da empresa quando a loja não tem. Copiado do container como está (branch
+`cupom-loja-producao-05nov`). Nenhum arquivo novo no ar fora do git. Depois disso: produção = `main` nos 630 arquivos.
