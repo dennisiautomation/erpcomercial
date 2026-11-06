@@ -47,23 +47,7 @@ class RelatorioController extends Controller
         // pode ver, sem trocar a loja da sessão. `loja=todas` / `loja=ID` (links antigos)
         // continuam valendo. Id fora da lista do perfil é ignorado.
         $lojas = $this->lojasParaFiltro($request->user());
-        $permitidas = $lojas->pluck('id')->map(fn ($id) => (int) $id);
-        $lojasSelecionadas = collect([(int) session('unidade_id')]);
-        if ($lojas->count() > 1) {
-            if (is_array($request->input('lojas'))) {
-                $marcadas = collect($request->input('lojas'))->map(fn ($id) => (int) $id)
-                    ->filter(fn ($id) => $permitidas->contains($id))->unique()->values();
-                if ($marcadas->isNotEmpty()) {
-                    $lojasSelecionadas = $marcadas;
-                }
-            } elseif ($request->filled('loja')) {
-                if ($request->loja === 'todas') {
-                    $lojasSelecionadas = $permitidas;
-                } elseif ($permitidas->contains((int) $request->loja)) {
-                    $lojasSelecionadas = collect([(int) $request->loja]);
-                }
-            }
-        }
+        $lojasSelecionadas = $this->lojasSelecionadas($request, $lojas);
         // Uma loja só = $lojaFiltro (como antes); várias = null e o recorte é a lista.
         $lojaFiltro = $lojasSelecionadas->count() === 1 ? $lojasSelecionadas->first() : null;
         $escopoLoja = function ($q) use ($lojaFiltro, $lojas, $lojasSelecionadas) {
@@ -251,6 +235,263 @@ class RelatorioController extends Controller
     }
 
     /** Mesmo critério de VendaController::lojasParaFiltro (+ gerente, que vê as suas). */
+    /**
+     * Produtos vendidos (06/11/2026, pedido STILO): item a item e resumo por produto,
+     * com forma de pagamento, loja da venda e loja de onde a peça saiu.
+     *
+     * Valor do item = parte dele no total da venda (rateio pelo total do item):
+     * assim desconto/acréscimo no total da venda caem nos itens e a soma bate com o
+     * faturamento do Relatório de Vendas. Venda paga em mais de uma forma: o item é
+     * repartido entre as formas na proporção do que foi pago (regra do troco = a do
+     * Relatório de Vendas: troco abate só o dinheiro).
+     */
+    public function produtos(Request $request)
+    {
+        $empresaId = auth()->user()->empresa_id
+            ?? session('empresa_id')
+            ?? Unidade::withoutGlobalScopes()->whereKey(session('unidade_id'))->value('empresa_id');
+
+        $dataInicio = $request->filled('data_inicio') ? Carbon::parse($request->data_inicio) : now()->startOfMonth();
+        $dataFim = $request->filled('data_fim') ? Carbon::parse($request->data_fim) : now()->endOfMonth();
+
+        // Lojas da VENDA: mesma regra do Relatório de Vendas
+        $lojas = $this->lojasParaFiltro($request->user());
+        $lojasSelecionadas = $this->lojasSelecionadas($request, $lojas);
+        if ($lojas->isEmpty()) {
+            $lojasSelecionadas = collect([(int) session('unidade_id')]);
+        }
+
+        // Loja de onde SAIU: qualquer loja ativa da empresa (a peça vendida aqui pode
+        // sair de outra). Padrão = todas marcadas = sem filtro. Item sem loja de saída
+        // gravada saiu da própria loja da venda.
+        $lojasSaida = Unidade::withoutGlobalScopes()->where('empresa_id', $empresaId)
+            ->where('status', 'ativa')->orderBy('nome')->get(['id', 'nome']);
+        $saidaSelecionadas = $lojasSaida->pluck('id')->map(fn ($id) => (int) $id);
+        if (is_array($request->input('lojas_saida'))) {
+            $marcadas = collect($request->input('lojas_saida'))->map(fn ($id) => (int) $id)
+                ->filter(fn ($id) => $lojasSaida->contains('id', $id))->unique()->values();
+            if ($marcadas->isNotEmpty()) {
+                $saidaSelecionadas = $marcadas;
+            }
+        }
+        $filtraSaida = $saidaSelecionadas->count() < $lojasSaida->count();
+
+        $vendedores = User::where('empresa_id', $empresaId)
+            ->whereIn('perfil', ['dono', 'gerente', 'vendedor', 'caixa'])
+            ->where('status', 'ativo')->orderBy('name')->get(['id', 'name']);
+        $vendedorId = $request->filled('vendedor_id') && $vendedores->contains('id', (int) $request->vendedor_id)
+            ? (int) $request->vendedor_id : null;
+        $clienteFiltro = $request->filled('cliente_id')
+            ? Cliente::where('empresa_id', $empresaId)->find((int) $request->cliente_id) : null;
+        $produtoFiltro = $request->filled('produto_id')
+            ? Produto::withoutGlobalScopes()->where('empresa_id', $empresaId)->find((int) $request->produto_id) : null;
+        $categorias = Categoria::withoutGlobalScopes()->where('empresa_id', $empresaId)->orderBy('nome')->get(['id', 'nome']);
+        $categoriaId = $request->filled('categoria_id') && $categorias->contains('id', (int) $request->categoria_id)
+            ? (int) $request->categoria_id : null;
+        $formas = \App\Models\MovimentacaoCaixa::FORMAS_LABELS;
+        $formaFiltro = array_key_exists((string) $request->forma, $formas) ? (string) $request->forma : null;
+
+        $query = Venda::withoutGlobalScope(\App\Scopes\UnidadeScope::class)
+            ->with(['cliente:id,nome_razao_social', 'vendedor:id,name'])
+            ->where('empresa_id', $empresaId)
+            ->where('status', '!=', StatusVenda::Cancelada)
+            ->whereIn('unidade_id', $lojasSelecionadas)
+            ->whereBetween('created_at', [$dataInicio, $dataFim->copy()->endOfDay()]);
+        if ($request->origem === 'pedidos') {
+            $query->where('tipo', 'pedido');
+        } elseif ($request->origem === 'vendas') {
+            $query->where(fn ($q) => $q->where('tipo', '!=', 'pedido')->orWhereNull('tipo'));
+        }
+        if ($vendedorId) {
+            $query->where('vendedor_id', $vendedorId);
+        }
+        if ($clienteFiltro) {
+            $query->where('cliente_id', $clienteFiltro->id);
+        }
+        $vendas = $query->orderBy('created_at')->get()->keyBy('id');
+
+        $itensTodos = VendaItem::query()
+            ->whereIn('venda_id', $vendas->keys())
+            ->with(['produto' => fn ($q) => $q->withoutGlobalScopes()->select('id', 'codigo_interno', 'descricao', 'categoria_id')])
+            ->get(['id', 'venda_id', 'produto_id', 'servico_id', 'unidade_origem_id', 'descricao', 'quantidade', 'preco_unitario', 'desconto_valor', 'total']);
+        $somaItensPorVenda = $itensTodos->groupBy('venda_id')->map(fn ($g) => (float) $g->sum('total'));
+        $nomesLoja = Unidade::withoutGlobalScopes()->where('empresa_id', $empresaId)->pluck('nome', 'id');
+        $nomesCategoria = $categorias->pluck('nome', 'id');
+
+        // Quanto cada forma pagou de cada venda (fração do total)
+        $fracoesForma = function (Venda $v) use ($formas) {
+            $dets = is_array($v->pagamento_detalhes) && count($v->pagamento_detalhes) > 0
+                ? $v->pagamento_detalhes
+                : [['forma' => $v->forma_pagamento ?: 'outros', 'valor' => (float) $v->total]];
+            $troco = (float) ($v->troco ?? 0);
+            $valores = [];
+            foreach ($dets as $pg) {
+                $forma = (string) ($pg['forma'] ?? 'outros');
+                $valor = (float) ($pg['valor'] ?? 0);
+                if ($forma === 'dinheiro' && $troco > 0) {
+                    $abate = min($valor, $troco);
+                    $valor -= $abate;
+                    $troco -= $abate;
+                }
+                $valores[$forma] = ($valores[$forma] ?? 0) + $valor;
+            }
+            $soma = array_sum($valores);
+            if ($soma <= 0) {
+                return [array_key_first($valores) ?? 'outros' => 1.0];
+            }
+
+            return array_map(fn ($x) => $x / $soma, array_filter($valores, fn ($x) => $x > 0));
+        };
+
+        $linhas = collect();
+        foreach ($itensTodos as $item) {
+            $v = $vendas[$item->venda_id];
+            $saida = (int) ($item->unidade_origem_id ?: $v->unidade_id);
+            if ($filtraSaida && ! $saidaSelecionadas->contains($saida)) {
+                continue;
+            }
+            if ($produtoFiltro && (int) $item->produto_id !== $produtoFiltro->id) {
+                continue;
+            }
+            if ($categoriaId && (int) ($item->produto->categoria_id ?? 0) !== $categoriaId) {
+                continue;
+            }
+            $somaItens = $somaItensPorVenda[$item->venda_id] ?? 0;
+            $valorItem = $somaItens > 0 ? (float) $v->total * (float) $item->total / $somaItens : 0.0;
+            $fracoes = $fracoesForma($v);
+            if ($formaFiltro) {
+                if (! isset($fracoes[$formaFiltro])) {
+                    continue;
+                }
+                $fracoes = [$formaFiltro => $fracoes[$formaFiltro]];
+            }
+            $fatia = array_sum($fracoes);
+            $qtd = (float) $item->quantidade;
+            $bruto = round((float) $item->preco_unitario * $qtd, 2);
+            $linhas->push((object) [
+                'data' => $v->created_at,
+                'venda_id' => $v->id,
+                'venda_numero' => $v->numero ?? $v->id,
+                'tipo' => $v->tipo,
+                'loja_venda' => $nomesLoja[$v->unidade_id] ?? '-',
+                'loja_saida_id' => $saida,
+                'loja_saida' => $nomesLoja[$saida] ?? '-',
+                'chave' => $item->produto_id ? 'p' . $item->produto_id : ($item->servico_id ? 's' . $item->servico_id : 'd' . md5((string) $item->descricao)),
+                'codigo' => $item->produto->codigo_interno ?? '',
+                'produto' => $item->produto->descricao ?? $item->descricao,
+                'categoria' => $nomesCategoria[$item->produto->categoria_id ?? 0] ?? '',
+                'servico' => (bool) $item->servico_id,
+                // Com filtro de forma, só a parte paga naquela forma (quantidade proporcional)
+                'quantidade' => $qtd * $fatia,
+                'preco_unitario' => (float) $item->preco_unitario,
+                'bruto' => $bruto * $fatia,
+                'total' => $valorItem * $fatia,
+                'formas' => array_map(fn ($f) => $valorItem * $f, $fracoes),
+                'formas_texto' => implode(' + ', array_map(fn ($f) => $formas[$f] ?? ucfirst(str_replace('_', ' ', $f)), array_keys($fracoes))),
+                'vendedor' => $v->vendedor->name ?? '-',
+                'cliente' => $v->cliente->nome_razao_social ?? '',
+            ]);
+        }
+
+        $total = (float) $linhas->sum('total');
+        $totalBruto = (float) $linhas->sum('bruto');
+        $pecas = (float) $linhas->where('servico', false)->sum('quantidade');
+        $vendasCom = $linhas->pluck('venda_id')->unique()->count();
+
+        $ordem = $request->ordem === 'qtd' ? 'quantidade' : ($request->ordem === 'nome' ? 'produto' : 'total');
+        $resumo = $linhas->groupBy('chave')->map(fn ($g) => (object) [
+            'codigo' => $g->first()->codigo,
+            'produto' => $g->first()->produto,
+            'categoria' => $g->first()->categoria,
+            'quantidade' => (float) $g->sum('quantidade'),
+            'bruto' => (float) $g->sum('bruto'),
+            'total' => (float) $g->sum('total'),
+            'vendas' => $g->pluck('venda_id')->unique()->count(),
+        ]);
+        $resumo = $ordem === 'produto'
+            ? $resumo->sortBy(fn ($r) => mb_strtolower($r->produto))->values()
+            : $resumo->sortByDesc($ordem)->values();
+
+        $porForma = [];
+        foreach ($linhas as $l) {
+            foreach ($l->formas as $f => $valor) {
+                $porForma[$f] ??= ['label' => $formas[$f] ?? ucfirst(str_replace('_', ' ', $f)), 'valor' => 0.0];
+                $porForma[$f]['valor'] += $valor;
+            }
+        }
+        $porForma = collect($porForma)->sortByDesc('valor')->values();
+        $porSaida = $linhas->groupBy('loja_saida_id')->map(fn ($g) => (object) [
+            'loja' => $g->first()->loja_saida,
+            'quantidade' => (float) $g->where('servico', false)->sum('quantidade'),
+            'total' => (float) $g->sum('total'),
+        ])->sortByDesc('total')->values();
+
+        $lojaNome = $lojas->count() > 1 && $lojasSelecionadas->count() === $lojas->count()
+            ? 'Todas as lojas'
+            : $lojasSelecionadas->map(fn ($id) => $nomesLoja[$id] ?? '-')->implode(', ');
+        $saidaNome = $filtraSaida
+            ? $saidaSelecionadas->map(fn ($id) => $nomesLoja[$id] ?? '-')->implode(', ')
+            : 'Todas';
+
+        // Planilha (.xlsx) com tudo, item a item
+        if ($request->boolean('planilha')) {
+            $cab = ['Data', 'Venda', 'Origem', 'Loja da venda', 'Saiu de', 'Código', 'Produto', 'Categoria', 'Qtd', 'Preço unit.', 'Bruto', 'Total', 'Forma de pagamento', 'Vendedor', 'Cliente'];
+            $dados = $linhas->map(fn ($l) => [
+                $l->data->format('d/m/Y H:i'), $l->venda_numero, $l->tipo === 'pedido' ? 'Pedido' : 'Venda',
+                $l->loja_venda, $l->loja_saida, $l->codigo, $l->produto, $l->categoria,
+                round($l->quantidade, 3), round($l->preco_unitario, 2), round($l->bruto, 2), round($l->total, 2),
+                $l->formas_texto, $l->vendedor, $l->cliente,
+            ])->all();
+
+            return \App\Support\Planilha::download($cab, $dados,
+                'produtos-vendidos-' . $dataInicio->format('Y-m-d') . '-a-' . $dataFim->format('Y-m-d'), 'Produtos vendidos');
+        }
+
+        $ver = $request->ver === 'itens' ? 'itens' : 'resumo';
+        $itensPagina = new \Illuminate\Pagination\LengthAwarePaginator(
+            $linhas->sortByDesc('data')->values()->forPage(\Illuminate\Pagination\Paginator::resolveCurrentPage(), 100),
+            $linhas->count(), 100, null,
+            ['path' => $request->url(), 'query' => $request->query()]
+        );
+        $empresa = \App\Models\Empresa::find($empresaId);
+
+        return view('app.relatorios.produtos', compact(
+            'linhas', 'resumo', 'porForma', 'porSaida', 'itensPagina', 'ver', 'ordem',
+            'total', 'totalBruto', 'pecas', 'vendasCom', 'dataInicio', 'dataFim',
+            'lojas', 'lojasSelecionadas', 'lojasSaida', 'saidaSelecionadas', 'filtraSaida',
+            'vendedores', 'vendedorId', 'clienteFiltro', 'produtoFiltro', 'categorias', 'categoriaId',
+            'formas', 'formaFiltro', 'lojaNome', 'saidaNome', 'empresa'
+        ));
+    }
+
+    /**
+     * Lojas marcadas no filtro (06/11/2026): `lojas[]` com quantas o perfil pode ver;
+     * `loja=todas` / `loja=ID` (links antigos) continuam. Id fora da lista é ignorado;
+     * nada válido = loja da sessão. Perfil sem lista (vendedor/caixa) = loja da sessão.
+     */
+    private function lojasSelecionadas(Request $request, \Illuminate\Support\Collection $lojas): \Illuminate\Support\Collection
+    {
+        $permitidas = $lojas->pluck('id')->map(fn ($id) => (int) $id);
+        $selecionadas = collect([(int) session('unidade_id')]);
+        if ($lojas->count() > 1) {
+            if (is_array($request->input('lojas'))) {
+                $marcadas = collect($request->input('lojas'))->map(fn ($id) => (int) $id)
+                    ->filter(fn ($id) => $permitidas->contains($id))->unique()->values();
+                if ($marcadas->isNotEmpty()) {
+                    $selecionadas = $marcadas;
+                }
+            } elseif ($request->filled('loja')) {
+                if ($request->loja === 'todas') {
+                    $selecionadas = $permitidas;
+                } elseif ($permitidas->contains((int) $request->loja)) {
+                    $selecionadas = collect([(int) $request->loja]);
+                }
+            }
+        }
+
+        return $selecionadas;
+    }
+
     private function lojasParaFiltro($user): \Illuminate\Support\Collection
     {
         $perfil = $user->perfil instanceof \App\Enums\Perfil ? $user->perfil->value : $user->perfil;

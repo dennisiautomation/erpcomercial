@@ -989,6 +989,10 @@
                                        href="{{ route('app.relatorios.vendas') }}">Vendas</a>
                                 </li>
                                 <li class="nav-item">
+                                    <a class="nav-link {{ request()->routeIs('app.relatorios.produtos') ? 'active' : '' }}"
+                                       href="{{ route('app.relatorios.produtos') }}">Produtos vendidos</a>
+                                </li>
+                                <li class="nav-item">
                                     <a class="nav-link {{ request()->routeIs('app.relatorios.estoque') ? 'active' : '' }}"
                                        href="{{ route('app.relatorios.estoque') }}">Estoque</a>
                                 </li>

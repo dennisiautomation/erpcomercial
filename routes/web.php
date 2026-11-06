@@ -652,6 +652,8 @@ Route::middleware(['auth', 'suspensao', 'unidade', \App\Http\Middleware\Restring
     /* ------ Relatorios ------ */
     Route::prefix('relatorios')->name('relatorios.')->middleware('permission:relatorios')->group(function () {
         Route::get('/vendas', [App\RelatorioController::class, 'vendas'])->name('vendas');
+        // Produtos vendidos (06/11/2026): item a item, forma de pagamento, loja da venda e de saída
+        Route::get('/produtos', [App\RelatorioController::class, 'produtos'])->name('produtos');
         Route::get('/estoque', [App\RelatorioController::class, 'estoque'])->name('estoque');
         // Folha de contagem física — sem o saldo do sistema, de propósito
         Route::get('/estoque-cego', [App\RelatorioController::class, 'estoqueCego'])->name('estoque-cego');
