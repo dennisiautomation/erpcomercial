@@ -15,6 +15,14 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Venda extends Model
 {
+    /** Tipos gravados em `vendas.tipo` (06/11/2026: `online` não é tipo, é canal). */
+    public const TIPOS_LABELS = [
+        'pdv'       => 'PDV',
+        'pedido'    => 'Pedido',
+        'balcao'    => 'Balcão',
+        'importada' => 'Importada (histórico)',
+    ];
+
     use HasFactory, SoftDeletes, BelongsToEmpresa, BelongsToUnidade, AuditableModel;
 
     protected $auditFields = ['status', 'total', 'cliente_id', 'vendedor_id', 'cancelamento_motivo', 'canceled_at'];

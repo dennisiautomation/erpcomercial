@@ -126,11 +126,21 @@
             </div>
             <div class="col-md-2">
                 <label for="campo-tipo" class="form-label small fw-semibold mb-1">Tipo</label>
+                {{-- Tipos que existem em vendas.tipo (06/11/2026); "online" é canal, não tipo --}}
                 <select id="campo-tipo" name="tipo" class="form-select form-select-sm">
                     <option value="">Todos</option>
-                    <option value="pdv" {{ request('tipo') === 'pdv' ? 'selected' : '' }}>PDV</option>
-                    <option value="balcao" {{ request('tipo') === 'balcao' ? 'selected' : '' }}>Balcão</option>
-                    <option value="online" {{ request('tipo') === 'online' ? 'selected' : '' }}>Online</option>
+                    @foreach($tipos as $valor => $rotulo)
+                        <option value="{{ $valor }}" @selected($tipoFiltro === $valor)>{{ $rotulo }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label for="campo-canal" class="form-label small fw-semibold mb-1">Canal</label>
+                <select id="campo-canal" name="canal" class="form-select form-select-sm">
+                    <option value="">Todos</option>
+                    @foreach($canais as $valor => $rotulo)
+                        <option value="{{ $valor }}" @selected($canalFiltro === $valor)>{{ $rotulo }}</option>
+                    @endforeach
                 </select>
             </div>
             <div class="col-md-2">
@@ -192,10 +202,14 @@
                         <td class="text-center small">{{ $venda->caixa ? '#'.($venda->caixa->numero_caixa ?? $venda->caixa->id) : '-' }}</td>
                         <td class="text-center">
                             @php
-                                $tipoColors = ['pdv' => 'info', 'balcao' => 'primary', 'online' => 'success'];
+                                $tipoColors = ['pdv' => 'info', 'balcao' => 'primary', 'pedido' => 'success', 'importada' => 'secondary'];
                                 $tipoBg = $tipoColors[$venda->tipo] ?? 'secondary';
+                                $tipoRotulo = ['importada' => 'Importada'][$venda->tipo] ?? ($tipos[$venda->tipo] ?? ($venda->tipo ?: 'N/A'));
                             @endphp
-                            <span class="badge bg-{{ $tipoBg }}">{{ strtoupper($venda->tipo ?? 'N/A') }}</span>
+                            <span class="badge bg-{{ $tipoBg }}">{{ mb_strtoupper($tipoRotulo) }}</span>
+                            @if($venda->canal && $venda->canal !== \App\Enums\CanalVenda::Presencial)
+                                <div class="small text-muted"><i class="bi {{ $venda->canal->icone() }} me-1"></i>{{ $venda->canal->label() }}</div>
+                            @endif
                         </td>
                         <td>
                             @php

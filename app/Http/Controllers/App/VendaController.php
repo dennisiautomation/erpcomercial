@@ -40,64 +40,62 @@ class VendaController extends Controller
             }
         }
 
-        $query = Venda::where('empresa_id', session('empresa_id'))
-            ->when($lojaFiltro, fn ($q) => $q->where('unidade_id', $lojaFiltro))
-            ->when(! $lojaFiltro, fn ($q) => $q->whereIn('unidade_id', $lojas->pluck('id')))
-            ->with(['cliente:id,nome_razao_social,cpf_cnpj', 'vendedor:id,name', 'unidade:id,nome', 'caixa:id,numero_caixa']);
+        // Tipos e canais que existem de verdade (06/11/2026): o filtro oferecia
+        // "Balcão" e "Online" como tipo — online é CANAL (pedido do WhatsApp/site)
+        // e faltavam Pedido e Importada; quem filtrava via lista vazia.
+        $tipos = \App\Models\Venda::TIPOS_LABELS;
+        $canais = collect(\App\Enums\CanalVenda::cases())->mapWithKeys(fn ($c) => [$c->value => $c->label()])->all();
+        $tipoFiltro = array_key_exists((string) $request->tipo, $tipos) ? (string) $request->tipo : null;
+        $canalFiltro = array_key_exists((string) $request->canal, $canais) ? (string) $request->canal : null;
 
-        if ($request->filled('busca')) {
-            $busca = $request->busca;
-            $query->where(function ($q) use ($busca) {
-                $q->where('numero', 'like', "%{$busca}%")
-                  ->orWhereHas('cliente', fn ($c) => $c->where('nome_razao_social', 'like', "%{$busca}%"));
-            });
-        }
-
-        if ($request->filled('status')) {
-            $query->where('status', $request->status);
-        }
-
-        if ($request->filled('tipo')) {
-            $query->where('tipo', $request->tipo);
-        }
-
-        if ($request->filled('data_inicio')) {
-            $query->whereDate('created_at', '>=', $request->data_inicio);
-        }
-
-        if ($request->filled('data_fim')) {
-            $query->whereDate('created_at', '<=', $request->data_fim);
-        }
-
-        if ($request->filled('forma_pagamento')) {
-            $query->where('forma_pagamento', $request->forma_pagamento);
-        }
-
-        $vendas = $query->latest()->paginate(20)->withQueryString();
-
-        // Summary stats — respeitam o filtro de loja
-        $empresaId = session('empresa_id');
-        $baseQuery = Venda::where('empresa_id', $empresaId)
+        $base = fn () => Venda::where('empresa_id', session('empresa_id'))
             ->when($lojaFiltro, fn ($q) => $q->where('unidade_id', $lojaFiltro))
             ->when(! $lojaFiltro, fn ($q) => $q->whereIn('unidade_id', $lojas->pluck('id')));
 
-        // Apply same date filters for stats
-        $statsQuery = clone $baseQuery;
-        if ($request->filled('data_inicio')) {
-            $statsQuery->whereDate('created_at', '>=', $request->data_inicio);
-        }
-        if ($request->filled('data_fim')) {
-            $statsQuery->whereDate('created_at', '<=', $request->data_fim);
-        }
+        // Mesmos filtros na lista E nos cartões do topo (antes os cartões só
+        // olhavam loja e datas — filtrar tipo/status/busca não mudava nada neles).
+        $filtros = function ($q, bool $comDatas = true) use ($request, $tipoFiltro, $canalFiltro) {
+            if ($request->filled('busca')) {
+                $busca = $request->busca;
+                $q->where(function ($q) use ($busca) {
+                    $q->where('numero', 'like', "%{$busca}%")
+                      ->orWhereHas('cliente', fn ($c) => $c->where('nome_razao_social', 'like', "%{$busca}%"));
+                });
+            }
+            if ($request->filled('status')) {
+                $q->where('status', $request->status);
+            }
+            if ($tipoFiltro) {
+                $q->where('tipo', $tipoFiltro);
+            }
+            if ($canalFiltro) {
+                $q->where('canal', $canalFiltro);
+            }
+            if ($request->filled('forma_pagamento')) {
+                $q->where('forma_pagamento', $request->forma_pagamento);
+            }
+            if ($comDatas && $request->filled('data_inicio')) {
+                $q->whereDate('created_at', '>=', $request->data_inicio);
+            }
+            if ($comDatas && $request->filled('data_fim')) {
+                $q->whereDate('created_at', '<=', $request->data_fim);
+            }
 
+            return $q;
+        };
+
+        $vendas = $filtros($base()->with(['cliente:id,nome_razao_social,cpf_cnpj', 'vendedor:id,name', 'unidade:id,nome', 'caixa:id,numero_caixa']))
+            ->latest()->paginate(20)->withQueryString();
+
+        $statsQuery = $filtros($base());
         $stats = [
             'total_concluidas' => (clone $statsQuery)->where('status', StatusVenda::Concluida)->sum('total'),
             'count_concluidas' => (clone $statsQuery)->where('status', StatusVenda::Concluida)->count(),
             'count_canceladas' => (clone $statsQuery)->where('status', StatusVenda::Cancelada)->count(),
-            'total_hoje' => (clone $baseQuery)->where('status', StatusVenda::Concluida)->whereDate('created_at', today())->sum('total'),
+            'total_hoje' => $filtros($base(), false)->where('status', StatusVenda::Concluida)->whereDate('created_at', today())->sum('total'),
         ];
 
-        return view('app.vendas.index', compact('vendas', 'stats', 'lojas', 'lojaFiltro'));
+        return view('app.vendas.index', compact('vendas', 'stats', 'lojas', 'lojaFiltro', 'tipos', 'canais', 'tipoFiltro', 'canalFiltro'));
     }
 
     /**
