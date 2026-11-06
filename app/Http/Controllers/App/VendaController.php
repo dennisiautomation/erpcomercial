@@ -391,10 +391,13 @@ class VendaController extends Controller
         return view('app.pdv.cupom-nao-fiscal', compact('venda', 'notaFiscal'));
     }
 
-    public function destroy(Venda $venda)
+    public function destroy(Request $request, Venda $venda)
     {
+        $ignorarNota = $request->boolean('ignorar_nota_vencida');
+        $notaVencida = $ignorarNota ? \App\Services\VendaCancelamentoService::notaForaDoPrazo($venda) : null;
+
         try {
-            app(\App\Services\VendaCancelamentoService::class)->cancelar($venda, (int) auth()->id());
+            app(\App\Services\VendaCancelamentoService::class)->cancelar($venda, (int) auth()->id(), false, $ignorarNota);
         } catch (\App\Services\VendaNaoCancelavelException $e) {
             // Documento fiscal vivo: leva direto para a nota (cancelar por lá primeiro)
             if ($e->nota) {
@@ -402,6 +405,17 @@ class VendaController extends Controller
             }
 
             return back()->with('error', $e->getMessage());
+        }
+
+        if ($notaVencida) {
+            activity('Venda')
+                ->performedOn($venda)
+                ->causedBy(auth()->user())
+                ->event('cancelada_nota_vencida')
+                ->withProperties(['nota_fiscal_id' => $notaVencida->id, 'numero_nota' => $notaVencida->numero])
+                ->log('Venda cancelada com NFC-e nº ' . $notaVencida->numero . ' fora do prazo de cancelamento (a nota segue autorizada na SEFAZ)');
+
+            return back()->with('success', 'Venda cancelada: estoque e caixa estornados. Atenção: a NFC-e nº ' . $notaVencida->numero . ' passou do prazo e NÃO foi cancelada na SEFAZ — avise o contador.');
         }
 
         return back()->with('success', 'Venda cancelada com sucesso!');

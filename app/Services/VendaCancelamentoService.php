@@ -31,13 +31,18 @@ class VendaCancelamentoService
      *                          própria troca (ele já tratou estoque/vale dela).
      * @throws VendaNaoCancelavelException
      */
-    public function cancelar(Venda $venda, int $userId, bool $liberaTroca = false): void
+    public function cancelar(Venda $venda, int $userId, bool $liberaTroca = false, bool $ignorarNotaVencida = false): void
     {
         if ($venda->status === StatusVenda::Cancelada) {
             throw new VendaNaoCancelavelException('Esta venda ja esta cancelada.');
         }
 
-        $this->checarNotaFiscal($venda);
+        // NFC-e que a SEFAZ já não deixa cancelar (passou do prazo): o operador, avisado na
+        // tela, pode cancelar só a venda (estoque/caixa/vale voltam). A nota segue valendo.
+        $notaVencida = $ignorarNotaVencida ? self::notaForaDoPrazo($venda) : null;
+        if (! $notaVencida) {
+            $this->checarNotaFiscal($venda);
+        }
 
         // Troca/devolução já mexeu em estoque, vale e caixa desta venda (ou a
         // venda é a nova de uma troca): cancelar por cima devolveria em dobro.
@@ -159,6 +164,36 @@ class VendaCancelamentoService
      * Cancelar a venda NÃO cancela o documento na SEFAZ — com cupom autorizado
      * vivo, o cancelamento precisa começar pela nota (prazo curto na NFC-e).
      */
+    /** Prazo de cancelamento da NFC-e na SEFAZ (minutos). */
+    public const PRAZO_CANCELAMENTO_NFCE_MIN = 30;
+
+    /**
+     * A nota que impede o cancelamento, quando ela é só uma NFC-e autorizada fora do prazo
+     * (e não há nenhum outro documento vivo na venda). Senão, null: o bloqueio normal vale.
+     */
+    public static function notaForaDoPrazo(Venda $venda): ?\App\Models\NotaFiscal
+    {
+        $vivas = $venda->notasFiscais()
+            ->whereIn('status', ['autorizada', 'pendente', 'contingencia'])
+            ->get();
+
+        if ($vivas->isEmpty()) {
+            return null;
+        }
+
+        $limite = now()->subMinutes(self::PRAZO_CANCELAMENTO_NFCE_MIN);
+        foreach ($vivas as $nota) {
+            $vencida = $nota->tipo === \App\Enums\TipoNotaFiscal::NFCe
+                && $nota->status === \App\Enums\StatusNotaFiscal::Autorizada
+                && ($nota->emitida_em ?? $nota->created_at)?->lt($limite);
+            if (! $vencida) {
+                return null;
+            }
+        }
+
+        return $vivas->first();
+    }
+
     public function checarNotaFiscal(Venda $venda): void
     {
         $notaViva = $venda->notasFiscais()

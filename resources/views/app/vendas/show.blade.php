@@ -26,10 +26,12 @@
             </a>
         @endif
         @if($venda->status->value === 'concluida')
+            @php $notaVencida = \App\Services\VendaCancelamentoService::notaForaDoPrazo($venda); @endphp
             <form method="POST" action="{{ route('app.vendas.destroy', $venda) }}"
-                  data-confirm="Cancelar esta venda? O estoque sera revertido, as contas a receber serao canceladas e o valor sai do caixa na mesma forma de pagamento (vale volta ao saldo). Devolva o dinheiro ao cliente; PIX e cartão, estorne no banco ou na maquininha.">
+                  data-confirm="@if($notaVencida)O cupom (NFC-e nº {{ $notaVencida->numero }}) NÃO pode mais ser cancelado: passou do prazo de {{ \App\Services\VendaCancelamentoService::PRAZO_CANCELAMENTO_NFCE_MIN }} minutos da SEFAZ. Se continuar, só a VENDA será cancelada (estoque volta, valor estornado do caixa) e a nota continua válida na SEFAZ — avise o contador. Cancelar a venda mesmo assim?@else Cancelar esta venda? O estoque sera revertido, as contas a receber serao canceladas e o valor sai do caixa na mesma forma de pagamento (vale volta ao saldo). Devolva o dinheiro ao cliente; PIX e cartão, estorne no banco ou na maquininha.@endif">
                 @csrf
                 @method('DELETE')
+                @if($notaVencida)<input type="hidden" name="ignorar_nota_vencida" value="1">@endif
                 <button type="submit" class="btn btn-danger">
                     <i class="bi bi-x-circle me-1"></i> Cancelar Venda
                 </button>
