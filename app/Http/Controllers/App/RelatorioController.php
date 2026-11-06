@@ -43,17 +43,34 @@ class RelatorioController extends Controller
 
         // Filtro por loja (03/09/2026): admin/dono/gerente escolhem; os demais
         // seguem presos à loja da sessão pelo UnidadeScope. Padrão = loja atual.
+        // Várias lojas de uma vez (06/11/2026, STILO): `lojas[]` com quantas o perfil
+        // pode ver, sem trocar a loja da sessão. `loja=todas` / `loja=ID` (links antigos)
+        // continuam valendo. Id fora da lista do perfil é ignorado.
         $lojas = $this->lojasParaFiltro($request->user());
-        $lojaFiltro = (int) session('unidade_id');
-        if ($lojas->count() > 1 && $request->filled('loja')) {
-            $lojaFiltro = $request->loja === 'todas' ? null
-                : ($lojas->contains('id', (int) $request->loja) ? (int) $request->loja : $lojaFiltro);
+        $permitidas = $lojas->pluck('id')->map(fn ($id) => (int) $id);
+        $lojasSelecionadas = collect([(int) session('unidade_id')]);
+        if ($lojas->count() > 1) {
+            if (is_array($request->input('lojas'))) {
+                $marcadas = collect($request->input('lojas'))->map(fn ($id) => (int) $id)
+                    ->filter(fn ($id) => $permitidas->contains($id))->unique()->values();
+                if ($marcadas->isNotEmpty()) {
+                    $lojasSelecionadas = $marcadas;
+                }
+            } elseif ($request->filled('loja')) {
+                if ($request->loja === 'todas') {
+                    $lojasSelecionadas = $permitidas;
+                } elseif ($permitidas->contains((int) $request->loja)) {
+                    $lojasSelecionadas = collect([(int) $request->loja]);
+                }
+            }
         }
-        $escopoLoja = function ($q) use ($lojaFiltro, $lojas) {
+        // Uma loja só = $lojaFiltro (como antes); várias = null e o recorte é a lista.
+        $lojaFiltro = $lojasSelecionadas->count() === 1 ? $lojasSelecionadas->first() : null;
+        $escopoLoja = function ($q) use ($lojaFiltro, $lojas, $lojasSelecionadas) {
             if ($lojaFiltro) {
                 $q->where('unidade_id', $lojaFiltro);
             } elseif ($lojas->isNotEmpty()) {
-                $q->whereIn('unidade_id', $lojas->pluck('id'));
+                $q->whereIn('unidade_id', $lojasSelecionadas);
             } else {
                 // Perfil sem filtro (vendedor/caixa/...): preso à loja da sessão,
                 // como o UnidadeScope fazia — ele sai da consulta logo abaixo.
@@ -165,7 +182,7 @@ class RelatorioController extends Controller
             })->sortByDesc('faturamento')->values();
         };
         $porVendedor = $agrupar('vendedor_id', fn ($v) => $v->vendedor->name ?? 'Sem vendedor');
-        $porLoja = ($lojas->count() > 1 && ! $lojaFiltro)
+        $porLoja = $lojasSelecionadas->count() > 1
             ? $agrupar('unidade_id', fn ($v) => $v->unidade->nome ?? '-')
             : collect();
 
@@ -213,9 +230,13 @@ class RelatorioController extends Controller
 
         // Cabeçalho do impresso: empresa, loja e quem gerou
         $empresa = \App\Models\Empresa::find($empresaId);
-        $lojaNome = $lojaFiltro
-            ? (\App\Models\Unidade::withoutGlobalScopes()->find($lojaFiltro)?->nome ?? '-')
-            : 'Todas as lojas';
+        if ($lojas->count() > 1 && $lojasSelecionadas->count() === $lojas->count()) {
+            $lojaNome = 'Todas as lojas';
+        } elseif ($lojasSelecionadas->count() > 1) {
+            $lojaNome = $lojas->whereIn('id', $lojasSelecionadas->all())->pluck('nome')->implode(', ');
+        } else {
+            $lojaNome = \App\Models\Unidade::withoutGlobalScopes()->find($lojaFiltro)?->nome ?? '-';
+        }
 
         return view('app.relatorios.vendas', compact(
             'vendas', 'totalVendas', 'faturamento', 'ticketMedio',
@@ -223,7 +244,7 @@ class RelatorioController extends Controller
             'subtotalBruto', 'descontos', 'acrescimos',
             'porForma', 'totalPorForma', 'porVendedor', 'porLoja',
             'topProdutos', 'topClientes', 'dataInicio', 'dataFim',
-            'lojas', 'lojaFiltro', 'vendedores', 'vendedorId', 'clienteFiltro',
+            'lojas', 'lojaFiltro', 'lojasSelecionadas', 'vendedores', 'vendedorId', 'clienteFiltro',
             'devolucoesQtd', 'devolucoesValor', 'devolucoesPecas', 'faturamentoLiquido',
             'empresa', 'lojaNome'
         ));

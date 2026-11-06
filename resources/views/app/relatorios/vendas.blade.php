@@ -73,7 +73,7 @@
 @php
     $brl = fn ($v) => 'R$ ' . number_format((float) $v, 2, ',', '.');
     $qtd = fn ($v) => number_format((float) $v, (fmod((float) $v, 1) == 0 ? 0 : 3), ',', '.');
-    $mostraLoja = isset($lojas) && $lojas->count() > 1 && empty($lojaFiltro);
+    $mostraLoja = isset($lojas) && $lojas->count() > 1 && ($lojasSelecionadas ?? collect())->count() > 1;
     $origemLabel = ['vendas' => 'Vendas (PDV/balcão)', 'pedidos' => 'Pedidos faturados'][request('origem')] ?? 'Todas';
     $vendedorNome = $vendedorId ? ($vendedores->firstWhere('id', $vendedorId)->name ?? '-') : 'Todos';
 @endphp
@@ -116,14 +116,35 @@
                 <input id="campo-data_fim" type="date" name="data_fim" class="form-control form-control-sm" value="{{ $dataFim->format('Y-m-d') }}">
             </div>
             @if(isset($lojas) && $lojas->count() > 1)
+            @php
+                $sel = ($lojasSelecionadas ?? collect())->all();
+                $rotuloLojas = count($sel) === $lojas->count() ? 'Todas as lojas'
+                    : (count($sel) === 1 ? ($lojas->firstWhere('id', $sel[0])->nome ?? '1 loja') : count($sel) . ' lojas');
+            @endphp
+            {{-- Várias lojas (06/11/2026): marca quantas quiser, sem trocar a loja do topo --}}
             <div class="col-md-2">
                 <label for="campo-loja" class="form-label small fw-semibold">Loja</label>
-                <select id="campo-loja" name="loja" class="form-select form-select-sm">
-                    <option value="todas" @selected(empty($lojaFiltro) && request()->filled('loja'))>Todas as lojas</option>
-                    @foreach($lojas as $loja)
-                        <option value="{{ $loja->id }}" @selected((int) ($lojaFiltro ?? 0) === $loja->id)>{{ $loja->nome }}</option>
-                    @endforeach
-                </select>
+                <div class="dropdown" id="filtro-lojas">
+                    <button id="campo-loja" type="button" class="form-select form-select-sm text-start text-truncate"
+                            data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false">
+                        <span class="js-rotulo-lojas">{{ $rotuloLojas }}</span>
+                    </button>
+                    <div class="dropdown-menu p-2 shadow-sm" style="min-width: 16rem; max-height: 22rem; overflow-y: auto;">
+                        <div class="d-flex gap-2 mb-2">
+                            <button type="button" class="btn btn-link btn-sm p-0 js-lojas-todas">Marcar todas</button>
+                            <span class="text-muted">·</span>
+                            <button type="button" class="btn btn-link btn-sm p-0 js-lojas-limpar">Limpar</button>
+                        </div>
+                        @foreach($lojas as $loja)
+                        <div class="form-check">
+                            <input class="form-check-input js-loja" type="checkbox" name="lojas[]" value="{{ $loja->id }}"
+                                   id="loja-{{ $loja->id }}" data-nome="{{ $loja->nome }}" @checked(in_array($loja->id, $sel))>
+                            <label class="form-check-label small" for="loja-{{ $loja->id }}">{{ $loja->nome }}</label>
+                        </div>
+                        @endforeach
+                        <div class="small text-muted mt-2 js-lojas-aviso" hidden>Nenhuma marcada: vale a loja atual.</div>
+                    </div>
+                </div>
             </div>
             @endif
             <div class="col-md-2">
@@ -488,3 +509,26 @@
     </div>
 </div>
 @endsection
+
+@push('scripts')
+<script>
+(function () {
+    const caixa = document.getElementById('filtro-lojas');
+    if (!caixa) return;
+    const marcas = [...caixa.querySelectorAll('.js-loja')];
+    const rotulo = caixa.querySelector('.js-rotulo-lojas');
+    const aviso = caixa.querySelector('.js-lojas-aviso');
+    const atualizar = () => {
+        const sel = marcas.filter(m => m.checked);
+        rotulo.textContent = sel.length === marcas.length ? 'Todas as lojas'
+            : sel.length === 1 ? sel[0].dataset.nome
+            : sel.length === 0 ? 'Loja atual'
+            : sel.length + ' lojas';
+        aviso.hidden = sel.length !== 0;
+    };
+    marcas.forEach(m => m.addEventListener('change', atualizar));
+    caixa.querySelector('.js-lojas-todas').addEventListener('click', () => { marcas.forEach(m => m.checked = true); atualizar(); });
+    caixa.querySelector('.js-lojas-limpar').addEventListener('click', () => { marcas.forEach(m => m.checked = false); atualizar(); });
+})();
+</script>
+@endpush
