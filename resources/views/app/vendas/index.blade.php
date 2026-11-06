@@ -125,21 +125,12 @@
                 </select>
             </div>
             <div class="col-md-2">
-                <label for="campo-tipo" class="form-label small fw-semibold mb-1">Tipo</label>
-                {{-- Tipos que existem em vendas.tipo (06/11/2026); "online" é canal, não tipo --}}
-                <select id="campo-tipo" name="tipo" class="form-select form-select-sm">
-                    <option value="">Todos</option>
-                    @foreach($tipos as $valor => $rotulo)
-                        <option value="{{ $valor }}" @selected($tipoFiltro === $valor)>{{ $rotulo }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <div class="col-md-2">
-                <label for="campo-canal" class="form-label small fw-semibold mb-1">Canal</label>
-                <select id="campo-canal" name="canal" class="form-select form-select-sm">
-                    <option value="">Todos</option>
-                    @foreach($canais as $valor => $rotulo)
-                        <option value="{{ $valor }}" @selected($canalFiltro === $valor)>{{ $rotulo }}</option>
+                <label for="campo-origem" class="form-label small fw-semibold mb-1">Origem</label>
+                {{-- Um filtro só (06/11/2026): Loja = PDV/balcão/pedido presencial; WhatsApp/Online = canal do pedido --}}
+                <select id="campo-origem" name="origem" class="form-select form-select-sm">
+                    <option value="">Todas</option>
+                    @foreach($origens as $valor => $rotulo)
+                        <option value="{{ $valor }}" @selected($origemFiltro === $valor)>{{ $rotulo }}</option>
                     @endforeach
                 </select>
             </div>
@@ -174,7 +165,7 @@
                     <th>Cliente</th>
                     <th>Vendedor</th>
                     <th class="text-center">Caixa</th>
-                    <th class="text-center">Tipo</th>
+                    <th class="text-center">Origem</th>
                     <th>Forma Pgto</th>
                     <th class="text-end">Total</th>
                     <th class="text-center">Status</th>
@@ -202,13 +193,15 @@
                         <td class="text-center small">{{ $venda->caixa ? '#'.($venda->caixa->numero_caixa ?? $venda->caixa->id) : '-' }}</td>
                         <td class="text-center">
                             @php
-                                $tipoColors = ['pdv' => 'info', 'balcao' => 'primary', 'pedido' => 'success', 'importada' => 'secondary'];
-                                $tipoBg = $tipoColors[$venda->tipo] ?? 'secondary';
-                                $tipoRotulo = ['importada' => 'Importada'][$venda->tipo] ?? ($tipos[$venda->tipo] ?? ($venda->tipo ?: 'N/A'));
+                                $origemVenda = $venda->origemChave();
+                                $origemCor = ['loja' => 'info', 'whatsapp' => 'success', 'online' => 'primary', 'importada' => 'secondary'][$origemVenda];
+                                $origemIcone = ['loja' => 'bi-shop', 'whatsapp' => 'bi-whatsapp', 'online' => 'bi-globe', 'importada' => 'bi-archive'][$origemVenda];
+                                $origemRotulo = ['importada' => 'Histórico'][$origemVenda] ?? $origens[$origemVenda];
                             @endphp
-                            <span class="badge bg-{{ $tipoBg }}">{{ mb_strtoupper($tipoRotulo) }}</span>
-                            @if($venda->canal && $venda->canal !== \App\Enums\CanalVenda::Presencial)
-                                <div class="small text-muted"><i class="bi {{ $venda->canal->icone() }} me-1"></i>{{ $venda->canal->label() }}</div>
+                            <span class="badge bg-{{ $origemCor }}"><i class="bi {{ $origemIcone }} me-1"></i>{{ $origemRotulo }}</span>
+                            @if($venda->tipo !== 'importada')
+                                {{-- Como foi lançada: PDV, Pedido ou Balcão --}}
+                                <div class="small text-muted">{{ $tipos[$venda->tipo] ?? $venda->tipo }}</div>
                             @endif
                         </td>
                         <td>

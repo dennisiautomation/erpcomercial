@@ -15,6 +15,51 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Venda extends Model
 {
+    /**
+     * Origem da venda (06/11/2026, decisão do Dennis): UM filtro no lugar de Tipo + Canal,
+     * que eram quase redundantes (PDV é sempre presencial; canal só varia no pedido).
+     * Loja = PDV, balcão e pedido presencial (ou sem canal); WhatsApp/Online = canal do
+     * pedido; Histórico = vendas importadas de outro sistema.
+     */
+    public const ORIGENS = [
+        'loja'      => 'Loja',
+        'whatsapp'  => 'WhatsApp',
+        'online'    => 'Online',
+        'importada' => 'Histórico importado',
+    ];
+
+    /**
+     * Filtra pela origem. Aceita também os valores antigos do filtro dos relatórios
+     * (`vendas` = PDV/balcão, `pedidos` = pedidos faturados) para links salvos.
+     */
+    public function scopeDaOrigem($query, ?string $origem)
+    {
+        return match ($origem) {
+            'loja' => $query->where('tipo', '!=', 'importada')
+                ->where(fn ($q) => $q->whereNull('canal')->orWhere('canal', CanalVenda::Presencial->value)),
+            'whatsapp' => $query->where('canal', CanalVenda::Whatsapp->value),
+            'online' => $query->where('canal', CanalVenda::Online->value),
+            'importada' => $query->where('tipo', 'importada'),
+            'pedidos' => $query->where('tipo', 'pedido'),
+            'vendas' => $query->where(fn ($q) => $q->where('tipo', '!=', 'pedido')->orWhereNull('tipo')),
+            default => $query,
+        };
+    }
+
+    /** Chave de ORIGENS desta venda (mesma regra do scopeDaOrigem). */
+    public function origemChave(): string
+    {
+        if ($this->tipo === 'importada') {
+            return 'importada';
+        }
+
+        return match ($this->canal) {
+            CanalVenda::Whatsapp => 'whatsapp',
+            CanalVenda::Online => 'online',
+            default => 'loja',
+        };
+    }
+
     /** Tipos gravados em `vendas.tipo` (06/11/2026: `online` não é tipo, é canal). */
     public const TIPOS_LABELS = [
         'pdv'       => 'PDV',

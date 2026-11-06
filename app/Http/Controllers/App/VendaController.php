@@ -40,13 +40,11 @@ class VendaController extends Controller
             }
         }
 
-        // Tipos e canais que existem de verdade (06/11/2026): o filtro oferecia
-        // "Balcão" e "Online" como tipo — online é CANAL (pedido do WhatsApp/site)
-        // e faltavam Pedido e Importada; quem filtrava via lista vazia.
+        // Origem (06/11/2026): um filtro só no lugar de Tipo + Canal (eram quase
+        // redundantes — ver Venda::ORIGENS). O tipo segue visível na lista.
         $tipos = \App\Models\Venda::TIPOS_LABELS;
-        $canais = collect(\App\Enums\CanalVenda::cases())->mapWithKeys(fn ($c) => [$c->value => $c->label()])->all();
-        $tipoFiltro = array_key_exists((string) $request->tipo, $tipos) ? (string) $request->tipo : null;
-        $canalFiltro = array_key_exists((string) $request->canal, $canais) ? (string) $request->canal : null;
+        $origens = \App\Models\Venda::ORIGENS;
+        $origemFiltro = array_key_exists((string) $request->origem, $origens) ? (string) $request->origem : null;
 
         $base = fn () => Venda::where('empresa_id', session('empresa_id'))
             ->when($lojaFiltro, fn ($q) => $q->where('unidade_id', $lojaFiltro))
@@ -54,7 +52,7 @@ class VendaController extends Controller
 
         // Mesmos filtros na lista E nos cartões do topo (antes os cartões só
         // olhavam loja e datas — filtrar tipo/status/busca não mudava nada neles).
-        $filtros = function ($q, bool $comDatas = true) use ($request, $tipoFiltro, $canalFiltro) {
+        $filtros = function ($q, bool $comDatas = true) use ($request, $origemFiltro) {
             if ($request->filled('busca')) {
                 $busca = $request->busca;
                 $q->where(function ($q) use ($busca) {
@@ -65,11 +63,8 @@ class VendaController extends Controller
             if ($request->filled('status')) {
                 $q->where('status', $request->status);
             }
-            if ($tipoFiltro) {
-                $q->where('tipo', $tipoFiltro);
-            }
-            if ($canalFiltro) {
-                $q->where('canal', $canalFiltro);
+            if ($origemFiltro) {
+                $q->daOrigem($origemFiltro);
             }
             if ($request->filled('forma_pagamento')) {
                 $q->where('forma_pagamento', $request->forma_pagamento);
@@ -95,7 +90,7 @@ class VendaController extends Controller
             'total_hoje' => $filtros($base(), false)->where('status', StatusVenda::Concluida)->whereDate('created_at', today())->sum('total'),
         ];
 
-        return view('app.vendas.index', compact('vendas', 'stats', 'lojas', 'lojaFiltro', 'tipos', 'canais', 'tipoFiltro', 'canalFiltro'));
+        return view('app.vendas.index', compact('vendas', 'stats', 'lojas', 'lojaFiltro', 'tipos', 'origens', 'origemFiltro'));
     }
 
     /**

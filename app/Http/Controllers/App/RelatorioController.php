@@ -87,12 +87,9 @@ class RelatorioController extends Controller
             ->tap($escopoLoja)
             ->whereBetween('created_at', [$dataInicio, $dataFim->endOfDay()]);
 
-        // Origem: vendas diretas (PDV/balcão) × pedidos faturados
-        if ($request->origem === 'pedidos') {
-            $query->where('tipo', 'pedido');
-        } elseif ($request->origem === 'vendas') {
-            $query->where(fn ($q) => $q->where('tipo', '!=', 'pedido')->orWhereNull('tipo'));
-        }
+        // Origem (06/11/2026): Loja / WhatsApp / Online / Histórico — Venda::scopeDaOrigem
+        // (aceita ainda `vendas`/`pedidos` dos links antigos)
+        $query->daOrigem($request->origem);
 
         if ($vendedorId) {
             $query->where('vendedor_id', $vendedorId);
@@ -297,11 +294,7 @@ class RelatorioController extends Controller
             ->where('status', '!=', StatusVenda::Cancelada)
             ->whereIn('unidade_id', $lojasSelecionadas)
             ->whereBetween('created_at', [$dataInicio, $dataFim->copy()->endOfDay()]);
-        if ($request->origem === 'pedidos') {
-            $query->where('tipo', 'pedido');
-        } elseif ($request->origem === 'vendas') {
-            $query->where(fn ($q) => $q->where('tipo', '!=', 'pedido')->orWhereNull('tipo'));
-        }
+        $query->daOrigem($request->origem);
         if ($vendedorId) {
             $query->where('vendedor_id', $vendedorId);
         }

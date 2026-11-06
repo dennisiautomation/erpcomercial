@@ -55,7 +55,7 @@
 @php
     $brl = fn ($v) => 'R$ ' . number_format((float) $v, 2, ',', '.');
     $qtd = fn ($v) => number_format((float) $v, (abs(fmod((float) $v, 1)) < 0.0005 ? 0 : 2), ',', '.');
-    $origemLabel = ['vendas' => 'Vendas (PDV/balcão)', 'pedidos' => 'Pedidos faturados'][request('origem')] ?? 'Todas';
+    $origemLabel = (\App\Models\Venda::ORIGENS + ['vendas' => 'Vendas (PDV/balcão)', 'pedidos' => 'Pedidos faturados'])[request('origem')] ?? 'Todas';
     $vendedorNome = $vendedorId ? ($vendedores->firstWhere('id', $vendedorId)->name ?? '-') : 'Todos';
     $sel = $lojasSelecionadas->all();
     $selSaida = $saidaSelecionadas->all();
@@ -110,8 +110,9 @@
                 <label for="campo-origem" class="form-label small fw-semibold">Origem</label>
                 <select id="campo-origem" name="origem" class="form-select form-select-sm">
                     <option value="">Todas</option>
-                    <option value="vendas" @selected(request('origem') === 'vendas')>Vendas (PDV/balcão)</option>
-                    <option value="pedidos" @selected(request('origem') === 'pedidos')>Pedidos faturados</option>
+                    @foreach(\App\Models\Venda::ORIGENS as $valor => $rotulo)
+                        <option value="{{ $valor }}" @selected(request('origem') === $valor)>{{ $rotulo }}</option>
+                    @endforeach
                 </select>
             </div>
             <div class="col-6 col-md-2">
