@@ -327,6 +327,8 @@ class NFCeService
         // NFC-e não aceita frete (modFrete 9): o frete do pedido entra como
         // outras despesas, junto com juros/acréscimo do cartão, rateado nos
         // itens (vOutro do total = Σ dos itens — 10/11/2026, DK venda 448734).
+        // Desconto geral da venda rateado nos itens (vDesc do total = Σ itens — 10/11/2026, DK venda 448759).
+        $builder->ratearDescontoGeral($itens, (float) ($venda->desconto_valor ?? 0));
         $outrasDespesas = round((float) $venda->outras_despesas + (float) $venda->valor_frete, 2);
         $builder->ratearAcessorios($itens, 0.0, $outrasDespesas);
 

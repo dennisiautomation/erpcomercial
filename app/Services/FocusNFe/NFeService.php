@@ -435,6 +435,8 @@ class NFeService
         }
         // Frete do pedido e juros/acréscimo do cartão por item (vFrete/vOutro
         // do total = Σ dos itens — 10/11/2026, DK venda 448734).
+        // Desconto geral da venda rateado nos itens (vDesc do total = Σ itens — 10/11/2026, DK venda 448759).
+        $builder->ratearDescontoGeral($itens, (float) ($venda->desconto_valor ?? 0));
         $valorFrete = (float) $venda->valor_frete;
         $builder->ratearAcessorios($itens, $valorFrete, (float) $venda->outras_despesas);
         [$indicadorIe] = $builder->indicadorIeDestinatario($cliente);

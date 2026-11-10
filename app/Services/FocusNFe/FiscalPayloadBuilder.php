@@ -673,6 +673,46 @@ class FiscalPayloadBuilder
         }
     }
 
+    /**
+     * Rateia o desconto GERAL da venda (`vendas.desconto_valor`) pelos itens
+     * (10/11/2026). A SEFAZ confere vDesc do total = Σ vDesc dos itens; o
+     * desconto geral ia só no total e TODA nota com desconto geral era
+     * rejeitada ("Total do Desconto difere do somatorio dos itens", DK venda
+     * 448759 — nenhuma tinha sido autorizada até aqui). Soma ao desconto que o
+     * item já tem; proporcional ao líquido do item; sobra no maior item.
+     *
+     * @param  array<int, array>  $itens  itens já montados (alterados por referência)
+     */
+    public function ratearDescontoGeral(array &$itens, float $desconto): void
+    {
+        $desconto = round($desconto, 2);
+        if ($desconto <= 0 || ! $itens) {
+            return;
+        }
+        $bases = array_map(
+            fn ($i) => max(0.0, (float) ($i['valor_bruto'] ?? 0) - (float) ($i['valor_desconto'] ?? 0)),
+            $itens
+        );
+        $soma = array_sum($bases);
+        if ($soma <= 0) {
+            return;
+        }
+        $partes = [];
+        foreach ($bases as $k => $base) {
+            $partes[$k] = round($desconto * $base / $soma, 2);
+        }
+        $sobra = round($desconto - array_sum($partes), 2);
+        if ($sobra != 0.0) {
+            $maior = array_keys($bases, max($bases))[0];
+            $partes[$maior] = round($partes[$maior] + $sobra, 2);
+        }
+        foreach ($partes as $k => $parte) {
+            if ($parte > 0) {
+                $itens[$k]['valor_desconto'] = $this->fmt((float) ($itens[$k]['valor_desconto'] ?? 0) + $parte, 2);
+            }
+        }
+    }
+
     // ─── Helpers ────────────────────────────────────────────────────────
 
     private function digits(?string $v): string
