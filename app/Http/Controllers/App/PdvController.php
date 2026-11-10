@@ -377,6 +377,8 @@ class PdvController extends Controller
 
                 $subtotal = 0;
                 $itensData = [];
+                $brutoVenda = 0.0;
+                $descontoItens = 0.0;
 
                 foreach ($request->itens as $item) {
                     $produto = Produto::find($item['produto_id']);
@@ -389,6 +391,8 @@ class PdvController extends Controller
                     $qtd = $item['quantidade'];
                     $descontoValor = $item['desconto_valor'] ?? 0;
                     $totalItem = round(($precoUnit * $qtd) - $descontoValor, 2);
+                    $brutoVenda += $precoUnit * $qtd;
+                    $descontoItens += (float) $descontoValor;
 
                     $itensData[] = [
                         'produto_id'         => $item['produto_id'],
@@ -416,6 +420,11 @@ class PdvController extends Controller
                 if ($descontoPercentual > 0 && $descontoGeral == 0) {
                     $descontoGeral = round($subtotal * ($descontoPercentual / 100), 2);
                 }
+
+                // Desconto máximo da loja (06/11/2026): vale para o desconto por item
+                // somado ao geral. O servidor é a autoridade — a tela só avisa antes.
+                ConfiguracaoLoja::daUnidade($empresaId, $unidadeId)
+                    ->validarDesconto($brutoVenda, $descontoItens + (float) $descontoGeral);
 
                 $total = round($subtotal - $descontoGeral, 2);
                 if ($total < 0) $total = 0;

@@ -285,6 +285,24 @@
         </div>
         @error('preco_base') <div class="alert alert-danger py-2 small">{{ $message }}</div> @enderror
 
+        <div class="row g-3 mb-3">
+            <div class="col-md-4">
+                <label for="desconto_max_percentual" class="form-label fw-semibold">Desconto máximo permitido na venda (%)</label>
+                <div class="input-group">
+                    <input type="number" step="0.01" min="0" max="100" class="form-control @error('desconto_max_percentual') is-invalid @enderror"
+                           name="desconto_max_percentual" id="desconto_max_percentual" placeholder="Sem limite"
+                           value="{{ old('desconto_max_percentual', $config->desconto_max_percentual) }}">
+                    <span class="input-group-text">%</span>
+                </div>
+                @error('desconto_max_percentual') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
+            </div>
+            <div class="col-md-8 small text-muted align-self-end">
+                Limite do desconto que o vendedor pode dar no PDV e na venda manual (itens + desconto geral).
+                <strong>0</strong> = ninguém dá desconto. Em branco = sem limite.
+                Não confunda com o desconto automático de Dinheiro/PIX acima.
+            </div>
+        </div>
+
         <details class="cfg-entenda mb-3" id="explicaTabelasAvista" @if($precoBase === 'cartao') style="display:none;" @endif>
             <summary><i class="bi bi-book me-1" aria-hidden="true"></i>Entenda as 3 tabelas</summary>
             <div class="text-muted small">

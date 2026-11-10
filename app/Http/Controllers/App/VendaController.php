@@ -159,6 +159,8 @@ class VendaController extends Controller
 
                 $subtotal = 0;
                 $itensData = [];
+                $brutoVenda = 0.0;
+                $descontoItens = 0.0;
 
                 foreach ($request->itens as $item) {
                     $produto = Produto::find($item['produto_id']);
@@ -168,6 +170,8 @@ class VendaController extends Controller
                     $qtd = $item['quantidade'];
                     $descontoValor = $item['desconto_valor'] ?? 0;
                     $totalItem = round(($precoUnit * $qtd) - $descontoValor, 2);
+                    $brutoVenda += $precoUnit * $qtd;
+                    $descontoItens += (float) $descontoValor;
 
                     $itensData[] = [
                         'produto_id'          => $item['produto_id'],
@@ -187,6 +191,11 @@ class VendaController extends Controller
                 }
 
                 $descontoGeral = $request->desconto_valor ?? 0;
+
+                // Desconto máximo da loja (06/11/2026): itens + geral
+                \App\Models\ConfiguracaoLoja::daUnidade($empresaId, $unidadeId)
+                    ->validarDesconto($brutoVenda, $descontoItens + (float) $descontoGeral);
+
                 $total = round($subtotal - $descontoGeral, 2);
                 if ($total < 0) $total = 0;
 
@@ -285,6 +294,8 @@ class VendaController extends Controller
             return redirect()->route('app.vendas.show', $venda)
                 ->with('success', "Venda #{$venda->numero} registrada com sucesso!");
 
+        } catch (\DomainException $e) {
+            return back()->withInput()->with('error', $e->getMessage());
         } catch (\Throwable $e) {
             return back()->withInput()->with('error', 'Erro ao registrar venda: ' . $e->getMessage());
         }

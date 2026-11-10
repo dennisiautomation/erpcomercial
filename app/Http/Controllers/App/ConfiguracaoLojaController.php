@@ -124,6 +124,8 @@ class ConfiguracaoLojaController extends Controller
             // (form antigo aberto antes do deploy não muda a loja).
             'preco_base'                 => 'nullable|in:avista,cartao',
             'desconto_avista_percentual' => 'nullable|numeric|min:0|max:50',
+            // Desconto máximo na venda (06/11/2026): vazio = sem limite, 0 = sem desconto
+            'desconto_max_percentual'    => 'nullable|numeric|min:0|max:100',
             'orcamento_parcelas'         => 'nullable|integer|min:1|max:24',
             'percentual_debito'          => 'required|numeric|min:0|max:100',
             'percentual_credito'         => 'required|numeric|min:0|max:100',
@@ -173,6 +175,7 @@ class ConfiguracaoLojaController extends Controller
 
         $dados['preco_base'] = $dados['preco_base'] ?? 'avista';
         $dados['desconto_avista_percentual'] = (float) ($dados['desconto_avista_percentual'] ?? 0);
+        $dados['desconto_max_percentual'] = ($dados['desconto_max_percentual'] ?? '') === '' ? null : (float) $dados['desconto_max_percentual'];
         // 'por_parte' cobra o acréscimo do cartão sobre a parte paga no cartão; com o
         // preço cadastrado já sendo o do cartão não há acréscimo para cobrar — as duas
         // juntas dariam centavos de diferença. Recusa em vez de adivinhar.

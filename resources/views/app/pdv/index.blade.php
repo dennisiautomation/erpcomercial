@@ -1553,6 +1553,9 @@ const PDV = {
         // escolhida" e a de boleto/crediário passa a ser a do cartão.
         'preco_base'              => $configLoja->preco_base ?? 'avista',
         'desconto_avista'         => (float) ($configLoja->desconto_avista_percentual ?? 0),
+        // Desconto máximo permitido (06/11/2026): null = sem limite, 0 = sem desconto.
+        // Prévia na tela; quem barra de verdade é o servidor.
+        'desconto_max'            => $configLoja->desconto_max_percentual !== null ? (float) $configLoja->desconto_max_percentual : null,
         // Acréscimo por parte (regra `por_parte`, 04/09/2026): o front precisa dos
         // percentuais para mostrar a conta ANTES de confirmar. Quem grava é o
         // servidor, que refaz o cálculo — isto aqui é prévia.
@@ -3197,6 +3200,10 @@ const PDV = {
             this.showAlert('Adicione itens antes de aplicar desconto', 'warning');
             return;
         }
+        if (this.configLoja.desconto_max === 0) {
+            this.showAlert('Esta loja nao permite desconto nas vendas', 'warning');
+            return;
+        }
         document.getElementById('descontoInput').value = '';
         document.getElementById('descontoTipo').value = 'valor';
         const modal = new bootstrap.Modal(document.getElementById('modalDesconto'));
@@ -3207,6 +3214,17 @@ const PDV = {
     aplicarDesconto() {
         const tipo = document.getElementById('descontoTipo').value;
         const val = parseFloat(document.getElementById('descontoInput').value) || 0;
+
+        // Desconto máximo da loja (06/11/2026) — prévia; o servidor também barra
+        const max = this.configLoja.desconto_max;
+        if (val > 0 && max !== null && max !== undefined) {
+            const sub = this.getSubtotal();
+            const pct = tipo === 'percentual' ? val : (sub > 0 ? (val / sub) * 100 : 0);
+            if (pct > max + 0.005) {
+                this.showAlert(`Desconto acima do maximo permitido pela loja (${max}%)`, 'warning');
+                return;
+            }
+        }
 
         if (val <= 0) {
             this.descontoValor = 0;

@@ -21,6 +21,7 @@ class ConfiguracaoLoja extends Model
         // Preço cadastrado = preço do cartão; PIX/dinheiro com desconto (25/10/2026)
         'preco_base',
         'desconto_avista_percentual',
+        'desconto_max_percentual',
         'percentual_debito',
         'percentual_credito',
         'max_parcelas',
@@ -96,6 +97,7 @@ class ConfiguracaoLoja extends Model
             'troca_senha_gerente'        => 'boolean',
             'pdv_escolher_estoque'       => 'boolean',
             'desconto_avista_percentual' => 'decimal:2',
+            'desconto_max_percentual'    => 'decimal:2',
             'orcamento_parcelas'         => 'integer',
         ];
     }
@@ -104,6 +106,33 @@ class ConfiguracaoLoja extends Model
      * O preço cadastrado no produto é o do cartão (25/10/2026)? Então Dinheiro/PIX
      * leva `desconto_avista_percentual` e débito/crédito cobram o preço cheio.
      */
+    /**
+     * Desconto máximo permitido (%). null = sem limite; 0 = sem desconto.
+     */
+    public function descontoMaximo(): ?float
+    {
+        return $this->desconto_max_percentual === null ? null : (float) $this->desconto_max_percentual;
+    }
+
+    /**
+     * Garante que o desconto total (itens + geral) cabe no limite da loja.
+     * Lança DomainException com a mensagem para o operador; o servidor é a
+     * autoridade — a tela do PDV só avisa antes.
+     */
+    public function validarDesconto(float $bruto, float $desconto): void
+    {
+        $max = $this->descontoMaximo();
+        if ($max === null || $desconto <= 0.004) {
+            return;
+        }
+        $permitido = round($bruto * $max / 100, 2);
+        if (round($desconto, 2) > $permitido + 0.005) {
+            throw new \DomainException($max <= 0
+                ? 'Esta loja não permite desconto nas vendas.'
+                : sprintf('Desconto acima do máximo permitido pela loja (%s%%).', rtrim(rtrim(number_format($max, 2, ',', ''), '0'), ',')));
+        }
+    }
+
     public function precoBaseCartao(): bool
     {
         return ($this->preco_base ?? 'avista') === 'cartao';
