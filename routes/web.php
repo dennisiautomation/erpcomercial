@@ -512,6 +512,10 @@ Route::middleware(['auth', 'suspensao', 'unidade', \App\Http\Middleware\Restring
     Route::get('/financeiro/fluxo-caixa', [App\FluxoCaixaController::class, 'index'])
         ->name('financeiro.fluxo-caixa')
         ->middleware('permission:financeiro');
+    // Fica no Financeiro (e não em Relatórios, aberto a vendedor/caixa) porque mostra salário.
+    Route::get('/financeiro/despesas-centro-custo', [App\DespesaCentroCustoController::class, 'index'])
+        ->name('financeiro.despesas-centro-custo')
+        ->middleware('permission:financeiro');
 
     /* ------ Contratos / Cobranças Recorrentes ------ */
     Route::resource('contratos', App\ContratoController::class)->middleware(['permission:financeiro', 'plano:contratos']);

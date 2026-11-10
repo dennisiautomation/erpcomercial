@@ -4,20 +4,27 @@
 
 @section('content')
 <x-erp.page-header title="DRE por Unidade" icon="columns-gap">
-    <a href="{{ route('app.dre.index') }}" class="btn btn-erp-outline">
+    <a href="{{ route('app.dre.index', ['data_inicio' => $dataInicio, 'data_fim' => $dataFim, 'regime' => $regime]) }}" class="btn btn-erp-outline">
         <i class="bi bi-arrow-left me-1"></i> Voltar
     </a>
 </x-erp.page-header>
 
 {{-- Filters --}}
 <x-erp.filter-bar :action="route('app.dre.por-unidade')">
-    <div class="col-md-4">
+    <div class="col-md-3">
         <label for="data_inicio" class="form-label">Data Início</label>
         <input type="date" name="data_inicio" id="data_inicio" class="form-control" value="{{ $dataInicio }}">
     </div>
-    <div class="col-md-4">
+    <div class="col-md-3">
         <label for="data_fim" class="form-label">Data Fim</label>
         <input type="date" name="data_fim" id="data_fim" class="form-control" value="{{ $dataFim }}">
+    </div>
+    <div class="col-md-4">
+        <label for="regime" class="form-label">Considerar</label>
+        <select name="regime" id="regime" class="form-select">
+            <option value="pagamento" @selected($regime === 'pagamento')>O que foi pago e recebido (caixa)</option>
+            <option value="competencia" @selected($regime === 'competencia')>O mês a que pertence (competência)</option>
+        </select>
     </div>
 </x-erp.filter-bar>
 
@@ -43,7 +50,7 @@
     {{-- Comparative Table --}}
     <x-erp.card>
         <div class="table-responsive">
-            <table class="erp-table">
+            <table class="erp-table" id="tabelaDreUnidades">
                 <thead>
                     <tr>
                         <th>Descrição</th>
@@ -53,21 +60,17 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @php
-                        $firstDre = collect($dresPorUnidade)->first();
-                        $totalLinhas = count($firstDre['dre']['linhas']);
-                    @endphp
-
-                    @for($i = 0; $i < $totalLinhas; $i++)
-                        @php $linhaRef = $firstDre['dre']['linhas'][$i]; @endphp
-                        <tr class="{{ $linhaRef['tipo'] === 'final' ? 'table-dark fw-bold' : '' }}
+                    {{-- linhas do consolidado; cada loja entra pela CHAVE da linha (não pela posição) --}}
+                    @foreach($linhasRef as $linhaRef)
+                        <tr data-chave="{{ $linhaRef['chave'] }}"
+                            class="{{ $linhaRef['tipo'] === 'final' ? 'table-dark fw-bold' : '' }}
                                    {{ $linhaRef['tipo'] === 'resultado' ? 'fw-bold border-top' : '' }}
-                                   {{ $linhaRef['tipo'] === 'header' ? 'fw-semibold' : '' }}">
-                            <td class="{{ $linhaRef['tipo'] === 'detalhe' ? 'text-muted' : '' }}">
-                                {{ $linhaRef['descricao'] }}
+                                   {{ in_array($linhaRef['tipo'], ['header', 'grupo'], true) ? 'fw-semibold' : '' }}">
+                            <td class="{{ $linhaRef['tipo'] === 'detalhe' ? 'text-muted' : '' }}" style="padding-left: {{ 0.75 + $linhaRef['nivel'] * 1.25 }}rem;">
+                                {{ $linhaRef['rotulo'] }}
                             </td>
                             @foreach($dresPorUnidade as $item)
-                                @php $valor = $item['dre']['linhas'][$i]['valor'] ?? 0; @endphp
+                                @php $valor = $item['porChave'][$linhaRef['chave']] ?? 0; @endphp
                                 <td class="text-end {{ $valor < 0 ? 'text-danger' : '' }}">
                                     @if($valor < 0)
                                         (R$ {{ number_format(abs($valor), 2, ',', '.') }})
@@ -77,7 +80,7 @@
                                 </td>
                             @endforeach
                         </tr>
-                    @endfor
+                    @endforeach
                 </tbody>
             </table>
         </div>

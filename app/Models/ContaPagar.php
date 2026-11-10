@@ -98,6 +98,60 @@ class ContaPagar extends Model
         return $this->fornecedor_id ? 'fornecedor' : 'outro';
     }
 
+    /**
+     * Contas de um período, pelo regime escolhido (DRE, relatório por centro de custo):
+     *  - `pagamento`: pagas, pela data em que foram pagas (caixa);
+     *  - `competencia`: pagas ou não, pelo MÊS a que a despesa pertence; conta sem competência
+     *    informada entra pelo vencimento;
+     *  - `vencimento`: pagas ou não, pela data de vencimento.
+     */
+    public function scopeDoPeriodo($query, string $regime, $inicio, $fim)
+    {
+        $inicio = \Carbon\Carbon::parse($inicio)->toDateString();
+        $fim = \Carbon\Carbon::parse($fim)->toDateString();
+
+        if ($regime === 'competencia') {
+            $mesInicio = \Carbon\Carbon::parse($inicio)->startOfMonth()->toDateString();
+
+            return $query->whereIn('status', ['pendente', 'paga', 'vencida'])
+                ->where(function ($q) use ($inicio, $fim, $mesInicio) {
+                    $q->where(fn ($c) => $c->whereNotNull('competencia')
+                        ->whereDate('competencia', '>=', $mesInicio)->whereDate('competencia', '<=', $fim))
+                        ->orWhere(fn ($v) => $v->whereNull('competencia')
+                            ->whereDate('vencimento', '>=', $inicio)->whereDate('vencimento', '<=', $fim));
+                });
+        }
+
+        if ($regime === 'vencimento') {
+            return $query->whereIn('status', ['pendente', 'paga', 'vencida'])
+                ->whereDate('vencimento', '>=', $inicio)->whereDate('vencimento', '<=', $fim);
+        }
+
+        return $query->where('status', 'paga')
+            ->whereDate('pago_em', '>=', $inicio)->whereDate('pago_em', '<=', $fim);
+    }
+
+    /** Quanto a conta pesa num relatório: o que foi pago, ou o valor lançado enquanto pendente. */
+    public function getValorEfetivoAttribute(): float
+    {
+        return (float) ($this->status === 'paga' ? $this->valor_pago : $this->valor);
+    }
+
+    /**
+     * Despesa de pessoal: lançada pela folha, paga a um funcionário, ou classificada num grupo
+     * do plano de contas cujo nome começa com "Pessoal" (o plano padrão tem três).
+     */
+    public function getEhPessoalAttribute(): bool
+    {
+        if ($this->folha_ref || $this->funcionario_id) {
+            return true;
+        }
+
+        $grupo = $this->planoConta?->parent?->nome;
+
+        return $grupo !== null && str_starts_with(mb_strtolower($grupo), 'pessoal');
+    }
+
     public function planoConta(): BelongsTo
     {
         return $this->belongsTo(PlanoContas::class, 'plano_conta_id');

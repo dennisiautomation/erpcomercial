@@ -913,6 +913,10 @@
                                        href="{{ route('app.financeiro.fluxo-caixa') }}">Fluxo de Caixa</a>
                                 </li>
                                 <li class="nav-item">
+                                    <a class="nav-link {{ request()->routeIs('app.financeiro.despesas-centro-custo') ? 'active' : '' }}"
+                                       href="{{ route('app.financeiro.despesas-centro-custo') }}">Despesas por Centro de Custo</a>
+                                </li>
+                                <li class="nav-item">
                                     <a class="nav-link {{ request()->routeIs('app.adquirentes.*') ? 'active' : '' }}"
                                        href="{{ route('app.adquirentes.index') }}">Máquinas de Cartão</a>
                                 </li>

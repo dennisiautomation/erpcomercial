@@ -15,12 +15,41 @@
         <label for="campo-data_fim" class="form-label fw-semibold small text-muted">Data Fim</label>
         <input id="campo-data_fim" type="date" name="data_fim" class="form-control" value="{{ $dataFim->format('Y-m-d') }}">
     </div>
+    @if($planoContas->isNotEmpty())
+    <div class="col-md-3">
+        <label for="campo-plano_conta_id" class="form-label fw-semibold small text-muted">Saídas do plano de contas</label>
+        <select id="campo-plano_conta_id" name="plano_conta_id" class="form-select">
+            <option value="">Todas</option>
+            @foreach($planoContas as $p)
+                <option value="{{ $p->id }}" @selected($planoContaId === $p->id)>{{ $p->codigo }} — {{ $p->nome }}</option>
+            @endforeach
+        </select>
+    </div>
+    @endif
+    @if($centrosCusto->isNotEmpty())
+    <div class="col-md-2">
+        <label for="campo-centro_custo_id" class="form-label fw-semibold small text-muted">Saídas do centro de custo</label>
+        <select id="campo-centro_custo_id" name="centro_custo_id" class="form-select">
+            <option value="">Todos</option>
+            @foreach($centrosCusto as $cc)
+                <option value="{{ $cc->id }}" @selected($centroCustoId === $cc->id)>{{ $cc->nome }}</option>
+            @endforeach
+        </select>
+    </div>
+    @endif
     <div class="col-auto">
         <a href="{{ route('app.financeiro.fluxo-caixa') }}" class="btn btn-erp-outline">
             <i class="bi bi-x-lg me-1"></i> Limpar
         </a>
     </div>
 </x-erp.filter-bar>
+
+@if($planoContaId || $centroCustoId)
+<div class="alert alert-warning border-0 bg-warning bg-opacity-10 small" id="fluxoAvisoFiltro">
+    <i class="bi bi-funnel me-1"></i>
+    As <strong>saídas</strong> (pagas e programadas) estão filtradas. As entradas continuam todas, então o saldo abaixo não é o saldo da empresa.
+</div>
+@endif
 
 {{-- Summary Cards --}}
 <div class="row g-3 mb-4">
@@ -61,6 +90,53 @@
         </div>
     </div>
     <canvas id="fluxoCaixaChart" height="80"></canvas>
+</x-erp.card>
+
+{{-- Programado --}}
+<x-erp.card title="Programado — a pagar no período" icon="calendar-event" class="mb-4">
+    <div class="table-responsive">
+        <table class="erp-table" id="tabelaProgramado">
+            <thead>
+                <tr>
+                    <th>Vence em</th>
+                    <th>Pagar para</th>
+                    <th>Conta</th>
+                    <th>Classificação</th>
+                    <th class="text-end">Valor</th>
+                    <th class="text-end">Acumulado</th>
+                </tr>
+            </thead>
+            <tbody>
+                @php $acumulado = 0; @endphp
+                @forelse($programadas as $conta)
+                    @php $acumulado += (float) $conta->valor; $atrasada = $conta->vencimento->lt(now()->startOfDay()); @endphp
+                    <tr>
+                        <td class="{{ $atrasada ? 'text-danger fw-semibold' : '' }}">
+                            {{ $conta->vencimento->format('d/m/Y') }}
+                            @if($atrasada)<small class="d-block">em atraso</small>@endif
+                        </td>
+                        <td>{{ $conta->favorecido_label }}</td>
+                        <td><a href="{{ route('app.contas-pagar.show', $conta) }}">{{ $conta->descricao }}</a></td>
+                        <td>
+                            {{ $conta->categoria ?: '-' }}
+                            @if($conta->centro_custo)<small class="text-muted d-block">{{ $conta->centro_custo }}</small>@endif
+                        </td>
+                        <td class="text-end fw-semibold">R$ {{ number_format($conta->valor, 2, ',', '.') }}</td>
+                        <td class="text-end text-muted">R$ {{ number_format($acumulado, 2, ',', '.') }}</td>
+                    </tr>
+                @empty
+                    <tr><td colspan="6"><x-erp.empty-state icon="calendar-check" title="Nada programado para pagar neste período" /></td></tr>
+                @endforelse
+                @if($programadas->isNotEmpty())
+                    <tr class="table-active">
+                        <td colspan="4" class="fw-bold">Total a pagar no período ({{ $programadas->count() }} {{ $programadas->count() === 1 ? 'conta' : 'contas' }})</td>
+                        <td class="text-end fw-bold">R$ {{ number_format($previstaPagar, 2, ',', '.') }}</td>
+                        <td></td>
+                    </tr>
+                @endif
+            </tbody>
+        </table>
+    </div>
 </x-erp.card>
 
 {{-- Daily Table --}}
