@@ -8468,3 +8468,13 @@ tar dos 3 arquivos, `chown`, `php -l`, md5 no ar = branch, USR2, `queue:restart`
 **NFC-e da venda 448759 reemitida** (mesmo caminho do faturamento): nota 198 **AUTORIZADA série 10 nº 9**, chave
 `22261148936393000176650100000000091565267460`. A nota 196 fica rejeitada.
 
+## Lista de Notas Fiscais: rejeitadas na ordem e no filtro de datas (10/11/2026) — EM PRODUÇÃO 15:44 BRT
+
+Subido em produção às 15:44 BRT por outra sessão, a partir de `/root/erp` **sem commit** (achado na conferência main × produção
+depois do merge de `nfe-desconto-rateio-10nov`); trazido para a `main` por ordem do Dennis ("Sim, commitar na main"), copiado do
+container (sha1 `33e359a…`, igual ao `/root/erp`).
+
+`NotaFiscalController::index`: nota rejeitada nasce sem `emitida_em`, então ficava fora de ordem (`latest('emitida_em')` joga NULL
+no fim) e sumia do filtro de datas (`whereDate('emitida_em')`). Agora filtro e ordem usam `COALESCE(emitida_em, created_at)`, com
+`id` desempatando para a paginação não perder nem repetir linhas. Sem migration.
+

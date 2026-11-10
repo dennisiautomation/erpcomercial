@@ -35,11 +35,11 @@ class NotaFiscalController extends Controller
         }
 
         if ($request->filled('data_inicio')) {
-            $query->whereDate('emitida_em', '>=', $request->data_inicio);
+            $query->whereRaw('DATE(COALESCE(emitida_em, created_at)) >= ?', [$request->data_inicio]);
         }
 
         if ($request->filled('data_fim')) {
-            $query->whereDate('emitida_em', '<=', $request->data_fim);
+            $query->whereRaw('DATE(COALESCE(emitida_em, created_at)) <= ?', [$request->data_fim]);
         }
 
         if ($request->filled('busca')) {
@@ -51,7 +51,8 @@ class NotaFiscalController extends Controller
             });
         }
 
-        $notasFiscais = $query->latest('emitida_em')->paginate(20)->withQueryString();
+        // COALESCE: notas rejeitadas nascem sem emitida_em; id desempata para a paginação não perder/duplicar linhas
+        $notasFiscais = $query->orderByRaw('COALESCE(emitida_em, created_at) DESC')->orderByDesc('id')->paginate(20)->withQueryString();
 
         // Summary cards
         $mesAtual = now()->startOfMonth();
