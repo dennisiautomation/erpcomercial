@@ -474,11 +474,14 @@ Route::middleware(['auth', 'suspensao', 'unidade', \App\Http\Middleware\Restring
         ->name('contas-receber.baixar')
         ->middleware('permission:financeiro');
     Route::resource('financeiro/contas-pagar', App\ContaPagarController::class)
-        ->except(['edit', 'update']) // fluxo é baixar/estornar, não editar
+        // editar só vale para conta pendente (o controller recusa a paga: estorne a baixa antes)
         ->parameters(['contas-pagar' => 'contaPagar']) // casar com $contaPagar (binding)
         ->middleware('permission:financeiro');
     Route::post('financeiro/contas-pagar/{contaPagar}/baixar', [App\ContaPagarController::class, 'baixar'])
         ->name('contas-pagar.baixar')
+        ->middleware('permission:financeiro');
+    Route::post('financeiro/contas-pagar/{contaPagar}/estornar', [App\ContaPagarController::class, 'estornar'])
+        ->name('contas-pagar.estornar')
         ->middleware('permission:financeiro');
     /* ------ Adquirentes (máquinas de cartão: taxas e prazos) ------ */
     Route::prefix('adquirentes')->name('adquirentes.')->middleware('permission:financeiro')->group(function () {
@@ -513,6 +516,10 @@ Route::middleware(['auth', 'suspensao', 'unidade', \App\Http\Middleware\Restring
     });
 
     /* ------ Plano de Contas ------ */
+    // Antes do resource: cria as contas padrão (pessoal, encargos, benefícios, despesas fixas).
+    Route::post('plano-contas/padrao', [App\PlanoContasController::class, 'padrao'])
+        ->name('plano-contas.padrao')
+        ->middleware('permission:financeiro');
     Route::resource('plano-contas', App\PlanoContasController::class)
         ->except(['show'])
         ->parameters(['plano-contas' => 'planoContas']) // casar com $planoContas (binding)

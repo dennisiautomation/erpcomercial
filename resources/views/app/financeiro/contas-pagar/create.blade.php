@@ -4,7 +4,7 @@
 @section('title', 'Nova Conta a Pagar')
 
 @section('content')
-<x-erp.page-header title="Nova Conta a Pagar" subtitle="Cadastre uma nova despesa ou conta parcelada" icon="plus-circle">
+<x-erp.page-header title="Nova Conta a Pagar" subtitle="Despesa, salário, imposto ou benefício — avulsa, parcelada ou recorrente" icon="plus-circle">
     <a href="{{ route('app.contas-pagar.index') }}" class="btn btn-erp-outline">
         <i class="bi bi-arrow-left me-1"></i> Voltar
     </a>
@@ -15,135 +15,26 @@
         <form method="POST" action="{{ route('app.contas-pagar.store') }}">
             @csrf
 
-            <x-erp.form-section title="Fornecedor e Descrição" icon="building">
-                <div class="mb-4">
-                    <label for="fornecedor_id" class="form-label fw-semibold">Fornecedor <span class="text-danger">*</span></label>
-                    <div class="position-relative">
-                        <div class="input-group input-group-lg" id="fornecedorBuscaGroup">
-                            <span class="input-group-text bg-transparent"><i class="bi bi-search"></i></span>
-                            <input type="text" id="fornecedorBusca" class="form-control @error('fornecedor_id') is-invalid @enderror"
-                                   placeholder="Buscar fornecedor por nome ou CPF/CNPJ..." autocomplete="off">
-                        </div>
-                        <div id="fornecedorResultados" class="list-group mt-1 position-absolute w-100 shadow-lg"
-                             style="z-index:1050; display:none; max-height:300px; overflow-y:auto;"></div>
-                        <input type="hidden" name="fornecedor_id" id="fornecedorId" value="{{ old('fornecedor_id') }}" required>
-                        <div id="fornecedorSelecionado" class="mt-2" style="display:none;">
-                            <div class="d-flex align-items-center bg-primary bg-opacity-10 rounded-3 p-2 ps-3">
-                                <i class="bi bi-building text-primary me-2 fs-5"></i>
-                                <div class="flex-grow-1">
-                                    <div class="fw-semibold" id="fornecedorNome"></div>
-                                    <small class="text-muted" id="fornecedorDoc"></small>
-                                </div>
-                                <button type="button" class="btn btn-sm btn-outline-danger rounded-circle ms-2" id="btnRemoverFornecedor" title="Remover fornecedor">
-                                    <i class="bi bi-x-lg"></i>
-                                </button>
-                            </div>
-                        </div>
+            @include('app.financeiro.contas-pagar._campos', ['conta' => null])
+
+            {{-- Parcelas: só na criação --}}
+            <div class="row g-3 mb-4">
+                <div class="col-md-4">
+                    <label for="parcelas" class="form-label fw-semibold">Parcelas</label>
+                    <div class="input-group">
+                        <input type="number" name="parcelas" id="parcelas" min="1" max="48"
+                            class="form-control @error('parcelas') is-invalid @enderror"
+                            value="{{ old('parcelas', 1) }}">
+                        <span class="input-group-text">x</span>
                     </div>
-                    <div id="fornecedorAviso" class="text-danger small mt-1" style="display:none;"></div>
-                    @error('fornecedor_id')
+                    @error('parcelas')
                         <div class="text-danger small mt-1">{{ $message }}</div>
                     @enderror
-                    @php $podeCadastrarFornecedor = \App\Http\Middleware\CheckPermission::canUser(auth()->user(), 'produtos', 'criar'); @endphp
-                    <div class="form-text" id="fornecedorDica">
-                        Escolha o fornecedor na lista. Não achou?
-                        @if($podeCadastrarFornecedor)
-                            <a href="{{ route('app.fornecedores.create') }}" target="_blank">Cadastre o fornecedor</a>
-                            (abre em outra aba) e depois volte aqui e busque de novo.
-                        @else
-                            Peça ao dono ou gerente para cadastrar o fornecedor.
-                        @endif
-                    </div>
+                    <div class="form-text">Divide o valor. Para despesa que repete todo mês, use a recorrência abaixo.</div>
                 </div>
+            </div>
 
-                <div class="mb-4">
-                    <label for="descricao" class="form-label fw-semibold">Descrição <span class="text-danger">*</span></label>
-                    <input type="text" name="descricao" id="descricao"
-                        class="form-control @error('descricao') is-invalid @enderror"
-                        value="{{ old('descricao') }}" placeholder="Ex: Compra de material, Aluguel, Serviço..." required>
-                    @error('descricao')
-                        <div class="invalid-feedback">{{ $message }}</div>
-                    @enderror
-                </div>
-            </x-erp.form-section>
-
-            <x-erp.form-section title="Valores e Vencimento" icon="currency-dollar">
-                <div class="row g-3 mb-4">
-                    <div class="col-md-4">
-                        <label for="valor" class="form-label fw-semibold">Valor <span class="text-danger">*</span></label>
-                        <div class="input-group input-group-lg">
-                            <span class="input-group-text">R$</span>
-                            <input type="number" name="valor" id="valor" step="0.01" min="0.01"
-                                class="form-control @error('valor') is-invalid @enderror"
-                                value="{{ old('valor') }}" placeholder="0,00" required>
-                        </div>
-                        @error('valor')
-                            <div class="invalid-feedback">{{ $message }}</div>
-                        @enderror
-                    </div>
-                    <div class="col-md-4">
-                        <label for="vencimento" class="form-label fw-semibold">Vencimento <span class="text-danger">*</span></label>
-                        <input type="date" name="vencimento" id="vencimento"
-                            class="form-control form-control-lg @error('vencimento') is-invalid @enderror"
-                            value="{{ old('vencimento') }}" required>
-                        @error('vencimento')
-                            <div class="invalid-feedback">{{ $message }}</div>
-                        @enderror
-                    </div>
-                    <div class="col-md-4">
-                        <label for="parcelas" class="form-label fw-semibold">Parcelas</label>
-                        <div class="input-group input-group-lg">
-                            <input type="number" name="parcelas" id="parcelas" min="1" max="48"
-                                class="form-control @error('parcelas') is-invalid @enderror"
-                                value="{{ old('parcelas', 1) }}">
-                            <span class="input-group-text">x</span>
-                        </div>
-                        @error('parcelas')
-                            <div class="invalid-feedback">{{ $message }}</div>
-                        @enderror
-                    </div>
-                </div>
-
-                <div class="row g-3 mb-4">
-                    <div class="col-md-4">
-                        <label for="categoria" class="form-label fw-semibold">Categoria</label>
-                        <select name="categoria" id="categoria" class="form-select @error('categoria') is-invalid @enderror">
-                            <option value="">Selecione...</option>
-                            @php
-                                $categorias = ['Aluguel', 'Agua', 'Energia', 'Internet', 'Telefone', 'Fornecedor', 'Imposto', 'Folha de Pagamento', 'Marketing', 'Manutencao', 'Frete', 'Outro'];
-                            @endphp
-                            @foreach($categorias as $cat)
-                                <option value="{{ $cat }}" {{ old('categoria') == $cat ? 'selected' : '' }}>{{ $cat }}</option>
-                            @endforeach
-                        </select>
-                        @error('categoria')
-                            <div class="invalid-feedback">{{ $message }}</div>
-                        @enderror
-                    </div>
-                    <div class="col-md-4">
-                        <label for="centro_custo" class="form-label fw-semibold">Centro de Custo</label>
-                        <input type="text" name="centro_custo" id="centro_custo"
-                            class="form-control @error('centro_custo') is-invalid @enderror"
-                            value="{{ old('centro_custo') }}" placeholder="Ex: Administrativo">
-                        @error('centro_custo')
-                            <div class="invalid-feedback">{{ $message }}</div>
-                        @enderror
-                    </div>
-                    <div class="col-md-4">
-                        <label for="forma_pagamento" class="form-label fw-semibold">Forma de Pagamento</label>
-                        <select name="forma_pagamento" id="forma_pagamento" class="form-select">
-                            <option value="">Selecione...</option>
-                            <option value="boleto" {{ old('forma_pagamento') == 'boleto' ? 'selected' : '' }}>Boleto</option>
-                            <option value="pix" {{ old('forma_pagamento') == 'pix' ? 'selected' : '' }}>PIX</option>
-                            <option value="transferencia" {{ old('forma_pagamento') == 'transferencia' ? 'selected' : '' }}>Transferência</option>
-                            <option value="debito_automatico" {{ old('forma_pagamento') == 'debito_automatico' ? 'selected' : '' }}>Débito Automático</option>
-                            <option value="dinheiro" {{ old('forma_pagamento') == 'dinheiro' ? 'selected' : '' }}>Dinheiro</option>
-                        </select>
-                    </div>
-                </div>
-            </x-erp.form-section>
-
-            <x-erp.form-section title="Recorrencia" icon="arrow-repeat">
+            <x-erp.form-section title="Recorrência" icon="arrow-repeat">
                 <div class="card border-0 bg-light mb-4">
                     <div class="card-body">
                         <div class="form-check form-switch mb-0">
@@ -155,7 +46,7 @@
                             </label>
                         </div>
                         <div id="recorrencia-options" class="{{ old('recorrente') ? '' : 'd-none' }} mt-3">
-                            <label for="recorrencia_tipo" class="form-label fw-semibold small">Tipo de Recorrencia</label>
+                            <label for="recorrencia_tipo" class="form-label fw-semibold small">Repete a cada</label>
                             <select name="recorrencia_tipo" id="recorrencia_tipo" class="form-select">
                                 <option value="mensal" {{ old('recorrencia_tipo') == 'mensal' ? 'selected' : '' }}>Mensal</option>
                                 <option value="bimestral" {{ old('recorrencia_tipo') == 'bimestral' ? 'selected' : '' }}>Bimestral</option>
@@ -164,7 +55,7 @@
                                 <option value="anual" {{ old('recorrencia_tipo') == 'anual' ? 'selected' : '' }}>Anual</option>
                             </select>
                             <div class="alert alert-info border-0 bg-info bg-opacity-10 mt-2 mb-0 small">
-                                <i class="bi bi-info-circle me-1"></i> Serao geradas automaticamente 12 parcelas com o intervalo selecionado.
+                                <i class="bi bi-info-circle me-1"></i> Os próximos 12 vencimentos já ficam lançados com este valor. Quando o valor de um mês mudar (guia de imposto, vale-transporte), ajuste em Editar ou na hora de dar a baixa.
                             </div>
                         </div>
                     </div>
@@ -223,126 +114,33 @@
                 </div>
                 <div class="mb-3">
                     <div class="fw-semibold text-dark mb-1">Conta Recorrente</div>
-                    Ative para despesas fixas como aluguel, internet, etc. Serao geradas 12 parcelas automaticamente.
+                    Para o que repete: salário, vale, guias de INSS/FGTS, vale-transporte, aluguel. Os próximos 12 meses já entram no fluxo de caixa; o valor de cada mês você ajusta antes de pagar.
                 </div>
                 <div class="mb-0">
-                    <div class="fw-semibold text-dark mb-1">Categorias</div>
-                    Categorize suas despesas para facilitar a análise no fluxo de caixa e DRE.
+                    <div class="fw-semibold text-dark mb-1">Plano de contas e centro de custo</div>
+                    Classifique a despesa para ela aparecer separada no DRE (salários, encargos, benefícios).
                 </div>
             </div>
         </x-erp.card>
+
+        @if($planoContas->isEmpty())
+        <x-erp.card title="Plano de contas" icon="diagram-3" class="mt-4">
+            <p class="small text-muted mb-3">Esta empresa ainda não tem plano de contas. Crie o padrão com um clique: salários, vale, 13º, férias, INSS, FGTS, vale-transporte, aluguel, energia e outras.</p>
+            <form method="POST" action="{{ route('app.plano-contas.padrao') }}">
+                @csrf
+                <button type="submit" class="btn btn-erp-outline w-100">
+                    <i class="bi bi-magic me-1"></i> Criar contas padrão
+                </button>
+            </form>
+            <div class="form-text">Você volta para esta tela; o que já digitou aqui precisa ser preenchido de novo.</div>
+        </x-erp.card>
+        @endif
     </div>
 </div>
 @endsection
 
 @push('scripts')
 <script>
-    // ===== FORNECEDOR SEARCH =====
-    const fornecedorBuscarUrl = '{{ route("app.search.fornecedores") }}';
-    const fornecedorCadastrarUrl = @json($podeCadastrarFornecedor ? route('app.fornecedores.create') : null);
-    const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
-    const fornecedorBusca = document.getElementById('fornecedorBusca');
-    const fornecedorResultados = document.getElementById('fornecedorResultados');
-    let fornecedorTimeout;
-
-    fornecedorBusca.addEventListener('input', function() {
-        clearTimeout(fornecedorTimeout);
-        const termo = this.value.trim();
-        if (termo.length < 2) { fornecedorResultados.style.display = 'none'; return; }
-        fornecedorTimeout = setTimeout(() => {
-            fetch(`${fornecedorBuscarUrl}?q=${encodeURIComponent(termo)}`, {
-                headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': csrfToken }
-            })
-            .then(r => r.json())
-            .then(fornecedores => {
-                fornecedorResultados.innerHTML = '';
-                if (fornecedores.length === 0) {
-                    // Sem resultado: o fornecedor precisa ser cadastrado antes — sem isso o
-                    // fornecedor_id fica vazio e o back-end recusa a conta.
-                    const vazio = document.createElement('div');
-                    vazio.className = 'list-group-item small py-2';
-                    vazio.innerHTML = '<div class="text-muted mb-1">Nenhum fornecedor encontrado com esse nome.</div>';
-                    if (!fornecedorCadastrarUrl) {
-                        vazio.insertAdjacentHTML('beforeend', '<div class="text-muted">Peça ao dono ou gerente para cadastrar o fornecedor.</div>');
-                        fornecedorResultados.appendChild(vazio);
-                        fornecedorResultados.style.display = 'block';
-                        return;
-                    }
-                    const cadastrar = document.createElement('a');
-                    cadastrar.href = fornecedorCadastrarUrl + '?razao_social=' + encodeURIComponent(termo);
-                    cadastrar.target = '_blank';
-                    cadastrar.className = 'btn btn-sm btn-primary';
-                    cadastrar.innerHTML = '<i class="bi bi-plus-lg me-1"></i>';
-                    cadastrar.append('Cadastrar "' + termo + '" como fornecedor');
-                    vazio.appendChild(cadastrar);
-                    fornecedorResultados.appendChild(vazio);
-                    fornecedorResultados.style.display = 'block';
-                    return;
-                }
-                fornecedores.forEach(f => {
-                    const item = document.createElement('a');
-                    item.href = '#';
-                    item.className = 'list-group-item list-group-item-action py-2';
-                    item.innerHTML = `
-                        <div class="fw-semibold">${f.razao_social}</div>
-                        <small class="text-muted">${f.cpf_cnpj || 'Sem documento'}</small>
-                    `;
-                    item.addEventListener('click', function(e) {
-                        e.preventDefault();
-                        document.getElementById('fornecedorId').value = f.id;
-                        document.getElementById('fornecedorNome').textContent = f.razao_social;
-                        document.getElementById('fornecedorDoc').textContent = f.cpf_cnpj || '';
-                        document.getElementById('fornecedorSelecionado').style.display = 'block';
-                        document.getElementById('fornecedorBuscaGroup').style.display = 'none';
-                        document.getElementById('fornecedorAviso').style.display = 'none';
-                        fornecedorResultados.style.display = 'none';
-                    });
-                    fornecedorResultados.appendChild(item);
-                });
-                fornecedorResultados.style.display = 'block';
-            });
-        }, 300);
-    });
-
-    fornecedorBusca.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape') fornecedorResultados.style.display = 'none';
-    });
-
-    document.getElementById('btnRemoverFornecedor').addEventListener('click', function() {
-        document.getElementById('fornecedorId').value = '';
-        document.getElementById('fornecedorSelecionado').style.display = 'none';
-        document.getElementById('fornecedorBuscaGroup').style.display = 'flex';
-        fornecedorBusca.value = '';
-        fornecedorBusca.focus();
-    });
-
-    document.addEventListener('click', function(e) {
-        if (!e.target.closest('#fornecedorBusca') && !e.target.closest('#fornecedorResultados')) {
-            fornecedorResultados.style.display = 'none';
-        }
-    });
-
-    // Voltou da aba de cadastro: refaz a busca com o que já está digitado.
-    window.addEventListener('focus', function() {
-        if (!document.getElementById('fornecedorId').value && fornecedorBusca.value.trim().length >= 2) {
-            fornecedorBusca.dispatchEvent(new Event('input'));
-        }
-    });
-
-    // Sem fornecedor escolhido não salva: avisa na tela em vez de mandar pro servidor.
-    fornecedorBusca.closest('form').addEventListener('submit', function(e) {
-        if (document.getElementById('fornecedorId').value) return;
-        e.preventDefault();
-        const aviso = document.getElementById('fornecedorAviso');
-        aviso.textContent = fornecedorBusca.value.trim()
-            ? 'Você digitou o nome, mas não escolheu o fornecedor na lista. Clique no nome na lista ou, se ele não aparecer, cadastre o fornecedor.'
-            : 'Escolha o fornecedor: digite o nome e clique nele na lista. Se ele não estiver cadastrado, cadastre o fornecedor primeiro.';
-        aviso.style.display = 'block';
-        fornecedorBusca.classList.add('is-invalid');
-        fornecedorBusca.focus();
-        fornecedorBusca.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    });
-
     // Toggle recorrencia options
     document.getElementById('recorrente').addEventListener('change', function() {
         document.getElementById('recorrencia-options').classList.toggle('d-none', !this.checked);

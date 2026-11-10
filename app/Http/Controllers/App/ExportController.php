@@ -86,8 +86,8 @@ class ExportController extends Controller
     {
         return $this->export(
             'contas_pagar',
-            ContaPagar::where('empresa_id', auth()->user()->empresa_id)->get(),
-            ['descricao', 'valor', 'valor_pago', 'vencimento', 'pago_em', 'categoria', 'forma_pagamento', 'parcela', 'total_parcelas', 'status'],
+            ContaPagar::with(['fornecedor', 'funcionario'])->where('empresa_id', auth()->user()->empresa_id)->get(),
+            ['favorecido_label', 'descricao', 'valor', 'valor_pago', 'vencimento', 'competencia', 'pago_em', 'categoria', 'centro_custo', 'forma_pagamento', 'parcela', 'total_parcelas', 'status'],
             $request
         );
     }

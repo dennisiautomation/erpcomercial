@@ -3,7 +3,7 @@
 @section('title', 'Contas a Pagar')
 
 @section('content')
-<x-erp.page-header title="Contas a Pagar" subtitle="Gerencie despesas, fornecedores e pagamentos" icon="wallet2">
+<x-erp.page-header title="Contas a Pagar" subtitle="Despesas, salários, impostos e benefícios — o que vence e o que já foi pago" icon="wallet2">
     <a href="{{ route('app.export.contas-pagar') }}" class="btn btn-erp-outline"><i class="bi bi-file-earmark-spreadsheet me-1"></i>Exportar</a>
     <a href="{{ route('app.contas-pagar.create') }}" class="btn btn-erp-primary">
         <i class="bi bi-plus-lg me-1"></i> Nova Conta
@@ -46,6 +46,28 @@
             @endforeach
         </select>
     </div>
+    @if($planoContas->isNotEmpty())
+    <div class="col-md-3">
+        <label for="campo-plano_conta_id" class="form-label fw-semibold small text-muted">Plano de contas</label>
+        <select id="campo-plano_conta_id" name="plano_conta_id" class="form-select">
+            <option value="">Todos</option>
+            @foreach($planoContas as $p)
+                <option value="{{ $p->id }}" {{ request('plano_conta_id') == $p->id ? 'selected' : '' }}>{{ $p->codigo }} — {{ $p->nome }}</option>
+            @endforeach
+        </select>
+    </div>
+    @endif
+    @if($centrosCusto->isNotEmpty())
+    <div class="col-md-2">
+        <label for="campo-centro_custo_id" class="form-label fw-semibold small text-muted">Centro de custo</label>
+        <select id="campo-centro_custo_id" name="centro_custo_id" class="form-select">
+            <option value="">Todos</option>
+            @foreach($centrosCusto as $cc)
+                <option value="{{ $cc->id }}" {{ request('centro_custo_id') == $cc->id ? 'selected' : '' }}>{{ $cc->nome }}</option>
+            @endforeach
+        </select>
+    </div>
+    @endif
     <div class="col-md-2">
         <label for="campo-vencimento_inicio" class="form-label fw-semibold small text-muted">Vencimento De</label>
         <input id="campo-vencimento_inicio" type="date" name="vencimento_inicio" class="form-control" value="{{ request('vencimento_inicio') }}">
@@ -66,7 +88,7 @@
     <thead>
         <tr>
             <th>#</th>
-            <th>Fornecedor</th>
+            <th>Favorecido</th>
             <th>Descrição</th>
             <th>Categoria</th>
             <th class="text-center">Parcela</th>
@@ -85,7 +107,10 @@
         <tr class="{{ $isOverdue ? 'border-start border-danger border-3' : '' }}">
             <td class="text-muted small">#{{ $conta->id }}</td>
             <td>
-                <div class="fw-semibold">{{ $conta->fornecedor->razao_social ?? '-' }}</div>
+                <div class="fw-semibold">{{ $conta->favorecido_label }}</div>
+                @if($conta->favorecido_tipo === 'funcionario')
+                    <small class="text-muted"><i class="bi bi-person-badge me-1"></i>Funcionário</small>
+                @endif
             </td>
             <td>
                 <div>{{ Str::limit($conta->descricao, 35) }}</div>
@@ -98,6 +123,9 @@
                     <span class="badge bg-light text-dark border rounded-pill">{{ $conta->categoria }}</span>
                 @else
                     <span class="text-muted">-</span>
+                @endif
+                @if($conta->centro_custo)
+                    <div><small class="text-muted">{{ $conta->centro_custo }}</small></div>
                 @endif
             </td>
             <td class="text-center">
@@ -129,13 +157,16 @@
                         <i class="bi bi-eye"></i>
                     </a>
                     @if($conta->status === 'pendente')
-                    <form method="POST" action="{{ route('app.contas-pagar.baixar', $conta) }}"
-                        data-confirm="Confirma o pagamento de R$ {{ number_format($conta->valor, 2, ',', '.') }}?">
-                        @csrf
-                        <button type="submit" class="btn btn-sm btn-success" title="Dar baixa">
-                            <i class="bi bi-check-lg"></i>
-                        </button>
-                    </form>
+                    <a href="{{ route('app.contas-pagar.edit', $conta) }}" class="btn btn-sm btn-erp-outline" title="Editar (ajustar valor ou vencimento)">
+                        <i class="bi bi-pencil"></i>
+                    </a>
+                    <button type="button" class="btn btn-sm btn-success" title="Dar baixa"
+                        data-baixar="{{ route('app.contas-pagar.baixar', $conta) }}"
+                        data-valor="{{ number_format($conta->valor, 2, '.', '') }}"
+                        data-forma="{{ $conta->forma_pagamento }}"
+                        data-descricao="{{ $conta->favorecido_label }} — {{ $conta->descricao }}">
+                        <i class="bi bi-check-lg"></i>
+                    </button>
                     <form method="POST" action="{{ route('app.contas-pagar.destroy', $conta) }}"
                         data-confirm="Confirma a exclusão desta conta?">
                         @csrf
@@ -162,4 +193,6 @@
         @endif
     </x-slot>
 </x-erp.data-table>
+
+@include('app.financeiro.contas-pagar._baixa-modal')
 @endsection

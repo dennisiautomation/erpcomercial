@@ -9,9 +9,18 @@
         <h4><i class="bi bi-diagram-3 me-2"></i>Plano de Contas</h4>
         <div class="subtitle">Estrutura hierarquica de contas contabeis</div>
     </div>
-    <a href="{{ route('app.plano-contas.create') }}" class="btn btn-erp btn-erp-primary">
-        <i class="bi bi-plus-lg me-1"></i> Nova Conta
-    </a>
+    <div class="d-flex gap-2 flex-wrap">
+        <form method="POST" action="{{ route('app.plano-contas.padrao') }}"
+              data-confirm="Criar as contas padrão (salários, encargos, benefícios, aluguel, energia...)? As contas que você já tem não mudam.">
+            @csrf
+            <button type="submit" class="btn btn-erp btn-erp-outline">
+                <i class="bi bi-magic me-1"></i> Criar contas padrão
+            </button>
+        </form>
+        <a href="{{ route('app.plano-contas.create') }}" class="btn btn-erp btn-erp-primary">
+            <i class="bi bi-plus-lg me-1"></i> Nova Conta
+        </a>
+    </div>
 </div>
 
 @if(session('success'))

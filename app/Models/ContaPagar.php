@@ -21,16 +21,22 @@ class ContaPagar extends Model
         'empresa_id',
         'unidade_id',
         'fornecedor_id',
+        'funcionario_id',
+        'favorecido_nome',
         'descricao',
         'valor',
         'valor_pago',
         'vencimento',
+        'competencia',
         'pago_em',
         'categoria',
         'centro_custo',
+        'plano_conta_id',
+        'centro_custo_id',
         'forma_pagamento',
         'parcela',
         'total_parcelas',
+        'serie_id',
         'recorrente',
         'recorrencia_tipo',
         'status',
@@ -43,6 +49,7 @@ class ContaPagar extends Model
             'valor' => 'decimal:2',
             'valor_pago' => 'decimal:2',
             'vencimento' => 'date',
+            'competencia' => 'date',
             'pago_em' => 'date',
             'recorrente' => 'boolean',
         ];
@@ -65,6 +72,29 @@ class ContaPagar extends Model
     public function fornecedor(): BelongsTo
     {
         return $this->belongsTo(Fornecedor::class);
+    }
+
+    /** Funcionário favorecido (salário, vale, benefício) — é um usuário da empresa. */
+    public function funcionario(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'funcionario_id');
+    }
+
+    /** Quem recebe: fornecedor, funcionário ou o nome livre (INSS, FGTS, Receita...). */
+    public function getFavorecidoLabelAttribute(): string
+    {
+        return $this->fornecedor?->razao_social
+            ?? $this->funcionario?->name
+            ?? ($this->favorecido_nome ?: '-');
+    }
+
+    public function getFavorecidoTipoAttribute(): string
+    {
+        if ($this->funcionario_id) {
+            return 'funcionario';
+        }
+
+        return $this->fornecedor_id ? 'fornecedor' : 'outro';
     }
 
     public function planoConta(): BelongsTo

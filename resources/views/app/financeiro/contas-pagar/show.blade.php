@@ -15,8 +15,8 @@
             <div class="table-responsive">
             <table class="table table-borderless mb-0">
                 <tr>
-                    <th width="40%">Fornecedor</th>
-                    <td>{{ $contaPagar->fornecedor->razao_social ?? '-' }}</td>
+                    <th width="40%">{{ ['fornecedor' => 'Fornecedor', 'funcionario' => 'Funcionário', 'outro' => 'Pagar para'][$contaPagar->favorecido_tipo] }}</th>
+                    <td>{{ $contaPagar->favorecido_label }}</td>
                 </tr>
                 <tr>
                     <th>Descrição</th>
@@ -29,6 +29,10 @@
                 <tr>
                     <th>Vencimento</th>
                     <td>{{ $contaPagar->vencimento->format('d/m/Y') }}</td>
+                </tr>
+                <tr>
+                    <th>Mês de competência</th>
+                    <td>{{ $contaPagar->competencia?->format('m/Y') ?? '-' }}</td>
                 </tr>
                 <tr>
                     <th>Parcela</th>
@@ -45,17 +49,29 @@
                     </td>
                 </tr>
                 <tr>
-                    <th>Categoria</th>
-                    <td>{{ $contaPagar->categoria ?? '-' }}</td>
+                    <th>{{ $contaPagar->plano_conta_id ? 'Plano de contas' : 'Categoria' }}</th>
+                    <td>
+                        @if($contaPagar->planoConta)
+                            {{ $contaPagar->planoConta->codigo }} — {{ $contaPagar->planoConta->nome }}
+                        @else
+                            {{ $contaPagar->categoria ?? '-' }}
+                        @endif
+                    </td>
                 </tr>
                 <tr>
                     <th>Centro de Custo</th>
-                    <td>{{ $contaPagar->centro_custo ?? '-' }}</td>
+                    <td>{{ $contaPagar->centroCusto->nome ?? $contaPagar->centro_custo ?? '-' }}</td>
                 </tr>
                 <tr>
                     <th>Recorrente</th>
                     <td>{{ $contaPagar->recorrente ? 'Sim - ' . ucfirst($contaPagar->recorrencia_tipo ?? 'mensal') : 'Nao' }}</td>
                 </tr>
+                @if($contaPagar->forma_pagamento)
+                <tr>
+                    <th>Forma de pagamento</th>
+                    <td>{{ ucfirst(str_replace('_', ' ', $contaPagar->forma_pagamento)) }}</td>
+                </tr>
+                @endif
                 @if($contaPagar->status === 'paga')
                 <tr>
                     <th>Valor Pago</th>
@@ -114,16 +130,30 @@
 
         @if($contaPagar->status === 'pendente')
         <div class="d-flex gap-2 mt-4">
-            <form method="POST" action="{{ route('app.contas-pagar.baixar', $contaPagar) }}"
-                data-confirm="Confirma o pagamento desta conta?">
+            <button type="button" class="btn btn-success"
+                data-baixar="{{ route('app.contas-pagar.baixar', $contaPagar) }}"
+                data-valor="{{ number_format($contaPagar->valor, 2, '.', '') }}"
+                data-forma="{{ $contaPagar->forma_pagamento }}"
+                data-descricao="{{ $contaPagar->favorecido_label }} — {{ $contaPagar->descricao }}">
+                <i class="bi bi-check-circle me-1"></i> Dar baixa
+            </button>
+            <a href="{{ route('app.contas-pagar.edit', $contaPagar) }}" class="btn btn-erp-outline">
+                <i class="bi bi-pencil me-1"></i> Editar
+            </a>
+        </div>
+        @elseif($contaPagar->status === 'paga')
+        <div class="d-flex gap-2 mt-4">
+            <form method="POST" action="{{ route('app.contas-pagar.estornar', $contaPagar) }}"
+                data-confirm="Estornar a baixa? A conta volta para pendente e sai do que foi pago.">
                 @csrf
-                @method('PATCH')
-                <button type="submit" class="btn btn-success">
-                    <i class="bi bi-check-circle me-1"></i> Marcar como Paga
+                <button type="submit" class="btn btn-outline-danger">
+                    <i class="bi bi-arrow-counterclockwise me-1"></i> Estornar baixa
                 </button>
             </form>
         </div>
         @endif
     </div>
 </div>
+
+@include('app.financeiro.contas-pagar._baixa-modal')
 @endsection
