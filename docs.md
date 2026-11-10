@@ -8148,3 +8148,12 @@ desfaria o desconto máximo.
 ↑↓+Enter, clique, Esc não propaga ao modal, nome único entra direto, "nenhum produto", resposta velha
 descartada, total 375, descrição escapada). Busca no banco de produção (só leitura): RIVERSIDE
 "vestido isa" → 1, DONA DOURO "bracelete liso branco" → 20.
+
+**EM PRODUÇÃO 10/11/2026 ~09:51 BRT** (a partir de `071dcc7`): só `resources/views/app/pdv/index.blade.php`
+copiado para o container (o resto do branch já era idêntico à produção), `chown www-data`,
+`view:cache` como www-data, `kill -USR2 32` (master do php-fpm hoje é o PID **32**; `opcache.validate_timestamps=0`).
+Conferido: sha1 do arquivo no container = branch (`16a3bb035188`); view compilada contém `trocaBiparLista`;
+`/` e `/login` 200, `/app/pdv` e `/app/trocas` 302 para o login; `laravel.log` sem ERROR novo.
+Rollback: `/home/ubuntu/erp-backups/pre-troca-busca-nome-20261110/index.blade.php` (sha1 `fb3f2bb8a06a`)
+de volta no container + `view:cache` + USR2, ou a imagem `erp-com-app:pre-troca-busca-nome-20261110`.
+Não testado no navegador logado (login por curl dá 419). Só vale depois que a aba do PDV recarregar.
