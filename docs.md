@@ -8389,9 +8389,14 @@ Cenário fechado de março/2029 (11 contas a pagar, 2 a receber, 2 lojas, 2 cent
   `12-custos-de-pessoal.html`, `pdf/12-custos-de-pessoal.pdf` (34 págs), 36 prints em `prints/pessoal/` (ambiente descartável
   `fp-*`, dados fictícios, já desligado), roteiro de 16 cenas para vídeo. Fonte: `build/12-custos-de-pessoal.html`; os prints saem
   de `build/prints-12-pessoal.mjs`. O Manual Completo foi regerado com a área nova.
-- **Correção NÃO deployada** (commit `04d6b55`, só na branch): Plano de Contas e Centros de Custo mostravam o aviso de
-  sucesso/erro DUAS vezes (bloco próprio da view + `components.alert` do layout; defeito antigo que o botão "Criar contas padrão"
-  deixou à vista). São 2 views, sem migration; sobe com `view:cache` + USR2 quando o Dennis mandar. **Produção = `6231880`**.
+- **Aviso duplicado corrigido — EM PRODUÇÃO 10/11/2026 11:38 BRT** (commit `04d6b55`, ordem do Dennis "Sim, subir"): Plano de
+  Contas e Centros de Custo mostravam o aviso de sucesso/erro DUAS vezes (bloco próprio da view + `components.alert` do layout;
+  defeito antigo que o botão "Criar contas padrão" deixou à vista). 2 views, sem migration: no ar = `6231880` conferido por md5,
+  cópias em `…/pre-folha-contas-pagar-20261110/aviso-duplicado/`, tar + `chown`, `view:cache` (0 erro), USR2, `/login` 200.
+  **Produção = código de `04d6b55`** (a branch segue com commits só de docs por cima).
+- Os 2 erros novos no `laravel.log` depois do deploy (11:14 BRT) são NFC-e recusada antes de enviar, sem relação com esta
+  entrega: MISS MERLINDA sem CSC e com NCM inválido em produtos (venda 448685) e DK com cliente de SP numa NFC-e de PI
+  (pedido 375). O log tem 1.107 ocorrências desse tipo.
 - Achado: o Contas a Pagar inteiro (lançar, editar, baixa, excluir) passa por `permission:financeiro` na ação padrão `ver` — o
   **gerente e o perfil consulta conseguem lançar e dar baixa**, não só consultar (só Adquirentes usa `,editar`/`,excluir`). É
   anterior a esta entrega; não mexi.
