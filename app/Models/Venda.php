@@ -187,6 +187,31 @@ class Venda extends Model
      * nota — o `FiscalPayloadBuilder` lê este acessor para fechar a conta
      * `total = produtos − desconto + outras despesas` que a SEFAZ valida.
      */
+    /**
+     * Frete cobrado na venda (10/11/2026). Não é coluna: vem do pedido
+     * faturado (`pedidos.frete_valor`, taxa de entrega do orçamento/pedido),
+     * que o faturamento soma no `total` da venda sem virar item. Sem isso a
+     * nota saía com itens = R$ 766,90 e total = R$ 776,90 e a SEFAZ rejeitava
+     * ("Total da NF difere do somatório", DK venda 448734).
+     *
+     * Só devolve o frete quando o total da venda de fato o contém — venda cujo
+     * total não bate com produtos − desconto + outras + frete fica com 0 e a
+     * conta da nota segue como antes.
+     */
+    public function getValorFreteAttribute(): float
+    {
+        if (! $this->pedido_id) {
+            return 0.0;
+        }
+        $frete = round((float) ($this->pedido?->frete_valor ?? 0), 2);
+        if ($frete <= 0) {
+            return 0.0;
+        }
+        $semFrete = (float) $this->subtotal - (float) $this->desconto_valor + $this->outras_despesas;
+
+        return abs(round($semFrete + $frete, 2) - round((float) $this->total, 2)) < 0.01 ? $frete : 0.0;
+    }
+
     public function getOutrasDespesasAttribute(): float
     {
         if (! is_array($this->pagamento_detalhes)) {

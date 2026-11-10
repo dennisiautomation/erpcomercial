@@ -324,6 +324,11 @@ class NFCeService
             $valorTotalProdutos += round((float) $item->preco_unitario * (float) $item->quantidade, 2);
             $descontoItens += (float) ($item->desconto_valor ?? 0);
         }
+        // NFC-e não aceita frete (modFrete 9): o frete do pedido entra como
+        // outras despesas, junto com juros/acréscimo do cartão, rateado nos
+        // itens (vOutro do total = Σ dos itens — 10/11/2026, DK venda 448734).
+        $outrasDespesas = round((float) $venda->outras_despesas + (float) $venda->valor_frete, 2);
+        $builder->ratearAcessorios($itens, 0.0, $outrasDespesas);
 
         $payload = array_merge(
             [
@@ -382,7 +387,6 @@ class NFCeService
         // parcelamento (02/09) e o acréscimo do cartão cobrado por parte
         // (04/09, regra `por_parte`). Sem isso a conta vNF = vProd − vDesc + vOutro
         // não fecha e a SEFAZ rejeita a venda.
-        $outrasDespesas = (float) ($venda->outras_despesas ?? 0);
         if ($outrasDespesas > 0) {
             $payload['valor_outras_despesas'] = number_format($outrasDespesas, 2, '.', '');
         }

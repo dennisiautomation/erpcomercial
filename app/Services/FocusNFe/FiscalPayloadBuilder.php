@@ -223,11 +223,10 @@ class FiscalPayloadBuilder
             $payload['cnpj_destinatario'] = $cpfCnpj;
         }
 
-        if ($cliente->ie) {
-            $payload['inscricao_estadual_destinatario'] = $this->digits($cliente->ie);
-            $payload['indicador_inscricao_estadual_destinatario'] = '1';
-        } else {
-            $payload['indicador_inscricao_estadual_destinatario'] = '9';
+        [$indicadorIe, $ie] = $this->indicadorIeDestinatario($cliente);
+        $payload['indicador_inscricao_estadual_destinatario'] = $indicadorIe;
+        if ($ie !== null) {
+            $payload['inscricao_estadual_destinatario'] = $ie;
         }
 
         if ($cliente->logradouro) {
@@ -603,6 +602,75 @@ class FiscalPayloadBuilder
         if (! $ufDestino) return '1';
         if ($ufDestino === 'EX') return '3';
         return $ufOrigem === $ufDestino ? '1' : '2';
+    }
+
+    /**
+     * indIEDest + IE do destinatário da NF-e (10/11/2026).
+     *
+     * Antes, qualquer texto no campo `ie` virava indicador 1 com os DÍGITOS do
+     * texto — "ISENTO" saía como IE vazia e a SEFAZ rejeitava ("NF-e sem tag IE
+     * do destinatario", DK venda 448734, cliente UNITA). Agora:
+     *   - tem dígitos           → 1 (contribuinte) + IE só com dígitos;
+     *   - "ISENTO"              → 2 (contribuinte isento), sem IE — exceto nas
+     *                             UFs que não aceitam isento (rejeição 805), onde
+     *                             vira 9;
+     *   - vazio ou outro texto  → 9 (não contribuinte), sem IE.
+     *
+     * @return array{0: string, 1: ?string}
+     */
+    public function indicadorIeDestinatario(?\App\Models\Cliente $cliente): array
+    {
+        $bruto = trim((string) ($cliente?->ie ?? ''));
+        $digitos = $this->digits($bruto);
+        if ($digitos !== '') {
+            return ['1', $digitos];
+        }
+        $semIsento = ['AM', 'BA', 'CE', 'GO', 'MG', 'MS', 'MT', 'PE', 'RN', 'SE', 'SP'];
+        if (preg_match('/^isent[oa]$/i', $bruto) && ! in_array(strtoupper((string) $cliente?->uf), $semIsento, true)) {
+            return ['2', null];
+        }
+
+        return ['9', null];
+    }
+
+    /**
+     * Rateia frete e outras despesas pelos itens (10/11/2026).
+     *
+     * A SEFAZ confere o total da nota contra a soma dos itens (vFrete e vOutro
+     * do total = Σ dos itens). O rateio é proporcional ao valor líquido de cada
+     * item; o centavo que sobra do arredondamento vai para o maior item.
+     *
+     * @param  array<int, array>  $itens  itens já montados (alterados por referência)
+     */
+    public function ratearAcessorios(array &$itens, float $frete, float $outras): void
+    {
+        foreach (['valor_frete' => round($frete, 2), 'valor_outras_despesas' => round($outras, 2)] as $campo => $valor) {
+            if ($valor <= 0 || ! $itens) {
+                continue;
+            }
+            $bases = array_map(
+                fn ($i) => max(0.0, (float) ($i['valor_bruto'] ?? 0) - (float) ($i['valor_desconto'] ?? 0)),
+                $itens
+            );
+            $soma = array_sum($bases);
+            $partes = [];
+            foreach ($bases as $k => $base) {
+                $partes[$k] = $soma > 0 ? round($valor * $base / $soma, 2) : 0.0;
+            }
+            if ($soma <= 0) {
+                $partes[array_key_first($itens)] = $valor;
+            }
+            $sobra = round($valor - array_sum($partes), 2);
+            if ($sobra != 0.0) {
+                $maior = array_keys($bases, max($bases))[0];
+                $partes[$maior] = round($partes[$maior] + $sobra, 2);
+            }
+            foreach ($partes as $k => $parte) {
+                if ($parte > 0) {
+                    $itens[$k][$campo] = $this->fmt($parte, 2);
+                }
+            }
+        }
     }
 
     // ─── Helpers ────────────────────────────────────────────────────────

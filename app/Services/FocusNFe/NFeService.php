@@ -433,6 +433,11 @@ class NFeService
             $valorTotalProdutos += round((float) $item->preco_unitario * (float) $item->quantidade, 2);
             $descontoItens += (float) ($item->desconto_valor ?? 0);
         }
+        // Frete do pedido e juros/acréscimo do cartão por item (vFrete/vOutro
+        // do total = Σ dos itens — 10/11/2026, DK venda 448734).
+        $valorFrete = (float) $venda->valor_frete;
+        $builder->ratearAcessorios($itens, $valorFrete, (float) $venda->outras_despesas);
+        [$indicadorIe] = $builder->indicadorIeDestinatario($cliente);
 
         // ── Header ───────────────────────────────────────────────────────
         $ufDestino = $cliente?->uf;
@@ -445,7 +450,7 @@ class NFeService
                 'finalidade_emissao' => $dadosAdicionais['finalidade_emissao'] ?? '1',
                 // indFinal: sem IE (indicador 9) a SEFAZ exige consumidor final = 1
                 // ("Operacao com nao contribuinte deve indicar operacao com consumidor final", DK 27/10/2026).
-                'consumidor_final' => $dadosAdicionais['consumidor_final'] ?? ($cliente?->ie ? '0' : '1'),
+                'consumidor_final' => $dadosAdicionais['consumidor_final'] ?? ($indicadorIe === '1' ? '0' : '1'),
                 'presenca_comprador' => $dadosAdicionais['presenca_comprador'] ?? '1',
                 'indicador_intermediario' => $dadosAdicionais['indicador_intermediario'] ?? '0',
                 'modelo' => '55',
@@ -491,7 +496,8 @@ class NFeService
         }
 
         // ── Transporte ───────────────────────────────────────────────────
-        $payload['modalidade_frete'] = $dadosAdicionais['modalidade_frete'] ?? '9';
+        // Frete cobrado pela loja na venda = por conta do remetente (0); sem frete = 9.
+        $payload['modalidade_frete'] = $dadosAdicionais['modalidade_frete'] ?? ($valorFrete > 0 ? '0' : '9');
         if (isset($dadosAdicionais['transportadora'])) {
             $transp = $dadosAdicionais['transportadora'];
             $map = [
