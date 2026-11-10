@@ -6669,9 +6669,9 @@ Lote de correções na branch `fix/auditoria-bugs-mai2026`, após varredura de s
 
 ### Despesa de pessoal no financeiro (10/11/2026) — pedido do Dennis
 Onde cada coisa vive: **a folha gera contas no Contas a Pagar; Fluxo de Caixa, Centro de Custo e DRE só LEEM o Contas a Pagar.**
-0. ✅ **AS 3 FASES EM PRODUÇÃO 10/11/2026 11:08 BRT** (seção "Deploy das 3 fases"). Falta: `main` ainda NÃO tem a branch
-   (`main` = `c8ac40e`, produção = `folha-contas-pagar-10nov`) — **rebuild ou deploy a partir da `main` desfaz tudo** (armadilha
-   52) até o Dennis mandar mesclar e dar push.
+0. ✅ **AS 3 FASES EM PRODUÇÃO 10/11/2026 11:08 BRT** (seção "Deploy das 3 fases") e ✅ **`main` = GitHub = produção**: branch
+   `folha-contas-pagar-10nov` mesclada por fast-forward e pushada em 10/11 ~11:45 BRT por ordem do Dennis ("Sim, mesclar");
+   sha1 dos arquivos de código da `main` conferido contra o container depois do push, 0 diferença.
 1. **Fase 1 — FEITA** (branch `folha-contas-pagar-10nov`). Ver a
    seção "Contas a Pagar para despesa de pessoal — Fase 1".
 2. **Fase 2 — Folha de Pagamento — FEITA na mesma branch, NÃO deployada** (ver a seção "Folha de Pagamento — Fase 2").
@@ -8382,7 +8382,7 @@ Cenário fechado de março/2029 (11 contas a pagar, 2 a receber, 2 lojas, 2 cent
   `recorrencia_tipo` com `bimestral`; `funcionario_fichas` e `folha_itens` vazias.
 - A senha `erp_password` do MySQL que está neste docs.md/CLAUDE.md **não é a de produção** (acesso negado): o roteiro lê a
   `DB_PASSWORD` do `.env` do container e passa por `MYSQL_PWD`.
-- ⚠️ **`main` ≠ produção**: a branch não foi mesclada nem pushada (regra: merge/push só quando o Dennis pedir).
+- ✅ **`main` = produção** desde 10/11 ~11:45 BRT: mesclada (fast-forward) e pushada por ordem do Dennis; `ls-remote` confirmou.
 
 ### Depois do deploy (10/11/2026)
 - **Manual de uso "Custos de pessoal"** (pedido do Dennis durante o deploy): área 12 em `/home/ubuntu/manual-erp-comercial/` —
