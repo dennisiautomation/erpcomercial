@@ -8117,3 +8117,34 @@ arquivos do cancelamento com NFC-e fora do prazo (já no `3a2dc29`), só **`reso
 diferente — no ar desde **05/11/2026 14:23 BRT**, sem commit: o cupom não fiscal passa a imprimir o **CNPJ, endereço e telefone da
 LOJA da venda** (`unidade`), caindo nos da empresa quando a loja não tem. Copiado do container como está (branch
 `cupom-loja-producao-05nov`). Nenhum arquivo novo no ar fora do git. Depois disso: produção = `main` nos 630 arquivos.
+
+## Troca no PDV: "Peça sem cupom" busca também pelo NOME (10/11/2026) — branch `troca-busca-nome-10nov`
+
+**Pedido do Dennis (10/11, com print do manual):** *"Adicionar peça sem cupom, poderia ter opção busca o
+produto pelo nome"*. O campo do F6 (rodada 1 de 09/09) só aceitava código de barras/código interno:
+digitar um nome que achava mais de um produto dava o aviso *"Mais de um produto encontrado — bipe o
+código de barras"* e nada mais.
+
+**O que mudou (só a view `app/pdv/index.blade.php`, sem rota, sem migration):**
+
+- Ao **digitar** (≥ 2 letras, 300 ms de pausa) abre uma **lista embaixo do campo** com descrição,
+  código interno | código de barras e preço — a mesma busca do PDV (`/app/pdv/produto/{termo}`:
+  código exato, senão palavras da descrição em qualquer ordem, até 50).
+- **↑/↓** escolhe, **Enter** ou clique adiciona; **Esc** fecha só a lista (não fecha a janela da troca).
+- **Enter** sem lista: código exato ou produto único entra direto (o leitor continua igual — o Enter
+  cancela o timer da busca); vários produtos agora **abrem a lista** em vez do aviso.
+- A lista fica **dentro do fluxo** (não é dropdown flutuante) porque o corpo da janela da troca rola.
+- Vale para os dois caminhos: peça sem cupom dentro de uma venda e "Peça sem venda" (passo 1).
+- Preço, regras e gravação: as de 09/09 (preço cadastrado da loja, sem gerente por ser sem cupom).
+
+**Também neste branch:** commit `7536856` traz para o git o **desconto máximo por loja**, que está
+EM PRODUÇÃO desde 06/11 14:07 BRT aplicado por patch (`/home/ubuntu/erp-desconto-max/desconto-max.patch`)
+e não estava na `main` — 7 arquivos byte-idênticos ao container. Sem ele, um deploy a partir da `main`
+desfaria o desconto máximo.
+
+**Validação (10/11):** Blade compilado + `php -l` limpos (container descartável da imagem de produção,
+`--network none`, sem entrypoint); objeto `PDV` real em node com DOM e `fetch` falsos — **16 ✅ / 0 ❌**
+(bipar código entra direto e soma, timer não reabre lista após o Enter do leitor, digitar abre lista,
+↑↓+Enter, clique, Esc não propaga ao modal, nome único entra direto, "nenhum produto", resposta velha
+descartada, total 375, descrição escapada). Busca no banco de produção (só leitura): RIVERSIDE
+"vestido isa" → 1, DONA DOURO "bracelete liso branco" → 20.

@@ -1305,12 +1305,14 @@
                         <tbody id="trocaItens"></tbody>
                     </table>
 
-                    {{-- Peça que NÃO está nesta venda (09/09/2026): entra pelo preço de venda atual --}}
-                    <div class="d-flex align-items-center gap-2 flex-wrap mb-2" id="trocaSemCupomWrap">
-                        <input type="text" class="form-control form-control-sm" id="trocaBipar" placeholder="Bipar peça que NÃO está nesta venda (código de barras ou código)" autocomplete="off" style="max-width:400px;">
+                    {{-- Peça que NÃO está nesta venda (09/09/2026): entra pelo preço de venda atual.
+                         Busca também pelo NOME (10/11/2026): a lista aparece embaixo do campo. --}}
+                    <div class="d-flex align-items-center gap-2 flex-wrap mb-1" id="trocaSemCupomWrap">
+                        <input type="text" class="form-control form-control-sm" id="trocaBipar" placeholder="Peça que NÃO está nesta venda: bipe o código ou digite o nome" autocomplete="off" style="max-width:400px;">
                         <button type="button" class="modal-btn-secondary" onclick="PDV.trocaBiparItem()" title="Adicionar peça sem cupom desta venda"><i class="bi bi-upc-scan"></i> Adicionar</button>
                         <small style="color:var(--text-muted);">peça sem cupom entra pelo preço de venda de hoje</small>
                     </div>
+                    <div id="trocaBiparLista" style="display:none; max-width:560px; max-height:240px; overflow-y:auto; border:1px solid var(--border); border-radius:8px; background:var(--bg-secondary);" class="mb-2"></div>
 
                     <div class="row g-2 mb-2">
                         <div class="col-md-5">
@@ -3352,10 +3354,37 @@ const PDV = {
                 <td class="text-center"><input type="checkbox" class="form-check-input troca-estoque" ${i.e_servico ? 'disabled' : 'checked'} title="${i.e_servico ? 'Serviço não volta ao estoque' : 'Desmarque se a peça está avariada e não volta à prateleira'}"></td>
             </tr>`).join('');
 
-        // Peça sem cupom: Enter no campo bipa (o leitor manda Enter)
+        // Peça sem cupom: Enter no campo bipa (o leitor manda Enter); digitar o
+        // nome abre a lista embaixo do campo (10/11/2026) — ↑/↓ escolhe, Enter
+        // adiciona, Esc fecha a lista (sem fechar a janela da troca)
         const bipar = document.getElementById('trocaBipar');
         bipar.value = '';
-        bipar.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); this.trocaBiparItem(); } };
+        this.trocaFecharLista();
+        bipar.onkeydown = (e) => {
+            const aberta = this._trocaLista && this._trocaLista.length > 0;
+            if (e.key === 'Enter') {
+                e.preventDefault(); e.stopPropagation();
+                if (aberta && this._trocaListaSel >= 0) { this.trocaEscolherDaLista(this._trocaListaSel); return; }
+                this.trocaBiparItem();
+            } else if (aberta && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+                e.preventDefault(); e.stopPropagation();
+                const n = this._trocaLista.length;
+                this._trocaListaSel = e.key === 'ArrowDown'
+                    ? (this._trocaListaSel + 1) % n
+                    : (this._trocaListaSel <= 0 ? n - 1 : this._trocaListaSel - 1);
+                this.trocaDesenharLista();
+            } else if (e.key === 'Escape' && document.getElementById('trocaBiparLista').style.display !== 'none') {
+                e.preventDefault(); e.stopPropagation();
+                this.trocaFecharLista();
+            }
+        };
+        bipar.oninput = () => {
+            clearTimeout(this._trocaBuscaTimer);
+            const termo = bipar.value.trim();
+            if (termo.length < 2) { this.trocaFecharLista(); return; }
+            // O leitor digita e manda Enter em milissegundos: o Enter cancela este timer
+            this._trocaBuscaTimer = setTimeout(() => this.trocaBuscarPorNome(termo), 300);
+        };
 
         // Motivos
         document.getElementById('trocaMotivo').innerHTML = Object.entries(s.motivos).map(([k, v]) => `<option value="${k}">${v}</option>`).join('');
@@ -3439,26 +3468,94 @@ const PDV = {
     async trocaBiparItem() {
         const inp = document.getElementById('trocaBipar');
         const code = (inp.value || '').trim();
+        clearTimeout(this._trocaBuscaTimer);
         if (!code || !this._trocaSituacao) return;
+        const lista = await this.trocaBuscarProdutos(code);
+        if (lista === null) return;
+        // Código de barras / código interno exato entra direto (o leitor);
+        // um produto só também entra; mais de um abre a lista para escolher
+        const exato = lista.filter(p => p.codigo_barras === code || p.codigo_interno === code);
+        const p = exato.length === 1 ? exato[0] : (exato.length === 0 && lista.length === 1 ? lista[0] : null);
+        if (p) {
+            this.trocaAdicionarSemCupom(p);
+            inp.value = '';
+            this.trocaFecharLista();
+            inp.focus();
+            return;
+        }
+        this.trocaMostrarLista(exato.length > 1 ? exato : lista);
+    },
+
+    // Busca pelo nome enquanto digita (10/11/2026) — mesma busca do PDV
+    // (código exato, ou palavras da descrição em qualquer ordem)
+    async trocaBuscarPorNome(termo) {
+        const lista = await this.trocaBuscarProdutos(termo);
+        if (lista === null) return;
+        // Resposta velha (o texto mudou ou a peça já entrou): descarta
+        if ((document.getElementById('trocaBipar').value || '').trim() !== termo) return;
+        this.trocaMostrarLista(lista);
+    },
+
+    async trocaBuscarProdutos(termo) {
+        const seq = this._trocaBuscaSeq = (this._trocaBuscaSeq || 0) + 1;
         try {
-            const resp = await fetch(`/app/pdv/produto/${encodeURIComponent(code)}`, {
+            const resp = await fetch(`/app/pdv/produto/${encodeURIComponent(termo)}`, {
                 headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
             });
             const lista = await resp.json();
-            if (!resp.ok || !Array.isArray(lista)) { this.showAlert('Não foi possível buscar o produto', 'error'); return; }
-            // Código de barras / código interno exato primeiro; texto só serve quando acha UM produto
-            const exato = lista.filter(p => p.codigo_barras === code || p.codigo_interno === code);
-            const p = exato.length === 1 ? exato[0] : (exato.length === 0 && lista.length === 1 ? lista[0] : null);
-            if (!p) {
-                this.showAlert(lista.length === 0 ? 'Nenhum produto com esse código' : 'Mais de um produto encontrado — bipe o código de barras da peça', 'warning');
-                return;
-            }
-            this.trocaAdicionarSemCupom(p);
-            inp.value = '';
-            inp.focus();
+            if (seq !== this._trocaBuscaSeq) return null;
+            if (!resp.ok || !Array.isArray(lista)) { this.showAlert('Não foi possível buscar o produto', 'error'); return null; }
+            return lista;
         } catch (err) {
-            this.showAlert('Não foi possível buscar o produto', 'error');
+            if (seq === this._trocaBuscaSeq) this.showAlert('Não foi possível buscar o produto', 'error');
+            return null;
         }
+    },
+
+    trocaMostrarLista(lista) {
+        this._trocaLista = lista;
+        this._trocaListaSel = lista.length > 0 ? 0 : -1;
+        this.trocaDesenharLista();
+    },
+
+    trocaDesenharLista() {
+        const box = document.getElementById('trocaBiparLista');
+        const lista = this._trocaLista || [];
+        const esc = (t) => String(t ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        if (lista.length === 0) {
+            box.innerHTML = '<div style="padding:10px 14px; color:var(--text-muted);">Nenhum produto encontrado</div>';
+        } else {
+            box.innerHTML = lista.map((p, i) => `
+                <div class="search-result-item" data-i="${i}" style="${i === this._trocaListaSel ? 'background:var(--bg-tertiary);' : ''}" onmousedown="event.preventDefault(); PDV.trocaEscolherDaLista(${i})">
+                    <div>
+                        <div class="prod-name">${esc(p.descricao)}</div>
+                        <div class="prod-code">${esc(p.codigo_interno || '')} ${p.codigo_barras ? '| ' + esc(p.codigo_barras) : ''}</div>
+                    </div>
+                    <div class="prod-price">${this.formatMoney(parseFloat(p.preco_venda) || 0)}</div>
+                </div>`).join('');
+            const sel = box.querySelector(`[data-i="${this._trocaListaSel}"]`);
+            if (sel) sel.scrollIntoView({ block: 'nearest' });
+        }
+        box.style.display = 'block';
+    },
+
+    trocaEscolherDaLista(i) {
+        const p = (this._trocaLista || [])[i];
+        if (!p) return;
+        this.trocaAdicionarSemCupom(p);
+        const inp = document.getElementById('trocaBipar');
+        inp.value = '';
+        this.trocaFecharLista();
+        inp.focus();
+    },
+
+    trocaFecharLista() {
+        clearTimeout(this._trocaBuscaTimer);
+        this._trocaBuscaSeq = (this._trocaBuscaSeq || 0) + 1; // resposta em voo não reabre a lista
+        this._trocaLista = [];
+        this._trocaListaSel = -1;
+        const box = document.getElementById('trocaBiparLista');
+        if (box) { box.style.display = 'none'; box.innerHTML = ''; }
     },
 
     trocaAdicionarSemCupom(p) {
