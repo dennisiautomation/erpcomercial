@@ -6655,6 +6655,16 @@ Lote de correções na branch `fix/auditoria-bugs-mai2026`, após varredura de s
     imagem de produção tem opcache sem revalidação — depois de mexer em PHP/Blade, reiniciar com
     `php -d opcache.enable=0 artisan serve` (perdi 10 minutos achando que a correção não funcionava).
 
+102. **A FOTO da produção (`docker commit` → `erp-com-app:pre-…`) leva junto as variáveis de ambiente da produção** (10/11/2026).
+    O container de produção recebe `DB_HOST=mysql`, `DB_DATABASE=erp_comercial`, `REDIS_HOST` etc. pelo `env_file` do compose, e o
+    `docker commit` grava isso no `Config.Env` da imagem (17 variáveis `DB_*`/`APP_*`; a `erp-com-app:latest` tem 0). Variável de
+    ambiente GANHA do `.env` montado. Subi um ambiente descartável a partir da foto e rodei `migrate:fresh --seed`: ele mirou
+    `mysql/erp_comercial` e só não chegou à produção porque o container estava em outra rede e o nome `mysql` não resolveu.
+    **Ambiente de teste sai SEMPRE da `erp-com-app:latest`, nunca de uma foto `pre-…`**, e antes de qualquer `migrate` conferir
+    `config('database.connections.mysql.host')` e `.database` por tinker. Mesma família da armadilha 96: `php -d opcache.enable=0
+    artisan serve` NÃO desliga o opcache do servidor — o `artisan serve` abre um `php -S` filho sem os `-d`; o que funciona é
+    `cd public && php -d opcache.enable=0 -S 0.0.0.0:PORTA ../vendor/laravel/framework/src/Illuminate/Foundation/resources/server.php`.
+
 ## Próximos passos
 
 ### Despesa de pessoal no financeiro (10/11/2026) — pedido do Dennis
@@ -8373,3 +8383,15 @@ Cenário fechado de março/2029 (11 contas a pagar, 2 a receber, 2 lojas, 2 cent
 - A senha `erp_password` do MySQL que está neste docs.md/CLAUDE.md **não é a de produção** (acesso negado): o roteiro lê a
   `DB_PASSWORD` do `.env` do container e passa por `MYSQL_PWD`.
 - ⚠️ **`main` ≠ produção**: a branch não foi mesclada nem pushada (regra: merge/push só quando o Dennis pedir).
+
+### Depois do deploy (10/11/2026)
+- **Manual de uso "Custos de pessoal"** (pedido do Dennis durante o deploy): área 12 em `/home/ubuntu/manual-erp-comercial/` —
+  `12-custos-de-pessoal.html`, `pdf/12-custos-de-pessoal.pdf` (34 págs), 36 prints em `prints/pessoal/` (ambiente descartável
+  `fp-*`, dados fictícios, já desligado), roteiro de 16 cenas para vídeo. Fonte: `build/12-custos-de-pessoal.html`; os prints saem
+  de `build/prints-12-pessoal.mjs`. O Manual Completo foi regerado com a área nova.
+- **Correção NÃO deployada** (commit `04d6b55`, só na branch): Plano de Contas e Centros de Custo mostravam o aviso de
+  sucesso/erro DUAS vezes (bloco próprio da view + `components.alert` do layout; defeito antigo que o botão "Criar contas padrão"
+  deixou à vista). São 2 views, sem migration; sobe com `view:cache` + USR2 quando o Dennis mandar. **Produção = `6231880`**.
+- Achado: o Contas a Pagar inteiro (lançar, editar, baixa, excluir) passa por `permission:financeiro` na ação padrão `ver` — o
+  **gerente e o perfil consulta conseguem lançar e dar baixa**, não só consultar (só Adquirentes usa `,editar`/`,excluir`). É
+  anterior a esta entrega; não mexi.
