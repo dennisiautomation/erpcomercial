@@ -14,19 +14,7 @@
     </a>
 </div>
 
-@if(session('success'))
-    <div class="alert alert-success alert-dismissible fade show">
-        {{ session('success') }}
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    </div>
-@endif
-
-@if(session('error'))
-    <div class="alert alert-danger alert-dismissible fade show">
-        {{ session('error') }}
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    </div>
-@endif
+{{-- os avisos de sucesso/erro saem do layout (components.alert); o bloco próprio daqui duplicava a mensagem --}}
 
 <div class="erp-card">
     <div class="card-body">
