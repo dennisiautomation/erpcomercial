@@ -483,6 +483,20 @@ Route::middleware(['auth', 'suspensao', 'unidade', \App\Http\Middleware\Restring
     Route::post('financeiro/contas-pagar/{contaPagar}/estornar', [App\ContaPagarController::class, 'estornar'])
         ->name('contas-pagar.estornar')
         ->middleware('permission:financeiro');
+    /* ------ Folha de pagamento: lança salário, vale, guias e benefícios no Contas a Pagar ------ */
+    // permission:financeiro deixa o gerente passar (ele tem "ver"); o controller restringe a dono e financeiro.
+    Route::prefix('financeiro/folha')->name('folha.')->middleware('permission:financeiro')->group(function () {
+        Route::get('/', [App\FolhaController::class, 'index'])->name('index');
+        Route::post('/lancar', [App\FolhaController::class, 'lancar'])->name('lancar');
+        Route::get('/funcionarios/{funcionario}', [App\FolhaController::class, 'fichaEdit'])->name('ficha.edit');
+        Route::put('/funcionarios/{funcionario}', [App\FolhaController::class, 'fichaUpdate'])->name('ficha.update');
+        Route::get('/itens/novo', [App\FolhaController::class, 'itemCreate'])->name('itens.create');
+        Route::post('/itens', [App\FolhaController::class, 'itemStore'])->name('itens.store');
+        Route::get('/itens/{item}', [App\FolhaController::class, 'itemEdit'])->name('itens.edit');
+        Route::put('/itens/{item}', [App\FolhaController::class, 'itemUpdate'])->name('itens.update');
+        Route::delete('/itens/{item}', [App\FolhaController::class, 'itemDestroy'])->name('itens.destroy');
+    });
+
     /* ------ Adquirentes (máquinas de cartão: taxas e prazos) ------ */
     Route::prefix('adquirentes')->name('adquirentes.')->middleware('permission:financeiro')->group(function () {
         Route::get('/', [App\AdquirenteController::class, 'index'])->name('index');

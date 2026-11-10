@@ -83,6 +83,15 @@
     </div>
 </x-erp.filter-bar>
 
+@if(request('competencia') || request('folha'))
+<div class="alert alert-info border-0 bg-info bg-opacity-10 small d-flex justify-content-between align-items-center">
+    <span><i class="bi bi-funnel me-1"></i>
+        Mostrando {{ request('folha') ? 'só as contas lançadas pela folha' : 'as contas' }}{{ request('competencia') ? ' do mês de competência ' . \Carbon\Carbon::parse(request('competencia') . '-01')->format('m/Y') : '' }}.
+    </span>
+    <a href="{{ route('app.contas-pagar.index') }}" class="btn btn-sm btn-erp-outline">Ver todas</a>
+</div>
+@endif
+
 {{-- Table --}}
 <x-erp.data-table>
     <thead>

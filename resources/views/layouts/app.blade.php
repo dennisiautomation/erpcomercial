@@ -884,15 +884,15 @@
                     {{-- ---- Financeiro ---- --}}
                     <li class="sidebar-heading">Financeiro</li>
                     <li class="nav-item">
-                        <a class="nav-link nav-toggle {{ request()->routeIs('app.contas-receber.*', 'app.contas-pagar.*', 'app.financeiro.*', 'app.adquirentes.*', 'app.boletos.*', 'app.conciliacao.*', 'app.contratos.*') ? '' : 'collapsed' }}"
+                        <a class="nav-link nav-toggle {{ request()->routeIs('app.contas-receber.*', 'app.contas-pagar.*', 'app.folha.*', 'app.financeiro.*', 'app.adquirentes.*', 'app.boletos.*', 'app.conciliacao.*', 'app.contratos.*') ? '' : 'collapsed' }}"
                            data-bs-toggle="collapse" href="#menuFinanceiro" role="button"
-                           aria-expanded="{{ request()->routeIs('app.contas-receber.*', 'app.contas-pagar.*', 'app.financeiro.*', 'app.adquirentes.*', 'app.boletos.*', 'app.conciliacao.*', 'app.contratos.*') ? 'true' : 'false' }}"
+                           aria-expanded="{{ request()->routeIs('app.contas-receber.*', 'app.contas-pagar.*', 'app.folha.*', 'app.financeiro.*', 'app.adquirentes.*', 'app.boletos.*', 'app.conciliacao.*', 'app.contratos.*') ? 'true' : 'false' }}"
                            aria-controls="menuFinanceiro">
                             <i class="bi bi-wallet2 nav-icon"></i>
                             <span class="nav-text">Financeiro</span>
                             <i class="bi bi-chevron-right toggle-icon"></i>
                         </a>
-                        <div class="collapse {{ request()->routeIs('app.contas-receber.*', 'app.contas-pagar.*', 'app.financeiro.*', 'app.adquirentes.*', 'app.boletos.*', 'app.conciliacao.*', 'app.contratos.*') ? 'show' : '' }}" id="menuFinanceiro">
+                        <div class="collapse {{ request()->routeIs('app.contas-receber.*', 'app.contas-pagar.*', 'app.folha.*', 'app.financeiro.*', 'app.adquirentes.*', 'app.boletos.*', 'app.conciliacao.*', 'app.contratos.*') ? 'show' : '' }}" id="menuFinanceiro">
                             <ul class="nav flex-column submenu">
                                 <li class="nav-item">
                                     <a class="nav-link {{ request()->routeIs('app.contas-receber.*') ? 'active' : '' }}"
@@ -902,6 +902,12 @@
                                     <a class="nav-link {{ request()->routeIs('app.contas-pagar.*') ? 'active' : '' }}"
                                        href="{{ route('app.contas-pagar.index') }}">Contas a Pagar</a>
                                 </li>
+                                @if(\App\Http\Controllers\App\FolhaController::podeAcessar(auth()->user()))
+                                <li class="nav-item">
+                                    <a class="nav-link {{ request()->routeIs('app.folha.*') ? 'active' : '' }}"
+                                       href="{{ route('app.folha.index') }}">Folha de Pagamento</a>
+                                </li>
+                                @endif
                                 <li class="nav-item">
                                     <a class="nav-link {{ request()->routeIs('app.financeiro.fluxo-caixa') ? 'active' : '' }}"
                                        href="{{ route('app.financeiro.fluxo-caixa') }}">Fluxo de Caixa</a>

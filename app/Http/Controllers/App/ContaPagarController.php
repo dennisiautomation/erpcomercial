@@ -51,6 +51,15 @@ class ContaPagarController extends Controller
             $query->where('centro_custo_id', $request->centro_custo_id);
         }
 
+        // Vindos da tela da Folha: as contas de um mês de competência / só as lançadas pela folha.
+        if (preg_match('/^\d{4}-\d{2}$/', (string) $request->input('competencia'))) {
+            $query->whereDate('competencia', $request->input('competencia') . '-01');
+        }
+
+        if ($request->boolean('folha')) {
+            $query->whereNotNull('folha_ref');
+        }
+
         if ($request->filled('categoria')) {
             $query->where('categoria', $request->categoria);
         }
@@ -228,7 +237,8 @@ class ContaPagarController extends Controller
             $proximas = $this->proximasDaSerie($contaPagar)->get();
             foreach ($proximas as $proxima) {
                 $proxima->update($favorecido + $classificacao + [
-                    'descricao'       => $validated['descricao'],
+                    // conta da folha traz o mês na descrição ("Salário 02/2027 — Fulano"): cada uma mantém a sua
+                    'descricao'       => $proxima->folha_ref ? $proxima->descricao : $validated['descricao'],
                     'valor'           => $validated['valor'],
                     'forma_pagamento' => $validated['forma_pagamento'] ?? null,
                 ]);
@@ -448,7 +458,7 @@ class ContaPagarController extends Controller
                 ->where('total_parcelas', $conta->total_parcelas);
         }
 
-        return $query->orderBy('parcela')->get();
+        return $query->orderBy('vencimento')->orderBy('parcela')->get();
     }
 
     /** Pendentes da mesma série que vencem depois desta. */
@@ -458,6 +468,7 @@ class ContaPagarController extends Controller
             ->where('serie_id', $conta->serie_id ?: '-') // sem série não há "próximas"
             ->where('id', '!=', $conta->id)
             ->where('status', 'pendente')
-            ->where('parcela', '>', $conta->parcela);
+            // por vencimento, não por parcela: as contas da folha são todas "1/1"
+            ->whereDate('vencimento', '>', $conta->vencimento);
     }
 }

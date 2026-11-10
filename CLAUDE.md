@@ -172,6 +172,7 @@ public/
 ### Financeiro
 - Contas receber/pagar com parcelas
 - **Contas a pagar de pessoal (10/11/2026, branch `folha-contas-pagar-10nov`)**: favorecido = fornecedor, funcionário (`funcionario_id` → users) ou nome livre (`favorecido_nome`: INSS, FGTS...); `plano_conta_id`/`centro_custo_id` gravam o vínculo (o DRE lê o vínculo) e copiam o nome para `categoria`/`centro_custo`; `competencia`; recorrência lança 12 meses com `serie_id`; editar só pendente (com "aplicar nas próximas"); baixa com valor/data/forma; estornar. `POST plano-contas/padrao` cria o plano padrão. Ver docs.md, seção própria
+- **Folha de Pagamento (10/11/2026, mesma branch)**: Financeiro → Folha (`FolhaController`, só dono/financeiro). `funcionario_fichas` (salário, vale) + `folha_itens` (guias e benefícios de valor digitado) → `FolhaService::lancar` cria contas no Contas a Pagar por competência, sem duplicar (`contas_pagar.folha_ref`). A folha NÃO paga nem calcula imposto; fluxo e DRE leem só o Contas a Pagar. Ver docs.md
 - Fluxo de caixa com Chart.js
 - Boletos e carnês (geração ainda placeholder — gap conhecido)
 - Conciliação bancária (parser OFX)

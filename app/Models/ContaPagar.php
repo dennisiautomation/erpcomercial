@@ -37,6 +37,7 @@ class ContaPagar extends Model
         'parcela',
         'total_parcelas',
         'serie_id',
+        'folha_ref',
         'recorrente',
         'recorrencia_tipo',
         'status',
