@@ -270,8 +270,8 @@ class VendaController extends Controller
                 // Calculate and create Comissao for vendedor
                 $vendedorId = $request->vendedor_id ?? auth()->id();
                 if ($vendedorId) {
-                    $vendedor = User::find($vendedorId);
-                    $percentualComissao = $vendedor->comissao_percentual ?? 5;
+                    // % do cadastro; vazio = sem comissão (antes vazio virava 5% — 11/11/2026)
+                    $percentualComissao = Comissao::percentualDoVendedor((int) $vendedorId);
                     $valorComissao = round($total * ($percentualComissao / 100), 2);
 
                     if ($valorComissao > 0) {
@@ -323,7 +323,7 @@ class VendaController extends Controller
     /**
      * Corrige o vendedor de uma venda finalizada (03/11/2026) — o caixa esqueceu o
      * F3 e a venda ficou no nome de quem estava logado. Muda SÓ o vendedor e a
-     * comissão dele (mesmo valor: a do PDV é fixa, não depende de quem vendeu);
+     * comissão dele (recalculada com o % do cadastro do vendedor novo — 11/11/2026);
      * itens, valores, caixa e nota não mudam. Comissão já paga trava a troca.
      */
     public function trocarVendedor(Request $request, Venda $venda)
@@ -357,7 +357,17 @@ class VendaController extends Controller
 
         DB::transaction(function () use ($venda, $novo, $antigo) {
             $venda->update(['vendedor_id' => $novo->id]);
-            $venda->comissoes()->update(['user_id' => $novo->id, 'updated_at' => now()]);
+            // A comissão pendente passa para o vendedor novo com o % do CADASTRO
+            // dele (11/11/2026 — antes ia com o % do antigo); 0% ou vazio = sem comissão.
+            $pctNovo = Comissao::percentualDoVendedor((int) $novo->id);
+            foreach ($venda->comissoes()->where('status', 'pendente')->get() as $comissao) {
+                $valor = round((float) $comissao->valor_venda * $pctNovo / 100, 2);
+                if ($valor > 0) {
+                    $comissao->update(['user_id' => $novo->id, 'percentual' => $pctNovo, 'valor_comissao' => $valor]);
+                } else {
+                    $comissao->delete();
+                }
+            }
 
             activity('Venda')
                 ->performedOn($venda)

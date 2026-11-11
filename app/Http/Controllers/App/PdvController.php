@@ -746,11 +746,13 @@ class PdvController extends Controller
                 }
 
                 // Calculate and create Comissao for vendedor
+                // % do CADASTRO do funcionário (11/11/2026): antes era 5% fixo e
+                // ignorava o cadastro (CellMaster: 1% cadastrado, 5% gravado).
+                // Vazio ou 0% = sem comissão.
                 $vendedorId = $request->vendedor_id ?? auth()->id();
-                if ($vendedorId) {
-                    $percentualComissao = 5;
-                    $valorComissao = round($total * ($percentualComissao / 100), 2);
-
+                $percentualComissao = $vendedorId ? Comissao::percentualDoVendedor((int) $vendedorId) : 0.0;
+                $valorComissao = round($total * ($percentualComissao / 100), 2);
+                if ($vendedorId && $valorComissao > 0) {
                     Comissao::create([
                         'empresa_id'     => $empresaId,
                         'unidade_id'     => $unidadeId,

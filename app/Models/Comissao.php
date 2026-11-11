@@ -56,4 +56,17 @@ class Comissao extends Model
     {
         return $this->belongsTo(Venda::class);
     }
+
+    /**
+     * % de comissão do CADASTRO do funcionário (`users.comissao_percentual`).
+     * Vazio ou 0 = sem comissão (11/11/2026). Antes o PDV gravava 5% fixo e a
+     * venda de balcão usava 5% quando o campo estava vazio — ninguém tinha 5%
+     * cadastrado e todas as 9.932 comissões do sistema estavam a 5%.
+     */
+    public static function percentualDoVendedor(int $userId): float
+    {
+        $pct = \App\Models\User::query()->whereKey($userId)->value('comissao_percentual');
+
+        return max(0.0, (float) ($pct ?? 0));
+    }
 }
