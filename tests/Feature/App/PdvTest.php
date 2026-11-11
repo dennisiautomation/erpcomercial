@@ -199,7 +199,8 @@ class PdvTest extends TestCase
 
     public function test_sale_calculates_comissao(): void
     {
-        $operador = $this->createUser($this->empresa, $this->unidade, 'caixa');
+        // Desde 11/11/2026 o PDV usa o % do CADASTRO do funcionário (antes: 5% fixo).
+        $operador = $this->createUser($this->empresa, $this->unidade, 'caixa', ['comissao_percentual' => 5.00]);
         $produto  = $this->createProduto($this->empresa, ['preco_venda' => 200.00]);
         $caixa    = $this->openCaixa($this->empresa, $this->unidade, $operador);
 
@@ -226,7 +227,7 @@ class PdvTest extends TestCase
             ->first();
 
         $this->assertNotNull($comissao);
-        // Default 5% commission
+        // 5% = o cadastrado no operador acima
         $this->assertEquals(5.00, (float) $comissao->percentual);
         $this->assertEquals(10.00, (float) $comissao->valor_comissao);
         $this->assertEquals(200.00, (float) $comissao->valor_venda);

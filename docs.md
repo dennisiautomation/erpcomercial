@@ -8494,8 +8494,9 @@ pendentes e todas a 5%**, e nenhum funcionário com 5% cadastrado (nenhuma comis
 
 **Testes:** `tests/Feature/App/ComissaoPercentualCadastroTest.php` (arquivo novo): PDV com 1% no cadastro → 1%; vazio e 0% → sem
 comissão; trocar vendedor 1% → 3% recalcula e → 0% apaga (soft). Código antigo: **3 ❌**; novo: **3 ✅**. Suíte: 315 testes, ❌ só os 2
-de sempre + `PdvTest::test_sale_calculates_comissao`, que afirma o "Default 5%" — é o comportamento corrigido; **não alterado** (o
-Dennis pediu não mexer em arquivo de teste existente; ajustar quando ele mandar).
+de sempre + `PdvTest::test_sale_calculates_comissao`, que afirmava o "Default 5%". **Ajustado por ordem do Dennis** ("Sim, ajustar e
+mesclar"): o operador do teste passa a ter 5% no cadastro. Depois: `PdvTest` + `ComissaoPercentualCadastroTest` 26 testes, só o ❌ de
+sempre (`test_caixa_fechamento_calculates_correctly`).
 
 **Deploy 10:34:08 → 10:34:10 BRT:** prod = `main` (`1efacbd`) por md5; cópias em
 `/home/ubuntu/erp-backups/pre-comissao-pct-cadastro-20261111/arquivos/`; tar dos 3 arquivos, `chown`, `php -l`, md5 = branch, USR2,
