@@ -1006,6 +1006,12 @@
                                     <a class="nav-link {{ request()->routeIs('app.relatorios.estoque') ? 'active' : '' }}"
                                        href="{{ route('app.relatorios.estoque') }}">Estoque</a>
                                 </li>
+                                @if(\App\Http\Middleware\CheckPermission::canUser(auth()->user(), 'estoque', 'ver'))
+                                <li class="nav-item">
+                                    <a class="nav-link {{ request()->routeIs('app.relatorios.movimentacoes-estoque') ? 'active' : '' }}"
+                                       href="{{ route('app.relatorios.movimentacoes-estoque') }}">Entradas e saídas</a>
+                                </li>
+                                @endif
                                 <li class="nav-item">
                                     <a class="nav-link {{ request()->routeIs('app.relatorios.estoque-cego') ? 'active' : '' }}"
                                        href="{{ route('app.relatorios.estoque-cego') }}">Contagem cega</a>

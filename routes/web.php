@@ -680,6 +680,10 @@ Route::middleware(['auth', 'suspensao', 'unidade', \App\Http\Middleware\Restring
         // Produtos vendidos (06/11/2026): item a item, forma de pagamento, loja da venda e de saída
         Route::get('/produtos', [App\RelatorioController::class, 'produtos'])->name('produtos');
         Route::get('/estoque', [App\RelatorioController::class, 'estoque'])->name('estoque');
+        // Entradas e saídas do estoque por período (13/11/2026). Relatórios é aberto a
+        // caixa e financeiro; este só abre para quem já vê o módulo Estoque.
+        Route::get('/movimentacoes-estoque', [App\RelatorioController::class, 'movimentacoesEstoque'])
+            ->name('movimentacoes-estoque')->middleware('permission:estoque');
         // Folha de contagem física — sem o saldo do sistema, de propósito
         Route::get('/estoque-cego', [App\RelatorioController::class, 'estoqueCego'])->name('estoque-cego');
         Route::get('/financeiro', [App\RelatorioController::class, 'financeiro'])->name('financeiro');

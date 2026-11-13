@@ -512,6 +512,219 @@ class RelatorioController extends Controller
         return $query->orderBy('nome')->get(['id', 'nome']);
     }
 
+    /** Origens das movimentações de estoque: chave do filtro => [rótulo, valores de `origem_tipo`]. */
+    private const ORIGENS_MOVIMENTACAO = [
+        'venda' => ['Venda', [\App\Models\Venda::class]],
+        'pedido' => ['Pedido', [\App\Models\Pedido::class]],
+        'troca' => ['Troca / devolução', [\App\Models\Devolucao::class]],
+        'transferencia' => ['Transferência entre lojas', [\App\Models\TransferenciaEstoque::class]],
+        'nfe' => ['Entrada por NF-e', [\App\Models\NFeEntrada::class]],
+        'os' => ['Ordem de serviço', [\App\Models\OrdemServico::class]],
+        'importacao' => ['Importação de planilha', ['importacao_saldo_inicial']],
+        'comodato' => ['Bonificação que volta', ['comodato']],
+        'manual' => ['Lançamento manual', []],
+    ];
+
+    /**
+     * Movimentações de estoque (13/11/2026): o que ENTROU e o que SAIU no período.
+     * Só lê `estoque_movimentacoes`. O sentido vem do saldo (depois − antes), não do
+     * tipo: ajuste e transferência podem ser para cima ou para baixo.
+     */
+    public function movimentacoesEstoque(Request $request)
+    {
+        $empresaId = auth()->user()->empresa_id
+            ?? session('empresa_id')
+            ?? Unidade::withoutGlobalScopes()->whereKey(session('unidade_id'))->value('empresa_id');
+
+        $data = function ($valor, Carbon $padrao) {
+            try {
+                return filled($valor) ? Carbon::parse($valor) : $padrao;
+            } catch (\Throwable $e) {
+                return $padrao;
+            }
+        };
+        $dataInicio = $data($request->data_inicio, now()->startOfMonth())->startOfDay();
+        $dataFim = $data($request->data_fim, now())->startOfDay();
+        if ($dataFim->lt($dataInicio)) {
+            [$dataInicio, $dataFim] = [$dataFim, $dataInicio];
+        }
+
+        $lojas = $this->lojasParaFiltro($request->user());
+        $lojasSelecionadas = $this->lojasSelecionadas($request, $lojas);
+        if ($lojas->isEmpty()) {
+            $lojasSelecionadas = collect([(int) session('unidade_id')]);
+        }
+
+        $tiposValidos = collect(\App\Enums\TipoMovimentacaoEstoque::cases())->mapWithKeys(fn ($t) => [$t->value => $t->label()]);
+        $tiposSelecionados = collect((array) $request->input('tipos'))->map(fn ($t) => (string) $t)
+            ->filter(fn ($t) => $tiposValidos->has($t))->unique()->values();
+        $sentido = in_array($request->sentido, ['entrada', 'saida'], true) ? $request->sentido : null;
+        $origens = collect(self::ORIGENS_MOVIMENTACAO)->map(fn ($o) => $o[0]);
+        $origem = $origens->has((string) $request->origem) ? (string) $request->origem : null;
+
+        $categorias = Categoria::withoutGlobalScopes()->where('empresa_id', $empresaId)->orderBy('nome')->get(['id', 'nome']);
+        $categoriaId = $request->filled('categoria_id') && $categorias->contains('id', (int) $request->categoria_id)
+            ? (int) $request->categoria_id : null;
+        $produtoFiltro = $request->filled('produto_id')
+            ? Produto::withoutGlobalScopes()->where('empresa_id', $empresaId)->find((int) $request->produto_id) : null;
+        $usuarios = User::withoutGlobalScopes()
+            ->whereIn('id', DB::table('estoque_movimentacoes')->where('empresa_id', $empresaId)->select('user_id')->distinct())
+            ->orderBy('name')->get(['id', 'name']);
+        $usuarioId = $request->filled('usuario_id') && $usuarios->contains('id', (int) $request->usuario_id)
+            ? (int) $request->usuario_id : null;
+
+        // Quanto entrou / saiu em cada linha. Linha antiga sem saldo gravado (antes = depois
+        // com quantidade > 0) cai no sentido do tipo.
+        $sqlEntrou = "CASE WHEN m.quantidade_posterior > m.quantidade_anterior THEN m.quantidade_posterior - m.quantidade_anterior
+            WHEN m.quantidade_posterior = m.quantidade_anterior AND m.tipo IN ('entrada','devolucao') THEN m.quantidade ELSE 0 END";
+        $sqlSaiu = "CASE WHEN m.quantidade_posterior < m.quantidade_anterior THEN m.quantidade_anterior - m.quantidade_posterior
+            WHEN m.quantidade_posterior = m.quantidade_anterior AND m.tipo IN ('saida','perda','bonificacao') THEN m.quantidade ELSE 0 END";
+
+        $base = function () use ($empresaId, $lojasSelecionadas, $dataInicio, $dataFim, $tiposSelecionados, $sentido, $origem,
+            $categoriaId, $produtoFiltro, $usuarioId, $sqlEntrou, $sqlSaiu) {
+            $q = DB::table('estoque_movimentacoes as m')
+                ->join('produtos as p', 'p.id', '=', 'm.produto_id')
+                ->where('m.empresa_id', $empresaId)
+                ->whereIn('m.unidade_id', $lojasSelecionadas->all())
+                ->whereBetween('m.created_at', [$dataInicio, $dataFim->copy()->endOfDay()]);
+            if ($tiposSelecionados->isNotEmpty()) {
+                $q->whereIn('m.tipo', $tiposSelecionados->all());
+            }
+            if ($sentido === 'entrada') {
+                $q->whereRaw("($sqlEntrou) > 0");
+            } elseif ($sentido === 'saida') {
+                $q->whereRaw("($sqlSaiu) > 0");
+            }
+            if ($origem === 'manual') {
+                $q->whereNull('m.origem_tipo');
+            } elseif ($origem) {
+                $q->whereIn('m.origem_tipo', self::ORIGENS_MOVIMENTACAO[$origem][1]);
+            }
+            if ($categoriaId) {
+                $q->where('p.categoria_id', $categoriaId);
+            }
+            if ($produtoFiltro) {
+                $q->where('m.produto_id', $produtoFiltro->id);
+            }
+            if ($usuarioId) {
+                $q->where('m.user_id', $usuarioId);
+            }
+
+            return $q;
+        };
+
+        $totais = $base()->selectRaw("COUNT(*) as movimentos, COUNT(DISTINCT m.produto_id) as produtos,
+            COALESCE(SUM($sqlEntrou), 0) as entrou, COALESCE(SUM($sqlSaiu), 0) as saiu,
+            COALESCE(SUM(CASE WHEN ($sqlEntrou) > 0 THEN 1 ELSE 0 END), 0) as mov_entrada,
+            COALESCE(SUM(CASE WHEN ($sqlSaiu) > 0 THEN 1 ELSE 0 END), 0) as mov_saida")->first();
+
+        $porTipo = $base()->groupBy('m.tipo')
+            ->selectRaw("m.tipo, COUNT(*) as movimentos, SUM($sqlEntrou) as entrou, SUM($sqlSaiu) as saiu")
+            ->get()->map(function ($r) use ($tiposValidos) {
+                $r->label = $tiposValidos[$r->tipo] ?? ucfirst($r->tipo);
+
+                return $r;
+            })->sortByDesc('movimentos')->values();
+
+        $porLoja = $base()->join('unidades as un', 'un.id', '=', 'm.unidade_id')->groupBy('m.unidade_id', 'un.nome')
+            ->selectRaw("un.nome as loja, COUNT(*) as movimentos, SUM($sqlEntrou) as entrou, SUM($sqlSaiu) as saiu")
+            ->orderBy('un.nome')->get();
+
+        $ordens = ['saiu' => 'saiu DESC', 'entrou' => 'entrou DESC', 'saldo' => 'saldo DESC', 'nome' => 'p.descricao ASC'];
+        $ordem = array_key_exists((string) $request->ordem, $ordens) ? (string) $request->ordem : 'saiu';
+        $resumoQuery = $base()->leftJoin('categorias as c', 'c.id', '=', 'p.categoria_id')
+            ->groupBy('p.id', 'p.codigo_interno', 'p.descricao', 'c.nome')
+            ->selectRaw("p.id, p.codigo_interno as codigo, p.descricao as produto, c.nome as categoria, COUNT(*) as movimentos,
+                SUM($sqlEntrou) as entrou, SUM($sqlSaiu) as saiu, SUM($sqlEntrou) - SUM($sqlSaiu) as saldo")
+            ->orderByRaw($ordens[$ordem])->orderBy('p.descricao')->orderBy('p.id');
+
+        $itensQuery = $base()
+            ->join('unidades as un', 'un.id', '=', 'm.unidade_id')
+            ->leftJoin('estoques as e', 'e.id', '=', 'm.estoque_id')
+            ->leftJoin('users as us', 'us.id', '=', 'm.user_id')
+            ->leftJoin('categorias as c', 'c.id', '=', 'p.categoria_id')
+            ->leftJoin('vendas as v', function ($j) {
+                $j->on('v.id', '=', 'm.origem_id')->where('m.origem_tipo', '=', \App\Models\Venda::class);
+            })
+            ->selectRaw("m.id, m.created_at, m.tipo, m.quantidade_anterior as antes, m.quantidade_posterior as depois,
+                m.origem_tipo, m.origem_id, m.observacoes, ($sqlEntrou) as entrou, ($sqlSaiu) as saiu,
+                p.codigo_interno as codigo, p.descricao as produto, c.nome as categoria, un.nome as loja,
+                e.nome as local, e.is_padrao as local_padrao, us.name as usuario, v.numero as venda_numero")
+            ->orderByDesc('m.created_at')->orderByDesc('m.id');
+
+        $rotuloOrigem = function ($l) {
+            if (! $l->origem_tipo) {
+                return 'Lançamento manual';
+            }
+            foreach (self::ORIGENS_MOVIMENTACAO as [$rotulo, $valores]) {
+                if (in_array($l->origem_tipo, $valores, true)) {
+                    return $l->origem_id ? $rotulo . ' #' . ($l->venda_numero ?: $l->origem_id) : $rotulo;
+                }
+            }
+
+            return class_basename($l->origem_tipo) . ($l->origem_id ? ' #' . $l->origem_id : '');
+        };
+        $prepararItem = function ($l) use ($rotuloOrigem, $tiposValidos) {
+            $l->data = Carbon::parse($l->created_at);
+            $l->tipo_label = $tiposValidos[$l->tipo] ?? ucfirst($l->tipo);
+            $l->origem_label = $rotuloOrigem($l);
+
+            return $l;
+        };
+
+        $ver = $request->ver === 'itens' ? 'itens' : 'resumo';
+        $num = fn ($v) => round((float) $v, 3);
+        $periodoArquivo = $dataInicio->format('Y-m-d') . '-a-' . $dataFim->format('Y-m-d');
+
+        // Planilha (.xlsx): a aba que está aberta, inteira (sem paginação)
+        if ($request->boolean('planilha')) {
+            if ($ver === 'itens') {
+                $cab = ['Data', 'Loja', 'Estoque', 'Código', 'Produto', 'Categoria', 'Tipo', 'Entrou', 'Saiu', 'Saldo antes', 'Saldo depois', 'Usuário', 'Lançado por', 'Observações'];
+                $dados = $itensQuery->limit(50000)->get()->map($prepararItem)->map(fn ($l) => [
+                    $l->data->format('d/m/Y H:i'), $l->loja, $l->local ?? '', $l->codigo, $l->produto, $l->categoria ?? '',
+                    $l->tipo_label, $num($l->entrou), $num($l->saiu), $num($l->antes), $num($l->depois),
+                    $l->usuario ?? '', $l->origem_label, (string) $l->observacoes,
+                ])->all();
+
+                return Planilha::download($cab, $dados, 'movimentacoes-estoque-' . $periodoArquivo, 'Movimentações');
+            }
+            $cab = ['Código', 'Produto', 'Categoria', 'Entrou', 'Saiu', 'Saldo do período', 'Movimentações'];
+            $dados = $resumoQuery->get()->map(fn ($r) => [
+                $r->codigo, $r->produto, $r->categoria ?? '', $num($r->entrou), $num($r->saiu), $num($r->saldo), (int) $r->movimentos,
+            ])->all();
+
+            return Planilha::download($cab, $dados, 'entradas-e-saidas-por-produto-' . $periodoArquivo, 'Por produto');
+        }
+
+        // PDF / impressão: a aba aberta inteira, até o teto (acima disso, a planilha)
+        $imprimir = $request->boolean('imprimir');
+        $tetoImpressao = 3000;
+        $cortado = false;
+        if ($imprimir) {
+            $consulta = $ver === 'itens' ? $itensQuery : $resumoQuery;
+            $todas = $consulta->limit($tetoImpressao + 1)->get();
+            $cortado = $todas->count() > $tetoImpressao;
+            $todas = $todas->take($tetoImpressao);
+            $pagina = new \Illuminate\Pagination\LengthAwarePaginator($todas, $todas->count(), max(1, $todas->count()), 1);
+        } else {
+            $pagina = ($ver === 'itens' ? $itensQuery->paginate(100, ['*'], 'page', null, (int) $totais->movimentos)
+                : $resumoQuery->paginate(100, ['*'], 'page', null, (int) $totais->produtos))->withQueryString();
+        }
+        $resumo = $ver === 'resumo' ? $pagina : null;
+        $itens = $ver === 'itens' ? $pagina->through($prepararItem) : null;
+
+        $lojaNome = $lojas->count() > 1 && $lojasSelecionadas->count() === $lojas->count()
+            ? 'Todas as lojas'
+            : Unidade::withoutGlobalScopes()->whereIn('id', $lojasSelecionadas->all())->orderBy('nome')->pluck('nome')->implode(', ');
+        $empresa = \App\Models\Empresa::find($empresaId);
+
+        return view('app.relatorios.movimentacoes-estoque', compact(
+            'totais', 'porTipo', 'porLoja', 'resumo', 'itens', 'ver', 'ordem', 'imprimir', 'cortado', 'tetoImpressao',
+            'dataInicio', 'dataFim', 'lojas', 'lojasSelecionadas', 'lojaNome', 'tiposValidos', 'tiposSelecionados',
+            'sentido', 'origens', 'origem', 'categorias', 'categoriaId', 'produtoFiltro', 'usuarios', 'usuarioId', 'empresa'
+        ));
+    }
+
     public function estoque(Request $request)
     {
         $empresaId = auth()->user()->empresa_id;
