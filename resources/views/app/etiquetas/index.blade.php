@@ -418,6 +418,7 @@ document.addEventListener('DOMContentLoaded', function() {
             qtd.disabled = true;
             qtd.value = 1;
         });
+        restaurarOrdem();
         atualizarContadores();
     });
 
@@ -428,9 +429,35 @@ document.addEventListener('DOMContentLoaded', function() {
             const qtd = row.querySelector('.qtd-input');
             qtd.disabled = !this.checked;
             if (!this.checked) qtd.value = 1;
+            reposicionar(row);
             atualizarContadores();
         });
     });
+
+    // Marcado sobe para o bloco dos selecionados (no topo, em ordem de marcação);
+    // desmarcado volta para a posição original da lista.
+    const tbody = document.getElementById('tabelaProdutos');
+    const ehMarcada = r => r.querySelector('.produto-check').checked;
+    const ordemOriginal = r => parseInt(r.querySelector('.produto-check').dataset.index, 10);
+
+    function reposicionar(row) {
+        if (ehMarcada(row)) {
+            // fim do bloco de selecionados = primeira linha não marcada
+            let ref = tbody.firstElementChild;
+            while (ref && ehMarcada(ref)) ref = ref.nextElementSibling;
+            if (ref !== row) tbody.insertBefore(row, ref);
+        } else {
+            // volta antes da primeira linha NÃO marcada com índice maior
+            let ref = tbody.firstElementChild;
+            while (ref && (ehMarcada(ref) || ref === row || ordemOriginal(ref) < ordemOriginal(row))) ref = ref.nextElementSibling;
+            if (ref !== row.nextElementSibling) tbody.insertBefore(row, ref);
+        }
+    }
+
+    function restaurarOrdem() {
+        [...rows].sort((a, b) => ordemOriginal(a) - ordemOriginal(b)).forEach(r => tbody.appendChild(r));
+    }
+
 
     // Atualizar ao mudar quantidade
     document.querySelectorAll('.qtd-input').forEach(input => {

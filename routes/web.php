@@ -449,6 +449,12 @@ Route::middleware(['auth', 'suspensao', 'unidade', \App\Http\Middleware\Restring
     Route::patch('estoque/transferencias/{transferencia}/aprovar', [App\TransferenciaEstoqueController::class, 'aprovar'])
         ->name('transferencias.aprovar')
         ->middleware('permission:estoque');
+    Route::patch('estoque/transferencias/{transferencia}/em-transito', [App\TransferenciaEstoqueController::class, 'emTransito'])
+        ->name('transferencias.em-transito')
+        ->middleware('permission:estoque');
+    Route::patch('estoque/transferencias/{transferencia}/concluir', [App\TransferenciaEstoqueController::class, 'concluir'])
+        ->name('transferencias.concluir')
+        ->middleware('permission:estoque');
     Route::patch('estoque/transferencias/{transferencia}/cancelar', [App\TransferenciaEstoqueController::class, 'cancelar'])
         ->name('transferencias.cancelar')
         ->middleware('permission:estoque');

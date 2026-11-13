@@ -66,7 +66,7 @@ class TransferenciaEstoqueController extends Controller
         $produtos = Produto::where('empresa_id', $empresaId)
             ->where('status', 'ativo')
             ->orderBy('descricao')
-            ->get(['id', 'descricao']);
+            ->get(['id', 'descricao', 'codigo_interno', 'codigo_barras', 'sku']);
 
         return view('app.estoque.transferencias.create', compact('unidades', 'estoques', 'produtos'));
     }
@@ -209,6 +209,32 @@ class TransferenciaEstoqueController extends Controller
 
         return redirect()->route('app.transferencias.show', $transferencia)
             ->with('success', 'Transferencia aprovada com sucesso!');
+    }
+
+    /** aprovada → em_transito. Só andamento: o saldo já foi movimentado na aprovação. */
+    public function emTransito(TransferenciaEstoque $transferencia)
+    {
+        if ($transferencia->status !== 'aprovada') {
+            return back()->with('error', 'Somente transferencias aprovadas podem seguir para em transito.');
+        }
+
+        $transferencia->update(['status' => 'em_transito']);
+
+        return redirect()->route('app.transferencias.show', $transferencia)
+            ->with('success', 'Transferencia marcada como em transito.');
+    }
+
+    /** em_transito → concluida. Só andamento: não mexe no saldo. */
+    public function concluir(TransferenciaEstoque $transferencia)
+    {
+        if ($transferencia->status !== 'em_transito') {
+            return back()->with('error', 'Somente transferencias em transito podem ser concluidas.');
+        }
+
+        $transferencia->update(['status' => 'concluida']);
+
+        return redirect()->route('app.transferencias.show', $transferencia)
+            ->with('success', 'Transferencia concluida.');
     }
 
     public function cancelar(TransferenciaEstoque $transferencia)

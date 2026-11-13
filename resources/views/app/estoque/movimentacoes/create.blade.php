@@ -264,6 +264,10 @@
         const dica = alvo.querySelector('.produto-dica');
         let achados = [], ativo = -1;
 
+        // Segurar/arrastar a barra de rolagem da lista tirava o foco do campo e o blur
+        // fechava a lista no meio da rolagem. Impedindo o mousedown na lista, o foco fica.
+        lista.addEventListener('mousedown', ev => ev.preventDefault());
+
         function fechar() { lista.classList.add('d-none'); ativo = -1; }
         function escolher(p) {
             hid.value = p.id;

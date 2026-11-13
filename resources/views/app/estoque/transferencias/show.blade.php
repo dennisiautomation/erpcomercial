@@ -86,7 +86,10 @@
 
         {{-- Items --}}
         <x-erp.card title="Itens da Transferência" icon="box-seam" class="mt-4">
-            <div class="d-flex justify-content-end mb-2">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <button type="button" class="btn btn-erp-outline btn-sm" id="btn-imprimir-itens">
+                    <i class="bi bi-printer me-1"></i> Imprimir
+                </button>
                 <span class="badge bg-primary rounded-pill">{{ $transferencia->itens->count() }} {{ $transferencia->itens->count() === 1 ? 'item' : 'itens' }}</span>
             </div>
             <div class="table-responsive">
@@ -138,6 +141,26 @@
             </div>
         </x-erp.card>
         @endif
+        @if($transferencia->status === 'aprovada' || $transferencia->status === 'em_transito')
+        <x-erp.card title="Andamento" icon="truck" class="mt-4">
+            @if($transferencia->status === 'aprovada')
+            <form method="POST" action="{{ route('app.transferencias.em-transito', $transferencia) }}"
+                data-confirm="Marcar esta transferencia como em transito?">
+                @csrf
+                @method('PATCH')
+                <button type="submit" class="btn btn-primary btn-lg"><i class="bi bi-truck me-1"></i> Marcar em transito</button>
+            </form>
+            @else
+            <form method="POST" action="{{ route('app.transferencias.concluir', $transferencia) }}"
+                data-confirm="Confirmar que a mercadoria chegou e concluir a transferencia?">
+                @csrf
+                @method('PATCH')
+                <button type="submit" class="btn btn-success btn-lg"><i class="bi bi-check-all me-1"></i> Marcar concluida</button>
+            </form>
+            @endif
+            <div class="form-text mt-2">O estoque ja foi movimentado na aprovacao; este passo apenas registra o andamento.</div>
+        </x-erp.card>
+        @endif
     </div>
 
     {{-- Sidebar --}}
@@ -159,7 +182,7 @@
                     <i class="bi {{ $transferencia->status === 'cancelada' ? 'bi-x-circle text-danger' : 'bi-check-circle text-success' }} small"></i>
                 </div>
                 <div>
-                    <div class="fw-semibold small">{{ $transferencia->status === 'cancelada' ? 'Cancelada' : 'Aprovada' }}</div>
+                    <div class="fw-semibold small">{{ match($transferencia->status) { 'cancelada' => 'Cancelada', 'em_transito' => 'Em transito', 'concluida' => 'Concluida', default => 'Aprovada' } }}</div>
                     <div class="text-muted small">{{ $transferencia->updated_at->format('d/m/Y H:i') }}</div>
                     @if($transferencia->aprovador)
                         <div class="text-muted small">por {{ $transferencia->aprovador->name }}</div>
@@ -171,3 +194,39 @@
     </div>
 </div>
 @endsection
+
+@push('scripts')
+@php
+$dadosImpressao = [
+        'titulo'   => 'Transferencia #' . $transferencia->id,
+        'origem'   => $transferencia->unidadeOrigem->nome ?? '-',
+        'destino'  => $transferencia->unidadeDestino->nome ?? '-',
+        'solic'    => $transferencia->solicitante->name ?? '-',
+        'data'     => $transferencia->created_at->format('d/m/Y H:i'),
+        'status'   => ucfirst(str_replace('_', ' ', $transferencia->status)),
+        'obs'      => $transferencia->observacoes,
+        'itens'    => $transferencia->itens->map(fn ($i) => ['p' => $i->produto->descricao ?? '-', 'q' => number_format($i->quantidade, 3, ',', '.')])->values(),
+];
+@endphp
+<script>
+document.getElementById('btn-imprimir-itens')?.addEventListener('click', function () {
+    const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    const d = @json($dadosImpressao);
+    const linhas = d.itens.map((i, n) => `<tr><td>${n + 1}</td><td>${esc(i.p)}</td><td class="r">${esc(i.q)}</td></tr>`).join('');
+    const w = window.open('', '_blank', 'width=800,height=900');
+    if (!w) { alert('Libere pop-ups para imprimir.'); return; }
+    w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(d.titulo)}</title>
+<style>body{font-family:Arial,sans-serif;font-size:13px;margin:24px;color:#000}h1{font-size:18px;margin:0 0 8px}
+.i{margin:2px 0}table{width:100%;border-collapse:collapse;margin-top:14px}th,td{border:1px solid #444;padding:6px 8px;text-align:left}
+th{background:#eee}.r{text-align:right}.ass{display:flex;gap:40px;margin-top:60px}.ass div{flex:1;border-top:1px solid #000;padding-top:4px;text-align:center}</style></head><body>
+<h1>${esc(d.titulo)} - Itens da Transferencia</h1>
+<div class="i"><b>Origem:</b> ${esc(d.origem)} &nbsp; <b>Destino:</b> ${esc(d.destino)}</div>
+<div class="i"><b>Solicitante:</b> ${esc(d.solic)} &nbsp; <b>Data:</b> ${esc(d.data)} &nbsp; <b>Status:</b> ${esc(d.status)}</div>
+${d.obs ? `<div class="i"><b>Observacoes:</b> ${esc(d.obs)}</div>` : ''}
+<table><thead><tr><th style="width:40px">#</th><th>Produto</th><th class="r" style="width:110px">Quantidade</th></tr></thead><tbody>${linhas}</tbody></table>
+<div class="ass"><div>Enviado por</div><div>Recebido por</div></div>
+<script>window.onload=function(){window.print()}<\/script></body></html>`);
+    w.document.close();
+});
+</script>
+@endpush
