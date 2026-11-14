@@ -428,6 +428,16 @@ html.js .rv.in{opacity:1;transform:none}
 }
 
 
+/* ---------- vídeo ---------- */
+.vid{padding-bottom:0}
+.vid .sec__head{text-align:center;margin-bottom:1.6rem}
+.vid__box{position:relative;max-width:960px;margin-inline:auto;border-radius:22px;overflow:hidden;background:#07130e;box-shadow:0 2px 6px rgba(0,0,0,.06),0 24px 70px rgba(0,0,0,.18);aspect-ratio:16/9}
+.vid__box video{display:block;width:100%;height:100%;object-fit:cover;background:#07130e}
+.vid__play{white-space:nowrap;position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:inline-flex;align-items:center;gap:.7rem;border:0;cursor:pointer;font:inherit;font-weight:600;font-size:1.05rem;color:#07130e;background:#fff;border-radius:980px;padding:.85rem 1.5rem .85rem 1.2rem;min-height:52px;box-shadow:0 12px 34px rgba(0,0,0,.4);transition:transform .2s var(--ease)}
+.vid__play:hover{transform:translate(-50%,-50%) scale(1.05)}
+.vid__tri{width:0;height:0;border-style:solid;border-width:9px 0 9px 15px;border-color:transparent transparent transparent #00a868}
+.vid__nota{text-align:center;font-size:.88rem;color:var(--ink3);margin-top:.9rem}
+
 /* ---------- conversão: preço no topo, prova, chips, dúvidas, barra fixa ---------- */
 .h3__preco{margin-top:1rem;font-size:.95rem;color:#93a89d}
 .h3__preco b{color:#f2f7f4}
@@ -585,6 +595,24 @@ html.js .rv.in{opacity:1;transform:none}
     <div><b class="num"><span data-count="14">14</span> lojas</b><span>de duas redes de Teresina já operam no sistema</span></div>
     <div><b class="num"><span data-count="7900">7.900</span>+</b><span>vendas passaram por elas nos últimos 30 dias</span></div>
     <div><b class="num"><span data-count="54">54</span> pessoas</b><span>usam todo dia: dono, gerente, caixa e vendedor</span></div>
+  </div>
+</section>
+
+<section class="sec vid" id="video">
+  <div class="wrap">
+    <div class="sec__head">
+      <span class="kicker">Em menos de 1 minuto</span>
+      <h2 class="d2">Veja uma venda acontecer nas suas lojas.</h2>
+    </div>
+    <div class="vid__box">
+      <video id="vd" preload="none" playsinline controls poster="{{ asset('site/redes/video-capa.jpg') }}" width="1280" height="720">
+        <source src="{{ asset('site/redes/erp-redes.mp4') }}" type="video/mp4">
+      </video>
+      <button class="vid__play" id="vdPlay" type="button" aria-label="Assistir ao vídeo de 53 segundos">
+        <span class="vid__tri" aria-hidden="true"></span><span>Assistir · 53 s</span>
+      </button>
+    </div>
+    <p class="vid__nota">Com narração e legenda. Dá para assistir sem som.</p>
   </div>
 </section>
 
@@ -1056,6 +1084,12 @@ html.js .rv.in{opacity:1;transform:none}
     if (board) { var r = board.getBoundingClientRect(); var k = Math.max(0, Math.min(1, (r.top - vh * 0.25) / (vh * 0.6))); board.style.setProperty('--tilt', (k * 9).toFixed(2) + 'deg'); }
     if (phone && img) { var p = phone.getBoundingClientRect(); var q = Math.max(0, Math.min(1, (vh - p.top) / (vh + p.height))); img.style.setProperty('--p', q.toFixed(3)); }
     if (modelos) { var m = modelos.getBoundingClientRect(); var z = Math.max(0, Math.min(1, (vh - m.top) / (vh + m.height))); modelos.style.setProperty('--m', z.toFixed(3)); }
+  }
+  var vd = document.getElementById('vd'), vdPlay = document.getElementById('vdPlay');
+  if (vd && vdPlay) {
+    vd.controls = false;
+    vdPlay.addEventListener('click', function () { vd.controls = true; vdPlay.hidden = true; var pr = vd.play(); if (pr && pr.catch) pr.catch(function () { vdPlay.hidden = false; }); });
+    vd.addEventListener('play', function () { vdPlay.hidden = true; });
   }
   var fixo = document.getElementById('fixo'), topoEl = document.getElementById('topo'), demoEl = document.getElementById('demo');
   function barra() { if (!fixo || !topoEl || !demoEl) return; var passou = topoEl.getBoundingClientRect().bottom < 80, noForm = demoEl.getBoundingClientRect().top < window.innerHeight * 0.7; fixo.hidden = !(passou && !noForm); }
