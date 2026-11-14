@@ -73,6 +73,8 @@ h1,h2,h3{letter-spacing:-.015em;text-wrap:balance}
 .nav__cta .entrar{font-size:.88rem;color:var(--ink);opacity:.85}
 .nav__cta .pill{font-size:.82rem;padding:.36rem .95rem;min-height:32px}
 @media(max-width:480px){.brand small{display:none}}
+@media(max-width:430px){.nav__in{gap:.6rem}.nav__cta{gap:.7rem}.nav__cta .pill{font-size:.78rem;padding:.34rem .75rem}.brand{font-size:.92rem;gap:.4rem}}
+@media(max-width:360px){.nav__cta .entrar{display:none}}
 
 /* hero */
 .hero{padding:clamp(2.2rem,5vw,3.6rem) 0 0;text-align:center}
