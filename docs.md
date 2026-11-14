@@ -8724,9 +8724,10 @@ OS e E/G (exportação e API do Gersen com token de teste) — **100 ✅ / 0 ❌
 - **Depois:** 3 rotas `formas-pagamento`; `/login` 200 e telas internas 302 (sem sessão); `formas_pagamento` com 0 linhas (todas
   as empresas nos botões de fábrica); colunas novas em `movimentacoes_caixa` e `contas_receber`; `adquirente_taxas.forma`
   VARCHAR(40) com a regra existente intacta (1 de crédito); 0 ERROR no `laravel.log` depois de 09:56.
-- **Rollback:** copiar `arquivos/` de volta para `/var/www/`, apagar os 7 de `novos.txt`, `chown`, `php artisan migrate:rollback
-  --step=2 --force` (só depois de apagar os arquivos novos? não — rodar ANTES de apagar as migrations), `route:cache`,
-  `view:cache`, USR2. Ordem certa: (1) `migrate:rollback --step=2` com os arquivos novos ainda no lugar; (2) restaurar `arquivos/`
-  e apagar `novos.txt`; (3) caches + USR2. O down das colunas apaga o nome gravado nas movimentações/contas novas (o código de
-  sempre fica). Em último caso: restaurar o dump.
+- **Rollback, nesta ordem:** (1) `php artisan migrate:rollback --step=2 --force` com os arquivos novos ainda no lugar (as
+  migrations precisam existir para desfazer); (2) copiar `arquivos/` de volta para `/var/www/` e apagar os 7 de `novos.txt`;
+  (3) `chown`, `route:cache`, `view:cache`, USR2. O down tira as colunas novas (perde só o nome gravado nas movimentações e
+  contas novas; o código de sempre fica) e volta `adquirente_taxas.forma` a enum se não houver regra de botão. Em último caso:
+  restaurar o dump.
+- **Primeira venda real depois da subida:** 09:57:42 BRT, PIX, movimentação com `forma_chave=pix` e `forma_nome=PIX`.
 - Não mesclado na `main`, não pushado.
