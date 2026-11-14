@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Pos;
 
 use App\Http\Controllers\App\ClienteController;
+use App\Enums\TipoProduto;
 use App\Http\Controllers\Controller;
 use App\Models\Categoria;
 use App\Models\Cliente;
@@ -44,6 +45,8 @@ class PosCatalogoController extends Controller
         $query = Produto::withoutGlobalScopes()
             ->where('empresa_id', $empresaId)
             ->where('status', 'ativo')
+            // Insumo e adicional não são vendidos sozinhos (cafeteria) — mesma regra do PDV
+            ->whereIn('tipo', TipoProduto::vendaveis())
             ->with('precos:id,produto_id,modalidade,valor');
 
         if ($q !== '') {
@@ -94,6 +97,7 @@ class PosCatalogoController extends Controller
             ->where('empresa_id', $empresaId)
             ->whereIn('id', Produto::withoutGlobalScopes()
                 ->where('empresa_id', $empresaId)->where('status', 'ativo')
+                ->whereIn('tipo', TipoProduto::vendaveis())
                 ->whereNotNull('categoria_id')->select('categoria_id'))
             ->orderBy('nome')
             ->get(['id', 'nome']);

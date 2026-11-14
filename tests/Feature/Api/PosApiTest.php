@@ -138,6 +138,19 @@ class PosApiTest extends TestCase
             ->assertJsonPath('produtos.0.estoque', 10);
     }
 
+    public function test_insumo_e_adicional_da_cafeteria_nao_aparecem_no_catalogo(): void
+    {
+        [, $token] = $this->prepararVenda();
+        $this->createProduto($this->empresa, ['descricao' => 'Café em grão XYZ', 'tipo' => 'insumo']);
+        $this->createProduto($this->empresa, ['descricao' => 'Calda XYZ', 'tipo' => 'adicional']);
+        $produzido = $this->createProduto($this->empresa, ['descricao' => 'Cappuccino XYZ', 'tipo' => 'produzido']);
+
+        $this->api($token)->getJson(self::BASE . '/produtos?q=XYZ')
+            ->assertOk()
+            ->assertJsonCount(1, 'produtos')
+            ->assertJsonPath('produtos.0.id', $produzido->id);
+    }
+
     public function test_produto_de_outra_empresa_nao_aparece(): void
     {
         [, $token] = $this->prepararVenda();
