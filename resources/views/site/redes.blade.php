@@ -608,8 +608,8 @@ html.js .rv.in{opacity:1;transform:none}
       <video id="vd" preload="none" playsinline controls poster="{{ asset('site/redes/video-capa.jpg') }}" width="1280" height="720">
         <source src="{{ asset('site/redes/erp-redes.mp4') }}" type="video/mp4">
       </video>
-      <button class="vid__play" id="vdPlay" type="button" aria-label="Assistir ao vídeo de 1 minuto e 28 segundos">
-        <span class="vid__tri" aria-hidden="true"></span><span>Assistir · 1 min 28 s</span>
+      <button class="vid__play" id="vdPlay" type="button" aria-label="Assistir ao vídeo de 1 minuto e 29 segundos">
+        <span class="vid__tri" aria-hidden="true"></span><span>Assistir · 1 min 29 s</span>
       </button>
     </div>
     <p class="vid__nota">Com narração e legenda. Dá para assistir sem som.</p>
@@ -772,7 +772,7 @@ html.js .rv.in{opacity:1;transform:none}
             </div></div></div>
             <div class="m3d__sombra"></div>
           </div>
-          <figcaption><b>Maquininha Stone</b>Você não troca de máquina: é só baixar o nosso aplicativo na própria Stone. O vendedor fecha a venda ali, e estoque, caixa e nota saem na hora.</figcaption>
+          <figcaption><b>Maquininha Stone</b>Você não troca de máquina: é só instalar o nosso aplicativo pela loja de aplicativos da Stone, direto na maquininha. O vendedor fecha a venda ali, e estoque, caixa e nota saem na hora.</figcaption>
         </figure>
 
         <figure class="dev is-on" data-dev="loja">
@@ -847,7 +847,7 @@ html.js .rv.in{opacity:1;transform:none}
     <div class="faq__lista">
       <details open><summary>Vou perder meus produtos e clientes do sistema atual?</summary><p>Não. Nossa equipe importa o cadastro de produtos e de clientes do sistema que você usa hoje e confere com você antes da virada.</p></details>
       <details><summary>Preciso parar a loja para trocar?</summary><p>Não. Deixamos tudo configurado antes, treinamos caixa e vendedor no próprio balcão e fazemos a virada junto com você, loja por loja.</p></details>
-      <details><summary>Funciona com a minha maquininha?</summary><p>Se a sua maquininha é Stone, você não troca nada: é só baixar o nosso aplicativo na própria máquina e ela já fica ligada ao sistema. Com outras máquinas você continua vendendo normalmente pelo caixa do sistema e informa a forma de pagamento.</p></details>
+      <details><summary>Funciona com a minha maquininha?</summary><p>Se a sua maquininha é Stone, você não troca nada: é só instalar o nosso aplicativo pela loja de aplicativos da Stone, na própria máquina, e ela já fica ligada ao sistema. Com outras máquinas você continua vendendo normalmente pelo caixa do sistema e informa a forma de pagamento.</p></details>
       <details><summary>E a nota fiscal? Não entendo de imposto.</summary><p>A nota sai sozinha quando a venda fecha, no CNPJ da loja certa. Você não precisa preencher nada de imposto na hora da venda, e o seu contador recebe tudo organizado.</p></details>
       <details><summary>Quanto custa para a minha rede?</summary><p>A partir de R$ 590 por mês. O valor é fechado pelo número de lojas e você recebe a proposta no mesmo dia da demonstração.</p></details>
     </div>
