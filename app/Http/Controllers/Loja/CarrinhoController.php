@@ -142,6 +142,25 @@ class CarrinhoController extends Controller
             : redirect($this->ctx->url('carrinho'))->with('loja_ok', 'Produto adicionado ao carrinho.');
     }
 
+    /** Resumo do carrinho para a sacola lateral (abre ao adicionar um produto). */
+    public function resumo()
+    {
+        [, $carrinho] = $this->partes();
+        $itens = $carrinho->itens();
+        $subtotal = CarrinhoLoja::subtotal($itens);
+        $promo = $this->promocoes($subtotal);
+
+        return response()->json([
+            'itens' => $itens->map(fn ($i) => ['id' => $i['id'], 'nome' => $i['nome'], 'foto' => $i['foto'], 'url' => $this->ctx->url($i['caminho']),
+                'quantidade' => $i['quantidade'], 'preco' => $i['preco'], 'total' => $i['total']])->values(),
+            'quantidade' => $carrinho->quantidadeTotal(),
+            'subtotal' => $subtotal - $promo['desconto'],
+            'frete_gratis_acima' => $promo['freteGratisAcima'],
+            'falta_frete_gratis' => $promo['faltaFreteGratis'],
+            'entrega' => (bool) $this->ctx->loja->opcao('entrega'),
+        ]);
+    }
+
     public function atualizar(Request $request)
     {
         $dados = $request->validate([

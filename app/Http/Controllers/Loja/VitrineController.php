@@ -40,6 +40,8 @@ class VitrineController extends Controller
         // Cada bloco recebe os dados de que precisa — a view só desenha.
         $montados = [];
         $mosaico = null;
+        $comFoto = null;
+        $proximoProduto = 0;
         foreach ($blocos as $bloco) {
             if (($bloco['tipo'] ?? '') === 'vitrine') {
                 $bloco['produtos'] = $catalogo->fileira((string) ($bloco['origem'] ?? 'novidades'),
@@ -51,6 +53,15 @@ class VitrineController extends Controller
                 $bloco['categorias'] = $categorias;
                 if ($categorias->isEmpty() && ! $this->ctx->rascunho) {
                     continue;
+                }
+            } elseif (in_array($bloco['tipo'] ?? '', ['carrossel', 'banners'], true)) {
+                // Banner sem imagem ganha a foto de um produto de verdade (um diferente por banner)
+                $comFoto ??= $catalogo->paraVitrine(
+                    $catalogo->base()->whereNotNull('foto')->orderByDesc('loja_online_destaque')->orderByDesc('id')->limit(12)->get()
+                )->values();
+                $bloco['produtosSlide'] = [];
+                foreach (array_values($bloco['lista'] ?? []) as $n => $item) {
+                    $bloco['produtosSlide'][$n] = blank($item['imagem'] ?? '') && $comFoto->isNotEmpty() ? $comFoto[($proximoProduto++) % $comFoto->count()] : null;
                 }
             } elseif (($bloco['tipo'] ?? '') === 'banner' && blank($bloco['imagem'] ?? '')) {
                 // Banner sem imagem mostra produtos de verdade no lugar de enfeite
@@ -77,6 +88,9 @@ class VitrineController extends Controller
             'categoria' => $request->query('categoria'),
             'ordem' => $request->query('ordem'),
             'promocao' => $request->boolean('promocao'),
+            'preco_min' => $request->query('preco_min'),
+            'preco_max' => $request->query('preco_max'),
+            'destaque' => $request->boolean('destaque'),
         ];
 
         $categoriaAtual = null;
@@ -88,6 +102,7 @@ class VitrineController extends Controller
             'produtos' => $catalogo->listar($filtros)->withPath($this->ctx->caminho('produtos')),
             'filtros' => $filtros,
             'categoriaAtual' => $categoriaAtual,
+            'faixa' => $catalogo->faixaDePreco(),
             'titulo' => ($categoriaAtual->nome ?? (filled($filtros['q']) ? 'Busca: ' . $filtros['q'] : 'Produtos')) . ' — ' . $this->ctx->loja->nome,
         ]);
     }
@@ -126,6 +141,26 @@ class VitrineController extends Controller
             'unidade' => $this->ctx->loja->unidade,
             'titulo' => 'Informações — ' . $this->ctx->loja->nome,
         ]);
+    }
+
+    /** Sugestões da busca do cabeçalho (JSON). */
+    public function buscar(Request $request)
+    {
+        $catalogo = new CatalogoLoja($this->ctx->loja);
+
+        return response()->json(['produtos' => $catalogo->sugestoes((string) $request->query('q'))->map(fn ($p) => [
+            'nome' => $p['nome'], 'url' => $this->ctx->url($p['caminho']), 'foto' => $p['foto'], 'preco' => $p['preco'], 'normal' => $p['promocao'] ? $p['normal'] : null,
+        ])->values()]);
+    }
+
+    /** Cartões dos produtos vistos recentemente (os ids vêm do navegador do visitante). */
+    public function vistos(Request $request)
+    {
+        $ids = collect(explode(',', (string) $request->query('ids')))->map(fn ($i) => (int) $i)->filter()->unique()->take(8);
+        $catalogo = new CatalogoLoja($this->ctx->loja);
+        $produtos = $catalogo->paraVitrine($catalogo->base()->whereIn('id', $ids)->get())->sortBy(fn ($p) => $ids->search($p['id']))->values();
+
+        return view('loja.partials.fileira', ['produtos' => $produtos]);
     }
 
     public function ofertas()

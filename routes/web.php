@@ -43,6 +43,9 @@ Route::prefix('loja/{loja}')->where(['loja' => '[a-z0-9\-]+'])->name('loja.')
         Route::get('/p/{produto}', [\App\Http\Controllers\Loja\VitrineController::class, 'produto'])
             ->where('produto', '[0-9]+(-[a-z0-9\-]*)?')->name('produto');
         Route::get('/informacoes', [\App\Http\Controllers\Loja\VitrineController::class, 'informacoes'])->name('informacoes');
+        Route::get('/buscar', [\App\Http\Controllers\Loja\VitrineController::class, 'buscar'])->middleware('throttle:60,1,lj-buscar')->name('buscar');
+        Route::get('/vistos', [\App\Http\Controllers\Loja\VitrineController::class, 'vistos'])->middleware('throttle:30,1,lj-vistos')->name('vistos');
+        Route::get('/carrinho/resumo', [\App\Http\Controllers\Loja\CarrinhoController::class, 'resumo'])->name('carrinho.resumo');
         Route::get('/sitemap.xml', [\App\Http\Controllers\Loja\VitrineController::class, 'sitemap'])->name('sitemap');
         Route::get('/politica/{tipo}', [\App\Http\Controllers\Loja\VitrineController::class, 'politica'])
             ->where('tipo', 'privacidade|trocas|entrega|termos')->name('politica');

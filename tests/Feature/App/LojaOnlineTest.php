@@ -531,4 +531,71 @@ class LojaOnlineTest extends TestCase
         $this->assertSame(['completo', 'correndo'], [ModelosLoja::tema('vitrine')['movimento'], ModelosLoja::limparTema(['faixa' => 'correndo', 'movimento' => 'girando'])['faixa']]);
         $this->assertArrayNotHasKey('movimento', ModelosLoja::limparTema(['movimento' => 'girando']));
     }
+
+    /* ───────────── 3ª rodada: vitrine no nível de tema pronto ───────────── */
+
+    public function test_busca_com_sugestoes_sacola_lateral_e_vistos_so_mostram_a_vitrine(): void
+    {
+        $fora = $this->createProduto($this->empresa, ['preco_venda' => 30, 'descricao' => 'Camisa Escondida']);
+
+        $j = $this->getJson('/loja/minha-loja/buscar?q=camisa')->assertOk()->json('produtos');
+        $this->assertSame(['Camisa Azul'], array_column($j, 'nome'));
+        $this->assertStringContainsString('/loja/minha-loja/p/' . $this->produto->id, $j[0]['url']);
+        $this->assertSame([], $this->getJson('/loja/minha-loja/buscar?q=c')->json('produtos'));
+
+        $this->assertSame(0, $this->getJson('/loja/minha-loja/carrinho/resumo')->assertOk()->json('quantidade'));
+        $item = $this->postJson('/loja/minha-loja/carrinho/adicionar', ['produto_id' => $this->produto->id, 'quantidade' => 2])->assertOk()->json('item');
+        $this->assertSame('Camisa Azul', $item['nome']);
+        $r = $this->getJson('/loja/minha-loja/carrinho/resumo')->json();
+        $this->assertSame([2, 200.0, 1], [$r['quantidade'], (float) $r['subtotal'], count($r['itens'])]);
+
+        $html = $this->get('/loja/minha-loja/vistos?ids=' . $fora->id . ',' . $this->produto->id . ',abc')->assertOk()->getContent();
+        $this->assertStringContainsString('Camisa Azul', $html);
+        $this->assertStringNotContainsString('Camisa Escondida', $html);
+    }
+
+    public function test_filtro_de_preco_e_parcela_mostrada_so_com_cartao_ligado(): void
+    {
+        $barato = $this->createProduto($this->empresa, ['preco_venda' => 40, 'descricao' => 'Meia Lisa']);
+        $barato->forceFill(['loja_online' => true])->save();
+
+        $this->get('/loja/minha-loja/produtos?preco_max=50')->assertOk()->assertSee('Meia Lisa')->assertDontSee('Camisa Azul');
+        $this->get('/loja/minha-loja/produtos?preco_min=50')->assertOk()->assertSee('Camisa Azul')->assertDontSee('Meia Lisa');
+        $this->get('/loja/minha-loja/produtos?preco_min=abc&preco_max=-1')->assertOk()->assertSee('Camisa Azul')->assertSee('Meia Lisa');
+
+        $this->loja->update(['config' => ['parcelas_max' => 6, 'parcela_minima' => 20]]);
+        $catalogo = new \App\Services\LojaOnline\CatalogoLoja($this->loja->fresh());
+        $this->assertNull($catalogo->parcelas(100.0), 'sem cartão configurado a vitrine não promete parcela');
+
+        EmpresaGateway::create(['empresa_id' => $this->empresa->id, 'provedor' => EmpresaGateway::PROVEDOR_INFINITEPAY, 'ativo' => true, 'config' => ['handle' => 'lojateste']]);
+        $catalogo = new \App\Services\LojaOnline\CatalogoLoja($this->loja->fresh());
+        $this->assertSame(['vezes' => 5, 'valor' => 20.0, 'sem_juros' => false], $catalogo->parcelas(100.0));
+        $this->assertNull($catalogo->parcelas(39.0));
+    }
+
+    public function test_painel_grava_parcelamento_e_o_editor_higieniza_carrossel_e_banners(): void
+    {
+        $this->eu()->put('/app/loja-online/secao/promocoes', ['frete_gratis_acima' => '0', 'popup_gatilho' => 'tempo',
+            'parcelas_max' => '10', 'parcela_minima' => '15,50', 'parcelas_sem_juros' => '1', 'selo_novo_dias' => '7'])->assertRedirect();
+        $c = $this->loja->fresh();
+        $this->assertSame([10, 15.5, true, 7], [$c->opcao('parcelas_max'), (float) $c->opcao('parcela_minima'), $c->opcao('parcelas_sem_juros'), $c->opcao('selo_novo_dias')]);
+        $this->eu()->put('/app/loja-online/secao/promocoes', ['frete_gratis_acima' => '0', 'popup_gatilho' => 'tempo', 'parcelas_max' => '40'])->assertSessionHasErrors('parcelas_max');
+
+        $limpos = ModelosLoja::limparBlocos([
+            ['id' => 'c1', 'tipo' => 'carrossel', 'altura' => 'gigante', 'lista' => array_fill(0, 9, ['imagem' => 'http://x/y.jpg', 'titulo' => 'T', 'botao_link' => 'javascript:alert(1)', 'tom' => 'neon', 'lado' => 'cima'])],
+            ['id' => 'c2', 'tipo' => 'banners', 'arranjo' => 'torto', 'lista' => [['imagem' => 'loja-online/1/abc.jpg', 'titulo' => 'B', 'botao_link' => 'produtos?promocao=1']]],
+            ['id' => 'c3', 'tipo' => 'vitrine', 'titulo' => 'V', 'origem' => 'todos', 'formato' => 'espiral'],
+            ['id' => 'c4', 'tipo' => 'categorias', 'titulo' => 'C', 'estilo' => 'circulos'],
+        ]);
+        $this->assertCount(5, $limpos[0]['lista']);
+        $this->assertSame(['media', '', '', 'claro', 'esquerda'], [$limpos[0]['altura'], $limpos[0]['lista'][0]['imagem'], $limpos[0]['lista'][0]['botao_link'], $limpos[0]['lista'][0]['tom'], $limpos[0]['lista'][0]['lado']]);
+        $this->assertSame(['iguais', 'loja-online/1/abc.jpg', 'produtos?promocao=1'], [$limpos[1]['arranjo'], $limpos[1]['lista'][0]['imagem'], $limpos[1]['lista'][0]['botao_link']]);
+        $this->assertSame(['grade', 'circulos'], [$limpos[2]['formato'], $limpos[3]['estilo']]);
+        $this->assertSame('compacto', ModelosLoja::limparTema(['cabecalho' => 'compacto'])['cabecalho']);
+
+        foreach (array_keys(ModelosLoja::todos()) as $modelo) {
+            $this->loja->update(['modelo' => $modelo, 'tema' => null, 'blocos' => null]);
+            $this->get('/loja/minha-loja')->assertOk()->assertSee('data-lj-gaveta', false)->assertSee('<h1', false);
+        }
+    }
 }

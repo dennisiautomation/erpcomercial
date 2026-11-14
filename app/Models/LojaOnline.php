@@ -62,6 +62,8 @@ class LojaOnline extends Model
         'meta_pixel' => '', 'ga4' => '', 'google_ads' => '', 'google_ads_rotulo' => '', 'gtm' => '', 'tiktok_pixel' => '',
         'verificacao_google' => '', 'verificacao_meta' => '',
         'seo_titulo' => '', 'imagem_compartilhar' => '', 'favicon' => '',
+        // vitrine (3ª rodada): parcelamento mostrado no preço e selo "Novo"
+        'parcelas_max' => 0, 'parcela_minima' => 20, 'parcelas_sem_juros' => false, 'selo_novo_dias' => 30,
     ];
 
     /** Tem algum rastreador de anúncio/medição configurado? (obriga o aviso de cookies) */

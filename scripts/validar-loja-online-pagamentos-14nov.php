@@ -254,6 +254,21 @@ gateway($empresaId, EmpresaGateway::PROVEDOR_INFINITEPAY, ['config' => ['handle'
 $loja = $loja->fresh();
 $m = PagamentoLoja::meios($loja);
 check('4.1 só InfinitePay: PIX e cartão saem pelo link dela', $m['pix'] === 'infinitepay' && $m['cartao'] === 'infinitepay', $m);
+
+// 3ª rodada — parcela mostrada na vitrine: só texto, só com cartão ligado, respeita o teto e a parcela mínima
+$loja->update(['config' => array_merge($loja->config, ['parcelas_max' => 6, 'parcela_minima' => 20, 'parcelas_sem_juros' => true])]);
+$cat = new CatalogoLoja($loja->fresh());
+$pa = $cat->parcelas(600.00); $pb = $cat->parcelas(59.90); $pc = $cat->parcelas(39.90); $pd = $cat->parcelas(100.00);
+check('4.1a parcelas: R$ 600 em 6x de R$ 100 sem juros (teto de vezes)', $pa === ['vezes' => 6, 'valor' => 100.0, 'sem_juros' => true], $pa);
+check('4.1b parcelas: R$ 59,90 só cabe em 2x de R$ 29,95 (parcela mínima de R$ 20)', $pb !== null && $pb['vezes'] === 2 && abs($pb['valor'] - 29.95) < 0.001, $pb);
+check('4.1c parcelas: R$ 39,90 não parcela (daria menos que a mínima em 2x)', $pc === null, $pc);
+check('4.1d parcelas: vezes × valor nunca passa de 1 centavo do preço', abs($pd['vezes'] * $pd['valor'] - 100.00) <= 0.05, $pd);
+$loja->update(['config' => array_merge($loja->fresh()->config, ['cartao' => false])]);
+check('4.1e loja com cartão desligado não fala de parcela', (new CatalogoLoja($loja->fresh()))->parcelas(600.00) === null);
+$loja->update(['config' => array_merge($loja->fresh()->config, ['cartao' => true, 'parcelas_max' => 1])]);
+check('4.1f parcelas em 1 (ou 0): não fala de parcela', (new CatalogoLoja($loja->fresh()))->parcelas(600.00) === null);
+$loja->update(['config' => array_merge($loja->fresh()->config, ['parcelas_max' => 0, 'parcelas_sem_juros' => false])]);
+$loja = $loja->fresh();
 $p4 = novoPedido($loja);
 $r = $pagamento->pix($loja, $p4);
 check('4.2 "PIX" devolve o LINK (não há QR próprio)', $r['ok'] && $r['tipo'] === 'link' && str_starts_with($r['link'], 'https://checkout.infinitepay.falso/'), $r);

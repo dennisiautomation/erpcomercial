@@ -120,8 +120,13 @@ class CatalogoLoja
             ->whereIn('id', $produtos->pluck('categoria_id')->filter()->unique())
             ->pluck('nome', 'id');
         $semEstoque = (bool) $this->loja->opcao('vender_sem_estoque');
+        // 2ª foto (aparece ao passar o mouse): a primeira foto adicional de cada produto
+        $segundas = \App\Models\ProdutoFoto::whereIn('produto_id', $produtos->pluck('id'))->orderBy('ordem')->orderBy('id')
+            ->get(['produto_id', 'caminho'])->unique('produto_id')->pluck('caminho', 'produto_id');
+        $diasNovo = (int) $this->loja->opcao('selo_novo_dias');
+        $freteGratisAcima = (float) $this->loja->opcao('frete_gratis_acima');
 
-        return $produtos->map(function (Produto $p) use ($saldos, $categorias, $semEstoque) {
+        return $produtos->map(function (Produto $p) use ($saldos, $categorias, $semEstoque, $segundas, $diasNovo, $freteGratisAcima) {
             $precos = $this->precos($p);
             $saldo = $saldos[$p->id] ?? 0.0;
 
@@ -130,6 +135,10 @@ class CatalogoLoja
                 'nome' => $p->descricao,
                 'caminho' => 'p/' . $p->id . '-' . (Str::slug($p->descricao) ?: 'produto'),
                 'foto' => LojaContexto::arquivo($p->foto),
+                'foto2' => LojaContexto::arquivo($segundas[$p->id] ?? null),
+                'novo' => $diasNovo > 0 && $p->created_at && $p->created_at->gt(now()->subDays($diasNovo)),
+                'frete_gratis' => $freteGratisAcima > 0 && $precos['preco'] >= $freteGratisAcima && (bool) $this->loja->opcao('entrega'),
+                'parcelas' => $this->parcelas($precos['preco']),
                 'codigo' => $p->codigo_interno,
                 'categoria' => $categorias[$p->categoria_id] ?? null,
                 'destaque' => (bool) $p->loja_online_destaque,
@@ -137,6 +146,44 @@ class CatalogoLoja
                 'disponivel' => $semEstoque || $saldo >= 1,
             ] + $precos;
         })->values();
+    }
+
+    /**
+     * Parcelamento MOSTRADO no preço (o lojista liga em Configurações): até N vezes,
+     * respeitando a parcela mínima. É informativo — quem parcela é o link de cartão.
+     * A conta é sobre o preço que o pedido cobra de verdade.
+     *
+     * @return ?array{vezes: int, valor: float, sem_juros: bool}
+     */
+    public function parcelas(float $preco): ?array
+    {
+        $max = (int) $this->loja->opcao('parcelas_max');
+        $minima = max(1.0, (float) $this->loja->opcao('parcela_minima'));
+        if ($max < 2 || ! PagamentoLoja::meios($this->loja)['cartao']) {
+            return null;
+        }
+        $vezes = (int) min($max, floor($preco / $minima));
+
+        return $vezes >= 2 ? ['vezes' => $vezes, 'valor' => round($preco / $vezes, 2), 'sem_juros' => (bool) $this->loja->opcao('parcelas_sem_juros')] : null;
+    }
+
+    /** Sugestões da busca do cabeçalho (enquanto digita). */
+    public function sugestoes(string $termo, int $quantas = 6): Collection
+    {
+        $termo = trim($termo);
+        if (mb_strlen($termo) < 2) {
+            return collect();
+        }
+
+        return collect($this->listar(['q' => $termo], $quantas)->items());
+    }
+
+    /** Menor e maior preço de cadastro entre os produtos da loja (para o filtro de preço). */
+    public function faixaDePreco(): array
+    {
+        $r = $this->base()->selectRaw('MIN(preco_venda) as menor, MAX(preco_venda) as maior')->first();
+
+        return ['menor' => (float) floor((float) ($r->menor ?? 0)), 'maior' => (float) ceil((float) ($r->maior ?? 0))];
     }
 
     /** Fileira de produtos de um bloco "vitrine" da página inicial. */
@@ -244,11 +291,21 @@ class CatalogoLoja
         if (! empty($filtros['promocao'])) {
             $q->whereIn('id', $this->idsEmPromocao() ?: [0]);
         }
+        if (is_numeric($filtros['preco_min'] ?? null)) {
+            $q->where('preco_venda', '>=', (float) $filtros['preco_min']);
+        }
+        if (is_numeric($filtros['preco_max'] ?? null) && (float) $filtros['preco_max'] > 0) {
+            $q->where('preco_venda', '<=', (float) $filtros['preco_max']);
+        }
+        if (! empty($filtros['destaque'])) {
+            $q->where('loja_online_destaque', true);
+        }
 
         match ($filtros['ordem'] ?? '') {
             'menor' => $q->orderBy('preco_venda')->orderBy('descricao'),
             'maior' => $q->orderByDesc('preco_venda')->orderBy('descricao'),
             'nome' => $q->orderBy('descricao'),
+            'novos' => $q->orderByDesc('id'),
             default => $q->orderByDesc('loja_online_destaque')->orderByDesc('id'),
         };
 

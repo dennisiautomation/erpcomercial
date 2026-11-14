@@ -5,9 +5,9 @@
 @php($primeiroTitulo = true)
 @forelse($blocos as $bloco)
     <div data-lj-bloco="{{ $bloco['id'] ?? '' }}">
-        @include('loja.blocos.' . $bloco['tipo'], ['bloco' => $bloco, 'vinculo' => $vinculo, 'h1' => $primeiroTitulo && $bloco['tipo'] === 'banner'])
+        @include('loja.blocos.' . $bloco['tipo'], ['bloco' => $bloco, 'vinculo' => $vinculo, 'h1' => $primeiroTitulo && in_array($bloco['tipo'], ['banner', 'carrossel'], true)])
     </div>
-    @if($bloco['tipo'] === 'banner') @php($primeiroTitulo = false) @endif
+    @if(in_array($bloco['tipo'], ['banner', 'carrossel'], true)) @php($primeiroTitulo = false) @endif
 @empty
     <div class="lj-caixa lj-vazio-grande">
         <i class="bi bi-shop"></i>

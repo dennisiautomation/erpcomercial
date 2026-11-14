@@ -34,7 +34,7 @@ class ModelosLoja
         'raio' => ['0' => 'Retos', '6' => 'Leves', '12' => 'Arredondados', '20' => 'Bem arredondados'],
         'botao' => ['reto' => 'Reto', 'arredondado' => 'Arredondado', 'pilula' => 'Pílula'],
         'cartao' => ['limpo' => 'Só a foto', 'borda' => 'Com borda', 'sombra' => 'Com sombra', 'lista' => 'Lista (foto ao lado)'],
-        'cabecalho' => ['esquerda' => 'Logo à esquerda', 'centralizado' => 'Logo no centro'],
+        'cabecalho' => ['esquerda' => 'Completo (logo à esquerda, busca grande)', 'centralizado' => 'Logo no centro', 'compacto' => 'Enxuto (uma linha só)'],
         'titulos' => ['normal' => 'Normais', 'maiusculas' => 'MAIÚSCULAS espaçadas'],
         'preco' => ['simples' => 'Simples', 'etiqueta' => 'Etiqueta de preço'],
         'foto' => ['quadrada' => 'Quadrada', 'retrato' => 'Em pé (moda)', 'paisagem' => 'Deitada'],
@@ -47,130 +47,149 @@ class ModelosLoja
     {
         $vantagens = fn (array ...$itens) => ['tipo' => 'beneficios', 'itens' => array_map(
             fn ($i) => ['icone' => $i[0], 'titulo' => $i[1], 'texto' => $i[2]], $itens)];
+        $vitrine = fn (string $titulo, string $origem, int $qtd, int $colunas, string $formato = 'grade') => ['tipo' => 'vitrine', 'titulo' => $titulo, 'origem' => $origem,
+            'categoria_id' => null, 'quantidade' => $qtd, 'colunas' => $colunas, 'formato' => $formato];
+        $slide = fn (string $titulo, string $texto, string $botao, string $link, string $tom = 'claro', string $lado = 'esquerda') => ['imagem' => '', 'titulo' => $titulo, 'texto' => $texto,
+            'botao_texto' => $botao, 'botao_link' => $link, 'tom' => $tom, 'lado' => $lado];
+        $banner = fn (string $titulo, string $texto, string $link) => ['imagem' => '', 'titulo' => $titulo, 'texto' => $texto, 'botao_link' => $link];
+        $novidades = ['tipo' => 'newsletter', 'titulo' => 'Receba as novidades primeiro', 'texto' => 'Lançamentos e ofertas no seu e-mail.', 'botao_texto' => 'Quero receber'];
+        $confianca = $vantagens(['bag-check', 'Pedido direto com a loja', 'Sem intermediário'], ['box-seam', 'Estoque de verdade', 'O mesmo da loja física'],
+            ['shield-check', 'Compra protegida', 'Pagamento por parceiros'], ['chat-dots', 'Atendimento de gente', 'Fale com a loja quando precisar']);
+        $base = ['movimento' => 'completo', 'faixa' => 'parada', 'logo' => ''];
 
         return [
             'vitrine' => [
                 'nome' => 'Vitrine', 'ramo' => 'Qualquer ramo',
-                'descricao' => 'Branco, direto e organizado. O produto é quem aparece.',
-                'tema' => [
+                'descricao' => 'Loja completa e organizada: carrossel no topo, categorias em círculos, ofertas que deslizam.',
+                'tema' => $base + [
                     'cor_primaria' => '#1746d1', 'cor_fundo' => '#ffffff', 'cor_superficie' => '#f4f6fa', 'cor_texto' => '#131a26',
                     'cor_cabecalho' => '#ffffff', 'cor_cabecalho_texto' => '#131a26',
                     'cor_rodape' => '#131a26', 'cor_rodape_texto' => '#c9d1df', 'cor_destaque' => '#e11d48',
                     'fonte_titulo' => 'figtree', 'fonte_texto' => 'figtree',
                     'raio' => '12', 'botao' => 'arredondado', 'cartao' => 'borda', 'cabecalho' => 'esquerda',
-                    'movimento' => 'completo', 'faixa' => 'parada', 'titulos' => 'normal', 'preco' => 'simples', 'foto' => 'quadrada', 'logo' => '',
+                    'titulos' => 'normal', 'preco' => 'simples', 'foto' => 'quadrada',
                 ],
                 'blocos' => [
-                    ['tipo' => 'banner', 'titulo' => 'Tudo da loja, agora online', 'subtitulo' => 'Escolha com calma, feche o pedido pelo site e combine tudo direto com a loja.',
-                        'botao_texto' => 'Ver produtos', 'botao_link' => 'produtos', 'imagem' => '', 'estilo' => 'dividido', 'altura' => 'media'],
-                    $vantagens(['bag-check', 'Pedido direto com a loja', 'Sem intermediário'], ['box-seam', 'Estoque de verdade', 'O mesmo da loja física'], ['chat-dots', 'Atendimento de gente', 'Fale com a loja quando precisar']),
-                    ['tipo' => 'vitrine', 'titulo' => 'Destaques', 'origem' => 'destaques', 'categoria_id' => null, 'quantidade' => 8, 'colunas' => 4],
-                    ['tipo' => 'categorias', 'titulo' => 'Compre por categoria', 'estilo' => 'cartoes'],
-                    ['tipo' => 'vitrine', 'titulo' => 'Acabou de chegar', 'origem' => 'novidades', 'categoria_id' => null, 'quantidade' => 8, 'colunas' => 4],
-                    ['tipo' => 'newsletter', 'titulo' => 'Receba as novidades primeiro', 'texto' => 'Lançamentos e ofertas no seu e-mail.', 'botao_texto' => 'Quero receber'],
+                    ['tipo' => 'carrossel', 'altura' => 'media', 'lista' => [
+                        $slide('Tudo da loja, agora online', 'Escolha com calma e feche o pedido pelo site.', 'Ver produtos', 'produtos'),
+                        $slide('Ofertas da semana', 'Preços especiais por tempo limitado.', 'Ver ofertas', 'produtos?promocao=1'),
+                    ]],
+                    $confianca,
+                    ['tipo' => 'categorias', 'titulo' => 'Compre por categoria', 'estilo' => 'circulos'],
+                    $vitrine('Em oferta', 'promocoes', 8, 4, 'carrossel'),
+                    ['tipo' => 'banners', 'titulo' => '', 'arranjo' => 'iguais', 'lista' => [$banner('Acabou de chegar', 'As novidades da semana', 'produtos?ordem=novos'), $banner('Os mais queridos', 'Escolhidos pela loja', 'produtos?destaque=1')]],
+                    $vitrine('Destaques', 'destaques', 8, 4),
+                    $vitrine('Novidades', 'novidades', 8, 4, 'carrossel'),
+                    $novidades,
                 ],
             ],
             'atelie' => [
                 'nome' => 'Ateliê', 'ramo' => 'Moda e acessórios',
-                'descricao' => 'Preto no branco de revista de moda: título Bodoni, fotos em pé, cantos retos.',
-                'tema' => [
+                'descricao' => 'Revista de moda: preto no branco, título Bodoni gigante, fotos em pé e banners de coleção.',
+                'tema' => $base + [
                     'cor_primaria' => '#111111', 'cor_fundo' => '#ffffff', 'cor_superficie' => '#f1f0ee', 'cor_texto' => '#111111',
                     'cor_cabecalho' => '#ffffff', 'cor_cabecalho_texto' => '#111111',
                     'cor_rodape' => '#111111', 'cor_rodape_texto' => '#d9d6d1', 'cor_destaque' => '#d6005f',
                     'fonte_titulo' => 'bodoni', 'fonte_texto' => 'jost',
                     'raio' => '0', 'botao' => 'reto', 'cartao' => 'limpo', 'cabecalho' => 'centralizado',
-                    'movimento' => 'completo', 'faixa' => 'parada', 'titulos' => 'maiusculas', 'preco' => 'simples', 'foto' => 'retrato', 'logo' => '',
+                    'titulos' => 'maiusculas', 'preco' => 'simples', 'foto' => 'retrato',
                 ],
                 'blocos' => [
                     ['tipo' => 'faixa', 'texto' => 'Compre pelo site  ·  Pedido direto com a loja'],
                     ['tipo' => 'banner', 'titulo' => 'Nova coleção', 'subtitulo' => 'Peças escolhidas uma a uma.',
                         'botao_texto' => 'Ver a coleção', 'botao_link' => 'produtos?ordem=novos', 'imagem' => '', 'estilo' => 'editorial', 'altura' => 'alta'],
-                    ['tipo' => 'vitrine', 'titulo' => 'Acabou de chegar', 'origem' => 'novidades', 'categoria_id' => null, 'quantidade' => 6, 'colunas' => 3],
+                    ['tipo' => 'banners', 'titulo' => '', 'arranjo' => 'destaque', 'lista' => [$banner('A estação', 'O que acabou de entrar', 'produtos?ordem=novos'), $banner('Acessórios', '', 'produtos'), $banner('Em oferta', '', 'produtos?promocao=1')]],
+                    $vitrine('Acabou de chegar', 'novidades', 8, 4),
                     ['tipo' => 'categorias', 'titulo' => 'Por categoria', 'estilo' => 'lista'],
-                    ['tipo' => 'vitrine', 'titulo' => 'As preferidas', 'origem' => 'destaques', 'categoria_id' => null, 'quantidade' => 6, 'colunas' => 3],
-                    ['tipo' => 'newsletter', 'titulo' => 'Receba as novidades primeiro', 'texto' => 'Lançamentos e ofertas no seu e-mail.', 'botao_texto' => 'Quero receber'],
+                    $vitrine('As preferidas', 'destaques', 8, 4, 'carrossel'),
+                    $novidades,
                 ],
             ],
             'circuito' => [
                 'nome' => 'Circuito', 'ramo' => 'Celulares, eletrônicos e assistência',
-                'descricao' => 'Azul-noite e amarelo, com etiqueta vermelha de preço. Feito para comparar.',
-                'tema' => [
+                'descricao' => 'Azul-noite e amarelo, etiqueta vermelha de preço, cinco produtos por linha. Feito para comparar.',
+                'tema' => $base + [
                     'cor_primaria' => '#ffc400', 'cor_fundo' => '#eef1f6', 'cor_superficie' => '#ffffff', 'cor_texto' => '#0d1330',
                     'cor_cabecalho' => '#0d1330', 'cor_cabecalho_texto' => '#ffffff',
                     'cor_rodape' => '#0d1330', 'cor_rodape_texto' => '#b9c0dc', 'cor_destaque' => '#ff3d2e',
                     'fonte_titulo' => 'archivo', 'fonte_texto' => 'archivo',
                     'raio' => '12', 'botao' => 'arredondado', 'cartao' => 'sombra', 'cabecalho' => 'esquerda',
-                    'movimento' => 'completo', 'faixa' => 'parada', 'titulos' => 'normal', 'preco' => 'etiqueta', 'foto' => 'quadrada', 'logo' => '',
+                    'titulos' => 'normal', 'preco' => 'etiqueta', 'foto' => 'quadrada',
                 ],
                 'blocos' => [
-                    ['tipo' => 'faixa', 'texto' => 'Preço de loja  ·  Pedido pelo site'],
-                    ['tipo' => 'banner', 'titulo' => 'Ofertas que valem a troca', 'subtitulo' => 'O mesmo preço da loja física, sem sair de casa.',
-                        'botao_texto' => 'Ver ofertas', 'botao_link' => 'produtos?ordem=menor', 'imagem' => '', 'estilo' => 'dividido', 'altura' => 'media'],
-                    ['tipo' => 'vitrine', 'titulo' => 'Em promoção', 'origem' => 'promocoes', 'categoria_id' => null, 'quantidade' => 8, 'colunas' => 4],
+                    ['tipo' => 'carrossel', 'altura' => 'media', 'lista' => [
+                        $slide('Ofertas que valem a troca', 'O mesmo preço da loja física, sem sair de casa.', 'Ver ofertas', 'produtos?promocao=1', 'escuro'),
+                        $slide('Chegou novidade', 'Lançamentos direto para a vitrine.', 'Ver lançamentos', 'produtos?ordem=novos', 'escuro'),
+                    ]],
                     ['tipo' => 'categorias', 'titulo' => 'Categorias', 'estilo' => 'cartoes'],
-                    ['tipo' => 'vitrine', 'titulo' => 'Mais procurados', 'origem' => 'destaques', 'categoria_id' => null, 'quantidade' => 8, 'colunas' => 4],
-                    $vantagens(['box-seam', 'Estoque de verdade', 'O mesmo da loja física'], ['bag-check', 'Pedido direto com a loja', 'Sem intermediário'], ['chat-dots', 'Dúvida? Chama', 'A loja responde você']),
+                    $vitrine('Em promoção', 'promocoes', 10, 5, 'carrossel'),
+                    ['tipo' => 'banners', 'titulo' => '', 'arranjo' => 'iguais', 'lista' => [$banner('Mais procurados', '', 'produtos?destaque=1'), $banner('Lançamentos', '', 'produtos?ordem=novos'), $banner('Menor preço', '', 'produtos?ordem=menor')]],
+                    $vitrine('Mais procurados', 'destaques', 10, 5),
+                    $confianca,
                 ],
             ],
             'feira' => [
                 'nome' => 'Feira', 'ramo' => 'Mercado, cafeteria, alimentos e bebidas',
-                'descricao' => 'Verde de banca com plaquinha amarela de preço. Colorido e apetitoso.',
-                'tema' => [
+                'descricao' => 'Verde de banca com plaquinha amarela de preço, categorias em círculos e gôndola cheia.',
+                'tema' => $base + [
                     'cor_primaria' => '#0f6b3c', 'cor_fundo' => '#f5f7ee', 'cor_superficie' => '#ffffff', 'cor_texto' => '#14251b',
                     'cor_cabecalho' => '#0f6b3c', 'cor_cabecalho_texto' => '#ffffff',
                     'cor_rodape' => '#0b4d2b', 'cor_rodape_texto' => '#cfe6d6', 'cor_destaque' => '#ffcf33',
                     'fonte_titulo' => 'bricolage', 'fonte_texto' => 'figtree',
-                    'raio' => '20', 'botao' => 'pilula', 'cartao' => 'limpo', 'cabecalho' => 'esquerda',
-                    'movimento' => 'completo', 'faixa' => 'parada', 'titulos' => 'normal', 'preco' => 'etiqueta', 'foto' => 'quadrada', 'logo' => '',
+                    'raio' => '20', 'botao' => 'pilula', 'cartao' => 'sombra', 'cabecalho' => 'esquerda',
+                    'titulos' => 'normal', 'preco' => 'etiqueta', 'foto' => 'quadrada',
                 ],
                 'blocos' => [
                     ['tipo' => 'banner', 'titulo' => 'Fresquinho, direto pra sua casa', 'subtitulo' => 'Monte seu pedido pelo site e combine a entrega ou a retirada com a loja.',
                         'botao_texto' => 'Fazer pedido', 'botao_link' => 'produtos', 'imagem' => '', 'estilo' => 'cheio', 'altura' => 'media'],
-                    ['tipo' => 'categorias', 'titulo' => 'O que você procura?', 'estilo' => 'pilulas'],
-                    ['tipo' => 'vitrine', 'titulo' => 'Ofertas do dia', 'origem' => 'promocoes', 'categoria_id' => null, 'quantidade' => 8, 'colunas' => 4],
-                    ['tipo' => 'vitrine', 'titulo' => 'Os mais pedidos', 'origem' => 'destaques', 'categoria_id' => null, 'quantidade' => 8, 'colunas' => 4],
-                    $vantagens(['bag-check', 'Pedido direto com a loja', 'Sem intermediário'], ['box-seam', 'Só o que tem', 'Estoque da loja, atualizado'], ['chat-dots', 'Fale com a gente', 'A loja responde você']),
+                    ['tipo' => 'categorias', 'titulo' => 'O que você procura?', 'estilo' => 'circulos'],
+                    $vitrine('Ofertas do dia', 'promocoes', 10, 5, 'carrossel'),
+                    $vitrine('Os mais pedidos', 'destaques', 10, 5),
+                    ['tipo' => 'banners', 'titulo' => '', 'arranjo' => 'iguais', 'lista' => [$banner('Chegou hoje', '', 'produtos?ordem=novos'), $banner('Tudo em oferta', '', 'produtos?promocao=1')]],
+                    $vitrine('Para completar a lista', 'todos', 10, 5),
+                    $confianca,
                 ],
             ],
             'mimo' => [
                 'nome' => 'Mimo', 'ramo' => 'Presentes, infantil, papelaria e beleza',
-                'descricao' => 'Lilás com coral, tudo bem redondinho. Leve e alegre.',
-                'tema' => [
+                'descricao' => 'Lilás com coral, tudo redondinho: logo no centro, círculos de categoria e banners suaves.',
+                'tema' => $base + [
                     'cor_primaria' => '#6b2fd6', 'cor_fundo' => '#f4f0ff', 'cor_superficie' => '#ffffff', 'cor_texto' => '#24163f',
-                    'cor_cabecalho' => '#f4f0ff', 'cor_cabecalho_texto' => '#24163f',
+                    'cor_cabecalho' => '#ffffff', 'cor_cabecalho_texto' => '#24163f',
                     'cor_rodape' => '#24163f', 'cor_rodape_texto' => '#d9cff2', 'cor_destaque' => '#ff5a5f',
                     'fonte_titulo' => 'fredoka', 'fonte_texto' => 'nunito',
                     'raio' => '20', 'botao' => 'pilula', 'cartao' => 'sombra', 'cabecalho' => 'centralizado',
-                    'movimento' => 'completo', 'faixa' => 'parada', 'titulos' => 'normal', 'preco' => 'simples', 'foto' => 'quadrada', 'logo' => '',
+                    'titulos' => 'normal', 'preco' => 'simples', 'foto' => 'quadrada',
                 ],
                 'blocos' => [
                     ['tipo' => 'faixa', 'texto' => 'Presentes escolhidos com carinho'],
                     ['tipo' => 'banner', 'titulo' => 'Um mimo para quem você gosta', 'subtitulo' => 'Escolha pelo site e combine a entrega com a loja.',
                         'botao_texto' => 'Escolher presente', 'botao_link' => 'produtos', 'imagem' => '', 'estilo' => 'centro', 'altura' => 'media'],
-                    ['tipo' => 'categorias', 'titulo' => 'Para cada ocasião', 'estilo' => 'pilulas'],
-                    ['tipo' => 'vitrine', 'titulo' => 'Queridinhos', 'origem' => 'destaques', 'categoria_id' => null, 'quantidade' => 8, 'colunas' => 4],
-                    ['tipo' => 'vitrine', 'titulo' => 'Novidades', 'origem' => 'novidades', 'categoria_id' => null, 'quantidade' => 8, 'colunas' => 4],
-                    ['tipo' => 'newsletter', 'titulo' => 'Receba as novidades primeiro', 'texto' => 'Lançamentos e ofertas no seu e-mail.', 'botao_texto' => 'Quero receber'],
+                    ['tipo' => 'categorias', 'titulo' => 'Para cada ocasião', 'estilo' => 'circulos'],
+                    $vitrine('Queridinhos', 'destaques', 8, 4),
+                    ['tipo' => 'banners', 'titulo' => '', 'arranjo' => 'iguais', 'lista' => [$banner('Novidades', 'Acabaram de chegar', 'produtos?ordem=novos'), $banner('Em oferta', 'Para presentear gastando menos', 'produtos?promocao=1')]],
+                    $vitrine('Acabou de chegar', 'novidades', 8, 4, 'carrossel'),
+                    $novidades,
                 ],
             ],
             'balcao' => [
                 'nome' => 'Balcão', 'ramo' => 'Distribuidora, materiais, peças e produtos técnicos',
-                'descricao' => 'Lista com o código à vista, para quem compra pela referência.',
-                'tema' => [
+                'descricao' => 'Catálogo enxuto: cabeçalho de uma linha, lista com o código à vista, para quem compra pela referência.',
+                'tema' => $base + [
                     'cor_primaria' => '#0a6c74', 'cor_fundo' => '#ffffff', 'cor_superficie' => '#f2f6f6', 'cor_texto' => '#10242a',
                     'cor_cabecalho' => '#ffffff', 'cor_cabecalho_texto' => '#10242a',
                     'cor_rodape' => '#f2f6f6', 'cor_rodape_texto' => '#3d555b', 'cor_destaque' => '#c2410c',
                     'fonte_titulo' => 'manrope', 'fonte_texto' => 'manrope',
-                    'raio' => '6', 'botao' => 'arredondado', 'cartao' => 'lista', 'cabecalho' => 'esquerda',
-                    'movimento' => 'completo', 'faixa' => 'parada', 'titulos' => 'normal', 'preco' => 'simples', 'foto' => 'quadrada', 'logo' => '',
+                    'raio' => '6', 'botao' => 'arredondado', 'cartao' => 'lista', 'cabecalho' => 'compacto',
+                    'titulos' => 'normal', 'preco' => 'simples', 'foto' => 'quadrada',
                 ],
                 'blocos' => [
                     ['tipo' => 'banner', 'titulo' => 'Peça pelo código, receba no prazo', 'subtitulo' => 'Catálogo com o estoque da loja. Busque pelo código ou pelo nome.',
                         'botao_texto' => 'Abrir o catálogo', 'botao_link' => 'produtos', 'imagem' => '', 'estilo' => 'cheio', 'altura' => 'baixa'],
                     ['tipo' => 'categorias', 'titulo' => 'Linhas de produto', 'estilo' => 'lista'],
-                    ['tipo' => 'vitrine', 'titulo' => 'Mais pedidos', 'origem' => 'destaques', 'categoria_id' => null, 'quantidade' => 8, 'colunas' => 4],
+                    $vitrine('Mais pedidos', 'destaques', 8, 4),
                     $vantagens(['box-seam', 'Estoque real', 'O mesmo do balcão da loja'], ['upc-scan', 'Busca pelo código', 'Interno ou de barras'], ['chat-dots', 'Atendimento técnico', 'Fale com quem conhece o produto']),
-                    ['tipo' => 'vitrine', 'titulo' => 'Entradas recentes', 'origem' => 'novidades', 'categoria_id' => null, 'quantidade' => 8, 'colunas' => 4],
+                    $vitrine('Entradas recentes', 'novidades', 8, 4),
                 ],
             ],
         ];
@@ -227,14 +246,15 @@ class ModelosLoja
                     ['categoria_id', 'Categoria', 'categoria'],
                     ['quantidade', 'Quantos mostrar', 'opcoes', ['4' => '4', '6' => '6', '8' => '8', '12' => '12']],
                     ['colunas', 'Por linha (no computador)', 'opcoes', ['3' => '3', '4' => '4', '5' => '5']],
+                    ['formato', 'Formato', 'opcoes', ['grade' => 'Grade', 'carrossel' => 'Carrossel (desliza para o lado)']],
                 ],
-                'inicial' => ['titulo' => 'Produtos', 'origem' => 'novidades', 'categoria_id' => null, 'quantidade' => 8, 'colunas' => 4],
+                'inicial' => ['titulo' => 'Produtos', 'origem' => 'novidades', 'categoria_id' => null, 'quantidade' => 8, 'colunas' => 4, 'formato' => 'grade'],
             ],
             'categorias' => [
                 'nome' => 'Categorias', 'icone' => 'tags', 'descricao' => 'Atalhos para as categorias que têm produto na loja',
                 'campos' => [
                     ['titulo', 'Título', 'texto'],
-                    ['estilo', 'Aparência', 'opcoes', ['cartoes' => 'Cartões com foto', 'pilulas' => 'Botões em linha', 'lista' => 'Lista de nomes']],
+                    ['estilo', 'Aparência', 'opcoes', ['circulos' => 'Círculos com foto', 'cartoes' => 'Cartões com foto', 'pilulas' => 'Botões em linha', 'lista' => 'Lista de nomes']],
                 ],
                 'inicial' => ['titulo' => 'Categorias', 'estilo' => 'cartoes'],
             ],
@@ -267,6 +287,33 @@ class ModelosLoja
                     ['alinhamento', 'Alinhamento', 'opcoes', ['esquerda' => 'Esquerda', 'centro' => 'Centro']],
                 ],
                 'inicial' => ['titulo' => 'Título', 'texto' => '', 'alinhamento' => 'centro'],
+            ],
+            'carrossel' => [
+                'nome' => 'Carrossel de banners', 'icone' => 'images', 'descricao' => 'Vários banners grandes que passam sozinhos (até 5)',
+                'campos' => [
+                    ['lista', 'Banners', 'lista', [['imagem', 'Imagem', 'imagem'], ['titulo', 'Título', 'texto'], ['texto', 'Texto de apoio', 'texto'], ['botao_texto', 'Texto do botão', 'texto'],
+                        ['botao_link', 'O botão leva para', 'link'], ['tom', 'Texto', 'opcoes', ['claro' => 'Claro (sobre imagem escura)', 'escuro' => 'Escuro (sobre imagem clara)']],
+                        ['lado', 'Posição do texto', 'opcoes', ['esquerda' => 'Esquerda', 'centro' => 'Centro', 'direita' => 'Direita']]], 5],
+                    ['altura', 'Altura', 'opcoes', ['media' => 'Média', 'alta' => 'Alta', 'baixa' => 'Baixa']],
+                ],
+                'inicial' => ['lista' => [['imagem' => '', 'titulo' => 'Título do banner', 'texto' => '', 'botao_texto' => 'Ver produtos', 'botao_link' => 'produtos', 'tom' => 'claro', 'lado' => 'esquerda']], 'altura' => 'media'],
+            ],
+            'banners' => [
+                'nome' => 'Grade de banners', 'icone' => 'layout-three-columns', 'descricao' => 'Dois ou três banners lado a lado, cada um com seu link',
+                'campos' => [
+                    ['titulo', 'Título da seção (opcional)', 'texto'],
+                    ['lista', 'Banners', 'lista', [['imagem', 'Imagem', 'imagem'], ['titulo', 'Título', 'texto'], ['texto', 'Texto de apoio', 'texto'], ['botao_link', 'Leva para', 'link']], 4],
+                    ['arranjo', 'Arranjo', 'opcoes', ['iguais' => 'Lado a lado, iguais', 'destaque' => 'Um grande e os outros menores']],
+                ],
+                'inicial' => ['titulo' => '', 'lista' => [['imagem' => '', 'titulo' => 'Novidades', 'texto' => '', 'botao_link' => 'produtos?ordem=novos'], ['imagem' => '', 'titulo' => 'Ofertas', 'texto' => '', 'botao_link' => 'produtos?promocao=1']], 'arranjo' => 'iguais'],
+            ],
+            'galeria' => [
+                'nome' => 'Galeria de fotos', 'icone' => 'grid', 'descricao' => 'Mosaico de fotos da loja ou do Instagram (até 8)',
+                'campos' => [
+                    ['titulo', 'Título', 'texto'],
+                    ['lista', 'Fotos', 'lista', [['imagem', 'Imagem', 'imagem'], ['botao_link', 'Leva para (opcional)', 'link']], 8],
+                ],
+                'inicial' => ['titulo' => 'Da nossa loja', 'lista' => [['imagem' => '', 'botao_link' => '']]],
             ],
             'oferta' => [
                 'nome' => 'Oferta com contagem', 'icone' => 'stopwatch', 'descricao' => 'Chamada de promoção com relógio regressivo e cupom',
@@ -403,8 +450,16 @@ class ModelosLoja
                 continue;
             }
             $limpa = [];
-            foreach ($subcampos as [$chave, , $controle]) {
-                $limpa[$chave] = mb_substr(trim((string) ($linha[$chave] ?? '')), 0, $controle === 'textolongo' ? 600 : 120);
+            foreach ($subcampos as $sub) {
+                [$chave, , $controle] = $sub;
+                $valor = (string) ($linha[$chave] ?? '');
+                $limpa[$chave] = match ($controle) {
+                    'imagem' => self::limparImagem($valor),
+                    'link' => self::limparLink($valor),
+                    'opcoes' => array_key_exists($valor, $sub[3]) ? $valor : (string) array_key_first($sub[3]),
+                    'textolongo' => mb_substr(trim($valor), 0, 600),
+                    default => mb_substr(trim($valor), 0, 120),
+                };
             }
             $out[] = $limpa;
         }

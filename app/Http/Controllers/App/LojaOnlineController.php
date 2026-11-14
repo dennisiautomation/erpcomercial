@@ -270,7 +270,8 @@ class LojaOnlineController extends Controller
                 'chave' => $k, 'nome' => $m['nome'], 'ramo' => $m['ramo'], 'descricao' => $m['descricao'], 'tema' => $m['tema'],
                 'fontes' => TemaCss::fontesUrl($m['tema']), 'variaveis' => TemaCss::variaveis($m['tema']),
                 'banner' => collect($m['blocos'])->firstWhere('tipo', 'banner')['estilo'] ?? 'dividido',
-                'titulo' => collect($m['blocos'])->firstWhere('tipo', 'banner')['titulo'] ?? $m['nome'],
+                'titulo' => collect($m['blocos'])->firstWhere('tipo', 'banner')['titulo']
+                    ?? collect($m['blocos'])->firstWhere('tipo', 'carrossel')['lista'][0]['titulo'] ?? $m['nome'],
             ])->values(),
             'tipos' => ModelosLoja::tiposDeBloco(),
             'fontes' => collect(ModelosLoja::FONTES)->map(fn ($f) => $f[0]),
@@ -370,6 +371,10 @@ class LojaOnlineController extends Controller
     private const SECOES = [
         'promocoes' => [
             'frete_gratis_acima' => ['nullable', 'numeric', 'min:0', 'max:99999'],
+            'parcelas_max' => ['nullable', 'integer', 'min:0', 'max:24'],
+            'parcela_minima' => ['nullable', 'numeric', 'min:1', 'max:9999'],
+            'parcelas_sem_juros' => 'bool',
+            'selo_novo_dias' => ['nullable', 'integer', 'min:0', 'max:365'],
             'popup_ativo' => 'bool', 'popup_capturar' => 'bool',
             'popup_titulo' => ['nullable', 'string', 'max:80'],
             'popup_texto' => ['nullable', 'string', 'max:240'],
@@ -466,8 +471,10 @@ class LojaOnlineController extends Controller
         $loja = $this->loja();
         $campos = self::SECOES[$secao];
 
-        if ($request->filled('frete_gratis_acima')) {
-            $request->merge(['frete_gratis_acima' => str_replace(',', '.', (string) $request->input('frete_gratis_acima'))]);
+        foreach (['frete_gratis_acima', 'parcela_minima'] as $decimal) {
+            if ($request->filled($decimal)) {
+                $request->merge([$decimal => str_replace(',', '.', (string) $request->input($decimal))]);
+            }
         }
         $dados = $request->validate(array_filter($campos, 'is_array'), self::MENSAGENS_SECAO);
 
@@ -477,6 +484,10 @@ class LojaOnlineController extends Controller
                 $config[$chave] = $request->boolean($chave);
             } elseif (in_array($chave, ['frete_gratis_acima'], true)) {
                 $config[$chave] = round((float) ($dados[$chave] ?? 0), 2);
+            } elseif ($chave === 'parcela_minima') {
+                $config[$chave] = round((float) ($dados[$chave] ?? LojaOnline::CONFIG_PADRAO[$chave]), 2);
+            } elseif (in_array($chave, ['parcelas_max', 'selo_novo_dias'], true)) {
+                $config[$chave] = (int) ($dados[$chave] ?? 0);
             } elseif (in_array($chave, ['popup_segundos', 'popup_dias'], true)) {
                 $config[$chave] = (int) ($dados[$chave] ?? LojaOnline::CONFIG_PADRAO[$chave]);
             } else {

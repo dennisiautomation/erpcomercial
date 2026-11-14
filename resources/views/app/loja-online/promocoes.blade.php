@@ -33,6 +33,37 @@
         </div>
     </x-erp.card>
 
+    <x-erp.card title="Preço e selos na vitrine" icon="tag" class="mb-3">
+        <div class="row g-3">
+            <div class="col-md-3">
+                <label for="parcelas_max" class="form-label">Parcelar em até (vezes)</label>
+                <input type="number" min="0" max="24" name="parcelas_max" id="parcelas_max" class="form-control @error('parcelas_max') is-invalid @enderror" value="{{ old('parcelas_max', (int) $loja->opcao('parcelas_max')) }}">
+                @error('parcelas_max') <div class="invalid-feedback">{{ $message }}</div> @enderror
+            </div>
+            <div class="col-md-3">
+                <label for="parcela_minima" class="form-label">Parcela mínima (R$)</label>
+                <input type="text" inputmode="decimal" name="parcela_minima" id="parcela_minima" class="form-control @error('parcela_minima') is-invalid @enderror" value="{{ old('parcela_minima', number_format((float) $loja->opcao('parcela_minima'), 2, '.', '')) }}">
+                @error('parcela_minima') <div class="invalid-feedback">{{ $message }}</div> @enderror
+            </div>
+            <div class="col-md-3">
+                <label for="selo_novo_dias" class="form-label">Selo "Novo" por (dias)</label>
+                <input type="number" min="0" max="365" name="selo_novo_dias" id="selo_novo_dias" class="form-control @error('selo_novo_dias') is-invalid @enderror" value="{{ old('selo_novo_dias', (int) $loja->opcao('selo_novo_dias')) }}">
+                @error('selo_novo_dias') <div class="invalid-feedback">{{ $message }}</div> @enderror
+            </div>
+            <div class="col-md-3 d-flex align-items-end">
+                <div class="form-check form-switch mb-2">
+                    <input class="form-check-input" type="checkbox" role="switch" name="parcelas_sem_juros" id="parcelas_sem_juros" value="1" @checked(old('parcelas_sem_juros', $loja->opcao('parcelas_sem_juros')))>
+                    <label class="form-check-label" for="parcelas_sem_juros">Escrever "sem juros"</label>
+                </div>
+            </div>
+            <div class="col-12"><div class="form-text">
+                Parcelar em 0 ou 1 = a vitrine não fala de parcela. Com 2 ou mais, cada produto mostra "ou 6x de R$ …", respeitando a parcela mínima, e só quando o cartão está ligado.
+                <strong>É só o texto da vitrine:</strong> as parcelas e os juros de verdade são os da sua maquininha/link de pagamento — use os mesmos números daqui.
+                Selo "Novo" com 0 dias = sem selo.
+            </div></div>
+        </div>
+    </x-erp.card>
+
     <x-erp.card title="Popup" icon="window-stack" class="mb-3">
         <div class="row g-3">
             <div class="col-12">

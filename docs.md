@@ -9055,3 +9055,77 @@ perguntas frequentes, receber novidades, vídeo do YouTube e redes sociais. List
 
 **Para subir (atualizado):** as **2** migrations; nada mais muda no roteiro. `MAIL_FROM_ADDRESS` já existe no `.env` de produção (é
 o dos e-mails transacionais). Rollback: `migrate:rollback --step=2`.
+
+### Loja online — 3ª rodada (14/11/2026, noite): layouts no nível de tema pronto
+
+**Pedido do Dennis (14/11, depois de ver a 2ª entrega):** "precisamos melhorar os layouts das lojas muito mesmo". O que incomodava:
+parecia amador/simples, a página do produto era fraca e os modelos eram parecidos demais. Referência: temas prontos de Shopify/Nuvemshop.
+**Continua NÃO em produção** — mesma branch `ecommerce-14nov`. **Nenhuma migration nova.**
+
+**Onde cada coisa vive: nada mudou de lugar — produto, estoque, pedido e pagamento continuam sendo os do ERP; esta rodada só mexe em
+como a loja APARECE. As quatro opções novas (parcelas e selo "Novo") moram em `lojas_online.config`, como as outras.**
+
+**O que mudou para quem compra**
+- **Cabeçalho novo** (`loja/layout.blade.php`): faixa de utilidades (frete grátis, entrega, trocas, WhatsApp), busca grande com
+  **sugestões enquanto digita** (`GET /buscar`, JSON, até 6 produtos, mínimo 2 letras), botão "Todas as categorias" com painel,
+  menu de categorias em linha. No celular: botão de menu que abre uma **gaveta lateral** (`<dialog data-lj-menu>`).
+  Três formatos (tema `cabecalho`): `esquerda`, `centralizado` e o novo **`compacto`** (uma linha só — modelo Balcão).
+- **Sacola lateral** (`<dialog data-lj-gaveta>`): adicionar um produto abre a sacola por cima da página, com foto, quantidade (+/−),
+  tirar, subtotal, quanto falta para o frete grátis e o botão de finalizar. Dados de `GET /carrinho/resumo`. No celular o ícone
+  continua levando para a página do carrinho. "Comprar agora" (`data-ir`) e formulários com `data-lj-sem-gaveta` não abrem a sacola.
+- **Cartão de produto** (`partials/cartao.blade.php`): segunda foto ao passar o mouse (`produto_fotos`), selos (% de desconto, Novo,
+  Frete grátis, Esgotado), botão de adicionar sobre a foto, preço "de/por" e a linha "ou 6x de R$ …".
+- **Página do produto** (`produto.blade.php`): galeria com miniaturas, setas, contador, **lupa** ao passar o mouse e **foto ampliada**
+  em tela cheia; caixa de compra com como paga (PIX / cartão em até Nx), disponibilidade, quantidade, **Adicionar** e **Comprar agora**;
+  cálculo de frete; garantias (retirada, troca, pedido direto com a loja); tirar dúvida no WhatsApp e compartilhar; **abas**
+  (Descrição / Ficha técnica / Entrega e trocas); "Você também pode gostar"; **Vistos recentemente** (ids guardados só no
+  `localStorage` do visitante, cartões de `GET /vistos?ids=`); **barra fixa de compra** no celular.
+- **Lista de produtos** (`produtos.blade.php`): filtros ao lado (categoria com contagem, **faixa de preço**, só ofertas, só destaques),
+  filtros aplicados em "chips" com "Limpar tudo", ordenação (inclui "mais novos"). No celular os filtros abrem numa gaveta.
+- **Rodapé novo**: colunas Comprar / Ajuda / Atendimento, redes, **formas de pagamento** e **como você recebe** (só o que a loja tem ligado).
+
+**Blocos novos da página inicial (16 tipos no editor; eram 13)**
+- **Carrossel de banners** (`carrossel`): até 5 banners grandes que passam sozinhos (6,5 s; para quando o visitante mexe ou pediu
+  menos movimento), cada um com imagem, título, texto, botão, cor do texto (claro/escuro) e posição. Sem imagem, o banner usa a cor da
+  marca e a foto de um produto da loja.
+- **Grade de banners** (`banners`): 2 a 4 banners lado a lado, arranjo "iguais" ou "um grande e os outros menores".
+- **Galeria de fotos** (`galeria`): mosaico de até 8 fotos. Sem foto, não aparece para o público.
+- **Vitrine** ganhou o formato **carrossel** (fileira que desliza, com setas) e **Categorias** ganhou o estilo **círculos**.
+- O editor (`app/loja-online/editor.blade.php`) passou a desenhar listas com **imagem, destino e opções** por linha (antes só texto).
+
+**Os seis modelos foram refeitos para não parecerem a mesma loja com outra cor** (`ModelosLoja::todos()`):
+Vitrine (carrossel + círculos + fileiras que deslizam), Ateliê (editorial, logo no centro, banners em destaque, foto retrato),
+Circuito (escuro, carrossel, 5 colunas, preço em etiqueta), Feira (verde, círculos, 5 colunas), Mimo (centro, tons pastel),
+Balcão (cabeçalho compacto, catálogo em lista com código).
+
+**Parcelas e selo "Novo"** (Loja online → Promoções → "Preço e selos na vitrine"): `parcelas_max`, `parcela_minima`,
+`parcelas_sem_juros`, `selo_novo_dias`. `CatalogoLoja::parcelas()` só devolve parcela com cartão ligado na empresa E na loja.
+**É só o TEXTO da vitrine** — as parcelas e os juros de verdade são os do provedor de cartão (link InfinitePay/Asaas); a tela avisa isso.
+
+**Arquivos novos:** `loja/partials/estilo3.blade.php` (CSS do redesenho), `extras2.blade.php` (JS: gavetas, sugestões, sacola,
+carrossel, setas), `fileira.blade.php`, `loja/blocos/{carrossel,banners,galeria}.blade.php`; `scripts/loja-online-demo.php` e
+`loja-online-demo.capturas.mjs` (loja de DEMONSTRAÇÃO com catálogo e fotos reais, só para olhar o resultado — não validam nada).
+
+**Validação (14/11, noite) — ambiente descartável `ec-*`:** `validar-loja-online-14nov.py` **338 ✅ / 0 ❌** (bloco T novo, 31 testes),
+`…-pagamentos-14nov.php` **71 ✅ / 0 ❌** (parcelas com cartão ligado/desligado), `…browser.mjs` **181 ✅ / 0 ❌** (bloco I novo, 20
+testes: carrossel, sugestões, sacola lateral, abas, foto ampliada, comprar agora, filtros, menu do celular, barra de compra, editor),
+`LojaOnlineTest` 25 testes (3 novos); suíte inteira 340 testes com os 2 ❌ antigos de sempre (`LoginTest::test_oito_senhas_erradas…`,
+`PdvTest::test_caixa_fechamento…`). **Não validado:** nada desta rodada foi visto por cliente real nem em aparelho de verdade
+(só navegador automático, 1366/1440 px e 390 px); provedores reais continuam sem teste (ver 1ª e 2ª rodadas).
+
+**Dois defeitos reais que a bateria pegou nesta rodada (já corrigidos):** a página inicial com carrossel saía sem `<h1>`; e os
+botões de fechar das gavetas usavam `data-lj-fechar`, o MESMO atributo do formulário do fechamento — o JS do fechamento pegava o botão
+errado, dava erro e o frete parava de calcular. Os botões agora usam `data-lj-x`.
+
+**Armadilhas da 3ª rodada**
+- **103. No Blade, `@php(...)` em linha ANTES de um bloco `@php … @endphp` no mesmo arquivo quebra a view** ("unexpected identifier"):
+  o compilador casa o `@php(` com o `@endphp` de baixo. Num arquivo que tem bloco, escrever sempre `@php x; @endphp`.
+- **104. Atributo `data-…` da loja é nome GLOBAL:** layout, página e parciais dividem o mesmo documento. Antes de criar um, `grep` no
+  `resources/views/loja` (foi assim que `data-lj-fechar` colidiu).
+- **105. Captura de página inteira com `loading="lazy"` + `decoding="async"` sai com fotos em branco** mesmo carregadas: antes de
+  fotografar, pôr `decoding='sync'` e esperar `img.decode()` (está no roteiro de capturas). Não é defeito da loja.
+- **106. Teste que mexe em `frete_gratis_acima` tem que devolver 0:** o roteiro de pagamentos parte de "sem frete grátis"; com 150
+  ligado, 7 testes de frete falham sem motivo aparente.
+- **107. Campo dentro de aba escondida do editor não recebe foco** (o teste digita e nada entra): abrir a aba "Página inicial" antes.
+
+**Para subir (igual à 2ª rodada):** as mesmas **2** migrations; esta rodada não tem migration nem variável nova de `.env`.

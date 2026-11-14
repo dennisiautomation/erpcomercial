@@ -147,6 +147,11 @@ def entrar(email, senha, unidade="1"):
     return n
 
 
+def cartoes(body):
+    """Quantos cartões de produto a página tem (3ª rodada: o cartão ganhou classes extras)."""
+    return len(re.findall(r'<article class="lj-card[ "]', body))
+
+
 def texto(body):
     return re.sub(r"\s+", " ", H.unescape(re.sub(r"<(script|style)[^>]*>.*?</\1>", " ", body, flags=re.S | re.I)))
 
@@ -395,22 +400,22 @@ check("G1 pôr no ar com produto marcado funciona", um("SELECT publicada FROM lo
 st, _, home = pub.get("/loja/demo")
 check("G2 público abre a página inicial (200), sem aviso de prévia", st == 200 and "ainda não está no ar" not in home and "Loja Demo Online" in home, st)
 check("G3 página inicial mostra produtos com preço e foto", "Fone Bluetooth Pro" in home and "/storage/produtos/teste-" in home and "R$ " in home)
-check("G4 banner sem imagem mostra o mosaico de produtos reais", 'class="lj-mosaico"' in home)
+check("G4 topo sem imagem mostra produtos reais (mosaico ou foto no carrossel)", 'class="lj-mosaico"' in home or 'class="lj-slide__produto"' in home)
 check("G5 menu de categorias com as 4 categorias", all(c in home for c in ["Moda", "Casa e Presentes", "Mercearia"]))
 check("G6 rodapé com WhatsApp, Instagram e endereço da loja", "(86) 99999-0000" in home and "instagram.com/lojademo" in home and "Sao Paulo" in home)
 check("G7 indexável (sem noindex) e com contrato de direção no HTML", 'content="noindex' not in home and "contrato de direção" in home)
 st, _, b = pub.get("/loja/demo/produtos")
-check("G8 lista de produtos: 30 produtos, 24 na 1ª página, com paginação", st == 200 and "30 produtos" in texto(b) and b.count('class="lj-card"') == 24 and "lj-paginas" in b, b.count('class="lj-card"'))
+check("G8 lista de produtos: 30 produtos, 24 na 1ª página, com paginação", st == 200 and "30 produtos" in texto(b) and cartoes(b) == 24 and "lj-paginas" in b, cartoes(b))
 st, _, b = pub.get("/loja/demo/produtos?page=2")
-check("G9 página 2 traz os 6 restantes", st == 200 and b.count('class="lj-card"') == 6, b.count('class="lj-card"'))
+check("G9 página 2 traz os 6 restantes", st == 200 and cartoes(b) == 6, cartoes(b))
 st, _, b = pub.get("/loja/demo/produtos?q=" + urllib.parse.quote("bluetooth fone"))
-check("G10 busca por palavras em qualquer ordem acha o produto", st == 200 and b.count('class="lj-card"') == 1 and "Fone Bluetooth Pro" in b, b.count('class="lj-card"'))
+check("G10 busca por palavras em qualquer ordem acha o produto", st == 200 and cartoes(b) == 1 and "Fone Bluetooth Pro" in b, cartoes(b))
 st, _, b = pub.get("/loja/demo/produtos?q=T00009")
-check("G11 busca pelo código exato", b.count('class="lj-card"') == 1 and "Fone Bluetooth Pro" in b)
+check("G11 busca pelo código exato", cartoes(b) == 1 and "Fone Bluetooth Pro" in b)
 st, _, b = pub.get("/loja/demo/produtos?q=" + urllib.parse.quote("zzz não existe"))
 check("G12 busca sem resultado: estado vazio com saída", st == 200 and "Não encontramos nada" in b and "Ver todos os produtos" in b)
 st, _, b = pub.get(f"/loja/demo/produtos?categoria={CAT['Mercearia']}")
-check("G13 filtro por categoria: 7 de Mercearia", b.count('class="lj-card"') == 7 and "Café Especial" in b and "Fone Bluetooth" not in re.sub(r"<header.*?</header>", "", b, flags=re.S))
+check("G13 filtro por categoria: 7 de Mercearia", cartoes(b) == 7 and "Café Especial" in b and "Fone Bluetooth" not in re.sub(r"<header.*?</header>", "", b, flags=re.S))
 st, _, b = pub.get("/loja/demo/produtos?ordem=menor")
 precos = [float(x.replace(".", "").replace(",", ".")) for x in re.findall(r"<b>R\$ ([\d.,]+)</b>", b)]
 check("G14 ordem 'menor preço' crescente", precos == sorted(precos) and len(precos) == 24, precos[:6])
@@ -707,7 +712,7 @@ for modelo in ["vitrine", "atelie", "circuito", "feira", "mimo", "balcao"]:
     st2, _, b2 = pub.get(f"/loja/demo/p/{PF}-camisa-linho-areia")
     st3, _, b3 = pub.get("/loja/demo/produtos")
     check(f"L25 modelo '{modelo}': início, produto e lista abrem (200) com produtos",
-          st == 200 and st2 == 200 and st3 == 200 and b.count('class="lj-card"') >= 4 and 'class="lj-banner' in b, (st, st2, st3, b.count('class="lj-card"')))
+          st == 200 and st2 == 200 and st3 == 200 and cartoes(b) >= 4 and ('class="lj-banner' in b or 'class="lj-carrossel"' in b), (st, st2, st3, cartoes(b)))
 check("L26 modelo Balcão: cartão em lista, com código à vista", 'data-cartao="lista"' in b and "Cód. T000" in b)
 dono.post_json("/app/loja-online/editor/modelo", {"modelo": "vitrine"})
 dono.post_json("/app/loja-online/editor/publicar")
@@ -1079,6 +1084,102 @@ for rota in ["promocoes", "avisos", "politicas", "rastreamento"]:
 vendedor.get("/app/dashboard")
 st, _, _ = vendedor.post(SEC + "rastreamento", {"meta_pixel": "999999999"}, "PUT")
 check("R85 vendedor com POST forjado não muda o rastreamento (403)", st == 403 and cfg_loja()["meta_pixel"] == "1234567890123456", st)
+
+
+# ───────────────────────────── T. 3ª rodada: layouts no nível de tema pronto ─────────────────────────────
+print("\n== T. 3ª rodada: cabeçalho, busca, sacola lateral, filtros, parcelas, blocos novos ==")
+limites()
+home = pub.get("/loja/demo")[2]
+check("T1 cabeçalho novo: busca com sugestões, sacola lateral, menu de categorias e gaveta do celular",
+      all(m in home for m in ["data-lj-busca", "data-sugestoes=", "data-lj-sacola", "data-lj-gaveta", "data-lj-mega", "data-lj-menu"]))
+check("T2 rodapé novo: formas de pagamento e como recebe", "Formas de pagamento" in home and "Como você recebe" in home)
+st, _, b = pub.get("/loja/demo/buscar?q=fone", True)
+j = json.loads(b) if st == 200 else {}
+check("T3 sugestões da busca: JSON com nome, endereço, foto e preço", st == 200 and any("Fone Bluetooth Pro" in x["nome"] for x in j.get("produtos", [])) and all({"nome", "url", "foto", "preco"} <= set(x) for x in j["produtos"]) and len(j["produtos"]) <= 6, st)
+st, _, b = pub.get("/loja/demo/buscar?q=f", True)
+check("T4 sugestões com 1 letra: lista vazia (não varre o catálogo)", st == 200 and json.loads(b)["produtos"] == [], st)
+st, _, b = pub.get("/loja/demo/buscar?q=" + urllib.parse.quote("Produto Só Do ERP"), True)
+check("T5 sugestões não mostram produto fora da vitrine", st == 200 and json.loads(b)["produtos"] == [], b[:120])
+t = Nav()
+t.get("/loja/demo")
+st, b0 = t.get("/loja/demo/carrinho/resumo", True)[0], t.get("/loja/demo/carrinho/resumo", True)[2]
+check("T6 sacola lateral vazia: resumo com 0 itens", st == 200 and json.loads(b0)["quantidade"] == 0 and json.loads(b0)["itens"] == [], st)
+st, j = t.post_json("/loja/demo/carrinho/adicionar", {"produto_id": PX, "quantidade": 2})
+r = json.loads(t.get("/loja/demo/carrinho/resumo", True)[2])
+check("T7 depois de adicionar: resumo traz o item, a quantidade e o subtotal", st == 200 and r["quantidade"] == 2 and len(r["itens"]) == 1 and r["itens"][0]["id"] == PX and abs(r["subtotal"] - r["itens"][0]["total"]) < 0.01, r)
+check("T8 resposta do 'adicionar' traz o item (a sacola abre sem recarregar)", isinstance(j.get("item"), dict) and j["item"].get("nome"), list(j))
+st, _, b = pub.get(f"/loja/demo/vistos?ids={PX},{PF},999999")
+check("T9 vistos recentemente: só os produtos da vitrine, na ordem pedida", st == 200 and cartoes(b) == 2 and b.find(f'data-produto="{PX}"') < b.find(f'data-produto="{PF}"'), cartoes(b))
+check("T10 vistos sem ids: resposta vazia (a seção não aparece)", cartoes(pub.get("/loja/demo/vistos?ids=")[2]) == 0)
+precos_todos = sorted(float(x[0]) for x in sql("SELECT preco_venda FROM produtos WHERE empresa_id=1 AND loja_online=1 AND deleted_at IS NULL"))
+corte = precos_todos[len(precos_todos) // 2]
+st, _, b = pub.get(f"/loja/demo/produtos?preco_max={corte}&ordem=menor")
+pp = [float(x.replace(".", "").replace(",", ".")) for x in re.findall(r"<b>R\$ ([\d.,]+)</b>", b)]
+check("T11 filtro 'até R$': só produtos até o valor, com o filtro aplicado à vista", st == 200 and pp and max(pp) <= corte + 0.01 and 'class="lj-chips"' in b and "Limpar tudo" in b, (corte, pp[-3:]))
+st, _, b = pub.get(f"/loja/demo/produtos?preco_min={corte}&ordem=menor")
+pp = [float(x.replace(".", "").replace(",", ".")) for x in re.findall(r"<b>R\$ ([\d.,]+)</b>", b)]
+check("T12 filtro 'a partir de R$': só produtos do valor para cima", st == 200 and pp and min(pp) >= corte - 0.01, (corte, pp[:3]))
+st, _, b = pub.get("/loja/demo/produtos?preco_min=abc&preco_max=-5")
+check("T13 filtro de preço com lixo não quebra a lista (200, todos os produtos)", st == 200 and cartoes(b) == 24, (st, cartoes(b)))
+st, _, b = pub.get("/loja/demo/produtos")
+check("T14 lista: filtros de categoria, preço e 'mostrar só' ao lado", st == 200 and "data-lj-filtros" in b and 'name="preco_min"' in b and 'name="preco_max"' in b and "promocao=1" in b and "destaque=1" in b)
+dest = int(um("SELECT COUNT(*) FROM produtos WHERE empresa_id=1 AND loja_online=1 AND loja_online_destaque=1 AND deleted_at IS NULL"))
+st, _, b = pub.get("/loja/demo/produtos?destaque=1")
+check("T15 filtro 'destaques da loja' traz só os marcados", st == 200 and cartoes(b) == min(dest, 24), (dest, cartoes(b)))
+
+# parcelas e selo: só texto da vitrine, vindo da configuração
+dono.get("/app/loja-online/promocoes")
+st, _, _ = dono.post_arquivos(SEC + "promocoes", {"frete_gratis_acima": "0", "popup_gatilho": "tempo", "parcelas_max": "6", "parcela_minima": "20,00", "parcelas_sem_juros": "1", "selo_novo_dias": "0"}, [], "PUT")
+c = cfg_loja()
+check("T16 painel grava parcelamento e selo (6x, mínima R$ 20, sem juros, selo desligado)", c["parcelas_max"] == 6 and float(c["parcela_minima"]) == 20.0 and c["parcelas_sem_juros"] is True and c["selo_novo_dias"] == 0, (st, c.get("parcelas_max")))
+b = pub.get(f"/loja/demo/p/{PF}-camisa-linho-areia")[2]
+check("T17 sem cartão configurado na empresa, a vitrine não promete parcela (a conta com cartão está no roteiro de pagamentos)", "Cartão de crédito" not in b and not re.search(r"\dx de R\$", texto(b)))
+check("T18 selo 'Novo' some com 0 dias", 'class="lj-selo lj-selo--novo"' not in pub.get("/loja/demo/produtos")[2])
+dono.get("/app/loja-online/promocoes")
+dono.post_arquivos(SEC + "promocoes", {"frete_gratis_acima": "0", "popup_gatilho": "tempo", "parcelas_max": "0", "parcela_minima": "20", "selo_novo_dias": "30"}, [], "PUT")
+b = pub.get("/loja/demo/produtos")[2]
+check("T19 parcelas em 0: a vitrine não fala de parcela; selo 'Novo' volta com 30 dias", not re.search(r"\dx de R\$", texto(b)) and 'class="lj-selo lj-selo--novo"' in b)
+dono.get("/app/loja-online/promocoes")
+st, _, b = dono.post_arquivos(SEC + "promocoes", {"frete_gratis_acima": "0", "popup_gatilho": "tempo", "parcelas_max": "99", "parcela_minima": "20"}, [], "PUT")
+check("T20 parcelas acima de 24 é recusado (continua 0)", cfg_loja()["parcelas_max"] == 0, cfg_loja()["parcelas_max"])
+
+check("T20b o bloco não ligou frete grátis (o roteiro de pagamentos parte de 0)", float(cfg_loja().get("frete_gratis_acima", 0)) == 0, cfg_loja().get("frete_gratis_acima"))
+
+# página do produto
+b = pub.get(f"/loja/demo/p/{PF}-camisa-linho-areia")[2]
+check("T21 produto: zoom, foto ampliada, abas, comprar agora e barra fixa de compra", all(m in b for m in ["data-lj-zoom", "data-lj-luz", "data-lj-abas", "data-lj-comprar-agora", "data-lj-barra"]))
+check("T22 produto: caixa de compra diz como paga, como recebe e como troca", "lj-formas" in b and "Pagamento combinado com a loja" in texto(b) and "Troca e devolução" in texto(b) and ("Calcular frete" in texto(b) or "Retire na loja" in texto(b)))
+
+# blocos novos pelo editor
+blocos_novos = [
+    {"id": "t1", "tipo": "carrossel", "altura": "alta", "lista": [
+        {"imagem": "", "titulo": "Banner um", "texto": "Texto um", "botao_texto": "Ver", "botao_link": "produtos", "tom": "claro", "lado": "esquerda"},
+        {"imagem": "../../etc/passwd", "titulo": "Banner dois <script>alert(1)</script>", "texto": "", "botao_texto": "Ir", "botao_link": "javascript:alert(1)", "tom": "roxo", "lado": "cima"}]},
+    {"id": "t2", "tipo": "banners", "titulo": "Coleções", "arranjo": "destaque", "lista": [{"imagem": "", "titulo": "Novidades", "texto": "da semana", "botao_link": "produtos?ordem=novos"}, {"imagem": "", "titulo": "Ofertas", "texto": "", "botao_link": "produtos?promocao=1"}]},
+    {"id": "t3", "tipo": "categorias", "titulo": "Por categoria", "estilo": "circulos"},
+    {"id": "t4", "tipo": "vitrine", "titulo": "Desliza", "origem": "todos", "categoria_id": None, "quantidade": "8", "colunas": "4", "formato": "carrossel"},
+    {"id": "t5", "tipo": "galeria", "titulo": "Da loja", "lista": [{"imagem": "", "botao_link": ""}]},
+]
+dono.get("/app/loja-online/editor")
+st, j = dono.post_json("/app/loja-online/editor/rascunho", {"modelo": "vitrine", "tema": {"cabecalho": "compacto"}, "blocos": blocos_novos})
+rb = {x["tipo"]: x for x in j.get("rascunho", {}).get("blocos", [])} if st == 200 else {}
+s2 = rb.get("carrossel", {}).get("lista", [{}, {}])
+check("T23 editor aceita carrossel, grade de banners, círculos, vitrine em carrossel e galeria", st == 200 and set(rb) >= {"carrossel", "banners", "categorias", "vitrine", "galeria"}, (st, list(rb)))
+check("T24 higiene do carrossel: imagem fora da pasta e link javascript: são zerados; tom/posição inválidos viram o padrão",
+      len(s2) == 2 and s2[1]["imagem"] == "" and s2[1]["botao_link"] == "" and s2[1]["tom"] == "claro" and s2[1]["lado"] == "esquerda", s2[1] if len(s2) > 1 else s2)
+check("T25 tema aceita o cabeçalho 'compacto'", j.get("rascunho", {}).get("tema", {}).get("cabecalho") == "compacto")
+dono.post_json("/app/loja-online/editor/publicar")
+b = pub.get("/loja/demo")[2]
+check("T26 loja publicada mostra os blocos novos (carrossel com 2 banners, banners, círculos, fileira que desliza)",
+      'class="lj-carrossel"' in b and b.count('aria-roledescription="slide"') == 2 and 'class="lj-banners' in b and 'class="lj-circulos"' in b and "lj-grade--carrossel" in b and 'data-cabecalho="compacto"' in b)
+check("T27 título do banner sai como texto (sem executar script)", "<script>alert(1)</script>" not in b and "Banner dois" in b)
+check("T28 galeria sem foto não aparece para o público", "Da loja" not in texto(b))
+dono.post_json("/app/loja-online/editor/modelo", {"modelo": "vitrine"})
+dono.post_json("/app/loja-online/editor/publicar")
+ed = dono.get("/app/loja-online/editor")[2]
+check("T29 editor oferece os 3 blocos novos e sabe desenhar lista com imagem, link e opções", all(x in ed for x in ["Carrossel de banners", "Grade de banners", "Galeria de fotos"]) and "sc[2] === 'imagem'" in ed)
+b = dono.get("/app/loja-online/promocoes")[2]
+check("T30 aba Promoções tem o quadro de parcelamento e avisa que é só o texto da vitrine", 'name="parcelas_max"' in b and 'name="selo_novo_dias"' in b and "só o texto da vitrine" in b)
 
 sql("UPDATE empresas SET exige_documento_cadastro=1 WHERE id=1")
 print("\n== O. O resto do ERP continua igual ==")

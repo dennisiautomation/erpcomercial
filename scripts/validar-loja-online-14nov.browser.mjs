@@ -57,7 +57,7 @@ const CAMINHO_P = `/loja/demo/p/${PID}-camisa-linho-areia`;
 console.log('\n== A. Os seis modelos renderizam, no computador e no celular ==');
 const esperado = {
   vitrine: { titulo: 'Figtree', cartao: 'borda', foto: 'quadrada' }, atelie: { titulo: 'Bodoni Moda', cartao: 'limpo', foto: 'retrato' },
-  circuito: { titulo: 'Archivo', cartao: 'sombra', foto: 'quadrada' }, feira: { titulo: 'Bricolage Grotesque', cartao: 'limpo', foto: 'quadrada' },
+  circuito: { titulo: 'Archivo', cartao: 'sombra', foto: 'quadrada' }, feira: { titulo: 'Bricolage Grotesque', cartao: 'sombra', foto: 'quadrada' },
   mimo: { titulo: 'Fredoka', cartao: 'sombra', foto: 'quadrada' }, balcao: { titulo: 'Manrope', cartao: 'lista', foto: 'quadrada' },
 };
 for (const [modelo, esp] of Object.entries(esperado)) {
@@ -66,18 +66,26 @@ for (const [modelo, esp] of Object.entries(esperado)) {
   const d = await abrir(1366);
   await d.goto(BASE + '/loja/demo', { waitUntil: 'networkidle2' });
   const info = await d.evaluate(() => ({
-    fonte: getComputedStyle(document.querySelector('.lj-banner h1, .lj-banner h2')).fontFamily,
+    fonte: getComputedStyle(document.querySelector('.lj-banner h1, .lj-carrossel h1')).fontFamily, cabecalho: document.querySelector('[data-cabecalho]').dataset.cabecalho,
     cartao: document.body.dataset.cartao, foto: document.body.dataset.foto,
-    cards: document.querySelectorAll('.lj-card').length, imgs: [...document.querySelectorAll('.lj-mosaico img')].filter(i => i.complete && i.naturalWidth > 0).length,
+    cards: document.querySelectorAll('.lj-card').length, imgs: [...document.querySelectorAll('.lj-mosaico img, .lj-slide__produto img, .lj-slide__img')].filter(i => i.complete && i.naturalWidth > 0).length,
     h1: document.querySelectorAll('h1').length,
     colunas: getComputedStyle(document.querySelector('.lj-grade')).gridTemplateColumns.split(' ').length,
   }));
   check(`A1 ${modelo}: fonte do título (${esp.titulo}), cartão "${esp.cartao}" e foto "${esp.foto}"`, info.fonte.includes(esp.titulo) && info.cartao === esp.cartao && info.foto === esp.foto, info);
-  check(`A2 ${modelo}: produtos na página, mosaico com fotos carregadas, um único h1`, info.cards >= 4 && info.imgs >= 1 && info.h1 === 1, info);
-  const topo = await d.evaluate(() => { const b = document.querySelector('.lj-banner'), m = b.querySelector('.lj-mosaico'), t = b.querySelector('h1').getBoundingClientRect(), r = m.getBoundingClientRect();
-    return { estilo: [...b.classList].find(c => c.startsWith('lj-banner--')), altura: Math.round(b.getBoundingClientRect().height), aoLado: r.left > t.right - 40 && r.top < t.bottom, embaixo: r.top >= t.bottom, foco: getComputedStyle(document.body).getPropertyValue('--fonte-preco').length > 3 }; });
-  const formaEsperada = { vitrine: t => t.aoLado, atelie: t => t.embaixo && t.estilo === 'lj-banner--editorial', circuito: t => t.aoLado, feira: t => t.embaixo && t.estilo === 'lj-banner--cheio', mimo: t => t.embaixo && t.estilo === 'lj-banner--centro', balcao: t => t.altura <= 300 }[modelo];
+  check(`A2 ${modelo}: produtos na página, topo com fotos de produto carregadas, um único h1`, info.cards >= 4 && info.imgs >= 1 && info.h1 === 1, info);
+  const topo = await d.evaluate(() => { const c = document.querySelector('.lj-carrossel'), b = document.querySelector('.lj-banner');
+    if (c) return { tipo: 'carrossel', slides: c.querySelectorAll('.lj-slide').length, pontos: c.querySelectorAll('.lj-carrossel__pontos button').length, altura: Math.round(c.getBoundingClientRect().height) };
+    const m = b.querySelector('.lj-mosaico'), t = b.querySelector('h1').getBoundingClientRect(), r = m.getBoundingClientRect();
+    return { tipo: 'banner', estilo: [...b.classList].find(k => k.startsWith('lj-banner--')), altura: Math.round(b.getBoundingClientRect().height), embaixo: r.top >= t.bottom }; });
+  const formaEsperada = { vitrine: t => t.tipo === 'carrossel' && t.slides >= 2 && t.pontos === t.slides, atelie: t => t.embaixo && t.estilo === 'lj-banner--editorial', circuito: t => t.tipo === 'carrossel' && t.slides >= 2,
+    feira: t => t.embaixo && t.estilo === 'lj-banner--cheio', mimo: t => t.embaixo && t.estilo === 'lj-banner--centro', balcao: t => t.tipo === 'banner' && t.altura <= 300 }[modelo];
   check(`A2b ${modelo}: o topo tem a composição do modelo (${JSON.stringify(topo)})`, formaEsperada(topo), topo);
+  const pecas = await d.evaluate(() => ({ circulos: !!document.querySelector('.lj-circulos'), banners: document.querySelectorAll('.lj-banners > *').length, desliza: document.querySelectorAll('.lj-grade--carrossel').length,
+    busca: !!document.querySelector('[data-lj-busca] input'), sacola: !!document.querySelector('[data-lj-gaveta]'), rodape: document.querySelector('.lj-rodape').textContent.includes('Formas de pagamento') }));
+  const cabecalhoEsperado = { vitrine: 'esquerda', atelie: 'centralizado', circuito: 'esquerda', feira: 'esquerda', mimo: 'centralizado', balcao: 'compacto' }[modelo];
+  check(`A2c ${modelo}: cabeçalho com busca, sacola lateral e rodapé novo`, pecas.busca && pecas.sacola && pecas.rodape, pecas);
+  check(`A2d ${modelo}: cabeçalho no formato do modelo (${cabecalhoEsperado})`, info.cabecalho === cabecalhoEsperado, info.cabecalho);
   check(`A3 ${modelo} no computador: sem rolagem lateral`, await sobraLateral(d) <= 1, await sobraLateral(d));
   await print(d, `${modelo}-inicio-computador`);
   await d.goto(BASE + CAMINHO_P, { waitUntil: 'networkidle2' });
@@ -290,6 +298,8 @@ await sleep(2800);
 const ordemDepois = await erp.$$eval('.ed-bloco', b => b.map(x => x.dataset.id));
 check('E12 "Subir" troca o bloco de lugar', ordemDepois[ordemDepois.length - 2] === ordemAntes[ordemAntes.length - 1], { ordemAntes, ordemDepois });
 // arrastar pela alça (o 1º para depois do 2º)
+await erp.evaluate(() => document.querySelector('.ed-pega').scrollIntoView({ block: 'center' }));  // a lista ficou maior: a 1ª alça pode estar fora da tela
+await sleep(200);
 const alcas = await erp.$$('.ed-pega');
 const a = await alcas[0].boundingBox(), b2box = await (await erp.$$('.ed-bloco'))[1].boundingBox();
 await erp.mouse.move(a.x + a.width / 2, a.y + a.height / 2);
@@ -585,7 +595,7 @@ await erp.goto(BASE + '/app/loja-online/editor', { waitUntil: 'networkidle2' });
 await erp.click('[data-bs-target="#edPagina"]');
 await sleep(400);
 h = await erp.evaluate(() => [...document.querySelectorAll('#edNovoBloco .dropdown-item')].map(b => b.childNodes[1].textContent.trim()));
-check('H39 editor oferece os 13 tipos de bloco (6 novos)', h.length === 13 && ['Oferta com contagem', 'Depoimentos', 'Perguntas frequentes', 'Receber novidades', 'Vídeo', 'Redes sociais'].every(n => h.includes(n)), h);
+check('H39 editor oferece os 16 tipos de bloco (6 da 2ª rodada + carrossel, grade de banners e galeria)', h.length === 16 && ['Carrossel de banners', 'Grade de banners', 'Galeria de fotos', 'Oferta com contagem', 'Depoimentos', 'Perguntas frequentes', 'Receber novidades', 'Vídeo', 'Redes sociais'].every(n => h.includes(n)), h);
 await erp.click('#edPagina .dropdown-toggle');
 await erp.evaluate(() => [...document.querySelectorAll('#edNovoBloco .dropdown-item')].find(b => b.textContent.includes('Depoimentos')).click());
 await sleep(300);
@@ -602,6 +612,145 @@ await sleep(350);
 await erp.click('.modal.show [data-role=ok]');
 await sleep(800);
 sql("DELETE FROM loja_cupons WHERE codigo='NAV20'; UPDATE lojas_online SET tema=NULL, blocos=NULL, rascunho=NULL, config=JSON_SET(config,'$.popup_ativo',false,'$.cookies_aviso',false,'$.meta_pixel','','$.ga4','','$.google_ads','','$.aviso_topo','') WHERE slug='demo'");
+
+// ───────────────────── I. 3ª rodada: peças novas da vitrine ─────────────────────
+console.log('\n== I. 3ª rodada: sacola lateral, busca, carrossel, produto, filtros, editor ==');
+sql("UPDATE lojas_online SET modelo='vitrine', tema=NULL, blocos=NULL, rascunho=NULL WHERE slug='demo'");
+{
+  const ctxI = await browser.createBrowserContext(); // carrinho próprio
+  const i = await ctxI.newPage();
+  await i.setViewport({ width: 1366, height: 900 });
+  i.on('pageerror', e => erros.push(e.message));
+  await i.goto(BASE + '/loja/demo', { waitUntil: 'networkidle2' });
+
+  // carrossel do topo
+  let r = await i.evaluate(() => { const c = document.querySelector('[data-lj-carrossel]'), t = c.querySelector('[data-lj-trilho-banner]'); return { slides: t.children.length, pos: t.scrollLeft, larg: t.clientWidth }; });
+  await i.click('.lj-carrossel__pontos button[data-ir="1"]');
+  await sleep(900);
+  let r2 = await i.evaluate(() => { const c = document.querySelector('[data-lj-carrossel]'), t = c.querySelector('[data-lj-trilho-banner]'); return { pos: Math.round(t.scrollLeft), atual: c.querySelector('.lj-carrossel__pontos button[data-ir="1"]').getAttribute('aria-current') }; });
+  check('I1 carrossel: clicar no 2º ponto leva ao 2º banner e marca o ponto', r.slides >= 2 && Math.abs(r2.pos - r.larg) < 6 && r2.atual === 'true', { ...r, ...r2 });
+  await i.click('.lj-carrossel__seta[data-d="-1"]');
+  await sleep(900);
+  check('I2 carrossel: a seta "anterior" volta ao 1º banner', await i.evaluate(() => Math.round(document.querySelector('[data-lj-trilho-banner]').scrollLeft)) < 6);
+
+  // fileira que desliza
+  r = await i.evaluate(() => { const s = document.querySelector('[data-lj-setas]'), t = s.closest('section').querySelector('[data-lj-trilho]'); return { antes: t.scrollLeft, cabe: t.scrollWidth <= t.clientWidth + 2 }; });
+  await i.evaluate(() => document.querySelector('[data-lj-setas] button[data-d="1"]').click());
+  await sleep(900);
+  r2 = await i.evaluate(() => { const s = document.querySelector('[data-lj-setas]'), t = s.closest('section').querySelector('[data-lj-trilho]'); return t.scrollLeft; });
+  check('I3 fileira em carrossel: a seta desliza os produtos (ou tudo já cabe na tela)', r.cabe || r2 > r.antes + 50, { ...r, depois: r2 });
+
+  // busca com sugestões
+  await i.type('#lj-q', 'fone');
+  await i.waitForFunction(() => !document.querySelector('[data-lj-sugestoes]').hidden, { timeout: 8000 }).catch(() => {});
+  r = await i.evaluate(() => { const c = document.querySelector('[data-lj-sugestoes]'); return { aberta: !c.hidden, itens: [...c.querySelectorAll('a')].map(a => a.textContent.trim()), expandido: document.querySelector('#lj-q').getAttribute('aria-expanded') }; });
+  check('I4 busca: digitar "fone" abre as sugestões com o produto e o atalho "ver todos"', r.aberta && r.itens.some(t => t.includes('Fone Bluetooth Pro')) && r.itens.some(t => t.includes('Ver todos')) && r.expandido === 'true', r);
+  await i.keyboard.press('Escape');
+  check('I5 busca: Esc fecha as sugestões', await i.evaluate(() => document.querySelector('[data-lj-sugestoes]').hidden));
+  await i.evaluate(() => { document.querySelector('#lj-q').value = ''; });
+
+  // sacola lateral
+  await i.hover('.lj-card');
+  await i.click('.lj-card form[data-lj-add] button');
+  await i.waitForFunction(() => document.querySelector('[data-lj-gaveta]').open, { timeout: 8000 }).catch(() => {});
+  r = await i.evaluate(() => { const g = document.querySelector('[data-lj-gaveta]'); return { aberta: g.open, itens: g.querySelectorAll('.lj-item').length, total: g.querySelector('[data-lj-gaveta-total]').textContent.trim(), conta: document.querySelector('[data-lj-conta]').textContent.trim(), url: location.pathname }; });
+  check('I6 adicionar pelo cartão abre a sacola lateral com o item e o subtotal, sem sair da página', r.aberta && r.itens === 1 && /R\$\s?\d/.test(r.total) && r.conta === '1' && r.url === '/loja/demo', r);
+  await sleep(700); // a sacola entra deslizando
+  await i.click('[data-lj-gaveta] .lj-item button[aria-label^="Aumentar"]');
+  await i.waitForFunction(() => document.querySelector('[data-lj-conta]').textContent.trim() === '2', { timeout: 8000 }).catch(() => {});
+  r2 = await i.evaluate(() => ({ qtd: document.querySelector('[data-lj-gaveta] .lj-qtd span').textContent, conta: document.querySelector('[data-lj-conta]').textContent.trim(), total: document.querySelector('[data-lj-gaveta-total]').textContent.trim() }));
+  check('I7 "+" dentro da sacola lateral: quantidade 2, contador 2 e subtotal recalculado', r2.qtd === '2' && r2.conta === '2' && r2.total !== r.total, r2);
+  await i.click('[data-lj-gaveta] .lj-tirar');
+  await i.waitForFunction(() => !!document.querySelector('[data-lj-gaveta] .lj-gaveta__vazia'), { timeout: 8000 }).catch(() => {});
+  r = await i.evaluate(() => ({ vazia: !!document.querySelector('[data-lj-gaveta] .lj-gaveta__vazia'), pe: document.querySelector('[data-lj-gaveta] .lj-gaveta__pe').hidden, conta: document.querySelector('[data-lj-conta]').hidden }));
+  check('I8 "Tirar" esvazia a sacola: estado vazio, sem botão de finalizar, contador some', r.vazia && r.pe && r.conta, r);
+  await i.keyboard.press('Escape');
+  await sleep(200);
+  check('I9 Esc fecha a sacola lateral', await i.evaluate(() => !document.querySelector('[data-lj-gaveta]').open));
+
+  // página do produto
+  await i.goto(BASE + CAMINHO_P, { waitUntil: 'networkidle2' });
+  await i.click('#aba-entrega');
+  r = await i.evaluate(() => ({ sel: document.querySelector('#aba-entrega').getAttribute('aria-selected'), painel: !document.querySelector('#painel-entrega').hidden, outro: document.querySelector('#painel-descricao').hidden }));
+  check('I10 produto: aba "Entrega e trocas" troca o painel', r.sel === 'true' && r.painel && r.outro, r);
+  await i.click('[data-lj-zoom="0"]');
+  await sleep(300);
+  r = await i.evaluate(() => { const l = document.querySelector('[data-lj-luz]'); return { aberta: l.open, src: l.querySelector('[data-lj-luz-img]').getAttribute('src') }; });
+  await i.click('[data-lj-luz-ir="1"]');
+  r2 = await i.evaluate(() => document.querySelector('[data-lj-luz] [data-lj-luz-img]').getAttribute('src'));
+  check('I11 produto: clicar na foto abre a foto ampliada e a seta passa para a próxima', r.aberta && !!r.src && r2 !== r.src, { ...r, depois: r2 });
+  await i.keyboard.press('Escape');
+  await sleep(200);
+  await nav(i, () => i.click('[data-lj-comprar-agora]'));
+  check('I12 "Comprar agora" adiciona e vai direto para o fechamento', i.url().endsWith('/loja/demo/finalizar') && await i.evaluate(() => document.querySelectorAll('.lj-resumo .lj-linha, .lj-resumo li, .lj-resumo [data-lj-total]').length > 0), i.url());
+  await i.goto(BASE + CAMINHO_P, { waitUntil: 'networkidle2' });
+  await i.goto(BASE + '/loja/demo', { waitUntil: 'networkidle2' });
+  check('I13 produto visto fica guardado no navegador (para "vistos recentemente")', await i.evaluate(pid => Object.keys(localStorage).some(k => (localStorage.getItem(k) || '').includes(String(pid))), PID));
+
+  // lista com filtros
+  await i.goto(BASE + '/loja/demo/produtos', { waitUntil: 'networkidle2' });
+  const total = await i.evaluate(() => document.querySelectorAll('.lj-card').length);
+  await i.type('input[name=preco_max]', '50');
+  await nav(i, () => i.evaluate(() => document.querySelector('input[name=preco_max]').form.requestSubmit()));
+  r = await i.evaluate(() => ({ url: location.search, cards: document.querySelectorAll('.lj-card').length, chips: [...document.querySelectorAll('.lj-chips a, .lj-chips span')].map(c => c.textContent.trim()).join(' | '),
+    precos: [...document.querySelectorAll('.lj-card .lj-preco b, .lj-card__pe b')].map(b => Number(b.textContent.replace(/[^\d,]/g, '').replace(',', '.'))) }));
+  check('I14 lista: filtrar "até R$ 50" recarrega só com produtos até R$ 50 e mostra o filtro aplicado', /preco_max=50/.test(r.url) && r.cards > 0 && r.cards < total && r.precos.every(p => p <= 50.001) && /50/.test(r.chips), { ...r, total });
+  await nav(i, () => i.click('.lj-chips__limpar'));
+  check('I15 "Limpar tudo" volta à lista completa', await i.evaluate(() => document.querySelectorAll('.lj-card').length) === total);
+  await i.close();
+
+  // celular: menu lateral e barra de compra
+  const c = await ctxI.newPage();
+  await c.setViewport({ width: 390, height: 844, isMobile: true, hasTouch: true });
+  c.on('pageerror', e => erros.push(e.message));
+  await c.goto(BASE + '/loja/demo', { waitUntil: 'networkidle2' });
+  await c.evaluate(() => document.querySelector('[data-lj-menu-abrir]').click());
+  await sleep(300);
+  r = await c.evaluate(() => { const m = document.querySelector('[data-lj-menu]'); return { aberto: m.open, links: m.querySelectorAll('a').length, largura: Math.round(m.getBoundingClientRect().width) }; });
+  check('I16 celular: o botão de menu abre a gaveta com as categorias', r.aberto && r.links >= 4 && r.largura <= 390, r);
+  await c.evaluate(() => document.querySelector('[data-lj-menu] [data-lj-x]').click());
+  await sleep(200);
+  check('I17 celular: o X fecha o menu', await c.evaluate(() => !document.querySelector('[data-lj-menu]').open));
+  await c.goto(BASE + CAMINHO_P, { waitUntil: 'networkidle2' });
+  await c.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+  await sleep(500);
+  r = await c.evaluate(() => { const b = document.querySelector('[data-lj-barra]'); return { visivel: !b.hidden && getComputedStyle(b).display !== 'none', sobra: document.documentElement.scrollWidth - innerWidth }; });
+  check('I18 celular: rolando além do botão de compra, aparece a barra fixa de compra (sem rolagem lateral)', r.visivel && r.sobra <= 1, r);
+  await c.close();
+  await ctxI.close();
+}
+
+// editor: bloco novo com lista de imagem + link + opções
+{
+  const ed = await abrir(1440, 900);
+  await ed.goto(BASE + '/app/loja-online/editor', { waitUntil: 'networkidle2' });
+  if (ed.url().includes('/login')) { check('I19 editor abre com a sessão do dono', false, ed.url()); } else {
+    await ed.click('[data-bs-target="#edPagina"]');
+    await sleep(300);
+    const antes = await ed.$$eval('.ed-bloco', b => b.length);
+    await ed.evaluate(() => [...document.querySelectorAll('#edNovoBloco .dropdown-item')].find(b => b.textContent.includes('Carrossel de banners')).click());
+    await sleep(400);
+    let r = await ed.evaluate(() => { const a = document.querySelector('.ed-bloco.aberto'); return { blocos: document.querySelectorAll('.ed-bloco').length, imagem: !!a.querySelector('.ed-img'), selects: a.querySelectorAll('select').length, texto: a.querySelectorAll('input[type=text]').length }; });
+    check('I19 editor: "Carrossel de banners" abre com imagem, textos, destino do botão, cor do texto e posição', r.blocos === antes + 1 && r.imagem && r.selects >= 4 && r.texto >= 3, r);
+    await ed.evaluate(() => [...document.querySelectorAll('.ed-bloco.aberto button')].find(b => b.textContent.includes('+ Adicionar')).click());
+    await sleep(300);
+    const campo = await ed.$('.ed-bloco.aberto input[aria-label="Título 2"]');
+    await campo.type('Segundo banner do teste');
+    await ed.waitForFunction(() => document.querySelector('#edEstado').textContent.includes('não publicadas'), { timeout: 15000 }).catch(() => {});
+    await sleep(2800);
+    const quadroI = ed.frames().find(f => f.url().includes('/loja/'));
+    r = await quadroI.evaluate(() => ({ carrosseis: document.querySelectorAll('.lj-carrossel').length, texto: document.body.textContent.includes('Segundo banner do teste') }));
+    r.estado = await ed.$eval('#edEstado', e => e.textContent.trim());
+    check('I20 editor: adicionar um 2º banner e escrever o título aparece na prévia', r.texto && r.carrosseis === 2, r);
+    await ed.click('#edDescartar');
+    await ed.waitForSelector('.modal.show [data-role=ok]');
+    await sleep(350);
+    await ed.click('.modal.show [data-role=ok]');
+    await sleep(800);
+  }
+  await ed.close();
+}
+sql("UPDATE lojas_online SET tema=NULL, blocos=NULL, rascunho=NULL WHERE slug='demo'");
 
 // ───────────────────── G. admin ─────────────────────
 console.log('\n== G. Admin: card da loja online ==');
