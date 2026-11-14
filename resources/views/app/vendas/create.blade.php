@@ -74,14 +74,10 @@
                 <label for="campo-forma_pagamento" class="form-label required">Forma de Pagamento <span class="text-danger">*</span></label>
                 <select id="campo-forma_pagamento" name="forma_pagamento" class="form-select @error('forma_pagamento') is-invalid @enderror" required>
                     <option value="">Selecione</option>
-                    <option value="dinheiro" {{ old('forma_pagamento') === 'dinheiro' ? 'selected' : '' }}>Dinheiro</option>
-                    <option value="cartao_credito" {{ old('forma_pagamento') === 'cartao_credito' ? 'selected' : '' }}>Cartão de Crédito</option>
-                    <option value="cartao_debito" {{ old('forma_pagamento') === 'cartao_debito' ? 'selected' : '' }}>Cartão de Débito</option>
-                    <option value="pix" {{ old('forma_pagamento') === 'pix' ? 'selected' : '' }}>PIX</option>
-                    <option value="boleto" {{ old('forma_pagamento') === 'boleto' ? 'selected' : '' }}>Boleto</option>
-                    <option value="crediario" {{ old('forma_pagamento') === 'crediario' ? 'selected' : '' }}>Crediario</option>
-                    <option value="transferencia" {{ old('forma_pagamento') === 'transferencia' ? 'selected' : '' }}>Transferência</option>
-                    <option value="vale" {{ old('forma_pagamento') === 'vale' ? 'selected' : '' }}>Vale</option>
+                    {{-- Formas da empresa (Configurações → Formas de pagamento, 14/11/2026) --}}
+                    @foreach($formasPagamento as $fp)
+                        <option value="{{ $fp->chave }}" @selected(old('forma_pagamento') === $fp->chave)>{{ $fp->nome }}</option>
+                    @endforeach
                 </select>
                 @error('forma_pagamento') <div class="invalid-feedback">{{ $message }}</div> @enderror
             </div>

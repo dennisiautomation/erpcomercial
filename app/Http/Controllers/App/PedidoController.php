@@ -83,7 +83,9 @@ class PedidoController extends Controller
         // "Sai de" (05/11/2026): só quando a loja tem mais de um estoque
         $estoquesSaida = SaldoEstoque::estoquesParaEscolher((int) session('unidade_id'));
 
-        return view('app.pedidos.create', compact('vendedores', 'produtos', 'servicos', 'tabelaDaCondicao', 'estoquesSaida'));
+        $opcoesCondicao = app(\App\Services\FormaPagamentoService::class)->opcoesCondicao((int) session('empresa_id'), old('condicao_pagamento'));
+
+        return view('app.pedidos.create', compact('vendedores', 'produtos', 'servicos', 'tabelaDaCondicao', 'estoquesSaida', 'opcoesCondicao'));
     }
 
     public function store(Request $request)
@@ -92,7 +94,8 @@ class PedidoController extends Controller
             'cliente_id'              => 'required|exists:clientes,id',
             'vendedor_id'             => 'nullable|exists:users,id',
             'estoque_id'              => 'nullable|integer',
-            'condicao_pagamento'      => 'nullable|string|max:255',
+            // Formas da empresa + prazos + valores antigos (14/11/2026)
+            'condicao_pagamento'      => ['nullable', \Illuminate\Validation\Rule::in(app(\App\Services\FormaPagamentoService::class)->condicoesValidas((int) session('empresa_id'), $pedido->condicao_pagamento ?? null))],
             'canal'                   => 'nullable|' . CanalVenda::regraIn(),
             'desconto_percentual'     => 'nullable|numeric|min:0|max:100',
             'desconto_valor'          => 'nullable|numeric|min:0',
@@ -227,7 +230,12 @@ class PedidoController extends Controller
         // Faturar pergunta a forma de pagamento (27/10/2026, pedido da DK): a
         // venda e a NFC-e saíam "a definir". Sugere a condição do pedido e mostra
         // o quadro do orçamento de origem como referência.
-        $formaSugerida = self::FORMA_DA_CONDICAO[$pedido->condicao_pagamento ?? ''] ?? null;
+        // Formas da empresa (Configurações → Formas de pagamento, 14/11/2026):
+        // o select manda a CHAVE do botão; a sugestão da condição vira a chave
+        // do sistema com aquele código ou, desligada, a primeira que funciona igual.
+        $formasAtivas = app(\App\Services\FormaPagamentoService::class)->ativas((int) $pedido->empresa_id);
+        $formaSugerida = app(\App\Services\FormaPagamentoService::class)
+            ->formaDaCondicao((int) $pedido->empresa_id, $pedido->condicao_pagamento)?->chave;
         $quadroOrcamento = null;
         if ($pedido->orcamento && $pedido->orcamento->parcelas) {
             $configLoja = \App\Models\ConfiguracaoLoja::daUnidade($pedido->empresa_id, $pedido->unidade_id);
@@ -240,7 +248,7 @@ class PedidoController extends Controller
                 $configLoja,
             );
         }
-        $formasFaturar = self::FORMAS_FATURAR;
+        $formasFaturar = $formasAtivas;
 
         // Trocar vendedor (03/11/2026): mesma lista do F3 do PDV, pela loja do pedido
         $vendedoresTroca = collect();
@@ -325,7 +333,9 @@ class PedidoController extends Controller
 
         $estoquesSaida = SaldoEstoque::estoquesParaEscolher((int) $pedido->unidade_id);
 
-        return view('app.pedidos.edit', compact('pedido', 'vendedores', 'produtos', 'servicos', 'tabelaDaCondicao', 'precosDosItens', 'estoquesSaida'));
+        $opcoesCondicao = app(\App\Services\FormaPagamentoService::class)->opcoesCondicao((int) $pedido->empresa_id, $pedido->condicao_pagamento);
+
+        return view('app.pedidos.edit', compact('pedido', 'vendedores', 'produtos', 'servicos', 'tabelaDaCondicao', 'precosDosItens', 'estoquesSaida', 'opcoesCondicao'));
     }
 
     /**
@@ -337,9 +347,12 @@ class PedidoController extends Controller
     private function tabelaDaCondicao(\App\Models\ConfiguracaoLoja $config): array
     {
         $tabela = app(\App\Services\TabelaPrecoService::class);
+        $formasSvc = app(\App\Services\FormaPagamentoService::class);
+        $empresaId = (int) ($config->empresa_id ?: session('empresa_id'));
         $mapa = ['' => $tabela->modalidadeDoCadastro($config)];
-        foreach (array_keys(self::CONDICOES_LABELS) as $condicao) {
-            $forma = self::FORMA_DA_CONDICAO[$condicao] ?? 'boleto';
+        // Toda condição possível (formas da empresa, prazos e valores antigos) → código → tabela (14/11/2026)
+        foreach ($formasSvc->condicoesValidas($empresaId) as $condicao) {
+            $forma = $formasSvc->codigoDaCondicao($empresaId, $condicao) ?? 'boleto';
             $mapa[$condicao] = $tabela->modalidadeDosPagamentos([$forma], $config);
         }
 
@@ -356,7 +369,8 @@ class PedidoController extends Controller
             'cliente_id'              => 'required|exists:clientes,id',
             'vendedor_id'             => 'nullable|exists:users,id',
             'estoque_id'              => 'nullable|integer',
-            'condicao_pagamento'      => 'nullable|string|max:255',
+            // Formas da empresa + prazos + valores antigos (14/11/2026)
+            'condicao_pagamento'      => ['nullable', \Illuminate\Validation\Rule::in(app(\App\Services\FormaPagamentoService::class)->condicoesValidas((int) session('empresa_id'), $pedido->condicao_pagamento ?? null))],
             'canal'                   => 'nullable|' . CanalVenda::regraIn(),
             'desconto_percentual'     => 'nullable|numeric|min:0|max:100',
             'desconto_valor'          => 'nullable|numeric|min:0',
@@ -469,7 +483,9 @@ class PedidoController extends Controller
                     'descricao'       => "Pedido #{$pedido->numero}",
                     'valor'           => $pedido->total,
                     'vencimento'      => now()->addDays(30),
-                    'forma_pagamento' => $pedido->condicao_pagamento ?? 'a_definir',
+                    // Forma configurada → o código de sempre; prazo/antigo segue como era (14/11/2026)
+                    'forma_pagamento' => app(\App\Services\FormaPagamentoService::class)->codigoDaCondicao((int) $pedido->empresa_id, $pedido->condicao_pagamento)
+                        ?? ($pedido->condicao_pagamento ?? 'a_definir'),
                     'parcela'         => 1,
                     'total_parcelas'  => 1,
                     'status'          => 'pendente',
@@ -492,7 +508,7 @@ class PedidoController extends Controller
      * (NFC-e) ou nota fiscal (NF-e mod. 55 — "nota grande"). Gera uma Venda
      * (tipo 'pedido') que carrega o documento e alimenta os relatórios.
      */
-    /** Formas aceitas no Faturar — as mesmas chaves do PDV (o fiscal mapeia). */
+    /** Rótulos de vendas de pedido ANTIGAS no impresso (as novas guardam forma_nome — 14/11/2026). */
     private const FORMAS_FATURAR = [
         'dinheiro'       => 'Dinheiro',
         'pix'            => 'PIX',
@@ -506,27 +522,38 @@ class PedidoController extends Controller
         'vale'           => 'Vale (crédito de troca)',
     ];
 
-    /** Condição de pagamento do pedido → forma sugerida no Faturar. */
-    private const FORMA_DA_CONDICAO = [
-        'a_vista' => 'dinheiro',
-        'pix'     => 'pix',
-        'cartao'  => 'cartao_credito',
-        'boleto'  => 'boleto',
-    ];
 
     public function faturar(Request $request, Pedido $pedido)
     {
+        // Formas da empresa (14/11/2026): o select manda a chave do botão
+        // configurado; daqui para baixo forma_pagamento/forma_complemento voltam a
+        // ser o CÓDIGO de sempre (dinheiro, pix, vale...) e o nome vai para a venda.
+        $formasSvc = app(\App\Services\FormaPagamentoService::class);
+        $ativas = $formasSvc->ativas((int) $pedido->empresa_id);
+        $chaves = $ativas->pluck('chave')->all();
+        $chavesComplemento = $ativas->filter(fn ($f) => $f->codigoGravado() !== 'vale')->pluck('chave')->all();
         $request->validate([
             'documento'       => 'required|in:nenhum,recibo,cupom_fiscal,nota_fiscal',
-            'forma_pagamento' => 'required|in:' . implode(',', array_keys(self::FORMAS_FATURAR)),
+            'forma_pagamento' => ['required', \Illuminate\Validation\Rule::in($chaves)],
             'parcelas'        => 'nullable|integer|min:1|max:24',
-            'vale_codigo'     => 'required_if:forma_pagamento,vale|nullable|string|max:20',
+            'vale_codigo'     => 'nullable|string|max:20',
             // Complemento: o que o vale não cobrir (saldo menor que o total)
-            'forma_complemento' => 'nullable|in:' . implode(',', array_diff(array_keys(self::FORMAS_FATURAR), ['vale'])),
+            'forma_complemento' => ['nullable', \Illuminate\Validation\Rule::in($chavesComplemento)],
         ], [
             'forma_pagamento.required' => 'Escolha a forma de pagamento.',
-            'vale_codigo.required_if'  => 'Informe o código do vale.',
+            'forma_pagamento.in'       => 'Esta forma de pagamento está desligada. Recarregue a tela.',
         ]);
+        $fpPrincipal = $ativas->firstWhere('chave', $request->forma_pagamento);
+        $fpComplemento = $request->filled('forma_complemento') ? $ativas->firstWhere('chave', $request->forma_complemento) : null;
+        if ($fpPrincipal->codigoGravado() === 'vale' && ! $request->filled('vale_codigo')) {
+            return back()->withErrors(['vale_codigo' => 'Informe o código do vale.'])->withInput();
+        }
+        $request->merge([
+            'forma_pagamento'   => $fpPrincipal->codigoGravado(),
+            'forma_complemento' => $fpComplemento?->codigoGravado(),
+        ]);
+        $nomePrincipal = ['forma_chave' => $fpPrincipal->chave, 'forma_nome' => $fpPrincipal->nome];
+        $nomeComplemento = $fpComplemento ? ['forma_chave' => $fpComplemento->chave, 'forma_nome' => $fpComplemento->nome] : [];
 
         if ($pedido->status->value !== 'confirmado') {
             return back()->with('error', 'Apenas pedidos confirmados podem ser faturados.');
@@ -556,6 +583,7 @@ class PedidoController extends Controller
 
         $formaPagamento = $request->forma_pagamento;
         // Parcelas valem para o crédito: forma principal ou complemento do vale
+        // Forma criada como crédito ("Cartão Elo", 14/11/2026) grava cartao_credito e parcela igual
         $formaComCartao = $formaPagamento === 'vale' ? $request->input('forma_complemento') : $formaPagamento;
         $parcelas = $formaComCartao === 'cartao_credito' ? max(1, (int) $request->input('parcelas', 1)) : null;
 
@@ -569,7 +597,7 @@ class PedidoController extends Controller
         }
 
         try {
-        $venda = DB::transaction(function () use ($pedido, $formaPagamento, $parcelas, $caixa, $caixaSvc, $request) {
+        $venda = DB::transaction(function () use ($pedido, $formaPagamento, $parcelas, $caixa, $caixaSvc, $request, $nomePrincipal, $nomeComplemento) {
             // Pagamentos da venda. O total é o do pedido: a forma só é registrada
             // (não aplica desconto à vista nem juros — isso fica no orçamento/pedido).
             $total = round((float) $pedido->total, 2);
@@ -599,20 +627,20 @@ class PedidoController extends Controller
                     'valor'               => $valorVale,
                     'vale_codigo'         => $vale->codigo,
                     'vale_saldo_restante' => round((float) $vale->saldo - $valorVale, 2),
-                ]];
+                ] + $nomePrincipal];
                 if ($resto > 0.005) {
                     $pagamentos[] = array_filter([
                         'forma'    => $complemento,
                         'valor'    => $resto,
                         'parcelas' => $parcelas,
-                    ], fn ($v) => $v !== null);
+                    ], fn ($v) => $v !== null) + $nomeComplemento;
                 }
             } else {
                 $pagamentos = [array_filter([
                     'forma'    => $formaPagamento,
                     'valor'    => $total,
                     'parcelas' => $parcelas,
-                ], fn ($v) => $v !== null)];
+                ], fn ($v) => $v !== null) + $nomePrincipal];
             }
 
             $ultimoNumero = Venda::withoutGlobalScopes()
@@ -752,13 +780,14 @@ class PedidoController extends Controller
         if ($pedido->venda) {
             $detalhe = collect($pedido->venda->pagamento_detalhes ?? [])->first() ?? [];
             $forma = $pedido->venda->forma_pagamento;
-            $pagamento = self::FORMAS_FATURAR[$forma] ?? ucfirst(str_replace('_', ' ', (string) $forma));
+            $pagamento = ! empty($detalhe['forma_nome']) ? (string) $detalhe['forma_nome']
+                : (self::FORMAS_FATURAR[$forma] ?? ucfirst(str_replace('_', ' ', (string) $forma)));
             if (! empty($detalhe['parcelas']) && (int) $detalhe['parcelas'] > 1) {
                 $pagamento .= ' em ' . (int) $detalhe['parcelas'] . 'x';
             }
         } elseif ($pedido->condicao_pagamento) {
-            $pagamento = self::CONDICOES_LABELS[$pedido->condicao_pagamento]
-                ?? ucfirst(str_replace('_', ' ', $pedido->condicao_pagamento));
+            $pagamento = app(\App\Services\FormaPagamentoService::class)
+                ->rotuloCondicao((int) $pedido->empresa_id, $pedido->condicao_pagamento);
         }
 
         // Telefone da loja: o informado para impressos, senão o da unidade/empresa
@@ -789,16 +818,6 @@ class PedidoController extends Controller
         return view('app.pedidos.print', compact('pedido', 'cabecalho', 'telefone', 'pagamento', 'situacao', 'entrega'));
     }
 
-    /** Rótulos das condições de pagamento do pedido (as chaves do select de criar/editar). */
-    private const CONDICOES_LABELS = [
-        'a_vista'   => 'À vista',
-        'pix'       => 'PIX',
-        'cartao'    => 'Cartão',
-        'boleto'    => 'Boleto',
-        '30_dias'       => '30 dias',
-        '30_60_dias'    => '30/60 dias',
-        '30_60_90_dias' => '30/60/90 dias',
-    ];
 
     /**
      * Baixa a conta a receber aberta na confirmação do pedido (28/10/2026).

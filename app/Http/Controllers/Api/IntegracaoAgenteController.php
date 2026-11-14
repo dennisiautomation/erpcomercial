@@ -1472,6 +1472,10 @@ class IntegracaoAgenteController extends Controller
             'subtotal' => (float) $pedido->subtotal,
             'canal' => $pedido->canal?->value,
             'condicao_pagamento' => $pedido->condicao_pagamento,
+            // Nome legível (14/11/2026): a condição pode ser a chave de uma forma configurada (fp_xxxxxxxx)
+            'condicao_pagamento_nome' => $pedido->condicao_pagamento
+                ? app(\App\Services\FormaPagamentoService::class)->rotuloCondicao((int) $pedido->empresa_id, $pedido->condicao_pagamento)
+                : null,
             'vendedor' => $pedido->vendedor?->name,
             'loja' => $pedido->unidade?->nome,
             'cliente' => $pedido->cliente ? [

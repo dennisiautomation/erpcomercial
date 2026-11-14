@@ -383,7 +383,7 @@
     @if($venda->pagamento_detalhes && is_array($venda->pagamento_detalhes))
         @foreach($venda->pagamento_detalhes as $pgto)
             <div class="row">
-                <span>{{ $formaLabels[$pgto['forma'] ?? ''] ?? ucfirst($pgto['forma'] ?? '-') }}@if(($pgto['forma'] ?? '') === 'vale' && ! empty($pgto['vale_codigo'])) {{ $pgto['vale_codigo'] }}@endif</span>
+                <span>{{ ! empty($pgto['forma_nome']) ? $pgto['forma_nome'] : ($formaLabels[$pgto['forma'] ?? ''] ?? ucfirst($pgto['forma'] ?? '-')) }}@if(($pgto['forma'] ?? '') === 'vale' && ! empty($pgto['vale_codigo'])) {{ $pgto['vale_codigo'] }}@endif</span>
                 <span>R$ {{ number_format($pgto['valor'] ?? 0, 2, ',', '.') }}</span>
             </div>
             @if(($pgto['forma'] ?? '') === 'vale' && isset($pgto['vale_saldo_restante']))

@@ -259,7 +259,7 @@
                     @endphp
                     <span class="fs-5">
                         <i class="bi {{ $formaIcon }} me-1"></i>
-                        {{ ucfirst(str_replace('_', ' ', $venda->forma_pagamento ?? '-')) }}
+                        {{ count($venda->pagamento_detalhes ?? []) === 1 && ! empty($venda->pagamento_detalhes[0]['forma_nome']) ? $venda->pagamento_detalhes[0]['forma_nome'] : ucfirst(str_replace('_', ' ', $venda->forma_pagamento ?? '-')) }}
                     </span>
                 </div>
 
@@ -271,7 +271,7 @@
                                 <div>
                                     @php $pgtoIcon = $formaIcons[$pgto['forma'] ?? ''] ?? 'bi-wallet2'; @endphp
                                     <i class="bi {{ $pgtoIcon }} me-1 text-muted"></i>
-                                    <span>{{ ucfirst(str_replace('_', ' ', $pgto['forma'] ?? '-')) }}</span>
+                                    <span>{{ ! empty($pgto['forma_nome']) ? $pgto['forma_nome'] : ucfirst(str_replace('_', ' ', $pgto['forma'] ?? '-')) }}</span>
                                 </div>
                                 <strong>R$ {{ number_format($pgto['valor'] ?? 0, 2, ',', '.') }}</strong>
                             </div>

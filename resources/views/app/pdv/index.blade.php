@@ -412,7 +412,7 @@
         .btn-pay.pay-pix i { color: var(--accent-purple); }
         .btn-pay.pay-boleto i { color: var(--accent-orange, #fd7e14); }
         .btn-pay.pay-crediario i { color: var(--accent-red, #dc3545); }
-        .btn-pay.pay-credishop { grid-column: span 2; }
+        .btn-pay.pay-credishop, .btn-pay.pay-largo { grid-column: span 2; }
         .btn-pay.pay-credishop i { color: var(--accent-purple, #6f42c1); }
         .btn-pay.pay-transferencia i { color: var(--accent-blue, #0d6efd); }
         .btn-pay.pay-vale i { color: var(--accent-teal, #20c997); }
@@ -997,37 +997,15 @@
         </div>
 
         {{-- Payment buttons --}}
+        {{-- Botões vindos de Configurações → Formas de pagamento (14/11/2026).
+             data-forma = código gravado (o JS e o servidor seguem decidindo por ele);
+             data-chave/data-nome = qual botão foi, para a venda guardar o nome. --}}
         <div class="payment-grid">
-            <button class="btn-pay pay-dinheiro" data-forma="dinheiro" title="Dinheiro">
-                <i class="bi bi-cash-stack"></i> Dinheiro
+            @foreach($formasPagamento as $fp)
+            <button class="btn-pay{{ $fp->largura === 2 ? ' pay-largo' : '' }}" data-forma="{{ $fp->codigoGravado() }}" data-chave="{{ $fp->chave }}" data-nome="{{ $fp->nome }}" title="{{ $fp->nome }}">
+                <i class="bi {{ $fp->icone }}" style="color: {{ $fp->cor ?: 'inherit' }}" aria-hidden="true"></i> {{ $fp->nome }}
             </button>
-            <button class="btn-pay pay-credito" data-forma="cartao_credito" title="Cartão Crédito">
-                <i class="bi bi-credit-card"></i> Crédito
-            </button>
-            <button class="btn-pay pay-debito" data-forma="cartao_debito" title="Cartão Débito">
-                <i class="bi bi-credit-card-2-front"></i> Débito
-            </button>
-            <button class="btn-pay pay-pix" data-forma="pix" title="PIX">
-                <i class="bi bi-qr-code"></i> PIX
-            </button>
-            <button class="btn-pay pay-boleto" data-forma="boleto" title="Boleto">
-                <i class="bi bi-upc-scan"></i> Boleto
-            </button>
-            <button class="btn-pay pay-crediario" data-forma="crediario" title="Crediario / Fiado">
-                <i class="bi bi-journal-text"></i> Crediario
-            </button>
-            <button class="btn-pay pay-transferencia" data-forma="transferencia" title="Transferência / TED">
-                <i class="bi bi-bank"></i> Transf.
-            </button>
-            <button class="btn-pay pay-vale" data-forma="vale" title="Vale / Voucher">
-                <i class="bi bi-ticket-perforated"></i> Vale
-            </button>
-            {{-- Credishop: só para empresa com a chave ligada (empresas.pdv_credishop, 03/11/2026) --}}
-            @if(auth()->user()->empresa?->pdvCredishop())
-            <button class="btn-pay pay-credishop" data-forma="credishop" title="Credishop">
-                <i class="bi bi-credit-card-fill"></i> Credishop
-            </button>
-            @endif
+            @endforeach
         </div>
 
         {{-- Split payments --}}
@@ -2450,12 +2428,30 @@ const PDV = {
             btn.addEventListener('click', () => {
                 const forma = btn.dataset.forma;
                 if (forma === 'vale') { this.openVale(); return; }
-                this.openPagamento(forma);
+                this.openPagamento(forma, btn.dataset.chave, btn.dataset.nome);
             });
         });
     },
 
-    openPagamento(forma) {
+    // Botão configurado (14/11/2026): pela chave quando veio do clique; pelo
+    // código quando veio de atalho/fluxo interno (dinheiro menor, vale) — aí vale
+    // o botão do sistema com aquela chave, ou o primeiro com aquele código.
+    botaoDaForma(forma, chave) {
+        const lista = [...document.querySelectorAll('.payment-grid .btn-pay')];
+        return (chave && lista.find(b => b.dataset.chave === chave))
+            || lista.find(b => b.dataset.chave === forma)
+            || lista.find(b => b.dataset.forma === forma)
+            || null;
+    },
+
+    openPagamento(forma, chave, nome) {
+        const botao = this.botaoDaForma(forma, chave);
+        if (!botao) {
+            this.showAlert('Esta forma de pagamento está desligada em Configurações → Formas de pagamento.', 'warning');
+            return;
+        }
+        chave = botao.dataset.chave;
+        nome = botao.dataset.nome || nome;
         if (this.itens.length === 0) {
             this.showAlert('Adicione itens antes de selecionar pagamento', 'warning');
             return;
@@ -2475,6 +2471,8 @@ const PDV = {
         }
 
         this.pagamentoAtual = forma;
+        this.pagamentoChave = chave;
+        this.pagamentoNome = nome;
 
         const formaLabels = {
             'dinheiro': 'Dinheiro',
@@ -2488,8 +2486,8 @@ const PDV = {
             'credishop': 'Credishop'
         };
 
-        document.getElementById('modalPagamentoTitle').textContent = 'Pagamento - ' + (formaLabels[forma] || forma);
-        document.getElementById('modalPagamentoForma').textContent = formaLabels[forma] || forma;
+        document.getElementById('modalPagamentoTitle').textContent = 'Pagamento - ' + (nome || formaLabels[forma] || forma);
+        document.getElementById('modalPagamentoForma').textContent = nome || formaLabels[forma] || forma;
 
         // O que o caixa precisa dizer em voz alta é o valor COBRADO nesta forma
         // (com o acréscimo do cartão, quando houver) — não o preço à vista.
@@ -2737,6 +2735,9 @@ const PDV = {
             : 1;
 
         const extra = forma === 'vale' && this.valeAtual ? { vale_codigo: this.valeAtual.codigo, modalidade: this.valeAtual.modalidade || null } : {};
+        // Qual botão foi (14/11/2026): o servidor grava o nome na venda
+        extra.chave = this.pagamentoChave || forma;
+        extra.nome = this.pagamentoNome || null;
 
         if (isSplit) {
             // Split payment - add to list
@@ -2791,11 +2792,12 @@ const PDV = {
             'transferencia': 'Transf.', 'vale': 'Vale', 'credishop': 'Credishop'
         };
 
+        const esc = (t) => String(t).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
         list.innerHTML = this.pagamentos.map((p, idx) => `
             <div class="split-item">
                 <span class="split-forma">
                     <i class="bi bi-check-circle" style="color:var(--accent-green)"></i>
-                    ${formaLabels[p.forma] || p.forma}
+                    ${esc(p.nome || formaLabels[p.forma] || p.forma)}
                 </span>
                 <span>
                     <span class="split-valor">${this.formatMoney(this.valorCobradoDe(p.valor, p.forma))}</span>
@@ -2837,7 +2839,7 @@ const PDV = {
 
         // Highlight active payment button
         document.querySelectorAll('.btn-pay').forEach(btn => {
-            btn.classList.toggle('active', this.pagamentos.some(p => p.forma === btn.dataset.forma));
+            btn.classList.toggle('active', this.pagamentos.some(p => (p.chave || p.forma) === btn.dataset.chave));
         });
     },
 
@@ -3718,7 +3720,7 @@ const PDV = {
 
     mostrarDinheiroMenor(recebido, devido) {
         recebido = round(recebido, 2); devido = round(devido, 2);
-        this._dinheiroMenor = { recebido, devido };
+        this._dinheiroMenor = { recebido, devido, chave: this.pagamentoChave, nome: this.pagamentoNome };
         document.getElementById('dinheiroMenorRecebido').textContent = this.formatMoney(recebido);
         document.getElementById('dinheiroMenorDevido').textContent = this.formatMoney(devido);
         document.getElementById('dinheiroMenorFalta').textContent = this.formatMoney(round(devido - recebido, 2));
@@ -3729,7 +3731,7 @@ const PDV = {
     corrigirDinheiroMenor() {
         const d = this._dinheiroMenor; this._dinheiroMenor = null;
         this._aposFechar('modalDinheiroMenor', () => {
-            this.openPagamento('dinheiro');
+            this.openPagamento('dinheiro', d?.chave, d?.nome);
             const input = document.getElementById('valorRecebido');
             if (d && input) {
                 input.value = d.recebido.toFixed(2);
@@ -3745,7 +3747,7 @@ const PDV = {
         const d = this._dinheiroMenor; this._dinheiroMenor = null;
         this._aposFechar('modalDinheiroMenor', () => {
             if (!d) return;
-            this.pagamentos.push({ forma: 'dinheiro', valor: d.recebido, parcelas: 1 });
+            this.pagamentos.push({ forma: 'dinheiro', valor: d.recebido, parcelas: 1, chave: d.chave || 'dinheiro', nome: d.nome || null });
             this.renderSplitPayments();
             document.getElementById('trocoDisplay').style.display = 'none';
             this.showAlert(`Dinheiro ${this.formatMoney(d.recebido)} lançado. Faltam ${this.formatMoney(round(d.devido - d.recebido, 2))} — escolha a outra forma.`, 'warning');

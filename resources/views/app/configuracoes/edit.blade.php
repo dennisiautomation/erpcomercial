@@ -43,6 +43,9 @@
 @section('content')
 <x-erp.page-header title="Configurações da Loja" icon="sliders"
     subtitle="Como o PDV, o caixa e os preços se comportam nesta unidade">
+    <a href="{{ route('app.formas-pagamento.index') }}" class="btn btn-erp-outline">
+        <i class="bi bi-wallet2 me-1"></i> Formas de pagamento
+    </a>
     <a href="{{ route('app.estoques.index') }}" class="btn btn-erp-outline">
         <i class="bi bi-boxes me-1"></i> Estoques da Loja
     </a>

@@ -90,6 +90,10 @@ class RelatorioController extends Controller
         // Origem (06/11/2026): Loja / WhatsApp / Online / Histórico — Venda::scopeDaOrigem
         // (aceita ainda `vendas`/`pedidos` dos links antigos)
         $query->daOrigem($request->origem);
+        // Forma de pagamento (14/11/2026): vendas com algum pagamento na linha de forma
+        $formasFiltroVendas = app(\App\Services\FormaPagamentoService::class)->opcoesFiltro((int) $empresaId);
+        $formaFiltroVendas = array_key_exists((string) $request->forma, $formasFiltroVendas) ? (string) $request->forma : null;
+        $query->comForma($formaFiltroVendas);
 
         if ($vendedorId) {
             $query->where('vendedor_id', $vendedorId);
@@ -123,6 +127,7 @@ class RelatorioController extends Controller
         // o JSON (importada/antiga) cai na `forma_pagamento` com o total. O troco
         // abate só o dinheiro — é a mesma regra do caixa (PdvController).
         $porForma = [];
+        $formasSvc = app(\App\Services\FormaPagamentoService::class);
         foreach ($vendas as $v) {
             $dets = is_array($v->pagamento_detalhes) && count($v->pagamento_detalhes) > 0
                 ? $v->pagamento_detalhes
@@ -137,11 +142,15 @@ class RelatorioController extends Controller
                     $valor -= $abate;
                     $trocoRestante -= $abate;
                 }
-                $porForma[$forma] ??= ['forma' => $forma, 'label' => \App\Models\MovimentacaoCaixa::FORMAS_LABELS[$forma] ?? ucfirst(str_replace('_', ' ', $forma)), 'vendas' => 0, 'valor' => 0.0];
-                $porForma[$forma]['valor'] += $valor;
-                if (! isset($contadas[$forma])) {
-                    $porForma[$forma]['vendas']++;
-                    $contadas[$forma] = true;
+                // Linha de forma (14/11/2026): forma CRIADA tem linha própria; as do sistema
+                // seguem juntas pelo código, com o nome configurado hoje (FormaPagamentoService).
+                $chaveLinha = \App\Services\FormaPagamentoService::chaveDoPagamento($pg);
+                $label = $formasSvc->rotuloDaChave((int) $empresaId, $chaveLinha, $pg['forma_nome'] ?? null);
+                $porForma[$chaveLinha] ??= ['forma' => $chaveLinha, 'label' => $label, 'vendas' => 0, 'valor' => 0.0];
+                $porForma[$chaveLinha]['valor'] += $valor;
+                if (! isset($contadas[$chaveLinha])) {
+                    $porForma[$chaveLinha]['vendas']++;
+                    $contadas[$chaveLinha] = true;
                 }
             }
         }
@@ -223,7 +232,7 @@ class RelatorioController extends Controller
             'vendas', 'totalVendas', 'faturamento', 'ticketMedio',
             'pecas', 'servicosQtd', 'pecasPorVenda', 'precoMedioPeca',
             'subtotalBruto', 'descontos', 'acrescimos',
-            'porForma', 'totalPorForma', 'porVendedor', 'porLoja',
+            'porForma', 'totalPorForma', 'porVendedor', 'porLoja', 'formasFiltroVendas', 'formaFiltroVendas',
             'topProdutos', 'topClientes', 'dataInicio', 'dataFim',
             'lojas', 'lojaFiltro', 'lojasSelecionadas', 'vendedores', 'vendedorId', 'clienteFiltro',
             'devolucoesQtd', 'devolucoesValor', 'devolucoesPecas', 'faturamentoLiquido',
@@ -285,8 +294,12 @@ class RelatorioController extends Controller
         $categorias = Categoria::withoutGlobalScopes()->where('empresa_id', $empresaId)->orderBy('nome')->get(['id', 'nome']);
         $categoriaId = $request->filled('categoria_id') && $categorias->contains('id', (int) $request->categoria_id)
             ? (int) $request->categoria_id : null;
-        $formas = \App\Models\MovimentacaoCaixa::FORMAS_LABELS;
-        $formaFiltro = array_key_exists((string) $request->forma, $formas) ? (string) $request->forma : null;
+        // Formas da empresa (14/11/2026): o filtro e o rateio usam a linha de forma
+        // (FormaPagamentoService::chaveDoPagamento) — forma criada tem linha própria.
+        $formasSvc = app(\App\Services\FormaPagamentoService::class);
+        $formas = $formasSvc->opcoesFiltro((int) $empresaId);
+        $rotulosFormas = $formasSvc->rotulos((int) $empresaId);
+        $formaFiltro = array_key_exists((string) $request->forma, $rotulosFormas) ? (string) $request->forma : null;
 
         $query = Venda::withoutGlobalScope(\App\Scopes\UnidadeScope::class)
             ->with(['cliente:id,nome_razao_social', 'vendedor:id,name'])
@@ -312,7 +325,8 @@ class RelatorioController extends Controller
         $nomesCategoria = $categorias->pluck('nome', 'id');
 
         // Quanto cada forma pagou de cada venda (fração do total)
-        $fracoesForma = function (Venda $v) use ($formas) {
+        $nomesGravados = [];
+        $fracoesForma = function (Venda $v) use (&$nomesGravados) {
             $dets = is_array($v->pagamento_detalhes) && count($v->pagamento_detalhes) > 0
                 ? $v->pagamento_detalhes
                 : [['forma' => $v->forma_pagamento ?: 'outros', 'valor' => (float) $v->total]];
@@ -326,7 +340,11 @@ class RelatorioController extends Controller
                     $valor -= $abate;
                     $troco -= $abate;
                 }
-                $valores[$forma] = ($valores[$forma] ?? 0) + $valor;
+                $linha = \App\Services\FormaPagamentoService::chaveDoPagamento($pg);
+                $valores[$linha] = ($valores[$linha] ?? 0) + $valor;
+                if (! empty($pg['forma_nome'])) {
+                    $nomesGravados[$linha] = $pg['forma_nome'];
+                }
             }
             $soma = array_sum($valores);
             if ($soma <= 0) {
@@ -380,7 +398,7 @@ class RelatorioController extends Controller
                 'bruto' => $bruto * $fatia,
                 'total' => $valorItem * $fatia,
                 'formas' => array_map(fn ($f) => $valorItem * $f, $fracoes),
-                'formas_texto' => implode(' + ', array_map(fn ($f) => $formas[$f] ?? ucfirst(str_replace('_', ' ', $f)), array_keys($fracoes))),
+                'formas_texto' => implode(' + ', array_map(fn ($f) => $rotulosFormas[$f] ?? ($nomesGravados[$f] ?? ucfirst(str_replace('_', ' ', $f))), array_keys($fracoes))),
                 'vendedor' => $v->vendedor->name ?? '-',
                 'cliente' => $v->cliente->nome_razao_social ?? '',
             ]);
@@ -408,7 +426,7 @@ class RelatorioController extends Controller
         $porForma = [];
         foreach ($linhas as $l) {
             foreach ($l->formas as $f => $valor) {
-                $porForma[$f] ??= ['label' => $formas[$f] ?? ucfirst(str_replace('_', ' ', $f)), 'valor' => 0.0];
+                $porForma[$f] ??= ['label' => $rotulosFormas[$f] ?? ($nomesGravados[$f] ?? ucfirst(str_replace('_', ' ', $f))), 'valor' => 0.0];
                 $porForma[$f]['valor'] += $valor;
             }
         }

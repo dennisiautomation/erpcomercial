@@ -66,8 +66,10 @@ class VendaController extends Controller
             if ($origemFiltro) {
                 $q->daOrigem($origemFiltro);
             }
+            // Forma de pagamento (14/11/2026): linha de forma da empresa — venda com
+            // algum pagamento nela, split incluso (antes só casava venda de forma única)
             if ($request->filled('forma_pagamento')) {
-                $q->where('forma_pagamento', $request->forma_pagamento);
+                $q->comForma((string) $request->forma_pagamento);
             }
             if ($comDatas && $request->filled('data_inicio')) {
                 $q->whereDate('created_at', '>=', $request->data_inicio);
@@ -90,7 +92,10 @@ class VendaController extends Controller
             'total_hoje' => $filtros($base(), false)->where('status', StatusVenda::Concluida)->whereDate('created_at', today())->sum('total'),
         ];
 
-        return view('app.vendas.index', compact('vendas', 'stats', 'lojas', 'lojaFiltro', 'tipos', 'origens', 'origemFiltro'));
+        $formasFiltro = app(\App\Services\FormaPagamentoService::class)
+            ->opcoesFiltro((int) (session('empresa_id') ?? auth()->user()->empresa_id));
+
+        return view('app.vendas.index', compact('vendas', 'stats', 'lojas', 'lojaFiltro', 'tipos', 'origens', 'origemFiltro', 'formasFiltro'));
     }
 
     /**
@@ -121,7 +126,10 @@ class VendaController extends Controller
             ->orderBy('name')
             ->get();
 
-        return view('app.vendas.create', compact('vendedores'));
+        // Formas da empresa (Configurações → Formas de pagamento, 14/11/2026)
+        $formasPagamento = app(\App\Services\FormaPagamentoService::class)->ativas((int) (session('empresa_id') ?? auth()->user()->empresa_id));
+
+        return view('app.vendas.create', compact('vendedores', 'formasPagamento'));
     }
 
     public function store(Request $request)
@@ -139,6 +147,15 @@ class VendaController extends Controller
             'observacoes'            => 'nullable|string|max:1000',
         ]);
 
+        // O select manda a chave do botão configurado (14/11/2026); daqui para baixo
+        // forma_pagamento volta a ser o código de sempre e o nome vai para a venda.
+        $fpBalcao = app(\App\Services\FormaPagamentoService::class)
+            ->resolver((int) (session('empresa_id') ?? auth()->user()->empresa_id), (string) $request->forma_pagamento);
+        if (! $fpBalcao) {
+            return back()->withInput()->withErrors(['forma_pagamento' => 'Esta forma de pagamento está desligada. Escolha outra.']);
+        }
+        $request->merge(['forma_pagamento' => $fpBalcao->codigoGravado()]);
+
         // Caixa (28/10/2026): a venda de balcão também entra no caixa aberto de
         // quem vende, como o PDV — antes nascia sem caixa e sumia do fechamento.
         $caixaSvc = app(LancamentoCaixaService::class);
@@ -148,7 +165,7 @@ class VendaController extends Controller
         }
 
         try {
-            $venda = DB::transaction(function () use ($request, $caixa, $caixaSvc) {
+            $venda = DB::transaction(function () use ($fpBalcao, $request, $caixa, $caixaSvc) {
                 $empresaId = session('empresa_id');
                 $unidadeId = session('unidade_id');
 
@@ -211,7 +228,7 @@ class VendaController extends Controller
                     'desconto_valor'      => $descontoGeral,
                     'total'               => $total,
                     'forma_pagamento'     => $request->forma_pagamento,
-                    'pagamento_detalhes'  => [['forma' => $request->forma_pagamento, 'valor' => $total]],
+                    'pagamento_detalhes'  => [['forma' => $request->forma_pagamento, 'valor' => $total, 'forma_chave' => $fpBalcao->chave, 'forma_nome' => $fpBalcao->nome]],
                     'troco'               => 0,
                     'status'              => StatusVenda::Concluida,
                     'tipo'                => 'balcao',

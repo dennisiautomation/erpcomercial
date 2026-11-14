@@ -101,7 +101,10 @@ class PdvController extends Controller
         // Seletor "Sai de" no topo: só com a opção ligada E mais de um estoque ativo (22/10/2026)
         $escolherEstoque = $configLoja->pdv_escolher_estoque && $estoquesLoja->count() > 1;
 
-        return view('app.pdv.index', compact('caixa', 'unidade', 'configFiscal', 'operadores', 'configLoja', 'estoquesLoja', 'escolherEstoque'));
+        // Botões de pagamento da empresa (Configurações → Formas de pagamento, 14/11/2026)
+        $formasPagamento = app(\App\Services\FormaPagamentoService::class)->ativas((int) (session('empresa_id') ?? auth()->user()->empresa_id));
+
+        return view('app.pdv.index', compact('caixa', 'unidade', 'configFiscal', 'operadores', 'configLoja', 'estoquesLoja', 'escolherEstoque', 'formasPagamento'));
     }
 
     /**
@@ -331,6 +334,16 @@ class PdvController extends Controller
         if (!$caixa || $caixa->status->value !== 'aberto') {
             session()->forget('caixa_id');
             return response()->json(['error' => 'Caixa nao esta aberto.'], 422);
+        }
+
+        // Formas de pagamento configuradas (14/11/2026): o botão manda a chave; daqui
+        // em diante `forma` é o código de sempre e a venda guarda forma_nome/forma_chave.
+        // Forma desligada (aba velha, POST forjado) é recusada aqui.
+        try {
+            $request->merge(['pagamentos' => app(\App\Services\FormaPagamentoService::class)
+                ->normalizarPagamentos((int) (session('empresa_id') ?? auth()->user()->empresa_id), $request->pagamentos)]);
+        } catch (\DomainException $e) {
+            return response()->json(['error' => $e->getMessage()], 422);
         }
 
         try {
@@ -680,7 +693,8 @@ class PdvController extends Controller
                         'tipo'            => TipoMovimentacaoCaixa::Venda,
                         'valor'           => $valorMov,
                         'forma_pagamento' => $pgto['forma'],
-                        'descricao'       => "Venda #{$venda->numero}",
+                        // Forma CRIADA pelo lojista (14/11/2026): o caixa agrupa pelo código, o nome fica na descrição
+                        'descricao'       => "Venda #{$venda->numero}" . (str_starts_with((string) ($pgto['forma_chave'] ?? ''), 'fp_') ? " — {$pgto['forma_nome']}" : ''),
                         'user_id'         => $responsavelCaixa,
                     ]);
                 }

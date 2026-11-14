@@ -28,6 +28,31 @@ class Venda extends Model
         'importada' => 'Histórico importado',
     ];
 
+    /** Filtro "forma de pagamento" das listas e relatórios (14/11/2026). */
+    public function scopeComForma($query, ?string $chave)
+    {
+        // Vendas que tiveram ALGUM pagamento na linha de forma (14/11/2026) — mesma regra de
+        // FormaPagamentoService::chaveDoPagamento: forma criada pela chave fp_; forma do
+        // sistema pelo código, sem contar o que foi pago numa forma criada do mesmo tipo.
+        if ($chave === null || $chave === '') {
+            return $query;
+        }
+        if (str_starts_with($chave, 'fp_')) {
+            return $query->whereRaw("JSON_CONTAINS(pagamento_detalhes, JSON_OBJECT('forma_chave', ?))", [$chave]);
+        }
+
+        return $query->where(function ($q) use ($chave) {
+            // venda nova: o botão do sistema gravou forma_chave = código
+            $q->whereRaw("JSON_CONTAINS(pagamento_detalhes, JSON_OBJECT('forma', ?, 'forma_chave', ?))", [$chave, $chave])
+              // venda de antes das formas configuráveis: sem forma_chave nenhuma
+              ->orWhere(fn ($q2) => $q2->whereRaw("JSON_CONTAINS(pagamento_detalhes, JSON_OBJECT('forma', ?))", [$chave])
+                  ->whereRaw("JSON_SEARCH(pagamento_detalhes, 'one', '%', NULL, '$[*].forma_chave') IS NULL"))
+              // venda sem detalhes (importada)
+              ->orWhere(fn ($q2) => $q2->where(fn ($q3) => $q3->whereNull('pagamento_detalhes')->orWhereRaw('JSON_LENGTH(pagamento_detalhes) = 0'))
+                  ->where('forma_pagamento', $chave));
+        });
+    }
+
     /**
      * Filtra pela origem. Aceita também os valores antigos do filtro dos relatórios
      * (`vendas` = PDV/balcão, `pedidos` = pedidos faturados) para links salvos.

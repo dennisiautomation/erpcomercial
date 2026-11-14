@@ -135,6 +135,16 @@
                 </select>
             </div>
             <div class="col-md-2">
+                <label for="campo-forma_pagamento" class="form-label small fw-semibold mb-1">Forma de pagamento</label>
+                {{-- Formas da empresa (Configurações → Formas de pagamento, 14/11/2026) --}}
+                <select id="campo-forma_pagamento" name="forma_pagamento" class="form-select form-select-sm">
+                    <option value="">Todas</option>
+                    @foreach($formasFiltro as $valor => $rotulo)
+                        <option value="{{ $valor }}" @selected(request('forma_pagamento') === $valor)>{{ $rotulo }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="col-md-2">
                 <label for="campo-data_inicio" class="form-label small fw-semibold mb-1">Data Início</label>
                 <input id="campo-data_inicio" type="date" name="data_inicio" class="form-control form-control-sm" value="{{ request('data_inicio') }}">
             </div>
@@ -217,7 +227,7 @@
                                 $formaIcon = $formaIcons[$venda->forma_pagamento] ?? 'bi-wallet2';
                             @endphp
                             <i class="bi {{ $formaIcon }} me-1 text-muted"></i>
-                            <span class="small">{{ ucfirst(str_replace('_', ' ', $venda->forma_pagamento ?? '-')) }}</span>
+                            <span class="small">{{ count($venda->pagamento_detalhes ?? []) === 1 && ! empty($venda->pagamento_detalhes[0]['forma_nome']) ? $venda->pagamento_detalhes[0]['forma_nome'] : ucfirst(str_replace('_', ' ', $venda->forma_pagamento ?? '-')) }}</span>
                         </td>
                         <td class="text-end fw-bold">
                             @if($venda->status->value === 'cancelada')

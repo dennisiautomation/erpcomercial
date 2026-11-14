@@ -95,7 +95,7 @@
         </div>
         <div class="meta text-end">
             Período: <strong>{{ $dataInicio->format('d/m/Y') }} a {{ $dataFim->format('d/m/Y') }}</strong><br>
-            Origem: {{ $origemLabel }} · Vendedor: {{ $vendedorNome }} · Cliente: {{ $clienteFiltro->nome_razao_social ?? 'Todos' }}<br>
+            Origem: {{ $origemLabel }} · Forma: {{ ($formaFiltroVendas ?? null) ? ($formasFiltroVendas[$formaFiltroVendas] ?? $formaFiltroVendas) : 'Todas' }} · Vendedor: {{ $vendedorNome }} · Cliente: {{ $clienteFiltro->nome_razao_social ?? 'Todos' }}<br>
             Gerado em {{ now()->format('d/m/Y H:i') }} por {{ auth()->user()->name }}
         </div>
     </div>
@@ -129,6 +129,16 @@
                     <option value="">Todas</option>
                     @foreach(\App\Models\Venda::ORIGENS as $valor => $rotulo)
                         <option value="{{ $valor }}" @selected(request('origem') === $valor)>{{ $rotulo }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label for="campo-forma" class="form-label small fw-semibold">Forma de pagamento</label>
+                {{-- Formas da empresa (Configurações → Formas de pagamento, 14/11/2026) --}}
+                <select id="campo-forma" name="forma" class="form-select form-select-sm">
+                    <option value="">Todas</option>
+                    @foreach($formasFiltroVendas ?? [] as $valor => $rotulo)
+                        <option value="{{ $valor }}" @selected(($formaFiltroVendas ?? null) === $valor)>{{ $rotulo }}</option>
                     @endforeach
                 </select>
             </div>
@@ -476,7 +486,7 @@
                     <td>{{ $venda->vendedor->name ?? '-' }}</td>
                     <td>
                         <span class="badge bg-light text-dark border">
-                            {{ \App\Models\MovimentacaoCaixa::FORMAS_LABELS[$venda->forma_pagamento] ?? ucfirst(str_replace('_', ' ', $venda->forma_pagamento ?? '-')) }}
+                            {{ count($venda->pagamento_detalhes ?? []) === 1 && ! empty($venda->pagamento_detalhes[0]['forma_nome']) ? $venda->pagamento_detalhes[0]['forma_nome'] : (\App\Models\MovimentacaoCaixa::FORMAS_LABELS[$venda->forma_pagamento] ?? ucfirst(str_replace('_', ' ', $venda->forma_pagamento ?? '-'))) }}
                         </span>
                     </td>
                     <td class="text-end text-muted">{{ $qtd($venda->itens->whereNull('servico_id')->sum('quantidade')) }}</td>

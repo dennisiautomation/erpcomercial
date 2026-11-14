@@ -610,6 +610,14 @@ Route::middleware(['auth', 'suspensao', 'unidade', \App\Http\Middleware\Restring
         Route::put('/', [App\ConfiguracaoLojaController::class, 'update'])->name('update');
     });
 
+    // Formas de pagamento (14/11/2026): botões do PDV + selects de faturar e balcão.
+    // Da empresa inteira; mora dentro de Configurações, como os estoques.
+    Route::prefix('configuracoes/formas-pagamento')->name('formas-pagamento.')->middleware('permission:configuracoes')->group(function () {
+        Route::get('/', [App\FormaPagamentoController::class, 'index'])->name('index');
+        Route::put('/', [App\FormaPagamentoController::class, 'update'])->middleware('permission:configuracoes,editar')->name('update');
+        Route::post('/restaurar', [App\FormaPagamentoController::class, 'restaurar'])->middleware('permission:configuracoes,editar')->name('restaurar');
+    });
+
     /* ------ Integrações (tokens da API — Gersen) ------ */
     // {token} casa com $token do controller (armadilha do route model binding)
     // Módulo 'integracoes' (não 'configuracoes'): o token lê a empresa inteira,

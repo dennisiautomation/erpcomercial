@@ -94,13 +94,8 @@
                     </div>
                     @include('app.partials.campo-sai-de', ['estoqueSelecionado' => null])
                     <div class="mb-0">
-                        <label for="campo-condicao_pagamento" class="form-label small fw-semibold">Condicao de Pagamento</label>
-                        <select id="campo-condicao_pagamento" name="condicao_pagamento" class="form-select">
-                            <option value="">Selecione...</option>
-                            @foreach(['a_vista' => 'A Vista', '30_dias' => '30 Dias', '30_60_dias' => '30/60 Dias', '30_60_90_dias' => '30/60/90 Dias', 'cartao' => 'Cartao', 'boleto' => 'Boleto', 'pix' => 'PIX'] as $val => $label)
-                                <option value="{{ $val }}" {{ old('condicao_pagamento') === $val ? 'selected' : '' }}>{{ $label }}</option>
-                            @endforeach
-                        </select>
+                        <label for="campo-condicao_pagamento" class="form-label small fw-semibold">Condição de pagamento</label>
+                        @include('app.partials.campo-condicao-pagamento', ['selecionado' => old('condicao_pagamento')])
                         <div class="mt-2">
                             <label for="campo-canal" class="form-label small fw-semibold">Canal da venda</label>
                             <select id="campo-canal" name="canal" class="form-select">

@@ -150,8 +150,8 @@
                         <div class="col">
                             <select name="forma_pagamento" id="faturarForma" class="form-select" required>
                                 <option value="" @selected(! old('forma_pagamento', $formaSugerida))>Selecione...</option>
-                                @foreach($formasFaturar as $val => $label)
-                                    <option value="{{ $val }}" @selected(old('forma_pagamento', $formaSugerida) === $val)>{{ $label }}</option>
+                                @foreach($formasFaturar as $fp)
+                                    <option value="{{ $fp->chave }}" data-forma="{{ $fp->codigoGravado() }}" data-tipo="{{ $fp->tipo }}" @selected(old('forma_pagamento', $formaSugerida) === $fp->chave)>{{ $fp->nome }}</option>
                                 @endforeach
                             </select>
                         </div>
@@ -175,9 +175,9 @@
                         <label class="form-label small fw-semibold mb-1" for="faturarComplemento">Se o saldo não cobrir, pagar o restante com</label>
                         <select name="forma_complemento" id="faturarComplemento" class="form-select form-select-sm">
                             <option value="">— nenhum (o vale cobre tudo) —</option>
-                            @foreach($formasFaturar as $val => $label)
-                                @if($val !== 'vale')
-                                    <option value="{{ $val }}" @selected(old('forma_complemento') === $val)>{{ $label }}</option>
+                            @foreach($formasFaturar as $fp)
+                                @if($fp->codigoGravado() !== 'vale')
+                                    <option value="{{ $fp->chave }}" data-forma="{{ $fp->codigoGravado() }}" data-tipo="{{ $fp->tipo }}" @selected(old('forma_complemento') === $fp->chave)>{{ $fp->nome }}</option>
                                 @endif
                             @endforeach
                         </select>
@@ -252,10 +252,12 @@
         if (!forma || !box) return;
         var valeBox = document.getElementById('faturarValeBox');
         var comp = document.getElementById('faturarComplemento');
+        // O select manda a chave do botão; o comportamento vem de data-forma/data-tipo (14/11/2026)
+        function codigo(sel) { var o = sel.options[sel.selectedIndex]; return o ? (o.dataset.forma || o.value) : ''; }
         function mostrar() {
-            var ehVale = forma.value === 'vale';
+            var ehVale = codigo(forma) === 'vale';
             valeBox.style.display = ehVale ? '' : 'none';
-            var credito = ehVale ? comp.value === 'cartao_credito' : forma.value === 'cartao_credito';
+            var credito = ehVale ? codigo(comp) === 'cartao_credito' : codigo(forma) === 'cartao_credito';
             box.style.display = credito ? '' : 'none';
         }
         forma.addEventListener('change', mostrar);
@@ -301,7 +303,7 @@
                     </div>
                     <div class="col-6">
                         <small class="text-muted d-block">Cond. Pagamento</small>
-                        <span>{{ ucfirst(str_replace('_', ' ', $pedido->condicao_pagamento ?? '-')) }}</span>
+                        <span>{{ app(\App\Services\FormaPagamentoService::class)->rotuloCondicao((int) $pedido->empresa_id, $pedido->condicao_pagamento) }}</span>
                     </div>
                     <div class="col-6">
                         <small class="text-muted d-block">Loja de saída</small>
