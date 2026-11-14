@@ -112,7 +112,7 @@ def venda_pdv(s, pagamentos, produto=2, qtd=1, preco=599.90):
 
 
 # ---------------------------------------------------------------- preparo
-sql("DELETE FROM formas_pagamento; UPDATE empresas SET pdv_credishop=0; DELETE FROM contas_receber WHERE descricao='Teste Elo'; DELETE FROM ordens_servico WHERE numero=9901; DELETE FROM adquirente_taxas;")
+sql("DELETE FROM formas_pagamento; UPDATE empresas SET pdv_credishop=0; DELETE FROM contas_receber WHERE descricao='Teste Elo'; DELETE FROM ordens_servico WHERE numero IN (9901,9902); DELETE FROM adquirente_taxas;")
 ANTIGA = ["dinheiro", "cartao_credito", "cartao_debito", "pix", "boleto", "crediario", "transferencia", "vale"]
 ANTIGOS_NOMES = ["Dinheiro", "Crédito", "Débito", "PIX", "Boleto", "Crediario", "Transf.", "Vale"]
 
@@ -352,6 +352,17 @@ if os_ok:
     dono.post(f"/app/ordens-servico/{osid}/converter-venda", {"forma_pagamento": CH_ELO})
     vo = sql("SELECT forma_pagamento, pagamento_detalhes FROM vendas WHERE observacoes LIKE 'Gerada a partir da OS #9901%'")
     check("OS2. venda da OS grava 'Cartão Elo' (antes era sempre dinheiro)", vo and vo[0][0] == "cartao_credito" and "Cartão Elo" in vo[0][1], vo)
+    vo2 = sql("SELECT id, caixa_id FROM vendas WHERE observacoes LIKE 'Gerada a partir da OS #9901%'")
+    mvo = sql(f"SELECT forma_pagamento, forma_chave, valor FROM movimentacoes_caixa WHERE venda_id={vo2[0][0]}") if vo2 else []
+    check("OS3. venda da OS entra no caixa aberto de quem converteu, na forma escolhida", vo2 and vo2[0][1] not in (None, "NULL") and mvo == [["cartao_credito", CH_ELO, "150.00"]], (vo2, mvo))
+    # sem caixa aberto: recusa e não gera venda
+    sql("""INSERT INTO ordens_servico (empresa_id, unidade_id, cliente_id, numero, defeito_relatado, status, valor_produtos, valor_servicos, desconto, total, created_at, updated_at)
+           VALUES (1, 1, 1, 9902, 'teste', 'concluida', 0, 80, 0, 80, NOW(), NOW())""")
+    os2 = sql("SELECT id FROM ordens_servico WHERE numero=9902")[0][0]
+    ger2 = Sessao("gerente@demo.com", "gerente123")
+    ger2.get(f"/app/ordens-servico/{os2}")
+    ger2.post(f"/app/ordens-servico/{os2}/converter-venda", {"forma_pagamento": "pix"})
+    check("OS4. sem caixa aberto a OS não converte (nenhuma venda criada)", not sql("SELECT id FROM vendas WHERE observacoes LIKE 'Gerada a partir da OS #9902%'") and sql(f"SELECT status FROM ordens_servico WHERE id={os2}")[0][0] == "concluida")
 else:
     check("OS1. tabela ordens_servico existe", False)
 

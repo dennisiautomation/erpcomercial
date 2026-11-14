@@ -319,7 +319,16 @@ class OrdemServicoController extends Controller
             return back()->with('error', 'Esta loja nao tem estoque habilitado para venda. Configure em Estoque antes de converter a OS.');
         }
 
-        $venda = DB::transaction(function () use ($ordemServico, $fp) {
+        // Caixa (14/11/2026, pedido do Dennis): a venda da OS entra no caixa aberto de
+        // quem converte, na loja da OS — como balcão e faturar. Antes não entrava em
+        // caixa nenhum e sumia do fechamento.
+        $caixaSvc = app(\App\Services\LancamentoCaixaService::class);
+        $caixa = $caixaSvc->caixaAbertoDoUsuario((int) $ordemServico->unidade_id, (int) auth()->id());
+        if (! $caixa) {
+            return back()->with('error', 'Abra o caixa nesta loja antes de converter a OS: a venda entra no caixa, como no PDV.');
+        }
+
+        $venda = DB::transaction(function () use ($ordemServico, $fp, $caixa, $caixaSvc) {
             $ultimoNumero = Venda::where('empresa_id', session('empresa_id'))
                 ->max('numero') ?? 0;
 
@@ -364,6 +373,9 @@ class OrdemServicoController extends Controller
             // A peca aplicada na OS sai do estoque na conversao — mesma mecanica
             // do faturamento de pedido (SaldoEstoque e o ponto unico de gravacao).
             $this->baixarEstoqueOS($ordemServico);
+
+            // Entrada no caixa na forma escolhida (grava caixa_id na venda)
+            $caixaSvc->lancarVenda($venda, $caixa, $venda->pagamento_detalhes, (int) auth()->id());
 
             $ordemServico->update(['status' => 'entregue']);
 
