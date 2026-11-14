@@ -8772,3 +8772,16 @@ Só o *dono* e o *gerente* têm acesso.
 
 Qualquer dúvida, é só chamar a gente por aqui! 😊
 ```
+
+## Página de venda para redes de lojas — `/redes` (14/11/2026)
+
+Branch `pagina-redes-14nov` (sai da main `8140122`). **Não está em produção.**
+
+- Rota pública `GET /redes` (`site.redes`) → `SiteController::redes` → view `resources/views/site/redes.blade.php`. Página única, CSS próprio no mesmo sistema visual da landing V2. Não redireciona quem está logado (o parceiro abre e mostra).
+- É a página de destino de anúncio e de indicação para redes de 2 a 10 lojas. O formulário usa a mesma rota `site.demo.store`; agora ela aceita `origem` (`landing` ou `redes`) e grava em `solicitacoes_demonstracao.origem`, para separar de onde veio o pedido.
+- **Antes de publicar, conferir o texto com o que está em produção:**
+  - Maquininha Stone e loja online aparecem no bloco "Chegando" com a etiqueta "Em testes". Quando subirem, mover para as linhas de recurso.
+  - A faixa de números (14 lojas, 7.900+ vendas em 30 dias, 54 pessoas) vem do banco de produção em 14/11/2026 (STILO VINTE + MISS MERLINDA, sem citar nome). Atualizar ou retirar se o Dennis não quiser usar.
+  - Preço "a partir de R$ 590" = plano Básico da tabela `planos`.
+  - O painel do topo e a conversa do WhatsApp são exemplos e estão marcados como exemplo na tela.
+- Validação feita: `php -l` no controller e nas rotas; view renderizada em container descartável da imagem (`--entrypoint ""`); print em 1280 px e 390 px sem rolagem lateral e sem erro de JavaScript. O envio do formulário não foi testado contra banco.
