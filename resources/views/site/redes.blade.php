@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="csrf-token" content="{{ csrf_token() }}">
 <title>Sistema para rede de lojas · ERP Comercial IA365</title>
-<meta name="description" content="Sistema para quem tem de 2 a 10 lojas: estoque, caixa, vendedores e nota fiscal de todas as lojas no mesmo painel, com implantação feita pela nossa equipe.">
+<meta name="description" content="Sistema para quem tem de 2 a 10 lojas: estoque, caixa, vendedores e nota fiscal de todas as lojas no mesmo painel, com venda na maquininha Stone, loja online e atendente de IA no WhatsApp.">
 <meta property="og:title" content="Sistema para rede de lojas · ERP Comercial IA365">
 <meta property="og:description" content="Todas as suas lojas no mesmo painel. Estoque, caixa, vendedores e nota fiscal, com implantação feita pela nossa equipe.">
 <meta property="og:type" content="website">
@@ -160,7 +160,7 @@ h1,h2,h3{letter-spacing:-.015em;text-wrap:balance}
 .soon{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}
 @media(max-width:720px){.soon{grid-template-columns:1fr}}
 .soon__item{background:var(--bg2);border-radius:var(--r);padding:1.4rem}
-.soon__item h3{font-size:1.15rem;font-weight:600;margin:.6rem 0 .3rem}
+.soon__item h3{font-size:1.15rem;font-weight:600;margin:0 0 .3rem}
 .soon__item p{color:var(--ink2);font-size:.97rem}
 .tag{display:inline-block;font-size:.74rem;font-weight:600;padding:.16rem .6rem;border-radius:980px;background:rgba(255,149,0,.15);color:var(--warnD)}
 
@@ -229,7 +229,7 @@ h1,h2,h3{letter-spacing:-.015em;text-wrap:balance}
 <section class="hero">
   <div class="wrap">
     <h1>O sistema para quem tem mais de uma loja.</h1>
-    <p class="lede">Estoque, caixa, vendedores e nota fiscal de todas as lojas no mesmo painel. Você abre o celular e sabe como cada uma está, sem ligar para o gerente.</p>
+    <p class="lede">Estoque, caixa, vendedores e nota fiscal de todas as lojas no mesmo painel, com venda na maquininha Stone, loja online e atendente de IA no WhatsApp.</p>
     <div class="hero__actions">
       <a class="pill" href="#demo">Quero ver com as minhas lojas</a>
       <a class="pill pill--ghost" href="{{ $wa }}" target="_blank" rel="noopener">Chamar no WhatsApp</a>
@@ -338,6 +338,7 @@ h1,h2,h3{letter-spacing:-.015em;text-wrap:balance}
           <tr><td>Pessoas usando</td><td>Poucos usuários. Passou disso, sobe de plano.</td><td class="me">Dono, gerentes, caixas e vendedores, cada um vendo só o que deve.</td></tr>
           <tr><td>Colocar para rodar</td><td>Você mesmo configura, com vídeo e central de ajuda.</td><td class="me">Nossa equipe cadastra as lojas, importa os produtos e treina o pessoal.</td></tr>
           <tr><td>Quando dá problema</td><td>Fila de atendimento.</td><td class="me">Você fala com quem implantou a sua rede.</td></tr>
+          <tr><td>Maquininha e internet</td><td>Maquininha separada do sistema. Loja online costuma ser outro serviço.</td><td class="me">Venda na maquininha Stone e loja online ligadas ao mesmo estoque.</td></tr>
           <tr><td>WhatsApp</td><td>Em geral não tem atendente que vende.</td><td class="me">Atendente de IA ligado ao estoque das lojas.</td></tr>
         </tbody>
       </table>
@@ -348,19 +349,17 @@ h1,h2,h3{letter-spacing:-.015em;text-wrap:balance}
 <section class="sec">
   <div class="wrap">
     <div class="sec__head">
-      <span class="kicker" style="color:var(--warnD)">Chegando</span>
-      <h2 class="d2">O que entra nos próximos meses.</h2>
+      <span class="kicker">Venda onde o cliente estiver</span>
+      <h2 class="d2">No balcão, na maquininha e na internet. O estoque é um só.</h2>
     </div>
     <div class="soon">
       <div class="soon__item">
-        <span class="tag">Em testes</span>
         <h3>Venda direto na maquininha Stone</h3>
-        <p>O vendedor fecha a venda na própria maquininha, no corredor da loja. A venda cai no sistema com estoque, caixa e nota.</p>
+        <p>O vendedor fecha a venda na própria maquininha, no corredor da loja ou na fila. A venda cai no sistema com estoque, caixa e nota, sem digitar de novo.</p>
       </div>
       <div class="soon__item">
-        <span class="tag">Em testes</span>
         <h3>Loja online com o mesmo estoque</h3>
-        <p>A vitrine na internet usa os produtos e o estoque que já estão no sistema. O pedido chega junto com os das lojas.</p>
+        <p>A vitrine na internet usa os produtos e o estoque que já estão no sistema. O cliente paga por PIX ou cartão e o pedido chega junto com os das lojas.</p>
       </div>
     </div>
   </div>
@@ -375,6 +374,7 @@ h1,h2,h3{letter-spacing:-.015em;text-wrap:balance}
         <li>{!! $check !!} Valor fechado pelo número de lojas</li>
         <li>{!! $check !!} Venda, estoque, caixa, financeiro e nota fiscal</li>
         <li>{!! $check !!} Implantação e treinamento pela nossa equipe</li>
+        <li>{!! $check !!} Venda na maquininha Stone e loja online</li>
         <li>{!! $check !!} Atendente de IA no WhatsApp como opcional</li>
       </ul>
       <a class="pill pill--block" href="#demo">Pedir proposta para a minha rede</a>
