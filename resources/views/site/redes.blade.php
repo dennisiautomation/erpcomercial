@@ -10,6 +10,7 @@
 <meta property="og:description" content="Todas as suas lojas no mesmo painel. Estoque, caixa, vendedores e nota fiscal, com implantação feita pela nossa equipe.">
 <meta property="og:type" content="website">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%231d1d1f'/%3E%3Ctext x='16' y='22' font-family='Arial' font-size='16' font-weight='bold' fill='white' text-anchor='middle'%3EI%3C/text%3E%3C/svg%3E">
+<script>document.documentElement.className+=" js";</script>
 <style>
 /* ============================================================
    ERP Comercial IA365 — página "rede de lojas" (/redes)
@@ -158,14 +159,6 @@ h1,h2,h3{letter-spacing:-.015em;text-wrap:balance}
 .cmp td{color:var(--ink2)}
 .cmp td.me{color:var(--ink)}
 
-/* chegando */
-.soon{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}
-@media(max-width:720px){.soon{grid-template-columns:1fr}}
-.soon__item{background:var(--bg2);border-radius:var(--r);padding:1.4rem}
-.soon__item h3{font-size:1.15rem;font-weight:600;margin:0 0 .3rem}
-.soon__item p{color:var(--ink2);font-size:.97rem}
-.tag{display:inline-block;font-size:.74rem;font-weight:600;padding:.16rem .6rem;border-radius:980px;background:rgba(255,149,0,.15);color:var(--warnD)}
-
 /* preço + troca */
 .price{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:2rem;align-items:start}
 @media(max-width:820px){.price{grid-template-columns:1fr}}
@@ -203,6 +196,91 @@ h1,h2,h3{letter-spacing:-.015em;text-wrap:balance}
 .form__feedback.is-err{background:rgba(255,59,48,.1);color:var(--badD)}
 .form__alt{margin-top:.9rem;font-size:.92rem;text-align:center}
 
+
+/* ---------- movimento ao rolar ---------- */
+.prog{position:fixed;left:0;top:0;height:3px;width:100%;transform-origin:0 50%;transform:scaleX(0);background:var(--blue);z-index:70}
+html.js .rv{opacity:0;transform:translateY(26px);transition:opacity .7s var(--ease),transform .7s var(--ease);transition-delay:var(--d,0s)}
+html.js .rv.in{opacity:1;transform:none}
+.lojas tr{transition:background .6s var(--ease)}
+.lojas tr.pulse{background:rgba(52,199,89,.14)}
+.board{transform:perspective(1400px) rotateX(var(--tilt,0deg));transform-origin:50% 0;transition:transform .15s linear}
+
+/* ---------- um estoque só ---------- */
+.uno{background:var(--bg2);border-radius:26px;padding:clamp(1rem,2.5vw,1.8rem)}
+.uno__stock{position:sticky;top:60px;z-index:5;display:flex;align-items:center;gap:.9rem;flex-wrap:wrap;background:#1d1d1f;color:#fff;border-radius:16px;padding:.8rem 1.1rem;box-shadow:0 8px 24px rgba(0,0,0,.18)}
+.uno__label{font-size:.9rem;color:#d2d2d7}
+.uno__n{font-size:1.9rem;font-weight:700;line-height:1;min-width:1.4ch;text-align:center;background:#34c759;color:#06310f;border-radius:10px;padding:.15rem .55rem;transition:background .4s var(--ease),transform .4s var(--ease)}
+.uno__n.bump{transform:scale(1.25)}
+.uno[data-n="1"] .uno__n{background:#ff9500;color:#3a2000}
+.uno[data-n="0"] .uno__n{background:#ff453a;color:#fff}
+.uno__msg{font-size:.9rem;color:#f5f5f7;margin-left:auto}
+.uno__grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1.2rem;margin-top:1.6rem;align-items:start}
+@media(max-width:860px){.uno__grid{grid-template-columns:1fr;gap:2.2rem}.uno__stock{gap:.25rem .7rem;padding:.6rem .85rem}.uno__label{flex:1;font-size:.8rem}.uno__n{font-size:1.4rem}.uno__msg{margin-left:0;flex-basis:100%;font-size:.8rem}}
+.dev{display:flex;flex-direction:column;align-items:center;gap:1rem;text-align:center}
+.dev figcaption{font-size:.95rem;color:var(--ink2);max-width:34ch}
+.dev figcaption b{display:block;color:var(--ink);font-size:1.08rem;margin-bottom:.2rem}
+.uno__note{font-size:.78rem;color:var(--ink3);text-align:center;margin-top:1.4rem}
+
+/* maquininha */
+.pos{position:relative;width:200px;padding:46px 14px 16px;background:linear-gradient(160deg,#17a065,#0c7d4c);border-radius:26px;box-shadow:0 18px 40px rgba(12,125,76,.32),inset 0 1px 0 rgba(255,255,255,.25)}
+.pos__paper{position:absolute;left:34px;right:34px;top:6px;height:0;overflow:hidden;background:#fff;border-radius:4px 4px 0 0;box-shadow:0 -2px 8px rgba(0,0,0,.15);display:flex;flex-direction:column;gap:5px;padding:0 10px;transition:height .7s var(--ease),top .7s var(--ease),padding .7s var(--ease)}
+.pos__paper i{display:block;height:4px;border-radius:2px;background:#d2d2d7}
+.pos__paper i:nth-child(2){width:70%}
+.pos__paper i:nth-child(3){width:45%}
+.pos__paper b{font-size:.62rem;color:#248a3d;letter-spacing:.02em}
+.dev.is-on .pos__paper{height:64px;top:-30px;padding:9px 10px}
+.pos__screen{background:#0f1512;border-radius:14px;padding:10px;color:#f5f5f7;text-align:left;display:flex;flex-direction:column;gap:7px;min-height:226px}
+.pos__bar{font-size:.7rem;color:#9fb3a8;border-bottom:1px solid rgba(255,255,255,.1);padding-bottom:6px}
+.pos__item{display:flex;justify-content:space-between;gap:.5rem;font-size:.76rem}
+.pos__item--soft{color:#9fb3a8}
+.pos__total{display:flex;justify-content:space-between;align-items:baseline;margin-top:auto;font-size:.76rem;color:#9fb3a8}
+.pos__total b{font-size:1.25rem;color:#fff}
+.pos__btn{border-radius:10px;padding:.55rem .4rem;text-align:center;font-size:.78rem;font-weight:600}
+.pos__btn--pay{background:#fff;color:#0f1512}
+.pos__btn--ok{background:#34c759;color:#06310f;display:none}
+.dev.is-on .pos__btn--pay{display:none}
+.dev.is-on .pos__btn--ok{display:block}
+.pos__keys{display:flex;justify-content:center;gap:16px;margin-top:14px}
+.pos__keys i{width:26px;height:8px;border-radius:4px;background:rgba(255,255,255,.35)}
+.pos__keys i:nth-child(1){background:#ff6961}.pos__keys i:nth-child(2){background:#ffd60a}.pos__keys i:nth-child(3){background:#d8ffe7}
+
+/* celular com a loja online */
+.phone{position:relative;width:210px;aspect-ratio:9/18.5;background:#1d1d1f;border-radius:34px;padding:9px;box-shadow:0 18px 44px rgba(0,0,0,.22)}
+.phone__in{width:100%;height:100%;border-radius:26px;overflow:hidden;background:#fff}
+.phone__in img{display:block;width:100%;height:auto;transform:translateY(calc(var(--p,0) * -58%));transition:transform .2s linear;will-change:transform}
+.phone__toast{position:absolute;left:16px;right:16px;bottom:18px;background:rgba(255,255,255,.96);border-radius:14px;padding:.55rem .7rem;text-align:left;box-shadow:0 8px 24px rgba(0,0,0,.25);font-size:.72rem;color:var(--ink2);opacity:0;transform:translateY(20px);transition:opacity .5s var(--ease),transform .5s var(--ease)}
+.phone__toast b{display:block;color:var(--okD);font-size:.76rem}
+.dev.is-on .phone__toast{opacity:1;transform:none}
+
+/* conversa pequena */
+.chat--mini{max-width:230px;min-height:300px;border-radius:20px;padding:.8rem;text-align:left}
+.chat--mini .msg{font-size:.78rem}
+.wa__r1,.wa__r2,.wa__r3{opacity:0;transform:translateY(8px);transition:opacity .45s var(--ease),transform .45s var(--ease)}
+.dev.is-on .wa__r1,.dev.is-on .wa__r2,.dev.is-on .wa__r3{opacity:1;transform:none}
+.dev.is-on .wa__r2{transition-delay:.7s}
+.dev.is-on .wa__r3{transition-delay:1.4s}
+
+/* modelos de loja */
+.modelos{display:grid;grid-template-columns:minmax(0,4fr) minmax(0,8fr);gap:1.6rem;align-items:center;margin-top:clamp(2.2rem,5vw,3.4rem)}
+@media(max-width:860px){.modelos{grid-template-columns:1fr}}
+.modelos__txt h3{font-size:1.3rem;font-weight:600;margin-bottom:.4rem}
+.modelos__txt p{color:var(--ink2)}
+.modelos__row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.8rem}
+.brow{border-radius:12px;overflow:hidden;border:1px solid var(--sep);box-shadow:var(--shadow);background:#fff;transition:transform .5s var(--ease)}
+.brow:hover{transform:translateY(-6px)}
+.brow:nth-child(2){transform:translateY(calc(var(--m,0) * -18px))}
+.brow__bar{display:flex;gap:4px;padding:6px 8px;background:var(--bg2);border-bottom:1px solid var(--sep)}
+.brow__bar i{width:6px;height:6px;border-radius:50%;background:#c7c7cc}
+.brow img{display:block;width:100%;height:auto}
+
+@media(prefers-reduced-motion:reduce){
+  html.js .rv{opacity:1;transform:none;transition:none}
+  .board{transform:none}
+  .phone__in img{transform:none;transition:none}
+  .pos__paper,.phone__toast,.wa__r1,.wa__r2,.wa__r3,.uno__n{transition:none}
+  .prog{display:none}
+}
+
 .foot{padding:1.6rem 0 2.2rem;border-top:1px solid var(--sep);font-size:.82rem;color:var(--ink3)}
 .foot .wrap{display:flex;gap:.6rem 1.4rem;flex-wrap:wrap;justify-content:space-between}
 [hidden]{display:none!important}
@@ -215,6 +293,7 @@ h1,h2,h3{letter-spacing:-.015em;text-wrap:balance}
   $check = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>';
 @endphp
 <a class="skip" href="#main">Ir para o conteúdo</a>
+<div class="prog" id="prog" aria-hidden="true"></div>
 
 <header class="nav">
   <div class="wrap nav__in">
@@ -243,9 +322,9 @@ h1,h2,h3{letter-spacing:-.015em;text-wrap:balance}
     <div class="board" role="img" aria-label="Exemplo do painel da rede, com uma linha para cada loja">
       <div class="board__top"><b>Minha rede · hoje</b><span>atualizado agora há pouco</span></div>
       <div class="board__kpis">
-        <div class="kp"><span>Vendido hoje</span><b class="num">R$ 31.480</b></div>
-        <div class="kp"><span>Vendas</span><b class="num">262</b></div>
-        <div class="kp"><span>Notas emitidas</span><b class="num">262 de 262</b></div>
+        <div class="kp"><span>Vendido hoje</span><b class="num">R$ <span id="kTot" data-count="31480">31.480</span></b></div>
+        <div class="kp"><span>Vendas</span><b class="num"><span id="kVen" data-count="262">262</span></b></div>
+        <div class="kp"><span>Notas emitidas</span><b class="num"><span id="kNf1">262</span> de <span id="kNf2">262</span></b></div>
       </div>
       <div class="board__scroll">
         <table class="lojas">
@@ -265,9 +344,9 @@ h1,h2,h3{letter-spacing:-.015em;text-wrap:balance}
 
   {{-- Números reais de uso (banco de produção, 30 dias até 14/11/2026). Atualizar ou retirar antes de publicar. --}}
   <div class="proof">
-    <div><b class="num">14 lojas</b><span>de duas redes de Teresina já operam no sistema</span></div>
-    <div><b class="num">7.900+</b><span>vendas passaram por elas nos últimos 30 dias</span></div>
-    <div><b class="num">54 pessoas</b><span>usam todo dia: dono, gerente, caixa e vendedor</span></div>
+    <div><b class="num"><span data-count="14">14</span> lojas</b><span>de duas redes de Teresina já operam no sistema</span></div>
+    <div><b class="num"><span data-count="7900">7.900</span>+</b><span>vendas passaram por elas nos últimos 30 dias</span></div>
+    <div><b class="num"><span data-count="54">54</span> pessoas</b><span>usam todo dia: dono, gerente, caixa e vendedor</span></div>
   </div>
 </section>
 
@@ -348,20 +427,69 @@ h1,h2,h3{letter-spacing:-.015em;text-wrap:balance}
   </div>
 </section>
 
-<section class="sec">
+<section class="sec" id="canais">
   <div class="wrap">
     <div class="sec__head">
       <span class="kicker">Venda onde o cliente estiver</span>
-      <h2 class="d2">No balcão, na maquininha e na internet. O estoque é um só.</h2>
+      <h2 class="d2">Na maquininha, na internet e no WhatsApp. O estoque é um só.</h2>
+      <p class="lede">Cada venda, venha de onde vier, baixa o mesmo estoque na mesma hora. Ninguém vende o que já saiu.</p>
     </div>
-    <div class="soon">
-      <div class="soon__item">
-        <h3>Venda direto na maquininha Stone</h3>
-        <p>O vendedor fecha a venda na própria maquininha, no corredor da loja ou na fila. A venda cai no sistema com estoque, caixa e nota, sem digitar de novo.</p>
+
+    <div class="uno" id="uno">
+      <div class="uno__stock">
+        <span class="uno__label">Sandália preta 37 · estoque da rede</span>
+        <b class="uno__n num" id="unoN">0</b>
+        <span class="uno__msg" id="unoMsg">Acabou. Reposição pedida ao fornecedor.</span>
       </div>
-      <div class="soon__item">
-        <h3>Loja online com o mesmo estoque</h3>
-        <p>A vitrine na internet usa os produtos e o estoque que já estão no sistema. O cliente paga por PIX ou cartão e o pedido chega junto com os das lojas.</p>
+
+      <div class="uno__grid">
+        <figure class="dev is-on" data-dev="pos">
+          <div class="pos" aria-hidden="true">
+            <div class="pos__paper"><i></i><i></i><i></i><b>NFC-e emitida</b></div>
+            <div class="pos__screen">
+              <div class="pos__bar">Venda · Loja Centro</div>
+              <div class="pos__item"><span>Sandália preta 37</span><b class="num">R$ 149,90</b></div>
+              <div class="pos__item pos__item--soft"><span>Vendedora</span><b>Ana</b></div>
+              <div class="pos__total"><span>Total</span><b class="num">R$ 149,90</b></div>
+              <div class="pos__btn pos__btn--pay">Cobrar no cartão</div>
+              <div class="pos__btn pos__btn--ok">Aprovado · nota emitida</div>
+            </div>
+            <div class="pos__keys"><i></i><i></i><i></i></div>
+          </div>
+          <figcaption><b>Maquininha Stone</b>O vendedor fecha a venda na própria maquininha, no corredor ou na fila. Estoque, caixa e nota saem dali.</figcaption>
+        </figure>
+
+        <figure class="dev is-on" data-dev="loja">
+          <div class="phone" aria-hidden="true">
+            <div class="phone__in"><img id="lojaImg" src="{{ asset('site/redes/loja-celular.jpg') }}" alt="" width="390" height="1440" loading="lazy"></div>
+            <div class="phone__toast"><b>Pedido novo da loja online</b><span>Sandália preta 37 · PIX pago</span></div>
+          </div>
+          <figcaption><b>Loja online</b>A vitrine na internet usa os produtos e o estoque do sistema. O cliente paga por PIX ou cartão e o pedido chega junto com os das lojas.</figcaption>
+        </figure>
+
+        <figure class="dev is-on" data-dev="wa">
+          <div class="chat chat--mini" aria-hidden="true">
+            <div class="chat__top"><i>L</i><span>Loja Centro<small>atendente de IA</small></span></div>
+            <div class="msg msg--in">Ainda tem a sandália preta 37?</div>
+            <div class="msg msg--out wa__r1">Tem o último par, no Shopping. Separo para você?</div>
+            <div class="msg msg--in wa__r2">Separa, pago agora</div>
+            <div class="msg msg--out wa__r3">Separado. Segue o link do PIX.</div>
+          </div>
+          <figcaption><b>WhatsApp com atendente de IA</b>Responde olhando o estoque de todas as lojas e fecha o pedido, a qualquer hora.</figcaption>
+        </figure>
+      </div>
+      <p class="uno__note">Telas de exemplo. A loja online mostrada é uma loja de demonstração do sistema.</p>
+    </div>
+
+    <div class="modelos">
+      <div class="modelos__txt">
+        <h3>Seis modelos de loja online prontos</h3>
+        <p>Você escolhe o modelo, troca cores e fotos num editor visual e publica. Pode usar o seu próprio endereço na internet.</p>
+      </div>
+      <div class="modelos__row">
+        <div class="brow"><div class="brow__bar"><i></i><i></i><i></i></div><img src="{{ asset('site/redes/modelo-vitrine.jpg') }}" alt="Modelo de loja online com vitrine azul" width="600" height="520" loading="lazy"></div>
+        <div class="brow"><div class="brow__bar"><i></i><i></i><i></i></div><img src="{{ asset('site/redes/modelo-circuito.jpg') }}" alt="Modelo de loja online de ofertas, em amarelo" width="600" height="520" loading="lazy"></div>
+        <div class="brow"><div class="brow__bar"><i></i><i></i><i></i></div><img src="{{ asset('site/redes/modelo-mimo.jpg') }}" alt="Modelo de loja online para presentes, em lilás" width="600" height="520" loading="lazy"></div>
       </div>
     </div>
   </div>
@@ -457,6 +585,113 @@ h1,h2,h3{letter-spacing:-.015em;text-wrap:balance}
   </div>
 </footer>
 
+<script>
+(function () {
+  var reduz = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var fmt = function (n) { return Math.round(n).toLocaleString('pt-BR'); };
+
+  /* 1. entrada das partes ao rolar */
+  var alvos = document.querySelectorAll('.sec__head, .row, .dev, .uno__stock, .modelos, .cmp__scroll, .price__box, .steps li, .form, .cta__grid > div, .ia > div, .chat:not(.chat--mini), .proof > div, .board');
+  alvos.forEach(function (el, i) {
+    el.classList.add('rv');
+    var irmaos = el.parentNode ? Array.prototype.indexOf.call(el.parentNode.children, el) : 0;
+    el.style.setProperty('--d', Math.min(irmaos, 4) * 0.08 + 's');
+  });
+  function mostrar(el) { el.classList.add('in'); }
+  if (reduz || !('IntersectionObserver' in window)) {
+    alvos.forEach(mostrar);
+  } else {
+    var io = new IntersectionObserver(function (es) {
+      es.forEach(function (e) { if (e.isIntersecting) { mostrar(e.target); io.unobserve(e.target); } });
+    }, { rootMargin: '0px 0px -8% 0px', threshold: 0.08 });
+    alvos.forEach(function (el) { io.observe(el); });
+    setTimeout(function () { alvos.forEach(function (el) { if (el.getBoundingClientRect().top < window.innerHeight) mostrar(el); }); }, 1200);
+  }
+
+  /* 2. números que contam */
+  function contar(el) {
+    var fim = parseFloat(el.getAttribute('data-count')); if (reduz || !fim) return;
+    var t0 = null;
+    function passo(t) { if (!t0) t0 = t; var k = Math.min((t - t0) / 1100, 1); k = 1 - Math.pow(1 - k, 3); el.textContent = fmt(fim * k); if (k < 1) requestAnimationFrame(passo); }
+    el.textContent = '0'; requestAnimationFrame(passo);
+  }
+  if ('IntersectionObserver' in window) {
+    var ioN = new IntersectionObserver(function (es) { es.forEach(function (e) { if (e.isIntersecting) { contar(e.target); ioN.unobserve(e.target); } }); }, { threshold: 0.6 });
+    document.querySelectorAll('[data-count]').forEach(function (el) { ioN.observe(el); });
+  }
+
+  /* 3. painel do topo: uma venda nova de vez em quando */
+  var linhas = document.querySelectorAll('.lojas tbody tr');
+  var kTot = document.getElementById('kTot'), kVen = document.getElementById('kVen'), kNf1 = document.getElementById('kNf1'), kNf2 = document.getElementById('kNf2');
+  var total = 31480, vendas = 262;
+  var num = function (txt) { return parseInt(String(txt).replace(/\D/g, ''), 10) || 0; };
+  if (!reduz && linhas.length) {
+    setInterval(function () {
+      if (document.hidden) return;
+      var tr = linhas[Math.floor(Math.random() * linhas.length)];
+      var valor = [59, 89, 119, 149, 179, 229][Math.floor(Math.random() * 6)];
+      var cVal = tr.children[1], cQtd = tr.children[2];
+      cVal.textContent = 'R$ ' + fmt(num(cVal.textContent) + valor);
+      cQtd.textContent = num(cQtd.textContent) + 1;
+      total += valor; vendas += 1;
+      if (kTot) kTot.textContent = fmt(total);
+      if (kVen) kVen.textContent = vendas;
+      if (kNf1) kNf1.textContent = vendas;
+      if (kNf2) kNf2.textContent = vendas;
+      tr.classList.add('pulse'); setTimeout(function () { tr.classList.remove('pulse'); }, 900);
+    }, 2600);
+  }
+
+  /* 4. um estoque só: maquininha, loja online e WhatsApp baixando o mesmo número */
+  var uno = document.getElementById('uno');
+  if (uno) {
+    var n = document.getElementById('unoN'), msg = document.getElementById('unoMsg');
+    var devs = { pos: uno.querySelector('[data-dev="pos"]'), loja: uno.querySelector('[data-dev="loja"]'), wa: uno.querySelector('[data-dev="wa"]') };
+    var timers = [], rodando = false;
+    function estado(q, texto) {
+      uno.setAttribute('data-n', q); n.textContent = q; msg.textContent = texto;
+      n.classList.add('bump'); setTimeout(function () { n.classList.remove('bump'); }, 350);
+    }
+    function ciclo() {
+      Object.keys(devs).forEach(function (k) { devs[k].classList.remove('is-on'); });
+      estado(3, '2 pares no Centro, 1 no Shopping');
+      timers.push(setTimeout(function () { devs.pos.classList.add('is-on'); estado(2, 'Vendeu 1 na maquininha, no Centro'); }, 1500));
+      timers.push(setTimeout(function () { devs.loja.classList.add('is-on'); estado(1, 'Vendeu 1 na loja online'); }, 4000));
+      timers.push(setTimeout(function () { devs.wa.classList.add('is-on'); }, 6200));
+      timers.push(setTimeout(function () { estado(0, 'Vendeu o último no WhatsApp. Reposição pedida.'); }, 8200));
+      timers.push(setTimeout(ciclo, 12500));
+    }
+    function parar() { timers.forEach(clearTimeout); timers = []; rodando = false; }
+    if (reduz || !('IntersectionObserver' in window)) {
+      uno.setAttribute('data-n', 0);
+    } else {
+      new IntersectionObserver(function (es) {
+        es.forEach(function (e) {
+          if (e.isIntersecting && !rodando) { rodando = true; ciclo(); }
+          else if (!e.isIntersecting && rodando) { parar(); }
+        });
+      }, { threshold: 0.15 }).observe(uno);
+    }
+  }
+
+  /* 5. coisas presas à rolagem: barra do topo, painel que deita, loja que rola dentro do celular */
+  var prog = document.getElementById('prog'), board = document.querySelector('.board');
+  var phone = document.querySelector('.phone'), img = document.getElementById('lojaImg'), modelos = document.querySelector('.modelos__row');
+  var pedido = false;
+  function aoRolar() {
+    pedido = false;
+    var h = document.documentElement, y = window.pageYOffset, vh = window.innerHeight;
+    if (prog) prog.style.transform = 'scaleX(' + (y / Math.max(h.scrollHeight - vh, 1)) + ')';
+    if (reduz) return;
+    if (board) { var r = board.getBoundingClientRect(); var k = Math.max(0, Math.min(1, (r.top - vh * 0.25) / (vh * 0.6))); board.style.setProperty('--tilt', (k * 9).toFixed(2) + 'deg'); }
+    if (phone && img) { var p = phone.getBoundingClientRect(); var q = Math.max(0, Math.min(1, (vh - p.top) / (vh + p.height))); img.style.setProperty('--p', q.toFixed(3)); }
+    if (modelos) { var m = modelos.getBoundingClientRect(); var z = Math.max(0, Math.min(1, (vh - m.top) / (vh + m.height))); modelos.style.setProperty('--m', z.toFixed(3)); }
+  }
+  window.addEventListener('scroll', function () { if (!pedido) { pedido = true; requestAnimationFrame(aoRolar); } }, { passive: true });
+  window.addEventListener('resize', aoRolar);
+  aoRolar();
+})();
+</script>
 <script>
 (function () {
   var form = document.getElementById('demoForm');
