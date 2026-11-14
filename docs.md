@@ -9026,5 +9026,24 @@ As duas branches de origem ficam como estavam (a da cafeteria não foi atualizad
 **Validação** (phpunit pelo `/home/ubuntu/erp-cafeteria-homolog/phpunit.sh`, banco de teste da homologação)
 - `main` 8140122: 315 testes, 2 ❌ de sempre (`PdvTest::test_caixa_fechamento_calculates_correctly`, `LoginTest::test_oito_senhas_erradas_travam_o_email`).
 - `homolog-cafeteria-14nov`: **357 testes, as mesmas 2 ❌, 0 nova** (PosApiTest 23/23).
-- Não feito ainda: roteiro de navegador da cafeteria e da maquininha nesta branch; app da maquininha contra esta homologação.
+- Produção tinha 1 arquivo fora do git (`TransferenciaEstoqueController`, aviso de produto excluído ao aprovar, 13/11 16:02):
+  trazido para a branch (`2893cdb`). Conferido arquivo a arquivo `app/ resources/ routes/ database/` do container de produção
+  contra a `main`: era a única diferença.
+
+**Testes na homologação (homolog-erp.ia365.com.br, imagem `erp-caf-app:9476974`, 14/11 tarde)**
+- Roteiro da cafeteria no navegador (`/home/ubuntu/erp-cafeteria-homolog/roteiro-cafeteria.mjs`): **41/41**, sem erro de JS.
+- Cancelar venda de cafeteria pela tela (cancelamento novo da main): os insumos/adicionais/revenda voltam exatamente o que
+  saiu (6 saídas → 6 devoluções, mesmas quantidades).
+- API do app da maquininha (roteiro `api-pos.mjs`, no scratchpad da sessão): **17/17** — login, /me, catálogo, abrir caixa,
+  cotar, venda no crédito com dados da Stone, venda PIX, cancelar a própria venda (o 500 corrigido), pedido de balcão sem
+  cliente + faturar, caixa com `emitir_pedido`, empresa de cafeteria vendendo revenda.
+- Telas do ERP da maquininha (`telas-pos.mjs`): **11/11** — selo MAQUININHA, Origem = Maquininha Stone filtra só as do app,
+  detalhe com bandeira/autorização/bloco Stone, contas a receber, celular 390 px sem rolagem lateral.
+- **Achado e corrigido (`9476974`)**: o catálogo do app mostrava insumos e adicionais da cafeteria (Café em grão, Copo,
+  Calda...). Agora `PosCatalogoController` (produtos e categorias) usa `TipoProduto::vendaveis()`, como o PDV. Teste novo
+  `test_insumo_e_adicional_da_cafeteria_nao_aparecem_no_catalogo` (PosApiTest 24/24).
+- **Limite conhecido do app (não é regressão)**: o app não tem a janela de opções/adicionais. Produto com grupo obrigatório
+  (ex.: Cappuccino com Tamanho) é recusado pelo servidor com "Cappuccino: escolha Tamanho." — o estoque não é baixado
+  errado, mas a cafeteria só vende pelo app o que não tem opção obrigatória. Para vender com opções no app, o app precisa
+  ganhar a janela (a API do PDV já existe: `GET app/pdv/produto/{id}/opcoes` → itens[].opcoes).
 
