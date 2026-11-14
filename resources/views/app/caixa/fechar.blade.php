@@ -397,11 +397,12 @@
         <div class="formas-title"><i class="bi bi-credit-card me-1"></i> Vendas por forma de pagamento</div>
         @foreach($resumo['vendas_por_forma'] as $forma => $valor)
             @php $labels = \App\Models\MovimentacaoCaixa::FORMAS_LABELS; @endphp
-            <div class="forma-row {{ $forma === 'dinheiro' ? 'destaque' : '' }}">
+            @php $ehDinheiro = ($resumo['codigo_da_linha'][$forma] ?? $forma) === 'dinheiro'; @endphp
+            <div class="forma-row {{ $ehDinheiro ? 'destaque' : '' }}">
                 <span>
-                    @if($forma === 'dinheiro')<i class="bi bi-cash-coin me-1"></i>@endif
-                    {{ $labels[$forma] ?? ucfirst($forma) }}
-                    @if($forma !== 'dinheiro')<small class="nao-confere">não entra na gaveta</small>@endif
+                    @if($ehDinheiro)<i class="bi bi-cash-coin me-1"></i>@endif
+                    {{ ($resumo['rotulos_forma'][$forma] ?? ($labels[$forma] ?? ucfirst($forma))) }}
+                    @if(! $ehDinheiro)<small class="nao-confere">não entra na gaveta</small>@endif
                 </span>
                 <span class="fw">R$ {{ number_format($valor, 2, ',', '.') }}</span>
             </div>
@@ -453,7 +454,7 @@
                 @php $esperadoForma = (float) ($resumo['vendas_por_forma'][$forma] ?? 0); @endphp
                 <div class="forma-row" style="gap:10px;">
                     <span style="flex:1;">
-                        {{ $labels[$forma] ?? ucfirst($forma) }}
+                        {{ ($resumo['rotulos_forma'][$forma] ?? ($labels[$forma] ?? ucfirst($forma))) }}
                         <small class="nao-confere">esperado R$ {{ number_format($esperadoForma, 2, ',', '.') }}</small>
                     </span>
                     <input type="number" name="contado[{{ $forma }}]" step="0.01" min="0"

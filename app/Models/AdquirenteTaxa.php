@@ -35,6 +35,27 @@ class AdquirenteTaxa extends Model
      * Regra ativa que cobre a forma + nº de parcelas (a mais específica:
      * menor faixa de parcelas primeiro).
      */
+    /**
+     * Regra para um pagamento GRAVADO (14/11/2026): primeiro a regra do botão
+     * (forma criada "Cartão Elo" ou o Credishop podem ter máquina/taxa próprias),
+     * depois a do tipo (crédito/débito) — que é como era antes.
+     */
+    public static function paraPagamentoDe(int $empresaId, array $pgto, int $parcelas = 1): ?self
+    {
+        $forma = (string) ($pgto['forma'] ?? '');
+        $chave = (string) ($pgto['forma_chave'] ?? '');
+        foreach (array_unique(array_filter([$chave, $forma])) as $candidata) {
+            if (! in_array($candidata, ['cartao_credito', 'cartao_debito', 'credishop'], true) && ! str_starts_with($candidata, 'fp_')) {
+                continue;
+            }
+            if ($regra = static::paraPagamento($empresaId, $candidata, $parcelas)) {
+                return $regra;
+            }
+        }
+
+        return null;
+    }
+
     public static function paraPagamento(int $empresaId, string $forma, int $parcelas = 1): ?self
     {
         return static::withoutGlobalScopes()

@@ -22,6 +22,15 @@ class ContaReceberController extends Controller
             $query->where('status', $request->status);
         }
 
+        // Forma de pagamento (14/11/2026): mesma linha de forma dos relatórios —
+        // forma criada pela chave; do sistema pelo código, sem as criadas do mesmo tipo
+        if ($request->filled('forma')) {
+            $f = (string) $request->forma;
+            str_starts_with($f, 'fp_')
+                ? $query->where('forma_chave', $f)
+                : $query->where('forma_pagamento', $f)->where(fn ($q) => $q->whereNull('forma_chave')->orWhere('forma_chave', 'not like', 'fp\\_%'));
+        }
+
         if ($request->filled('cliente_id')) {
             $query->where('cliente_id', $request->cliente_id);
         }
@@ -56,8 +65,10 @@ class ContaReceberController extends Controller
             ->orderBy('nome_razao_social')
             ->get(['id', 'nome_razao_social']);
 
+        $formasFiltro = app(\App\Services\FormaPagamentoService::class)->opcoesFiltro((int) $empresaId);
+
         return view('app.financeiro.contas-receber.index', compact(
-            'contas', 'totalPendente', 'totalVencido', 'recebidoMes', 'clientes'
+            'contas', 'totalPendente', 'totalVencido', 'recebidoMes', 'clientes', 'formasFiltro'
         ));
     }
 
@@ -68,7 +79,11 @@ class ContaReceberController extends Controller
             ->orderBy('nome_razao_social')
             ->get(['id', 'nome_razao_social']);
 
-        return view('app.financeiro.contas-receber.create', compact('clientes'));
+        // Formas da empresa (Configurações → Formas de pagamento, 14/11/2026)
+        $formasPagamento = app(\App\Services\FormaPagamentoService::class)
+            ->ativas((int) (session('empresa_id') ?? auth()->user()->empresa_id));
+
+        return view('app.financeiro.contas-receber.create', compact('clientes', 'formasPagamento'));
     }
 
     public function store(Request $request)
@@ -83,7 +98,15 @@ class ContaReceberController extends Controller
             'observacoes'        => 'nullable|string|max:500',
         ]);
 
-        DB::transaction(function () use ($validated) {
+        // O botão manda a chave da forma configurada; grava o código + chave + nome (14/11/2026)
+        $fp = ! empty($validated['forma_pagamento'])
+            ? app(\App\Services\FormaPagamentoService::class)->resolver((int) (session('empresa_id') ?? auth()->user()->empresa_id), $validated['forma_pagamento'])
+            : null;
+        if (! empty($validated['forma_pagamento']) && ! $fp) {
+            return back()->withInput()->withErrors(['forma_pagamento' => 'Esta forma de pagamento está desligada. Escolha outra.']);
+        }
+
+        DB::transaction(function () use ($validated, $fp) {
             $valorParcela = round($validated['valor'] / $validated['parcelas'], 2);
             $vencimento = Carbon::parse($validated['primeiro_vencimento']);
 
@@ -100,7 +123,9 @@ class ContaReceberController extends Controller
                     'descricao'       => $validated['descricao'],
                     'valor'           => $valor,
                     'vencimento'      => $vencimento->copy(),
-                    'forma_pagamento' => $validated['forma_pagamento'] ?? null,
+                    'forma_pagamento' => $fp?->codigoGravado(),
+                    'forma_chave'     => $fp?->chave,
+                    'forma_nome'      => $fp?->nome,
                     'parcela'         => $i,
                     'total_parcelas'  => $validated['parcelas'],
                     'status'          => 'pendente',

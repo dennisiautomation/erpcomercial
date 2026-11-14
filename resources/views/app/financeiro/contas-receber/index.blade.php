@@ -27,6 +27,16 @@
 {{-- Filters --}}
 <x-erp.filter-bar :action="route('app.contas-receber.index')">
     <div class="col-md-2">
+        <label for="campo-forma" class="form-label fw-semibold small text-muted">Forma de pagamento</label>
+        {{-- Formas da empresa (14/11/2026) --}}
+        <select id="campo-forma" name="forma" class="form-select">
+            <option value="">Todas</option>
+            @foreach($formasFiltro as $valor => $rotulo)
+                <option value="{{ $valor }}" @selected(request('forma') === $valor)>{{ $rotulo }}</option>
+            @endforeach
+        </select>
+    </div>
+    <div class="col-md-2">
         <label for="campo-status" class="form-label fw-semibold small text-muted">Status</label>
         <select id="campo-status" name="status" class="form-select">
             <option value="">Todos</option>
@@ -91,7 +101,7 @@
             <td>
                 <div>{{ Str::limit($conta->descricao, 40) }}</div>
                 @if($conta->forma_pagamento)
-                    <small class="text-muted">{{ ucfirst(str_replace('_', ' ', $conta->forma_pagamento)) }}</small>
+                    <small class="text-muted">{{ $conta->forma_nome ?: \App\Services\FormaPagamentoService::rotulo($conta->forma_pagamento) }}</small>
                 @endif
             </td>
             <td class="text-center">

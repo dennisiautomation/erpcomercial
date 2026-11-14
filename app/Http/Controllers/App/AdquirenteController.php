@@ -17,7 +17,9 @@ class AdquirenteController extends Controller
             ->orderBy('parcelas_de')
             ->get();
 
-        return view('app.adquirentes.index', compact('taxas'));
+        $formas = $this->formasDeCartao();
+
+        return view('app.adquirentes.index', compact('taxas', 'formas'));
     }
 
     public function store(Request $request)
@@ -74,11 +76,30 @@ class AdquirenteController extends Controller
         return view('app.adquirentes.recebiveis', compact('contas', 'totais'));
     }
 
+    /**
+     * Formas que podem ter regra de máquina (14/11/2026): crédito e débito (valem
+     * para todo botão desse tipo) + cada botão de cartão que não é o padrão — forma
+     * criada ("Cartão Elo") e Credishop —, que pode ter máquina e taxa próprias.
+     * Sem regra própria, o botão usa a do tipo dele (AdquirenteTaxa::paraPagamentoDe).
+     */
+    private function formasDeCartao(): array
+    {
+        $formas = ['cartao_debito' => 'Cartão de Débito (todos)', 'cartao_credito' => 'Cartão de Crédito (todos)'];
+        $empresaId = (int) (session('empresa_id') ?? auth()->user()->empresa_id);
+        foreach (app(\App\Services\FormaPagamentoService::class)->todas($empresaId) as $f) {
+            if (in_array($f->tipo, ['cartao_credito', 'cartao_debito'], true) && ! in_array($f->chave, ['cartao_credito', 'cartao_debito'], true)) {
+                $formas[$f->chave] = $f->nome . ($f->ativo ? '' : ' (desligada)');
+            }
+        }
+
+        return $formas;
+    }
+
     private function validar(Request $request): array
     {
         $dados = $request->validate([
             'nome'            => 'required|string|max:80',
-            'forma'           => 'required|in:cartao_debito,cartao_credito',
+            'forma'           => ['required', \Illuminate\Validation\Rule::in(array_keys($this->formasDeCartao()))],
             'parcelas_de'     => 'required|integer|min:1|max:24',
             'parcelas_ate'    => 'required|integer|min:1|max:24|gte:parcelas_de',
             'taxa_percentual' => 'required|numeric|min:0|max:100',

@@ -27,6 +27,8 @@ class ContaReceber extends Model
         'vencimento',
         'pago_em',
         'forma_pagamento',
+        'forma_chave',   // botão configurado (14/11/2026)
+        'forma_nome',
         'adquirente_taxa_id',
         'taxa_percentual',
         'valor_liquido',

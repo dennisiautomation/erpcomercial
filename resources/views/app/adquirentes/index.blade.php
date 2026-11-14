@@ -10,7 +10,7 @@
     </a>
 </x-erp.page-header>
 
-@php $formas = ['cartao_debito' => 'Cartão de Débito', 'cartao_credito' => 'Cartão de Crédito']; @endphp
+{{-- $formas vem do controller (14/11/2026): crédito, débito e cada botão de cartão criado/Credishop --}}
 
 <x-erp.card title="Nova regra" icon="plus-circle" class="mb-4">
     <form method="POST" action="{{ route('app.adquirentes.store') }}" class="row g-2 align-items-end erp-form">

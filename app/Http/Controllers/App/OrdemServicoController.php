@@ -170,7 +170,13 @@ class OrdemServicoController extends Controller
             return view('app.ordens-servico.print', compact('ordemServico', 'configLoja'));
         }
 
-        return view('app.ordens-servico.show', compact('ordemServico'));
+        // Converter em venda pergunta a forma (14/11/2026) — as da empresa, menos o vale
+        // (exige o código impresso na troca, que só o PDV e o faturar leem)
+        $formasPagamento = app(\App\Services\FormaPagamentoService::class)
+            ->ativas((int) $ordemServico->empresa_id)
+            ->reject(fn ($f) => $f->codigoGravado() === 'vale')->values();
+
+        return view('app.ordens-servico.show', compact('ordemServico', 'formasPagamento'));
     }
 
     public function edit(OrdemServico $ordemServico)
@@ -292,8 +298,16 @@ class OrdemServicoController extends Controller
         return back()->with('success', 'Status atualizado para ' . str_replace('_', ' ', $novoStatus) . '.');
     }
 
-    public function converterEmVenda(OrdemServico $ordemServico)
+    public function converterEmVenda(Request $request, OrdemServico $ordemServico)
     {
+        // Forma de pagamento (14/11/2026): antes a venda nascia sempre "dinheiro".
+        // Sem o campo (tela aberta antes do deploy) continua dinheiro, como era.
+        $fp = app(\App\Services\FormaPagamentoService::class)
+            ->resolver((int) $ordemServico->empresa_id, (string) $request->input('forma_pagamento', 'dinheiro'));
+        if (! $fp || $fp->codigoGravado() === 'vale') {
+            return back()->with('error', 'Escolha uma forma de pagamento ligada para converter a OS.');
+        }
+
         if (!in_array($ordemServico->status, ['concluida', 'entregue'])) {
             return back()->with('error', 'Apenas OS concluidas ou entregues podem ser convertidas em venda.');
         }
@@ -305,7 +319,7 @@ class OrdemServicoController extends Controller
             return back()->with('error', 'Esta loja nao tem estoque habilitado para venda. Configure em Estoque antes de converter a OS.');
         }
 
-        $venda = DB::transaction(function () use ($ordemServico) {
+        $venda = DB::transaction(function () use ($ordemServico, $fp) {
             $ultimoNumero = Venda::where('empresa_id', session('empresa_id'))
                 ->max('numero') ?? 0;
 
@@ -325,7 +339,11 @@ class OrdemServicoController extends Controller
                 // rejeita a nota na SEFAZ (vNF = vProd - vDesc, armadilha 24b).
                 'desconto_valor' => $ordemServico->desconto,
                 'total' => $ordemServico->total,
-                'forma_pagamento' => 'dinheiro',
+                'forma_pagamento' => $fp->codigoGravado(),
+                'pagamento_detalhes' => [[
+                    'forma' => $fp->codigoGravado(), 'valor' => (float) $ordemServico->total,
+                    'forma_chave' => $fp->chave, 'forma_nome' => $fp->nome,
+                ]],
                 'observacoes' => 'Gerada a partir da OS #' . $ordemServico->numero,
             ]);
 

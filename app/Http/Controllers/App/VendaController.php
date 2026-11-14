@@ -279,6 +279,8 @@ class VendaController extends Controller
                     'vencimento'      => now(),
                     'pago_em'         => now(),
                     'forma_pagamento' => $request->forma_pagamento,
+                    'forma_chave'     => $fpBalcao->chave, // botão configurado (14/11/2026)
+                    'forma_nome'      => $fpBalcao->nome,
                     'parcela'         => 1,
                     'total_parcelas'  => 1,
                     'status'          => 'paga',

@@ -67,7 +67,7 @@ class ExportController extends Controller
         return $this->export(
             'vendas',
             $query->get(),
-            ['numero', 'status', 'forma_pagamento', 'subtotal', 'desconto_valor', 'total', 'created_at'],
+            ['numero', 'status', 'forma_pagamento', 'forma_pagamento_nome', 'subtotal', 'desconto_valor', 'total', 'created_at'],
             $request
         );
     }
@@ -77,7 +77,7 @@ class ExportController extends Controller
         return $this->export(
             'contas_receber',
             ContaReceber::where('empresa_id', auth()->user()->empresa_id)->get(),
-            ['descricao', 'valor', 'valor_pago', 'vencimento', 'pago_em', 'forma_pagamento', 'parcela', 'total_parcelas', 'status'],
+            ['descricao', 'valor', 'valor_pago', 'vencimento', 'pago_em', 'forma_pagamento', 'forma_pagamento_nome', 'parcela', 'total_parcelas', 'status'],
             $request
         );
     }
@@ -140,6 +140,19 @@ class ExportController extends Controller
             $modalidade = $col === 'preco_debito' ? 'debito' : 'credito';
 
             return optional($item->precos->firstWhere('modalidade', $modalidade))->valor;
+        }
+
+        // Nome da forma como o lojista configurou (14/11/2026): venda com split vira "PIX + Cartão Elo"
+        if ($col === 'forma_pagamento_nome') {
+            if ($item instanceof \App\Models\Venda) {
+                $dets = is_array($item->pagamento_detalhes) ? $item->pagamento_detalhes : [];
+
+                return $dets
+                    ? implode(' + ', array_map(fn ($p) => \App\Services\FormaPagamentoService::rotulo($p), $dets))
+                    : \App\Services\FormaPagamentoService::rotulo($item->forma_pagamento);
+            }
+
+            return $item->forma_nome ?: ($item->forma_pagamento ? \App\Services\FormaPagamentoService::rotulo($item->forma_pagamento) : '');
         }
 
         return $item->$col ?? '';

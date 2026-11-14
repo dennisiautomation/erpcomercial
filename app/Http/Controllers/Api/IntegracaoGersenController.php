@@ -180,6 +180,15 @@ class IntegracaoGersenController extends Controller
                 'vendedor_nome' => $v->vendedor?->name,
                 'cliente_nome' => $v->cliente?->nome_razao_social,
                 'forma_pagamento' => $v->forma_pagamento,
+                // 14/11: nome configurado pelo lojista + cada parte do pagamento (aditivo — quem lê só o código não muda)
+                'forma_pagamento_nome' => ($dets = is_array($v->pagamento_detalhes) ? $v->pagamento_detalhes : [])
+                    ? implode(' + ', array_map(fn ($p) => \App\Services\FormaPagamentoService::rotulo($p), $dets))
+                    : \App\Services\FormaPagamentoService::rotulo($v->forma_pagamento),
+                'pagamentos' => array_values(array_map(fn ($p) => [
+                    'forma' => $p['forma'] ?? null,
+                    'forma_nome' => \App\Services\FormaPagamentoService::rotulo($p),
+                    'valor' => (float) ($p['valor'] ?? 0),
+                ], is_array($v->pagamento_detalhes) ? $v->pagamento_detalhes : [])),
                 // vendas tipo=importada têm 1 item genérico → conta 1 peça
                 'qtde_itens' => (int) round((float) ($v->qtde_itens ?? 0)),
                 'situacao' => $v->status->value,

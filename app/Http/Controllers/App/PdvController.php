@@ -693,8 +693,10 @@ class PdvController extends Controller
                         'tipo'            => TipoMovimentacaoCaixa::Venda,
                         'valor'           => $valorMov,
                         'forma_pagamento' => $pgto['forma'],
-                        // Forma CRIADA pelo lojista (14/11/2026): o caixa agrupa pelo código, o nome fica na descrição
-                        'descricao'       => "Venda #{$venda->numero}" . (str_starts_with((string) ($pgto['forma_chave'] ?? ''), 'fp_') ? " — {$pgto['forma_nome']}" : ''),
+                        // Botão configurado (14/11/2026): o caixa separa a forma criada e mostra o nome
+                        'forma_chave'     => $pgto['forma_chave'] ?? null,
+                        'forma_nome'      => $pgto['forma_nome'] ?? null,
+                        'descricao'       => "Venda #{$venda->numero}",
                         'user_id'         => $responsavelCaixa,
                     ]);
                 }
@@ -707,9 +709,9 @@ class PdvController extends Controller
                     $forma = $pgto['forma'];
                     $parcelas = max(1, (int) ($pgto['parcelas'] ?? 1));
 
-                    $regra = in_array($forma, ['cartao_credito', 'cartao_debito'], true)
-                        ? AdquirenteTaxa::paraPagamento((int) $empresaId, $forma, $parcelas)
-                        : null;
+                    // Regra do botão (forma criada / Credishop) e depois a do tipo (14/11/2026)
+                    $regra = AdquirenteTaxa::paraPagamentoDe((int) $empresaId, $pgto, $parcelas);
+                    $nomeForma = str_starts_with((string) ($pgto['forma_chave'] ?? ''), 'fp_') ? (string) $pgto['forma_nome'] : null;
 
                     if ($regra) {
                         $valorParcela = round($valorPgto / $parcelas, 2);
@@ -725,12 +727,14 @@ class PdvController extends Controller
                                 'unidade_id'         => $unidadeId,
                                 'cliente_id'         => $request->cliente_id,
                                 'venda_id'           => $venda->id,
-                                'descricao'          => "Venda PDV #{$venda->numero} - " . ucfirst(str_replace('_', ' ', $forma)) . " {$i}/{$parcelas} ({$regra->nome})",
+                                'descricao'          => "Venda PDV #{$venda->numero} - " . ($nomeForma ?? ucfirst(str_replace('_', ' ', $forma))) . " {$i}/{$parcelas} ({$regra->nome})",
                                 'valor'              => $valorEsta,
                                 'valor_pago'         => 0,
                                 'vencimento'         => now()->addDays($regra->prazo_dias + 30 * ($i - 1)),
                                 'pago_em'            => null,
                                 'forma_pagamento'    => $forma,
+                                'forma_chave'        => $pgto['forma_chave'] ?? null,
+                                'forma_nome'         => $pgto['forma_nome'] ?? null,
                                 'adquirente_taxa_id' => $regra->id,
                                 'taxa_percentual'    => $regra->taxa_percentual,
                                 'valor_liquido'      => round($valorEsta * (1 - ((float) $regra->taxa_percentual) / 100), 2),
@@ -747,12 +751,14 @@ class PdvController extends Controller
                         'unidade_id'      => $unidadeId,
                         'cliente_id'      => $request->cliente_id,
                         'venda_id'        => $venda->id,
-                        'descricao'       => "Venda PDV #{$venda->numero} - " . ucfirst($forma),
+                        'descricao'       => "Venda PDV #{$venda->numero} - " . ($nomeForma ?? ucfirst($forma)),
                         'valor'           => $valorPgto,
                         'valor_pago'      => $valorPgto,
                         'vencimento'      => now(),
                         'pago_em'         => now(),
                         'forma_pagamento' => $forma,
+                        'forma_chave'     => $pgto['forma_chave'] ?? null,
+                        'forma_nome'      => $pgto['forma_nome'] ?? null,
                         'parcela'         => 1,
                         'total_parcelas'  => 1,
                         'status'          => 'paga',

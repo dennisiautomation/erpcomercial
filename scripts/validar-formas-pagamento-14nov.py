@@ -112,7 +112,7 @@ def venda_pdv(s, pagamentos, produto=2, qtd=1, preco=599.90):
 
 
 # ---------------------------------------------------------------- preparo
-sql("DELETE FROM formas_pagamento; UPDATE empresas SET pdv_credishop=0;")
+sql("DELETE FROM formas_pagamento; UPDATE empresas SET pdv_credishop=0; DELETE FROM contas_receber WHERE descricao='Teste Elo'; DELETE FROM ordens_servico WHERE numero=9901; DELETE FROM adquirente_taxas;")
 ANTIGA = ["dinheiro", "cartao_credito", "cartao_debito", "pix", "boleto", "crediario", "transferencia", "vale"]
 ANTIGOS_NOMES = ["Dinheiro", "Crédito", "Débito", "PIX", "Boleto", "Crediario", "Transf.", "Vale"]
 
@@ -181,7 +181,7 @@ d = json.loads(det)[0]
 check("22. venda grava forma=cartao_credito (nota/caixa/juros seguem iguais)", d["forma"] == "cartao_credito" and fp == "cartao_credito", d)
 check("23. venda grava forma_nome 'Cartão Elo' e forma_chave", d.get("forma_nome") == "Cartão Elo" and d.get("forma_chave") == CH_ELO, d)
 mc = sql(f"SELECT forma_pagamento, descricao FROM movimentacoes_caixa WHERE venda_id={vid}")
-check("24. caixa: entra como cartão de crédito, com o nome na descrição", mc and mc[0][0] == "cartao_credito" and "Cartão Elo" in mc[0][1], mc)
+check("24. caixa: entra como cartão de crédito, descrição igual à de sempre", mc and mc[0][0] == "cartao_credito" and mc[0][1].startswith("Venda #"), mc)
 st, hd, r = venda_pdv(dono, [{"forma": "cartao_credito", "valor": 599.90, "chave": "cartao_credito", "nome": "Cartão"}])
 vid2 = sql("SELECT id FROM vendas ORDER BY id DESC LIMIT 1")[0][0]
 mc2 = sql(f"SELECT descricao FROM movimentacoes_caixa WHERE venda_id={vid2}")
@@ -297,6 +297,86 @@ check("R8. Produtos vendidos filtrado: só a forma 'Cartão Elo' no rateio (sem 
 st, hd, rp2 = dono.get("/app/relatorios/produtos")
 check("R9. Produtos vendidos sem filtro: PIX e 'Cartão Elo' em linhas separadas", re.search(r"<td>PIX</td>", rp2) and re.search(r"<td>Cartão Elo</td>", rp2))
 check("R10. Produtos vendidos: renomeado aparece com o nome novo ('Cartão')", re.search(r"<td>Cartão</td>", rp2) is not None)
+
+# ---------------------------------------------------------------- caixa
+cx = sql("SELECT caixa_id FROM vendas WHERE caixa_id IS NOT NULL ORDER BY id DESC LIMIT 1")[0][0]
+mv = sql(f"SELECT forma_pagamento, forma_chave, forma_nome FROM movimentacoes_caixa WHERE venda_id={vid}")
+check("C1. movimentação do caixa guarda o botão (código + chave + nome)", mv and mv[0] == ["cartao_credito", CH_ELO, "Cartão Elo"], mv)
+st, hd, cs = dono.get(f"/app/caixa/{cx}")
+bloco = cs.split("Vendas por forma de pagamento")[1][:4000] if "Vendas por forma de pagamento" in cs else ""
+check("C2. tela do caixa: 'Cartão Elo' em linha própria, separado de 'Cartão'", st == 200 and "Cartão Elo" in bloco and re.search(r">\s*Cartão\s*<", bloco) is not None, st)
+elo_mov = float(sql(f"SELECT COALESCE(SUM(valor),0) FROM movimentacoes_caixa WHERE caixa_id={cx} AND forma_chave='{CH_ELO}' AND tipo='venda'")[0][0])
+check("C3. valor da linha 'Cartão Elo' = soma das movimentações Elo", f"{elo_mov:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".") in bloco, elo_mov)
+st, hd, cf = dono.get("/app/caixa/fechar")
+conf = cf.split("Conferência das demais formas")[1][:6000] if "Conferência das demais formas" in cf else ""
+check("C4. fechar caixa: conferência tem campo próprio para 'Cartão Elo'", f'name="contado[{CH_ELO}]"' in conf, st)
+check("C5. fechar caixa: dinheiro não vira campo de conferência (é a gaveta)", 'name="contado[dinheiro]"' not in cf)
+st, hd, cp = dono.get(f"/app/caixa/{cx}/comprovante")
+check("C6. comprovante do caixa lista 'Cartão Elo'", st == 200 and "Cartão Elo" in cp, st)
+
+# ---------------------------------------------------------------- contas a receber
+st, hd, crc = dono.get("/app/financeiro/contas-receber/create")
+check("CR1. nova conta a receber oferece as formas da empresa (com Cartão Elo, sem Boleto)", f'value="{CH_ELO}"' in crc and 'value="boleto"' not in crc.split('forma-pagamento-cards')[1][:6000], st)
+dono.post("/app/financeiro/contas-receber", {"cliente_id": "1", "descricao": "Teste Elo", "valor": "100", "parcelas": "2", "primeiro_vencimento": "2026-12-01", "forma_pagamento": CH_ELO})
+cr = sql("SELECT forma_pagamento, forma_chave, forma_nome FROM contas_receber WHERE descricao='Teste Elo'")
+check("CR2. conta a receber grava cartao_credito + chave + nome nas 2 parcelas", len(cr) == 2 and all(r == ["cartao_credito", CH_ELO, "Cartão Elo"] for r in cr), cr)
+st, hd, cri = dono.get(f"/app/financeiro/contas-receber?forma={CH_ELO}")
+n_elo_cr = int(sql(f"SELECT COUNT(*) FROM contas_receber WHERE forma_chave='{CH_ELO}'")[0][0])
+check("CR3. filtro 'Cartão Elo' em Contas a Receber traz só as contas Elo", st == 200 and "Teste Elo" in cri and cri.count("Cartão Elo") >= 2 and n_elo_cr >= 2, (st, n_elo_cr))
+st, hd, cri2 = dono.get("/app/financeiro/contas-receber?forma=cartao_credito")
+check("CR4. filtro 'Cartão' (crédito do sistema) não traz a conta Elo", "Teste Elo" not in cri2)
+
+# ---------------------------------------------------------------- máquina de cartão (adquirentes)
+st, hd, aq = dono.get("/app/adquirentes")
+check("M1. Máquinas de Cartão: 'Cartão Elo' aparece como forma com regra própria", st == 200 and f'value="{CH_ELO}"' in aq, st)
+dono.post("/app/adquirentes", {"nome": "Maquina Elo", "forma": CH_ELO, "parcelas_de": "1", "parcelas_ate": "12", "taxa_percentual": "4.5", "prazo_dias": "30", "ativo": "1"})
+dono.post("/app/adquirentes", {"nome": "Maquina Geral", "forma": "cartao_credito", "parcelas_de": "1", "parcelas_ate": "12", "taxa_percentual": "2", "prazo_dias": "30", "ativo": "1"})
+check("M2. regra da 'Cartão Elo' gravada", sql(f"SELECT COUNT(*) FROM adquirente_taxas WHERE forma='{CH_ELO}'")[0][0] == "1")
+st, hd, r = venda_pdv(dono, [{"forma": "cartao_credito", "valor": 599.90, "chave": CH_ELO, "parcelas": 2}])
+vm = sql("SELECT id FROM vendas ORDER BY id DESC LIMIT 1")[0][0]
+crm = sql(f"SELECT taxa_percentual, forma_nome FROM contas_receber WHERE venda_id={vm}")
+check("M3. venda 'Cartão Elo' usa a taxa da máquina dela (4,5%), não a geral", st == 200 and len(crm) == 2 and all(x[0] == "4.50" and x[1] == "Cartão Elo" for x in crm), (st, crm))
+st, hd, r = venda_pdv(dono, [{"forma": "cartao_credito", "valor": 599.90, "chave": "cartao_credito", "parcelas": 1}])
+vm2 = sql("SELECT id FROM vendas ORDER BY id DESC LIMIT 1")[0][0]
+check("M4. venda no 'Cartão' do sistema segue a regra geral (2%)", sql(f"SELECT taxa_percentual FROM contas_receber WHERE venda_id={vm2}") == [["2.00"]])
+sql("DELETE FROM adquirente_taxas")
+
+# ---------------------------------------------------------------- ordem de serviço
+os_ok = sql("SHOW TABLES LIKE 'ordens_servico'")
+if os_ok:
+    sql("""INSERT INTO ordens_servico (empresa_id, unidade_id, cliente_id, numero, defeito_relatado, status, valor_produtos, valor_servicos, desconto, total, created_at, updated_at)
+           VALUES (1, 1, 1, 9901, 'teste', 'concluida', 0, 150, 0, 150, NOW(), NOW())""")
+    osid = sql("SELECT id FROM ordens_servico WHERE numero=9901")[0][0]
+    st, hd, osv = dono.get(f"/app/ordens-servico/{osid}")
+    check("OS1. OS concluída: converter pergunta a forma (lista da empresa, sem Vale)", st == 200 and 'name="forma_pagamento"' in osv and f'value="{CH_ELO}"' in osv and 'value="vale"' not in osv.split('id="osFormaPagamento"')[1].split("</select>")[0], st)
+    dono.post(f"/app/ordens-servico/{osid}/converter-venda", {"forma_pagamento": CH_ELO})
+    vo = sql("SELECT forma_pagamento, pagamento_detalhes FROM vendas WHERE observacoes LIKE 'Gerada a partir da OS #9901%'")
+    check("OS2. venda da OS grava 'Cartão Elo' (antes era sempre dinheiro)", vo and vo[0][0] == "cartao_credito" and "Cartão Elo" in vo[0][1], vo)
+else:
+    check("OS1. tabela ordens_servico existe", False)
+
+# ---------------------------------------------------------------- exportação e API do Gersen
+st, hd, csvv = dono.get("/app/export/vendas?formato=csv")
+check("E1. exportação de vendas tem a coluna com o nome ('Cartão Elo', 'PIX + Cartão Elo')", st == 200 and "forma_pagamento_nome" in csvv and "PIX + Cartão Elo" in csvv, (st, csvv[:200]))
+st, hd, csvc = dono.get("/app/export/contas-receber?formato=csv")
+check("E2. exportação de contas a receber tem o nome da forma", st == 200 and "Cartão Elo" in csvc, st)
+tok = subprocess.run(["docker", "exec", APP, "php", "artisan", "tinker", "--execute",
+                      "[$t,$c]=\\App\\Models\\IntegracaoToken::gerar(1,'teste',2); echo 'TOKEN='.$c;"], capture_output=True, text=True).stdout
+m = re.search(r"TOKEN=(gsn_\w+)", tok)
+if m:
+    import datetime
+    hoje = datetime.date.today().isoformat()
+    req = urllib.request.Request(f"{BASE}/api/integracao/v1/vendas?loja_id=1&inicio={hoje}&fim={hoje}", headers={"Authorization": "Bearer " + m.group(1), "Accept": "application/json"})
+    try:
+        with urllib.request.urlopen(req) as rr:
+            api = json.loads(rr.read().decode())
+    except urllib.error.HTTPError as e:
+        api = {"erro": e.code, "b": e.read().decode()[:200]}
+    dados = api.get("dados", [])
+    elo_api = [d for d in dados if "Cartão Elo" in (d.get("forma_pagamento_nome") or "")]
+    check("G1. API do Gersen manda forma_pagamento_nome e as partes do pagamento", elo_api and elo_api[0].get("forma_pagamento") == "cartao_credito" and any(p.get("forma_nome") == "Cartão Elo" for p in elo_api[0].get("pagamentos", [])), str(api)[:300])
+else:
+    check("G1. token de teste do Gersen criado", False, tok[-300:])
 
 # ---------------------------------------------------------------- regras de validação
 def tenta(linhas):

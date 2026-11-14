@@ -97,7 +97,7 @@
 <div class="secao">Vendas por forma de pagamento</div>
 @forelse($resumo['vendas_por_forma'] as $forma => $valor)
     <div class="row">
-        <span>{{ $labels[$forma] ?? ucfirst(str_replace('_', ' ', $forma)) }}</span>
+        <span>{{ $resumo['rotulos_forma'][$forma] ?? ($labels[$forma] ?? ucfirst(str_replace('_', ' ', $forma))) }}</span>
         <span class="v">{{ $brl($valor) }}</span>
     </div>
 @empty
@@ -158,7 +158,7 @@
     @foreach($conferencia as $forma => $c)
         @php $diff = round((float) ($c['diferenca'] ?? 0), 2); @endphp
         <div class="row">
-            <span>{{ $labels[$forma] ?? ucfirst(str_replace('_', ' ', $forma)) }}</span>
+            <span>{{ $resumo['rotulos_forma'][$forma] ?? ($labels[$forma] ?? ucfirst(str_replace('_', ' ', $forma))) }}</span>
             <span class="v">{{ $brl($c['contado'] ?? 0) }} / {{ $brl($c['esperado'] ?? 0) }}</span>
         </div>
         @if(abs($diff) >= 0.02)

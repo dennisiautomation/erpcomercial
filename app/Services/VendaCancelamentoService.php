@@ -143,6 +143,8 @@ class VendaCancelamentoService
                     'tipo'            => TipoMovimentacaoCaixa::Estorno,
                     'valor'           => $entrada->valor,
                     'forma_pagamento' => $entrada->forma_pagamento,
+                    'forma_chave'     => $entrada->forma_chave, // estorna na mesma linha de forma (14/11/2026)
+                    'forma_nome'      => $entrada->forma_nome,
                     'descricao'       => "Cancelamento Venda #{$venda->numero}",
                     'user_id'         => $userId,
                 ]);

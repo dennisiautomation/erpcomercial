@@ -81,21 +81,13 @@
                 <div class="mb-4">
                     <label for="forma_pagamento" class="form-label fw-semibold">Forma de Pagamento</label>
                     <div class="row g-2" id="forma-pagamento-cards">
-                        @php
-                            $formas = [
-                                'boleto' => ['icon' => 'bi-upc-scan', 'label' => 'Boleto'],
-                                'pix' => ['icon' => 'bi-qr-code', 'label' => 'PIX'],
-                                'cartao_credito' => ['icon' => 'bi-credit-card', 'label' => 'Cartao'],
-                                'transferencia' => ['icon' => 'bi-bank', 'label' => 'TED/DOC'],
-                                'dinheiro' => ['icon' => 'bi-cash', 'label' => 'Dinheiro'],
-                            ];
-                        @endphp
-                        @foreach($formas as $value => $forma)
-                        <div class="col">
-                            <input type="radio" name="forma_pagamento" value="{{ $value }}" id="fp-{{ $value }}" class="btn-check" {{ old('forma_pagamento') == $value ? 'checked' : '' }}>
-                            <label class="btn btn-outline-secondary w-100 py-2 text-center" for="fp-{{ $value }}">
-                                <i class="bi {{ $forma['icon'] }} d-block mb-1"></i>
-                                <span class="small">{{ $forma['label'] }}</span>
+                        {{-- Formas da empresa (Configurações → Formas de pagamento, 14/11/2026) --}}
+                        @foreach($formasPagamento as $fp)
+                        <div class="col-6 col-md-3">
+                            <input type="radio" name="forma_pagamento" value="{{ $fp->chave }}" id="fp-{{ $fp->chave }}" class="btn-check" @checked(old('forma_pagamento') === $fp->chave)>
+                            <label class="btn btn-outline-secondary w-100 py-2 text-center" for="fp-{{ $fp->chave }}">
+                                <i class="bi {{ $fp->icone }} d-block mb-1" style="color: {{ $fp->cor }}" aria-hidden="true"></i>
+                                <span class="small">{{ $fp->nome }}</span>
                             </label>
                         </div>
                         @endforeach

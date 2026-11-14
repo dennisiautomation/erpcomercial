@@ -78,6 +78,8 @@ class LancamentoCaixaService
                 'tipo'            => TipoMovimentacaoCaixa::Venda,
                 'valor'           => round($valorMov, 2),
                 'forma_pagamento' => $forma,
+                'forma_chave'     => $pgto['forma_chave'] ?? null, // botão configurado (14/11/2026)
+                'forma_nome'      => $pgto['forma_nome'] ?? null,
                 'descricao'       => "Venda #{$venda->numero}",
                 'user_id'         => $userId,
             ]);

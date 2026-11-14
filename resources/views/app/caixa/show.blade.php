@@ -69,9 +69,10 @@
             @forelse($resumo['vendas_por_forma'] as $forma => $valor)
                 <div class="d-flex justify-content-between py-2 border-bottom">
                     <span>
-                        @if($forma === 'dinheiro')<i class="bi bi-cash-coin text-success me-1"></i>@endif
-                        {{ $formasLabels[$forma] ?? ucfirst($forma) }}
-                        @if($forma !== 'dinheiro')
+                        @php $ehDinheiro = ($resumo['codigo_da_linha'][$forma] ?? $forma) === 'dinheiro'; @endphp
+                        @if($ehDinheiro)<i class="bi bi-cash-coin text-success me-1"></i>@endif
+                        {{ $resumo['rotulos_forma'][$forma] ?? ($formasLabels[$forma] ?? ucfirst($forma)) }}
+                        @if(! $ehDinheiro)
                             <small class="text-muted">(não entra na gaveta)</small>
                         @endif
                     </span>
@@ -169,7 +170,7 @@
                         @foreach($caixa->conferencia as $forma => $c)
                         @php $diff = (float) ($c['diferenca'] ?? 0); @endphp
                         <tr>
-                            <td>{{ $labels[$forma] ?? ucfirst($forma) }}</td>
+                            <td>{{ ($resumo['rotulos_forma'][$forma] ?? ($labels[$forma] ?? ucfirst($forma))) }}</td>
                             <td class="text-end">R$ {{ number_format($c['esperado'] ?? 0, 2, ',', '.') }}</td>
                             <td class="text-end">R$ {{ number_format($c['contado'] ?? 0, 2, ',', '.') }}</td>
                             <td class="text-end">

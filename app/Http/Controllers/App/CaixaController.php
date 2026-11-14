@@ -32,14 +32,29 @@ class CaixaController extends Controller
         // Venda cancelada devolve pelo estorno, na mesma forma: a conferência
         // de cada forma (e o dinheiro da gaveta) enxerga só o líquido.
         $estornos = $movs->where('tipo', TipoMovimentacaoCaixa::Estorno);
+        // Linha de forma (14/11/2026, FormaPagamentoService::chaveDoPagamento): forma
+        // CRIADA pelo lojista tem linha própria; as do sistema seguem pelo código.
+        // A gaveta fecha pelo CÓDIGO: toda linha que é dinheiro soma no esperado.
+        $linha = fn ($mov) => \App\Services\FormaPagamentoService::chaveDoPagamento([
+            'forma' => $mov->forma_pagamento ?? 'dinheiro', 'forma_chave' => $mov->forma_chave,
+        ]);
+        $codigoDaLinha = [];
+        $nomeGravado = [];
+        foreach ($movs as $mov) {
+            $codigoDaLinha[$linha($mov)] = $mov->forma_pagamento ?? 'dinheiro';
+            if ($mov->forma_nome) {
+                $nomeGravado[$linha($mov)] = $mov->forma_nome;
+            }
+        }
+
         $estornosPorForma = $estornos
-            ->groupBy(fn ($mov) => $mov->forma_pagamento ?? 'dinheiro')
+            ->groupBy($linha)
             ->map(fn ($grupo) => (float) $grupo->sum('valor'));
 
         // Estorno de venda de outro caixa (já fechado) pode cair numa forma
         // que este caixa nem vendeu — a forma entra mesmo assim, negativa.
         $vendasPorForma = $vendas
-            ->groupBy(fn ($mov) => $mov->forma_pagamento ?? 'dinheiro')
+            ->groupBy($linha)
             ->map(fn ($grupo) => (float) $grupo->sum('valor'));
 
         $porForma = $vendasPorForma->keys()->merge($estornosPorForma->keys())->unique()
@@ -47,7 +62,14 @@ class CaixaController extends Controller
             ->filter(fn ($valor) => abs($valor) >= 0.005)
             ->sortDesc();
 
-        $vendasDinheiro = (float) ($porForma['dinheiro'] ?? 0);
+        $vendasDinheiro = round((float) $porForma->filter(fn ($v, $l) => ($codigoDaLinha[$l] ?? $l) === 'dinheiro')->sum(), 2);
+
+        // Nome de cada linha (o configurado hoje; forma excluída usa o nome gravado)
+        $svc = app(\App\Services\FormaPagamentoService::class);
+        $rotulos = [];
+        foreach ($porForma->keys()->merge(array_keys($caixa->conferencia ?? []))->merge(['pix', 'cartao_debito', 'cartao_credito'])->unique() as $l) {
+            $rotulos[$l] = $svc->rotuloDaChave((int) $caixa->empresa_id, (string) $l, $nomeGravado[$l] ?? null);
+        }
         $suprimentos = (float) $movs->where('tipo', TipoMovimentacaoCaixa::Suprimento)->sum('valor');
         $sangrias = (float) $movs->where('tipo', TipoMovimentacaoCaixa::Sangria)->sum('valor');
         // Dinheiro devolvido ao cliente em troca/devolução: saiu da gaveta.
@@ -71,6 +93,8 @@ class CaixaController extends Controller
             'estornos'          => round((float) $estornos->sum('valor'), 2),
             'vendas_dinheiro'   => $vendasDinheiro,
             'vendas_por_forma'  => $porForma,
+            'rotulos_forma'     => $rotulos,        // linha de forma → nome (14/11/2026)
+            'codigo_da_linha'   => $codigoDaLinha,  // linha de forma → código gravado
             'suprimentos'       => $suprimentos,
             'sangrias'          => $sangrias,
             'devolucoes'        => $devolucoes,
@@ -365,10 +389,11 @@ class CaixaController extends Controller
 
             // Formas a conferir além do dinheiro: as principais sempre,
             // mais qualquer outra com movimento no caixa.
+            // Linha que é dinheiro (inclusive forma criada do tipo dinheiro) já está na gaveta
             $formasConferencia = collect(['pix', 'cartao_debito', 'cartao_credito'])
                 ->merge($resumo['vendas_por_forma']->keys())
                 ->unique()
-                ->reject(fn ($f) => $f === 'dinheiro')
+                ->reject(fn ($f) => ($resumo['codigo_da_linha'][$f] ?? $f) === 'dinheiro')
                 ->values();
 
             return view('app.caixa.fechar', [

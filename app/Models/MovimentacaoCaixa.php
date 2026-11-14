@@ -23,6 +23,8 @@ class MovimentacaoCaixa extends Model
         'tipo',
         'valor',
         'forma_pagamento',
+        'forma_chave',   // botão configurado que gerou (14/11/2026)
+        'forma_nome',
         'descricao',
         'user_id',
     ];
@@ -44,6 +46,10 @@ class MovimentacaoCaixa extends Model
     {
         if ($this->forma_pagamento === null) {
             return null;
+        }
+        // Forma criada pelo lojista (14/11/2026): o nome que estava no botão
+        if (! empty($this->forma_nome) && str_starts_with((string) $this->forma_chave, 'fp_')) {
+            return $this->forma_nome;
         }
 
         return self::FORMAS_LABELS[$this->forma_pagamento] ?? ucfirst($this->forma_pagamento);

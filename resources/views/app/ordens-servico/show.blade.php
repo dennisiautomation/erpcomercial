@@ -305,6 +305,13 @@
                     <form method="POST" action="{{ route('app.ordens-servico.converter-venda', $ordemServico) }}"
                           data-confirm="Converter esta OS em venda?">
                         @csrf
+                        {{-- Forma de pagamento da venda (14/11/2026) — as da empresa --}}
+                        <label for="osFormaPagamento" class="form-label small fw-semibold mb-1">Forma de pagamento</label>
+                        <select id="osFormaPagamento" name="forma_pagamento" class="form-select form-select-sm mb-2" required>
+                            @foreach($formasPagamento as $fp)
+                                <option value="{{ $fp->chave }}" @selected($fp->chave === 'dinheiro')>{{ $fp->nome }}</option>
+                            @endforeach
+                        </select>
                         <button type="submit" class="btn btn-success w-100">
                             <i class="bi bi-receipt me-1"></i> Converter em Venda
                         </button>

@@ -852,10 +852,9 @@ class PedidoController extends Controller
             $forma = (string) $pgto['forma'];
             $total = round((float) $pgto['valor'], 2);
             $parcelas = max(1, (int) ($pgto['parcelas'] ?? 1));
-            $formaLabel = ucfirst(str_replace('_', ' ', $forma));
-            $regra = in_array($forma, ['cartao_credito', 'cartao_debito'], true)
-                ? AdquirenteTaxa::paraPagamento((int) $pedido->empresa_id, $forma, $parcelas)
-                : null;
+            $formaLabel = ! empty($pgto['forma_nome']) ? (string) $pgto['forma_nome'] : ucfirst(str_replace('_', ' ', $forma));
+            // Regra do botão (forma criada / Credishop) e depois a do tipo (14/11/2026)
+            $regra = AdquirenteTaxa::paraPagamentoDe((int) $pedido->empresa_id, $pgto, $parcelas);
 
             $base = [
                 'empresa_id'      => $pedido->empresa_id,
@@ -864,6 +863,8 @@ class PedidoController extends Controller
                 'venda_id'        => $venda->id,
                 'pedido_id'       => $pedido->id,
                 'forma_pagamento' => $forma,
+                'forma_chave'     => $pgto['forma_chave'] ?? null,
+                'forma_nome'      => $pgto['forma_nome'] ?? null,
             ];
 
             if ($regra) {
