@@ -200,9 +200,9 @@ h1,h2,h3{letter-spacing:-.015em;text-wrap:balance}
 
 /* ============ topo: palco 3D com a maquininha ============ */
 .h3{background:#07130e;color:#f2f7f4;overflow:hidden;position:relative}
-.h3__in{display:grid;grid-template-columns:minmax(0,11fr) minmax(0,10fr);gap:2rem;align-items:center;padding-block:clamp(2.4rem,5vw,4.2rem);max-width:1180px}
+.h3__in{display:grid;grid-template-columns:minmax(0,10fr) minmax(0,11fr);gap:2rem;align-items:center;padding-block:clamp(2.4rem,5vw,4.2rem);max-width:1180px}
 .h3__kicker{display:inline-block;font-size:.9rem;font-weight:600;color:#5fe3a4;margin-bottom:1rem}
-.h3 h1{font-size:clamp(2.1rem,3.9vw,3.2rem);font-weight:700;line-height:1.06;letter-spacing:-.025em}
+.h3 h1{font-size:clamp(2.1rem,3.6vw,3rem);font-weight:700;line-height:1.06;letter-spacing:-.025em}
 .h3__lede{font-size:clamp(1.02rem,1.5vw,1.2rem);color:#b4c6bc;line-height:1.5;margin-top:1.1rem;max-width:52ch}
 .h3__actions{display:flex;gap:.8rem;flex-wrap:wrap;margin-top:1.6rem}
 .pill--onDark{background:transparent;color:#f2f7f4;box-shadow:inset 0 0 0 1px rgba(242,247,244,.45)}
@@ -211,10 +211,10 @@ h1,h2,h3{letter-spacing:-.015em;text-wrap:balance}
 .h3__canais b{display:block;color:#f2f7f4;font-size:.98rem;font-weight:600}
 
 .h3__stage{position:relative;height:540px;perspective:1300px;perspective-origin:50% 42%}
-.h3__glow{position:absolute;left:50%;top:46%;width:560px;height:560px;transform:translate(-50%,-50%);background:radial-gradient(closest-side,rgba(0,168,104,.42),rgba(0,168,104,.12) 55%,transparent 72%);pointer-events:none}
+.h3__glow{position:absolute;left:66%;top:54%;width:560px;height:560px;transform:translate(-50%,-50%);background:radial-gradient(closest-side,rgba(0,168,104,.42),rgba(0,168,104,.12) 55%,transparent 72%);pointer-events:none}
 
 /* a maquininha */
-.m3d{position:absolute;left:50%;top:50%;width:196px;height:404px;margin:-212px 0 0 -98px;transform-style:preserve-3d;z-index:3}
+.m3d{position:absolute;left:68%;top:57%;width:196px;height:404px;margin:-212px 0 0 -98px;transform-style:preserve-3d;z-index:3}
 .m3d__tilt,.m3d__spin,.m3d__body{position:absolute;inset:0;transform-style:preserve-3d}
 .m3d__tilt{transform:rotateX(var(--rx,4deg)) rotateY(var(--ry,0deg));transition:transform .5s var(--ease)}
 .m3d__spin{animation:m3dEntra 2.2s cubic-bezier(.2,.8,.2,1) both,m3dBalanca 9s ease-in-out 2.2s infinite alternate}
@@ -263,15 +263,42 @@ h1,h2,h3{letter-spacing:-.015em;text-wrap:balance}
 [data-fase="0"] .ms--cobrar,[data-fase="1"] .ms--aproxime,[data-fase="2"] .ms--ok,[data-fase="3"] .ms--ok,[data-fase="4"] .ms--ok{opacity:1;transform:none}
 [data-fase="2"] .m3d__paper,[data-fase="3"] .m3d__paper,[data-fase="4"] .m3d__paper{height:62px;padding:8px 9px}
 
+
+/* janela do sistema, atrás da maquininha */
+.sw{position:absolute;left:0;top:0;width:410px;height:286px;z-index:1;display:grid;grid-template-columns:104px 1fr;border-radius:16px;overflow:hidden;background:#f1f5f9;color:#0f172a;box-shadow:0 30px 70px rgba(0,0,0,.55),0 0 0 1px rgba(255,255,255,.08);transform:translate3d(var(--px,0),var(--py,0),0) rotateY(15deg) rotateX(3deg);transform-origin:0 50%;transition:transform .5s var(--ease);text-align:left}
+.sw__side{background:#1e293b;padding:11px 9px;display:flex;flex-direction:column;gap:3px}
+.sw__logo{display:flex;align-items:center;gap:5px;font-size:.6rem;font-weight:700;color:#fff;margin-bottom:8px;white-space:nowrap}
+.sw__logo i{font-style:normal;width:17px;height:17px;border-radius:5px;background:#4f46e5;display:inline-flex;align-items:center;justify-content:center;font-size:.5rem}
+.sw__m{font-size:.62rem;color:#cbd5e1;padding:5px 7px;border-radius:6px}
+.sw__m.is-on{background:#4f46e5;color:#fff;font-weight:600}
+.sw__main{padding:11px 12px;display:flex;flex-direction:column;gap:9px;min-width:0}
+.sw__top{display:flex;align-items:center;justify-content:space-between;gap:.5rem}
+.sw__top b{font-size:.78rem}
+.sw__chip{background:#059669;color:#fff;font-weight:700;font-size:.6rem;border-radius:980px;padding:.14rem .5rem;white-space:nowrap;opacity:0;transform:translateY(5px) scale(.94);transition:opacity .45s var(--ease),transform .45s var(--ease)}
+.sw__kpis{display:grid;grid-template-columns:1.5fr 1fr 1fr;gap:6px}
+.sw__kpis > span{background:#fff;border:1px solid #e2e8f0;border-radius:9px;padding:6px 8px;display:flex;flex-direction:column;min-width:0}
+.sw__kpis em{font-style:normal;font-size:.54rem;color:#64748b}
+.sw__kpis b{font-size:.8rem;font-weight:800;white-space:nowrap}
+.sw__kpis b span{white-space:nowrap}
+.sw__ok{color:#047857}
+.sw__rows{background:#fff;border:1px solid #e2e8f0;border-radius:9px;padding:3px 8px;display:flex;flex-direction:column}
+.sw__r{display:grid;grid-template-columns:82px 1fr 44px;align-items:center;gap:8px;font-size:.62rem;padding:5px 2px;border-bottom:1px solid #f1f5f9;border-radius:5px;transition:background .5s var(--ease)}
+.sw__r:last-child{border-bottom:0}
+.sw__r em{font-style:normal;color:#475569;white-space:nowrap}
+.sw__r i{display:block;height:6px;border-radius:3px;background:#eef2ff;position:relative;overflow:hidden}
+.sw__r i::after{content:"";position:absolute;inset:0;width:var(--w);background:#4f46e5;border-radius:3px;transition:width .6s var(--ease)}
+.sw__r b{text-align:right;font-weight:700}
+.sw__r.pulse{background:#ecfdf5}
+[data-fase="2"] .sw__chip,[data-fase="3"] .sw__chip,[data-fase="4"] .sw__chip{opacity:1;transform:none}
+
 /* cartões que flutuam em volta */
 .fc{position:absolute;z-index:2;background:rgba(18,32,26,.82);border:1px solid rgba(242,247,244,.14);border-radius:18px;padding:.85rem .95rem;width:212px;display:flex;flex-direction:column;gap:.3rem;font-size:.8rem;color:#b4c6bc;box-shadow:0 18px 40px rgba(0,0,0,.4);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);transform:translate3d(var(--px,0),var(--py,0),0);transition:transform .5s var(--ease),border-color .5s var(--ease),box-shadow .5s var(--ease)}
 .fc__t{font-size:.72rem;font-weight:600;color:#93a89d;display:flex;align-items:center;gap:.35rem}
 .fc b{color:#f2f7f4;font-size:1rem}
 .fc__big{font-size:1.55rem !important;line-height:1.1}
 .fc__s{font-size:.76rem}
-.fc--painel{left:-44px;top:22px;width:200px}
-.fc--loja{right:-40px;top:96px;width:184px}
-.fc--wa{left:-30px;bottom:30px;width:214px}
+.fc--loja{right:-64px;bottom:34px;width:168px}
+.fc--wa{left:0;bottom:6px;width:214px}
 .fc--loja img{width:100%;height:104px;object-fit:cover;border-radius:11px;display:block;margin-bottom:.25rem;background:#e9e6e0}
 .fc__bars{display:grid;gap:5px;margin-top:.35rem}
 .fc__bars i{display:block;height:6px;border-radius:3px;background:rgba(242,247,244,.12);position:relative;overflow:hidden}
@@ -282,20 +309,25 @@ h1,h2,h3{letter-spacing:-.015em;text-wrap:balance}
 .fc__in{background:rgba(242,247,244,.1);color:#e3ece7;align-self:flex-start;border-top-left-radius:3px}
 .fc__out{background:#0a6b4c;color:#eafff5;align-self:flex-end;border-top-right-radius:3px;opacity:0;transform:translateY(8px);transition:opacity .45s var(--ease),transform .45s var(--ease)}
 .fc--loja b,.fc--loja .fc__s{opacity:.35;transition:opacity .45s var(--ease)}
-[data-fase="2"] .fc--painel,[data-fase="3"] .fc--loja,[data-fase="4"] .fc--wa{border-color:#00a868;box-shadow:0 18px 40px rgba(0,0,0,.4),0 0 0 4px rgba(0,168,104,.22)}
-[data-fase="2"] .fc__chip,[data-fase="3"] .fc__chip,[data-fase="4"] .fc__chip{opacity:1;transform:none}
+[data-fase="3"] .fc--loja,[data-fase="4"] .fc--wa{border-color:#00a868;box-shadow:0 18px 40px rgba(0,0,0,.4),0 0 0 4px rgba(0,168,104,.22)}
 [data-fase="3"] .fc--loja b,[data-fase="3"] .fc--loja .fc__s,[data-fase="4"] .fc--loja b,[data-fase="4"] .fc--loja .fc__s{opacity:1}
 [data-fase="4"] .fc__out{opacity:1;transform:none}
 
 @media(max-width:940px){
   .h3__in{grid-template-columns:1fr;gap:1rem;padding-bottom:1.2rem}
   .h3__stage{height:500px;max-width:420px;width:100%;margin-inline:auto}
-  .m3d{transform:scale(.86)}
+  .m3d{transform:scale(.8)}
   .fc{width:168px;padding:.65rem .7rem;font-size:.72rem}
-  .fc--loja{width:150px;top:292px;right:0}
+  .fc--loja{width:140px;top:auto;bottom:0;right:0}
   .fc--loja img{height:70px}
-  .fc--painel{top:6px;left:0;width:168px}
-  .fc--wa{width:178px;left:0;bottom:6px}
+  .sw{left:0;top:0;width:300px;height:206px;grid-template-columns:74px 1fr;transform:translate3d(var(--px,0),var(--py,0),0) rotateY(10deg)}
+  .sw__side{padding:8px 6px}.sw__m{font-size:.5rem;padding:3px 5px}.sw__logo{font-size:.48rem}.sw__logo i{width:13px;height:13px}
+  .sw__main{padding:8px;gap:6px}.sw__top b{font-size:.62rem}.sw__chip{font-size:.5rem}
+  .sw__kpis{gap:4px}.sw__kpis > span{padding:4px 5px}.sw__kpis em{font-size:.44rem}.sw__kpis b{font-size:.62rem}
+  .sw__r{grid-template-columns:58px 1fr 32px;font-size:.5rem;padding:3px 1px;gap:5px}
+  .m3d{left:64%;top:60%}
+  .sw__kpis b{font-size:.58rem}
+  .fc--wa{width:170px;left:0;bottom:0}
   .fc__big{font-size:1.2rem !important}
   .h3__canais{display:none}
 }
@@ -372,7 +404,7 @@ html.js .rv.in{opacity:1;transform:none}
   .pos__paper,.phone__toast,.wa__r1,.wa__r2,.wa__r3,.uno__n{transition:none}
   .prog{display:none}
   .m3d__spin{animation:none;transform:rotateY(-20deg)}
-  .m3d__tilt,.fc,.ms,.m3d__paper,.fc__chip,.fc__out{transition:none}
+  .m3d__tilt,.fc,.sw,.ms,.m3d__paper,.sw__chip,.fc__out{transition:none}
   .ms__waves i{animation:none}
 }
 
@@ -419,14 +451,29 @@ html.js .rv.in{opacity:1;transform:none}
       </ul>
     </div>
 
-    <div class="h3__stage" id="h3stage" data-fase="0" role="img" aria-label="Maquininha Stone girando, com o painel da rede, a loja online e o atendente de IA recebendo a mesma venda">
+    <div class="h3__stage" id="h3stage" data-fase="0" role="img" aria-label="Maquininha Stone girando à frente da tela do sistema, com a loja online e o atendente de IA recebendo a mesma venda">
       <div class="h3__glow"></div>
 
-      <div class="fc fc--painel">
-        <span class="fc__t">Minha rede · hoje</span>
-        <b class="fc__big num">R$ <span id="h3tot">31.480</span></b>
-        <span class="fc__bars"><i style="--w:92%"></i><i style="--w:76%"></i><i style="--w:58%"></i><i style="--w:34%"></i></span>
-        <span class="fc__chip" id="h3chip">+ R$ 149,90 · Centro</span>
+      <div class="sw" id="h3sw">
+        <div class="sw__side">
+          <span class="sw__logo"><i>IA</i>ERP Comercial</span>
+          <span class="sw__m is-on">Painel</span><span class="sw__m">PDV</span><span class="sw__m">Estoque</span><span class="sw__m">Caixas</span><span class="sw__m">Notas fiscais</span><span class="sw__m">Financeiro</span>
+        </div>
+        <div class="sw__main">
+          <div class="sw__top"><b>Minha rede · hoje</b><span class="sw__chip" id="h3chip">+ R$ 149,90 · Centro</span></div>
+          <div class="sw__kpis">
+            <span><em>Vendido hoje</em><b class="num">R$ <span id="h3tot">31.480</span></b></span>
+            <span><em>Vendas</em><b class="num" id="h3ven">262</b></span>
+            <span><em>Notas emitidas</em><b class="num sw__ok" id="h3nf">262</b></span>
+          </div>
+          <div class="sw__rows">
+            <span class="sw__r" data-o="Centro"><em>Loja Centro</em><i style="--w:92%"></i><b class="num">9.870</b></span>
+            <span class="sw__r"><em>Loja Shopping</em><i style="--w:78%"></i><b class="num">8.240</b></span>
+            <span class="sw__r"><em>Loja Zona Leste</em><i style="--w:64%"></i><b class="num">6.910</b></span>
+            <span class="sw__r" data-o="Loja online"><em>Loja online</em><i style="--w:40%"></i><b class="num">4.130</b></span>
+            <span class="sw__r" data-o="WhatsApp"><em>WhatsApp</em><i style="--w:24%"></i><b class="num">2.330</b></span>
+          </div>
+        </div>
       </div>
 
       <div class="fc fc--loja">
@@ -788,7 +835,14 @@ html.js .rv.in{opacity:1;transform:none}
     var soma = 31480;
     var origens = ['Centro', 'Loja online', 'WhatsApp'];
     function fase(n) { stage.setAttribute('data-fase', n); }
-    function entrou(i) { soma += 150; if (hTot) hTot.textContent = fmt(soma); if (hChip) hChip.textContent = '+ R$ 149,90 · ' + origens[i]; }
+    var hVen = document.getElementById('h3ven'), hNf = document.getElementById('h3nf'), qtd = 262;
+    function entrou(i) {
+      soma += 150; qtd += 1;
+      if (hTot) hTot.textContent = fmt(soma); if (hVen) hVen.textContent = qtd; if (hNf) hNf.textContent = qtd;
+      if (hChip) hChip.textContent = '+ R$ 149,90 · ' + origens[i];
+      var linha = stage.querySelector('.sw__r[data-o="' + origens[i] + '"]');
+      if (linha) { var v = linha.querySelector('b'); v.textContent = fmt(parseInt(v.textContent.replace(/\D/g, ''), 10) + 150); linha.classList.add('pulse'); setTimeout(function () { linha.classList.remove('pulse'); }, 1400); }
+    }
     function rodar() {
       fase(0);
       setTimeout(function () { fase(1); }, 1800);
@@ -800,7 +854,7 @@ html.js .rv.in{opacity:1;transform:none}
     if (reduz) { fase(4); } else { setTimeout(rodar, 2300); }
 
     if (!reduz && tilt) {
-      var cartoes = stage.querySelectorAll('.fc');
+      var cartoes = stage.querySelectorAll('.sw, .fc');
       stage.addEventListener('pointermove', function (e) {
         var r = stage.getBoundingClientRect(), x = (e.clientX - r.left) / r.width - 0.5, y = (e.clientY - r.top) / r.height - 0.5;
         tilt.style.setProperty('--ry', (x * 34).toFixed(1) + 'deg');
