@@ -59,8 +59,6 @@ h1,h2,h3{letter-spacing:-.015em;text-wrap:balance}
 .pill--ghost:hover{background:var(--blue);color:#fff}
 .pill{white-space:nowrap}
 .pill--block{width:100%;white-space:normal}
-.pill--wa{background:#1f8f4e}
-.pill--wa:hover{background:#1a7d44}
 
 /* nav */
 .nav{position:sticky;top:0;z-index:60;background:rgba(255,255,255,.86);
@@ -264,8 +262,28 @@ h1,h2,h3{letter-spacing:-.015em;text-wrap:balance}
 [data-fase="2"] .m3d__paper,[data-fase="3"] .m3d__paper,[data-fase="4"] .m3d__paper{height:62px;padding:8px 9px}
 
 
+
+/* mundo 3D: tudo dentro gira junto, cada peça numa profundidade */
+.h3__world{position:absolute;inset:0;transform-style:preserve-3d;will-change:transform}
+.h3__floor{position:absolute;left:68%;top:57%;width:560px;height:560px;margin:-280px 0 0 -280px;transform:translateY(232px) rotateX(84deg);border-radius:50%;background:radial-gradient(closest-side,rgba(0,168,104,.34),rgba(0,168,104,.08) 55%,transparent 72%);pointer-events:none}
+.h3__floor i{position:absolute;inset:34%;border-radius:50%;border:3px solid rgba(95,227,164,.75);opacity:0}
+.h3__stage.pulso .h3__floor i{animation:h3Anel 1.5s cubic-bezier(.2,.7,.2,1)}
+.h3__stage.pulso .h3__floor i:nth-child(2){animation-delay:.22s}
+@keyframes h3Anel{0%{opacity:.9;transform:scale(.5)}100%{opacity:0;transform:scale(2.5)}}
+.h3__tok{position:absolute;left:0;top:0;width:14px;height:14px;margin:-7px;border-radius:50%;background:#7df3bd;box-shadow:0 0 0 5px rgba(95,227,164,.25),0 0 24px 8px rgba(0,168,104,.75);z-index:9;pointer-events:none}
+.m3d__body{animation:m3dBoia 4.6s ease-in-out infinite alternate}
+@keyframes m3dBoia{from{transform:translateY(-7px)}to{transform:translateY(7px)}}
+.m3d__sombra{animation:m3dSombra 4.6s ease-in-out infinite alternate}
+@keyframes m3dSombra{from{opacity:.75;width:210px;margin-left:-105px}to{opacity:1;width:240px;margin-left:-120px}}
+.m3d__glass::after{background-size:260% 100%;animation:m3dBrilho 9s ease-in-out 2.2s infinite alternate}
+@keyframes m3dBrilho{from{background-position:0% 0}to{background-position:100% 0}}
+.m3d__paper.voa{animation:m3dVoa .75s cubic-bezier(.3,0,.6,1) forwards}
+@keyframes m3dVoa{from{height:62px;padding:8px 9px;transform:none;opacity:1}to{height:62px;padding:8px 9px;transform:translate(46px,-96px) rotate(18deg);opacity:0}}
+[data-fase="0"] .m3d__paper,[data-fase="1"] .m3d__paper{transition:none}
+.m3d--parada .m3d__body,.m3d--parada .m3d__sombra,.m3d--parada .m3d__glass::after{animation:none}
+
 /* janela do sistema, atrás da maquininha */
-.sw{position:absolute;left:0;top:0;width:410px;height:286px;z-index:1;display:grid;grid-template-columns:104px 1fr;border-radius:16px;overflow:hidden;background:#f1f5f9;color:#0f172a;box-shadow:0 30px 70px rgba(0,0,0,.55),0 0 0 1px rgba(255,255,255,.08);transform:translate3d(var(--px,0),var(--py,0),0) rotateY(15deg) rotateX(3deg);transform-origin:0 50%;transition:transform .5s var(--ease);text-align:left}
+.sw{position:absolute;left:0;top:0;width:410px;height:286px;z-index:1;display:grid;grid-template-columns:104px 1fr;border-radius:16px;overflow:hidden;background:#f1f5f9;color:#0f172a;box-shadow:0 30px 70px rgba(0,0,0,.55),0 0 0 1px rgba(255,255,255,.08);transform:translate3d(0,0,-170px) rotateY(15deg) rotateX(3deg) scale(1.14);transform-origin:0 50%;text-align:left}
 .sw__side{background:#1e293b;padding:11px 9px;display:flex;flex-direction:column;gap:3px}
 .sw__logo{display:flex;align-items:center;gap:5px;font-size:.6rem;font-weight:700;color:#fff;margin-bottom:8px;white-space:nowrap}
 .sw__logo i{font-style:normal;width:17px;height:17px;border-radius:5px;background:#4f46e5;display:inline-flex;align-items:center;justify-content:center;font-size:.5rem}
@@ -292,13 +310,13 @@ h1,h2,h3{letter-spacing:-.015em;text-wrap:balance}
 [data-fase="2"] .sw__chip,[data-fase="3"] .sw__chip,[data-fase="4"] .sw__chip{opacity:1;transform:none}
 
 /* cartões que flutuam em volta */
-.fc{position:absolute;z-index:2;background:rgba(18,32,26,.82);border:1px solid rgba(242,247,244,.14);border-radius:18px;padding:.85rem .95rem;width:212px;display:flex;flex-direction:column;gap:.3rem;font-size:.8rem;color:#b4c6bc;box-shadow:0 18px 40px rgba(0,0,0,.4);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);transform:translate3d(var(--px,0),var(--py,0),0);transition:transform .5s var(--ease),border-color .5s var(--ease),box-shadow .5s var(--ease)}
+.fc{position:absolute;z-index:2;background:#12201a;border:1px solid rgba(242,247,244,.14);border-radius:18px;padding:.85rem .95rem;width:212px;display:flex;flex-direction:column;gap:.3rem;font-size:.8rem;color:#b4c6bc;box-shadow:0 18px 40px rgba(0,0,0,.4);transition:border-color .5s var(--ease),box-shadow .5s var(--ease)}
 .fc__t{font-size:.72rem;font-weight:600;color:#93a89d;display:flex;align-items:center;gap:.35rem}
 .fc b{color:#f2f7f4;font-size:1rem}
 .fc__big{font-size:1.55rem !important;line-height:1.1}
 .fc__s{font-size:.76rem}
-.fc--loja{right:-64px;bottom:34px;width:168px}
-.fc--wa{left:0;bottom:6px;width:214px}
+.fc--loja{right:-40px;bottom:44px;width:160px;transform:translateZ(90px) rotateY(-12deg)}
+.fc--wa{left:10px;bottom:16px;width:204px;transform:translateZ(130px) rotateY(10deg)}
 .fc--loja img{width:100%;height:104px;object-fit:cover;border-radius:11px;display:block;margin-bottom:.25rem;background:#e9e6e0}
 .fc__bars{display:grid;gap:5px;margin-top:.35rem}
 .fc__bars i{display:block;height:6px;border-radius:3px;background:rgba(242,247,244,.12);position:relative;overflow:hidden}
@@ -320,7 +338,7 @@ h1,h2,h3{letter-spacing:-.015em;text-wrap:balance}
   .fc{width:168px;padding:.65rem .7rem;font-size:.72rem}
   .fc--loja{width:140px;top:auto;bottom:0;right:0}
   .fc--loja img{height:70px}
-  .sw{left:0;top:0;width:300px;height:206px;grid-template-columns:74px 1fr;transform:translate3d(var(--px,0),var(--py,0),0) rotateY(10deg)}
+  .sw{left:0;top:0;width:300px;height:206px;grid-template-columns:74px 1fr;transform:translate3d(0,0,-120px) rotateY(10deg) scale(1.1)}
   .sw__side{padding:8px 6px}.sw__m{font-size:.5rem;padding:3px 5px}.sw__logo{font-size:.48rem}.sw__logo i{width:13px;height:13px}
   .sw__main{padding:8px;gap:6px}.sw__top b{font-size:.62rem}.sw__chip{font-size:.5rem}
   .sw__kpis{gap:4px}.sw__kpis > span{padding:4px 5px}.sw__kpis em{font-size:.44rem}.sw__kpis b{font-size:.62rem}
@@ -404,10 +422,38 @@ html.js .rv.in{opacity:1;transform:none}
   .pos__paper,.phone__toast,.wa__r1,.wa__r2,.wa__r3,.uno__n{transition:none}
   .prog{display:none}
   .m3d__spin{animation:none;transform:rotateY(-20deg)}
+  .m3d__body,.m3d__sombra,.m3d__glass::after,.h3__stage.pulso .h3__floor i{animation:none}
   .m3d__tilt,.fc,.sw,.ms,.m3d__paper,.sw__chip,.fc__out{transition:none}
   .ms__waves i{animation:none}
 }
 
+
+/* ---------- conversão: preço no topo, prova, chips, dúvidas, barra fixa ---------- */
+.h3__preco{margin-top:1rem;font-size:.95rem;color:#93a89d}
+.h3__preco b{color:#f2f7f4}
+.pill--wa{background:#1fa855}
+.pill--wa:hover{background:#1c9a4e}
+.prova .proof{margin-top:0;border-top:0}
+.chips{border:0;display:flex;flex-wrap:wrap;gap:.45rem;margin-bottom:1rem}
+.chips legend{font-size:.84rem;font-weight:600;margin-bottom:.4rem;padding:0}
+.chips label{cursor:pointer}
+.chips input{position:absolute;opacity:0;width:1px;height:1px}
+.chips span{display:inline-flex;align-items:center;min-height:42px;padding:.4rem .95rem;border:1px solid #d2d2d7;border-radius:980px;font-size:.95rem;transition:background .18s var(--ease),border-color .18s var(--ease),color .18s var(--ease)}
+.chips input:checked + span{background:var(--ink);border-color:var(--ink);color:#fff}
+.chips input:focus-visible + span{outline:2px solid var(--blue);outline-offset:3px}
+.faq{max-width:820px}
+.faq__lista{border-top:1px solid var(--sep)}
+.faq details{border-bottom:1px solid var(--sep)}
+.faq summary{cursor:pointer;list-style:none;padding:1.1rem 2rem 1.1rem 0;font-weight:600;font-size:1.08rem;position:relative}
+.faq summary::-webkit-details-marker{display:none}
+.faq summary::after{content:"+";position:absolute;right:.2rem;top:50%;transform:translateY(-50%);font-size:1.5rem;font-weight:400;color:var(--ink2);transition:transform .25s var(--ease)}
+.faq details[open] summary::after{transform:translateY(-50%) rotate(45deg)}
+.faq details p{color:var(--ink2);padding:0 2rem 1.2rem 0;max-width:62ch}
+.fixo{position:fixed;left:0;right:0;bottom:0;z-index:65;display:none;gap:.6rem;padding:.6rem .8rem calc(.6rem + env(safe-area-inset-bottom,0px));background:rgba(255,255,255,.94);border-top:1px solid var(--sep);box-shadow:0 -8px 24px rgba(0,0,0,.08)}
+.fixo .pill{flex:1;font-size:.95rem;padding:.6rem .5rem}
+@media(max-width:760px){.fixo:not([hidden]){display:flex}.foot{padding-bottom:5.2rem}}
+
+.proof b span,.kp b span{display:inline;font-size:inherit;color:inherit}
 .foot{padding:1.6rem 0 2.2rem;border-top:1px solid var(--sep);font-size:.82rem;color:var(--ink3)}
 .foot .wrap{display:flex;gap:.6rem 1.4rem;flex-wrap:wrap;justify-content:space-between}
 [hidden]{display:none!important}
@@ -417,6 +463,7 @@ html.js .rv.in{opacity:1;transform:none}
 <body>
 @php
   $wa = 'https://wa.me/5511917120940?text=' . rawurlencode('Tenho uma rede de lojas e quero conhecer o ERP Comercial');
+  $zap = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.5 8.5 0 0 1-12.6 7.4L3 20l1.2-5A8.5 8.5 0 1 1 21 11.5Z"/></svg>';
   $check = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>';
 @endphp
 <a class="skip" href="#main">Ir para o conteúdo</a>
@@ -441,9 +488,10 @@ html.js .rv.in{opacity:1;transform:none}
       <h1>A maquininha, a loja online e o WhatsApp vendendo no mesmo sistema.</h1>
       <p class="h3__lede">Para quem tem de 2 a 10 lojas. Cada venda baixa o mesmo estoque, cai no caixa da loja certa e sai com nota fiscal. A troca de sistema é a nossa equipe que faz.</p>
       <div class="h3__actions">
-        <a class="pill" href="#demo">Quero ver com as minhas lojas</a>
-        <a class="pill pill--onDark" href="{{ $wa }}" target="_blank" rel="noopener">Chamar no WhatsApp</a>
+        <a class="pill pill--wa" href="{{ $wa }}" target="_blank" rel="noopener">{!! $zap !!} Chamar no WhatsApp</a>
+        <a class="pill pill--onDark" href="#demo">Agendar demonstração</a>
       </div>
+      <p class="h3__preco">A partir de <b>R$ 590 por mês</b> para a rede toda. Resposta no mesmo dia.</p>
       <ul class="h3__canais">
         <li><b>Maquininha Stone</b>venda no corredor da loja</li>
         <li><b>Loja online</b>com o estoque das lojas</li>
@@ -453,6 +501,8 @@ html.js .rv.in{opacity:1;transform:none}
 
     <div class="h3__stage" id="h3stage" data-fase="0" role="img" aria-label="Maquininha Stone girando à frente da tela do sistema, com a loja online e o atendente de IA recebendo a mesma venda">
       <div class="h3__glow"></div>
+      <div class="h3__world" id="h3world">
+      <div class="h3__floor"><i></i><i></i></div>
 
       <div class="sw" id="h3sw">
         <div class="sw__side">
@@ -524,7 +574,17 @@ html.js .rv.in{opacity:1;transform:none}
         </div>
         <div class="m3d__sombra"></div>
       </div>
+      </div>
     </div>
+  </div>
+</section>
+
+<section class="prova">
+  {{-- Números reais de uso (banco de produção, 30 dias até 14/11/2026). Atualizar ou retirar antes de publicar. --}}
+  <div class="proof">
+    <div><b class="num"><span data-count="14">14</span> lojas</b><span>de duas redes de Teresina já operam no sistema</span></div>
+    <div><b class="num"><span data-count="7900">7.900</span>+</b><span>vendas passaram por elas nos últimos 30 dias</span></div>
+    <div><b class="num"><span data-count="54">54</span> pessoas</b><span>usam todo dia: dono, gerente, caixa e vendedor</span></div>
   </div>
 </section>
 
@@ -558,12 +618,6 @@ html.js .rv.in{opacity:1;transform:none}
     </div>
   </div>
 
-  {{-- Números reais de uso (banco de produção, 30 dias até 14/11/2026). Atualizar ou retirar antes de publicar. --}}
-  <div class="proof">
-    <div><b class="num"><span data-count="14">14</span> lojas</b><span>de duas redes de Teresina já operam no sistema</span></div>
-    <div><b class="num"><span data-count="7900">7.900</span>+</b><span>vendas passaram por elas nos últimos 30 dias</span></div>
-    <div><b class="num"><span data-count="54">54</span> pessoas</b><span>usam todo dia: dono, gerente, caixa e vendedor</span></div>
-  </div>
 </section>
 
 <section class="sec">
@@ -756,6 +810,22 @@ html.js .rv.in{opacity:1;transform:none}
   </div>
 </section>
 
+<section class="sec sec--gray" id="duvidas">
+  <div class="wrap faq">
+    <div class="sec__head">
+      <span class="kicker">Antes de decidir</span>
+      <h2 class="d2">O que todo dono de rede pergunta.</h2>
+    </div>
+    <div class="faq__lista">
+      <details open><summary>Vou perder meus produtos e clientes do sistema atual?</summary><p>Não. Nossa equipe importa o cadastro de produtos e de clientes do sistema que você usa hoje e confere com você antes da virada.</p></details>
+      <details><summary>Preciso parar a loja para trocar?</summary><p>Não. Deixamos tudo configurado antes, treinamos caixa e vendedor no próprio balcão e fazemos a virada junto com você, loja por loja.</p></details>
+      <details><summary>Funciona com a minha maquininha?</summary><p>A venda direto na maquininha é com a Stone. Com outras máquinas você continua vendendo normalmente pelo caixa do sistema e informa a forma de pagamento.</p></details>
+      <details><summary>E a nota fiscal? Não entendo de imposto.</summary><p>A nota sai sozinha quando a venda fecha, no CNPJ da loja certa. Você não precisa preencher nada de imposto na hora da venda, e o seu contador recebe tudo organizado.</p></details>
+      <details><summary>Quanto custa para a minha rede?</summary><p>A partir de R$ 590 por mês. O valor é fechado pelo número de lojas e você recebe a proposta no mesmo dia da demonstração.</p></details>
+    </div>
+  </div>
+</section>
+
 <section class="sec" id="demo">
   <div class="wrap cta__grid">
     <div>
@@ -793,15 +863,13 @@ html.js .rv.in{opacity:1;transform:none}
           <input id="whats" name="whatsapp" type="tel" inputmode="tel" autocomplete="tel" placeholder="(86) 90000-0000" required>
         </div>
       </div>
-      <div class="field">
-        <label for="lojas">Quantas lojas?</label>
-        <select id="lojas" name="lojas">
-          <option value="2 a 3 lojas">2 a 3 lojas</option>
-          <option value="4 a 10 lojas">4 a 10 lojas</option>
-          <option value="mais de 10 lojas">Mais de 10 lojas</option>
-          <option value="1 loja">1 loja, abrindo a segunda</option>
-        </select>
-      </div>
+      <fieldset class="chips">
+        <legend>Quantas lojas?</legend>
+        <label><input type="radio" name="lojas" value="2 a 3 lojas" checked><span>2 a 3</span></label>
+        <label><input type="radio" name="lojas" value="4 a 10 lojas"><span>4 a 10</span></label>
+        <label><input type="radio" name="lojas" value="mais de 10 lojas"><span>Mais de 10</span></label>
+        <label><input type="radio" name="lojas" value="1 loja"><span>1, abrindo a 2ª</span></label>
+      </fieldset>
       <button class="pill pill--block" type="submit">Quero agendar a demonstração</button>
       <p class="form__fine">Seus dados são usados só para este contato.</p>
       <p id="formMsg" class="form__feedback" hidden role="status"></p>
@@ -811,6 +879,11 @@ html.js .rv.in{opacity:1;transform:none}
 </section>
 
 </main>
+
+<div class="fixo" id="fixo" hidden>
+  <a class="pill pill--wa" href="{{ $wa }}" target="_blank" rel="noopener">{!! $zap !!} WhatsApp</a>
+  <a class="pill" href="#demo">Ver demonstração</a>
+</div>
 
 <footer class="foot">
   <div class="wrap">
@@ -843,28 +916,45 @@ html.js .rv.in{opacity:1;transform:none}
       var linha = stage.querySelector('.sw__r[data-o="' + origens[i] + '"]');
       if (linha) { var v = linha.querySelector('b'); v.textContent = fmt(parseInt(v.textContent.replace(/\D/g, ''), 10) + 150); linha.classList.add('pulse'); setTimeout(function () { linha.classList.remove('pulse'); }, 1400); }
     }
+    var world = document.getElementById('h3world'), papel = stage.querySelector('.m3d .m3d__paper'), tela = stage.querySelector('.m3d .m3d__screen');
+    function voar(de, para, depois) {
+      if (!de || !para || !stage.animate) { depois(); return; }
+      var s0 = stage.getBoundingClientRect(), a = de.getBoundingClientRect(), b = para.getBoundingClientRect();
+      var x0 = a.left + a.width / 2 - s0.left, y0 = a.top + a.height / 2 - s0.top, x1 = b.left + b.width * 0.3 - s0.left, y1 = b.top + b.height / 2 - s0.top;
+      var mx = (x0 + x1) / 2, my = Math.min(y0, y1) - 80, t = document.createElement('i');
+      t.className = 'h3__tok'; stage.appendChild(t);
+      t.animate([
+        { transform: 'translate(' + x0 + 'px,' + y0 + 'px) scale(.3)', opacity: 0 },
+        { transform: 'translate(' + x0 + 'px,' + y0 + 'px) scale(1)', opacity: 1, offset: 0.14 },
+        { transform: 'translate(' + mx + 'px,' + my + 'px) scale(1.3)', opacity: 1, offset: 0.56 },
+        { transform: 'translate(' + x1 + 'px,' + y1 + 'px) scale(.5)', opacity: 0.3 }
+      ], { duration: 850, easing: 'cubic-bezier(.4,0,.2,1)' }).onfinish = function () { t.remove(); depois(); };
+    }
+    function linhaDe(i) { return stage.querySelector('.sw__r[data-o="' + origens[i] + '"]'); }
+    function pulsar() { stage.classList.remove('pulso'); void stage.offsetWidth; stage.classList.add('pulso'); }
     function rodar() {
-      fase(0);
-      setTimeout(function () { fase(1); }, 1800);
-      setTimeout(function () { fase(2); entrou(0); }, 3800);
-      setTimeout(function () { fase(3); entrou(1); }, 6000);
-      setTimeout(function () { fase(4); entrou(2); }, 8200);
-      setTimeout(rodar, 11800);
+      if (papel && stage.getAttribute('data-fase') === '4') { papel.classList.add('voa'); setTimeout(function () { fase(0); papel.classList.remove('voa'); }, 760); } else { fase(0); }
+      setTimeout(function () { fase(1); }, 2200);
+      setTimeout(function () { fase(2); pulsar(); voar(tela, linhaDe(0), function () { entrou(0); }); }, 4200);
+      setTimeout(function () { fase(3); voar(stage.querySelector('.fc--loja'), linhaDe(1), function () { entrou(1); }); }, 6600);
+      setTimeout(function () { fase(4); voar(stage.querySelector('.fc--wa'), linhaDe(2), function () { entrou(2); }); }, 9000);
+      setTimeout(rodar, 12600);
     }
     if (reduz) { fase(4); } else { setTimeout(rodar, 2300); }
 
-    if (!reduz && tilt) {
-      var cartoes = stage.querySelectorAll('.sw, .fc');
-      stage.addEventListener('pointermove', function (e) {
-        var r = stage.getBoundingClientRect(), x = (e.clientX - r.left) / r.width - 0.5, y = (e.clientY - r.top) / r.height - 0.5;
-        tilt.style.setProperty('--ry', (x * 34).toFixed(1) + 'deg');
-        tilt.style.setProperty('--rx', (4 - y * 16).toFixed(1) + 'deg');
-        cartoes.forEach(function (c, i) { var f = (i + 1) * 9; c.style.setProperty('--px', (-x * f).toFixed(1) + 'px'); c.style.setProperty('--py', (-y * f).toFixed(1) + 'px'); });
-      });
-      stage.addEventListener('pointerleave', function () {
-        tilt.style.setProperty('--ry', '0deg'); tilt.style.setProperty('--rx', '4deg');
-        cartoes.forEach(function (c) { c.style.setProperty('--px', '0px'); c.style.setProperty('--py', '0px'); });
-      });
+    if (!reduz && tilt && world) {
+      var alvoX = 0, alvoY = 0, cx = 0, cy = 0, visivel = true;
+      stage.addEventListener('pointermove', function (e) { var r = stage.getBoundingClientRect(); alvoX = (e.clientX - r.left) / r.width - 0.5; alvoY = (e.clientY - r.top) / r.height - 0.5; });
+      stage.addEventListener('pointerleave', function () { alvoX = 0; alvoY = 0; });
+      if ('IntersectionObserver' in window) new IntersectionObserver(function (es) { visivel = es[0].isIntersecting; }).observe(stage);
+      (function quadro(agora) {
+        if (visivel) {
+          var t = agora / 1000; cx += (alvoX - cx) * 0.07; cy += (alvoY - cy) * 0.07;
+          world.style.transform = 'rotateX(' + (Math.cos(t * 0.45) * 2.2 - cy * 9).toFixed(2) + 'deg) rotateY(' + (Math.sin(t * 0.5) * 7 + cx * 18).toFixed(2) + 'deg)';
+          tilt.style.setProperty('--rx', (4 - cy * 10).toFixed(1) + 'deg');
+        }
+        requestAnimationFrame(quadro);
+      })(0);
     }
   }
 
@@ -962,11 +1052,14 @@ html.js .rv.in{opacity:1;transform:none}
     if (prog) prog.style.transform = 'scaleX(' + (y / Math.max(h.scrollHeight - vh, 1)) + ')';
     if (reduz) return;
     var st = document.getElementById('h3stage'), mt = document.getElementById('m3dTilt');
-    if (st && mt && !st.matches(':hover')) { var sr = st.getBoundingClientRect(); if (sr.bottom > 0) { var fora = (sr.top + sr.height / 2 - vh / 2) / vh; mt.style.setProperty('--ry', (Math.max(-1, Math.min(1, fora)) * -70).toFixed(1) + 'deg'); } }
+    if (st && mt) { var sr = st.getBoundingClientRect(); if (sr.bottom > 0) { var fora = (sr.top + sr.height / 2 - vh / 2) / vh; mt.style.setProperty('--ry', (Math.max(-1, Math.min(1, fora)) * -70).toFixed(1) + 'deg'); } }
     if (board) { var r = board.getBoundingClientRect(); var k = Math.max(0, Math.min(1, (r.top - vh * 0.25) / (vh * 0.6))); board.style.setProperty('--tilt', (k * 9).toFixed(2) + 'deg'); }
     if (phone && img) { var p = phone.getBoundingClientRect(); var q = Math.max(0, Math.min(1, (vh - p.top) / (vh + p.height))); img.style.setProperty('--p', q.toFixed(3)); }
     if (modelos) { var m = modelos.getBoundingClientRect(); var z = Math.max(0, Math.min(1, (vh - m.top) / (vh + m.height))); modelos.style.setProperty('--m', z.toFixed(3)); }
   }
+  var fixo = document.getElementById('fixo'), topoEl = document.getElementById('topo'), demoEl = document.getElementById('demo');
+  function barra() { if (!fixo || !topoEl || !demoEl) return; var passou = topoEl.getBoundingClientRect().bottom < 80, noForm = demoEl.getBoundingClientRect().top < window.innerHeight * 0.7; fixo.hidden = !(passou && !noForm); }
+  window.addEventListener('scroll', barra, { passive: true }); barra();
   window.addEventListener('scroll', function () { if (!pedido) { pedido = true; requestAnimationFrame(aoRolar); } }, { passive: true });
   window.addEventListener('resize', aoRolar);
   aoRolar();
