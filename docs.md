@@ -8745,3 +8745,30 @@ OS e E/G (exportação e API do Gersen com token de teste) — **100 ✅ / 0 ❌
   configurado e NCM inválido nos produtos; 90 vendas de 10 a 13/11 já tinham caído só no recibo pelo mesmo motivo.
 - Manual de uso desta área: começado e cancelado a pedido do Dennis (14/11); nada ficou em `/home/ubuntu/manual-erp-comercial/`.
 - Ambiente descartável `fp-*` apagado.
+
+### Aviso aos clientes por WhatsApp (texto aprovado pelo Dennis, 14/11/2026)
+Rascunho entregue ao Dennis para ele mandar; **o sistema não enviou para ninguém**. Se a loja não usa Ordem de Serviço, tirar o
+segundo item do "Importante".
+
+```
+*Novidade no ERP: agora cada loja organiza as próprias formas de pagamento* 💳
+
+A partir de hoje você mesmo decide como ficam os botões de pagamento do PDV.
+
+*O que dá para fazer:*
+• *Arrastar* os botões para mudar a ordem
+• Trocar *nome, ícone, cor e tamanho* de cada botão
+• *Desligar* as formas que sua loja não usa
+• *Criar formas novas*, como "Cartão Elo" ou "PIX Maquininha"
+
+*Vale em todo o sistema:* PDV, pedidos, venda balcão, ordem de serviço, caixa, contas a receber, taxas da maquininha e relatórios. A forma nova aparece com o nome dela no fechamento do caixa e nos relatórios de vendas.
+
+*Onde fica:* menu *Configurações da Loja* → botão *Formas de pagamento*, no alto da página.
+Só o *dono* e o *gerente* têm acesso.
+
+⚠️ *Importante:*
+• Enquanto você não mexer, *nada muda*: os botões continuam como estão hoje.
+• A *Ordem de Serviço* agora pergunta a forma de pagamento ao virar venda e *entra no caixa*. Para converter uma OS, o caixa precisa estar aberto.
+
+Qualquer dúvida, é só chamar a gente por aqui! 😊
+```
