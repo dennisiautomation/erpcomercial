@@ -155,6 +155,15 @@ class TransferenciaEstoqueController extends Controller
             return back()->with('error', 'Esta transferencia nao pode ser aprovada.');
         }
 
+        // Produto excluído depois de a transferência ser criada: avisa em vez de dar 404.
+        $excluidos = Produto::onlyTrashed()
+            ->whereIn('id', $transferencia->itens()->pluck('produto_id'))
+            ->pluck('descricao');
+        if ($excluidos->isNotEmpty()) {
+            return back()->with('error', 'Não é possível aprovar: o(s) produto(s) ' . $excluidos->implode(', ')
+                . ' foi/foram excluído(s). Edite a transferência e troque ou remova esse(s) item(ns).');
+        }
+
         DB::transaction(function () use ($transferencia) {
             $transferencia->load('itens.produto');
 
