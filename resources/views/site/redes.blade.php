@@ -78,7 +78,7 @@ h1,h2,h3{letter-spacing:-.015em;text-wrap:balance}
 @media(max-width:360px){.nav__cta .entrar{display:none}}
 
 /* hero */
-.hero{padding:clamp(2.2rem,5vw,3.6rem) 0 0;text-align:center}
+.hero{padding:clamp(3rem,6vw,4.6rem) 0 0;text-align:center}
 .hero h1{font-size:clamp(2.1rem,5.2vw,3.6rem);font-weight:700;line-height:1.07}
 .hero .lede{margin:.9rem auto 0}
 .hero__actions{display:flex;gap:.9rem;justify-content:center;align-items:center;margin-top:1.4rem;flex-wrap:wrap}
@@ -197,6 +197,121 @@ h1,h2,h3{letter-spacing:-.015em;text-wrap:balance}
 .form__alt{margin-top:.9rem;font-size:.92rem;text-align:center}
 
 
+
+/* ============ topo: palco 3D com a maquininha ============ */
+.h3{background:#07130e;color:#f2f7f4;overflow:hidden;position:relative}
+.h3__in{display:grid;grid-template-columns:minmax(0,11fr) minmax(0,10fr);gap:2rem;align-items:center;padding-block:clamp(2.4rem,5vw,4.2rem);max-width:1180px}
+.h3__kicker{display:inline-block;font-size:.9rem;font-weight:600;color:#5fe3a4;margin-bottom:1rem}
+.h3 h1{font-size:clamp(2.1rem,3.9vw,3.2rem);font-weight:700;line-height:1.06;letter-spacing:-.025em}
+.h3__lede{font-size:clamp(1.02rem,1.5vw,1.2rem);color:#b4c6bc;line-height:1.5;margin-top:1.1rem;max-width:52ch}
+.h3__actions{display:flex;gap:.8rem;flex-wrap:wrap;margin-top:1.6rem}
+.pill--onDark{background:transparent;color:#f2f7f4;box-shadow:inset 0 0 0 1px rgba(242,247,244,.45)}
+.pill--onDark:hover{background:#f2f7f4;color:#07130e}
+.h3__canais{list-style:none;display:flex;gap:1.6rem;flex-wrap:wrap;margin-top:2rem;padding-top:1.4rem;border-top:1px solid rgba(242,247,244,.14);font-size:.86rem;color:#93a89d}
+.h3__canais b{display:block;color:#f2f7f4;font-size:.98rem;font-weight:600}
+
+.h3__stage{position:relative;height:540px;perspective:1300px;perspective-origin:50% 42%}
+.h3__glow{position:absolute;left:50%;top:46%;width:560px;height:560px;transform:translate(-50%,-50%);background:radial-gradient(closest-side,rgba(0,168,104,.42),rgba(0,168,104,.12) 55%,transparent 72%);pointer-events:none}
+
+/* a maquininha */
+.m3d{position:absolute;left:50%;top:50%;width:196px;height:404px;margin:-212px 0 0 -98px;transform-style:preserve-3d;z-index:3}
+.m3d__tilt,.m3d__spin,.m3d__body{position:absolute;inset:0;transform-style:preserve-3d}
+.m3d__tilt{transform:rotateX(var(--rx,4deg)) rotateY(var(--ry,0deg));transition:transform .5s var(--ease)}
+.m3d__spin{animation:m3dEntra 2.2s cubic-bezier(.2,.8,.2,1) both,m3dBalanca 9s ease-in-out 2.2s infinite alternate}
+@keyframes m3dEntra{from{transform:rotateY(-400deg) translateY(30px)}to{transform:rotateY(-26deg)}}
+@keyframes m3dBalanca{from{transform:rotateY(-26deg)}to{transform:rotateY(26deg)}}
+.m3d__camada,.m3d__face{position:absolute;inset:0;border-radius:30px}
+.m3d__camada{background:#078a55}
+.m3d__camada:nth-child(odd){background:#06794a}
+.m3d__front{transform:translateZ(17px);background:linear-gradient(155deg,#12c07c 0%,#00a868 38%,#048a56 100%);box-shadow:inset 0 1px 0 rgba(255,255,255,.45),inset 0 -2px 0 rgba(0,0,0,.2);backface-visibility:hidden;display:flex;flex-direction:column;align-items:center;padding:0 12px 12px}
+.m3d__back{transform:rotateY(180deg) translateZ(17px);background:linear-gradient(200deg,#0fb574,#04804f);backface-visibility:hidden;display:flex;align-items:center;justify-content:center}
+.m3d__cam{position:absolute;top:26px;left:50%;width:34px;height:34px;margin-left:-17px;border-radius:50%;background:radial-gradient(circle at 40% 35%,#3a4a43,#0a0f0d 60%);box-shadow:0 0 0 4px rgba(0,0,0,.25)}
+.m3d__printer{position:relative;width:100%;height:58px;flex:none}
+.m3d__printer::before{content:"";position:absolute;left:6px;right:6px;top:8px;height:40px;border-radius:14px 14px 8px 8px;background:linear-gradient(rgba(255,255,255,.16),rgba(255,255,255,0) 60%);box-shadow:inset 0 0 0 1px rgba(0,0,0,.12)}
+.m3d__front::before{content:"";position:absolute;right:-3px;top:120px;width:4px;height:44px;border-radius:2px;background:#046a41;box-shadow:0 60px 0 #046a41}
+.m3d__slot{position:absolute;left:14px;right:14px;top:30px;height:9px;border-radius:5px;background:linear-gradient(#03130c,#0a2a1c);box-shadow:inset 0 2px 3px rgba(0,0,0,.7),0 1px 0 rgba(255,255,255,.25)}
+.m3d__paper{position:absolute;left:24px;right:24px;bottom:24px;height:0;overflow:hidden;background:linear-gradient(#fff,#f1f1ee);border-radius:3px 3px 0 0;display:flex;flex-direction:column;justify-content:flex-start;gap:4px;padding:0 9px;transition:height .9s cubic-bezier(.3,.7,.2,1),padding .9s cubic-bezier(.3,.7,.2,1);box-shadow:0 -6px 14px rgba(0,0,0,.18)}
+.m3d__paper i{display:block;height:3px;border-radius:2px;background:#cfd3d0}
+.m3d__paper i:nth-child(2){width:72%}.m3d__paper i:nth-child(3){width:46%}
+.m3d__paper b{font-size:.56rem;color:#1c7a4d;font-weight:700}
+.m3d__glass{width:100%;flex:1;border-radius:20px;background:linear-gradient(165deg,#1b211e,#070a09 40%);padding:9px 8px 9px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.07),0 1px 0 rgba(255,255,255,.28);position:relative;overflow:hidden}
+.m3d__glass::after{content:"";position:absolute;inset:0;background:linear-gradient(115deg,rgba(255,255,255,.14) 0%,rgba(255,255,255,0) 32%);pointer-events:none}
+.m3d__screen{position:relative;height:100%;border-radius:13px;background:#f6f8f7;color:#10201a;overflow:hidden}
+.m3d__marca{font-size:1.02rem;font-weight:800;letter-spacing:-.045em;color:#fff;margin-top:8px;line-height:1}
+.m3d__marca--g{font-size:1.9rem;margin:0;opacity:.92}
+.m3d__sombra{position:absolute;left:50%;bottom:-38px;width:230px;height:36px;margin-left:-115px;border-radius:50%;background:radial-gradient(closest-side,rgba(0,0,0,.55),transparent);transform:rotateX(78deg) translateZ(-40px);filter:blur(5px)}
+
+/* telas da maquininha */
+.ms{position:absolute;inset:0;padding:10px 10px 11px;display:flex;flex-direction:column;gap:6px;opacity:0;transform:translateY(8px);transition:opacity .45s var(--ease),transform .45s var(--ease);text-align:left}
+.ms em{font-style:normal}
+.ms__bar{font-size:.6rem;font-weight:600;color:#5b6d65;border-bottom:1px solid #dfe6e2;padding-bottom:6px}
+.ms__item{display:flex;justify-content:space-between;gap:.4rem;font-size:.66rem}
+.ms__item--soft{color:#74857d}
+.ms__total{display:flex;justify-content:space-between;align-items:baseline;margin-top:auto;font-size:.64rem;color:#5b6d65}
+.ms__total b{font-size:1.1rem;color:#10201a}
+.ms__btn{background:#00a868;color:#fff;border-radius:9px;text-align:center;font-size:.72rem;font-weight:700;padding:.5rem}
+.ms--aproxime,.ms--ok{align-items:center;justify-content:center;text-align:center;gap:8px;font-size:.66rem;color:#5b6d65}
+.ms--aproxime b{font-size:1.25rem;color:#10201a}
+.ms__waves{display:flex;gap:4px;align-items:center;height:44px}
+.ms__waves i{display:block;width:10px;border:3px solid #00a868;border-color:transparent #00a868 transparent transparent;border-radius:50%;animation:msOnda 1.2s ease-in-out infinite}
+.ms__waves i:nth-child(1){height:16px}.ms__waves i:nth-child(2){height:28px;animation-delay:.15s}.ms__waves i:nth-child(3){height:40px;animation-delay:.3s}
+@keyframes msOnda{0%,100%{opacity:.25}50%{opacity:1}}
+.ms--ok{background:#f6f8f7;color:#5b6d65}
+.ms--ok b{font-size:1.15rem;color:#10201a}
+.ms__check{width:50px;height:50px;border-radius:50%;background:#00a868;color:#fff;box-shadow:0 0 0 7px rgba(0,168,104,.16);display:flex;align-items:center;justify-content:center}
+.ms__check svg{width:26px;height:26px}
+[data-fase="0"] .ms--cobrar,[data-fase="1"] .ms--aproxime,[data-fase="2"] .ms--ok,[data-fase="3"] .ms--ok,[data-fase="4"] .ms--ok{opacity:1;transform:none}
+[data-fase="2"] .m3d__paper,[data-fase="3"] .m3d__paper,[data-fase="4"] .m3d__paper{height:62px;padding:8px 9px}
+
+/* cartões que flutuam em volta */
+.fc{position:absolute;z-index:2;background:rgba(18,32,26,.82);border:1px solid rgba(242,247,244,.14);border-radius:18px;padding:.85rem .95rem;width:212px;display:flex;flex-direction:column;gap:.3rem;font-size:.8rem;color:#b4c6bc;box-shadow:0 18px 40px rgba(0,0,0,.4);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);transform:translate3d(var(--px,0),var(--py,0),0);transition:transform .5s var(--ease),border-color .5s var(--ease),box-shadow .5s var(--ease)}
+.fc__t{font-size:.72rem;font-weight:600;color:#93a89d;display:flex;align-items:center;gap:.35rem}
+.fc b{color:#f2f7f4;font-size:1rem}
+.fc__big{font-size:1.55rem !important;line-height:1.1}
+.fc__s{font-size:.76rem}
+.fc--painel{left:-44px;top:22px;width:200px}
+.fc--loja{right:-40px;top:96px;width:184px}
+.fc--wa{left:-30px;bottom:30px;width:214px}
+.fc--loja img{width:100%;height:104px;object-fit:cover;border-radius:11px;display:block;margin-bottom:.25rem;background:#e9e6e0}
+.fc__bars{display:grid;gap:5px;margin-top:.35rem}
+.fc__bars i{display:block;height:6px;border-radius:3px;background:rgba(242,247,244,.12);position:relative;overflow:hidden}
+.fc__bars i::after{content:"";position:absolute;inset:0;width:var(--w);background:#00a868;border-radius:3px}
+.fc__chip{align-self:flex-start;margin-top:.45rem;background:#00a868;color:#04140d;font-weight:700;font-size:.74rem;border-radius:980px;padding:.18rem .6rem;opacity:0;transform:translateY(6px) scale(.94);transition:opacity .45s var(--ease),transform .45s var(--ease)}
+.fc__dot{width:8px;height:8px;border-radius:50%;background:#25d366;display:inline-block}
+.fc__in,.fc__out{border-radius:11px;padding:.4rem .6rem;font-size:.78rem;line-height:1.35;max-width:92%}
+.fc__in{background:rgba(242,247,244,.1);color:#e3ece7;align-self:flex-start;border-top-left-radius:3px}
+.fc__out{background:#0a6b4c;color:#eafff5;align-self:flex-end;border-top-right-radius:3px;opacity:0;transform:translateY(8px);transition:opacity .45s var(--ease),transform .45s var(--ease)}
+.fc--loja b,.fc--loja .fc__s{opacity:.35;transition:opacity .45s var(--ease)}
+[data-fase="2"] .fc--painel,[data-fase="3"] .fc--loja,[data-fase="4"] .fc--wa{border-color:#00a868;box-shadow:0 18px 40px rgba(0,0,0,.4),0 0 0 4px rgba(0,168,104,.22)}
+[data-fase="2"] .fc__chip,[data-fase="3"] .fc__chip,[data-fase="4"] .fc__chip{opacity:1;transform:none}
+[data-fase="3"] .fc--loja b,[data-fase="3"] .fc--loja .fc__s,[data-fase="4"] .fc--loja b,[data-fase="4"] .fc--loja .fc__s{opacity:1}
+[data-fase="4"] .fc__out{opacity:1;transform:none}
+
+@media(max-width:940px){
+  .h3__in{grid-template-columns:1fr;gap:1rem;padding-bottom:1.2rem}
+  .h3__stage{height:500px;max-width:420px;width:100%;margin-inline:auto}
+  .m3d{transform:scale(.86)}
+  .fc{width:168px;padding:.65rem .7rem;font-size:.72rem}
+  .fc--loja{width:150px;top:292px;right:0}
+  .fc--loja img{height:70px}
+  .fc--painel{top:6px;left:0;width:168px}
+  .fc--wa{width:178px;left:0;bottom:6px}
+  .fc__big{font-size:1.2rem !important}
+  .h3__canais{display:none}
+}
+
+/* a mesma maquininha, parada, na seção dos canais */
+.m3d--parada{position:relative;left:auto;top:auto;margin:34px 0 0;perspective:1100px}
+.m3d--parada .m3d__spin{animation:none;transform:rotateY(-14deg)}
+.m3d--parada .m3d__tilt{transform:rotateX(5deg)}
+.m3d--parada .m3d__sombra{bottom:-30px}
+.dev .ms--cobrar{opacity:1;transform:none}
+.dev.is-on .ms--cobrar{opacity:0}
+.dev.is-on .ms--ok{opacity:1;transform:none}
+.dev.is-on .m3d__paper{height:62px;padding:8px 9px}
+
+.hero h2{margin-inline:auto;max-width:20ch}
+
 /* ---------- movimento ao rolar ---------- */
 .prog{position:fixed;left:0;top:0;height:3px;width:100%;transform-origin:0 50%;transform:scaleX(0);background:var(--blue);z-index:70}
 html.js .rv{opacity:0;transform:translateY(26px);transition:opacity .7s var(--ease),transform .7s var(--ease);transition-delay:var(--d,0s)}
@@ -220,29 +335,6 @@ html.js .rv.in{opacity:1;transform:none}
 .dev figcaption{font-size:.95rem;color:var(--ink2);max-width:34ch}
 .dev figcaption b{display:block;color:var(--ink);font-size:1.08rem;margin-bottom:.2rem}
 .uno__note{font-size:.78rem;color:var(--ink3);text-align:center;margin-top:1.4rem}
-
-/* maquininha */
-.pos{position:relative;width:200px;padding:46px 14px 16px;background:linear-gradient(160deg,#17a065,#0c7d4c);border-radius:26px;box-shadow:0 18px 40px rgba(12,125,76,.32),inset 0 1px 0 rgba(255,255,255,.25)}
-.pos__paper{position:absolute;left:34px;right:34px;top:6px;height:0;overflow:hidden;background:#fff;border-radius:4px 4px 0 0;box-shadow:0 -2px 8px rgba(0,0,0,.15);display:flex;flex-direction:column;gap:5px;padding:0 10px;transition:height .7s var(--ease),top .7s var(--ease),padding .7s var(--ease)}
-.pos__paper i{display:block;height:4px;border-radius:2px;background:#d2d2d7}
-.pos__paper i:nth-child(2){width:70%}
-.pos__paper i:nth-child(3){width:45%}
-.pos__paper b{font-size:.62rem;color:#248a3d;letter-spacing:.02em}
-.dev.is-on .pos__paper{height:64px;top:-30px;padding:9px 10px}
-.pos__screen{background:#0f1512;border-radius:14px;padding:10px;color:#f5f5f7;text-align:left;display:flex;flex-direction:column;gap:7px;min-height:226px}
-.pos__bar{font-size:.7rem;color:#9fb3a8;border-bottom:1px solid rgba(255,255,255,.1);padding-bottom:6px}
-.pos__item{display:flex;justify-content:space-between;gap:.5rem;font-size:.76rem}
-.pos__item--soft{color:#9fb3a8}
-.pos__total{display:flex;justify-content:space-between;align-items:baseline;margin-top:auto;font-size:.76rem;color:#9fb3a8}
-.pos__total b{font-size:1.25rem;color:#fff}
-.pos__btn{border-radius:10px;padding:.55rem .4rem;text-align:center;font-size:.78rem;font-weight:600}
-.pos__btn--pay{background:#fff;color:#0f1512}
-.pos__btn--ok{background:#34c759;color:#06310f;display:none}
-.dev.is-on .pos__btn--pay{display:none}
-.dev.is-on .pos__btn--ok{display:block}
-.pos__keys{display:flex;justify-content:center;gap:16px;margin-top:14px}
-.pos__keys i{width:26px;height:8px;border-radius:4px;background:rgba(255,255,255,.35)}
-.pos__keys i:nth-child(1){background:#ff6961}.pos__keys i:nth-child(2){background:#ffd60a}.pos__keys i:nth-child(3){background:#d8ffe7}
 
 /* celular com a loja online */
 .phone{position:relative;width:210px;aspect-ratio:9/18.5;background:#1d1d1f;border-radius:34px;padding:9px;box-shadow:0 18px 44px rgba(0,0,0,.22)}
@@ -279,6 +371,9 @@ html.js .rv.in{opacity:1;transform:none}
   .phone__in img{transform:none;transition:none}
   .pos__paper,.phone__toast,.wa__r1,.wa__r2,.wa__r3,.uno__n{transition:none}
   .prog{display:none}
+  .m3d__spin{animation:none;transform:rotateY(-20deg)}
+  .m3d__tilt,.fc,.ms,.m3d__paper,.fc__chip,.fc__out{transition:none}
+  .ms__waves i{animation:none}
 }
 
 .foot{padding:1.6rem 0 2.2rem;border-top:1px solid var(--sep);font-size:.82rem;color:var(--ink3)}
@@ -307,15 +402,89 @@ html.js .rv.in{opacity:1;transform:none}
 
 <main id="main">
 
+<section class="h3" id="topo">
+  <div class="wrap h3__in">
+    <div class="h3__txt">
+      <span class="h3__kicker">ERP Comercial para redes de lojas</span>
+      <h1>A maquininha, a loja online e o WhatsApp vendendo no mesmo sistema.</h1>
+      <p class="h3__lede">Para quem tem de 2 a 10 lojas. Cada venda baixa o mesmo estoque, cai no caixa da loja certa e sai com nota fiscal. A troca de sistema é a nossa equipe que faz.</p>
+      <div class="h3__actions">
+        <a class="pill" href="#demo">Quero ver com as minhas lojas</a>
+        <a class="pill pill--onDark" href="{{ $wa }}" target="_blank" rel="noopener">Chamar no WhatsApp</a>
+      </div>
+      <ul class="h3__canais">
+        <li><b>Maquininha Stone</b>venda no corredor da loja</li>
+        <li><b>Loja online</b>com o estoque das lojas</li>
+        <li><b>Atendente de IA</b>no WhatsApp, 24 horas</li>
+      </ul>
+    </div>
+
+    <div class="h3__stage" id="h3stage" data-fase="0" role="img" aria-label="Maquininha Stone girando, com o painel da rede, a loja online e o atendente de IA recebendo a mesma venda">
+      <div class="h3__glow"></div>
+
+      <div class="fc fc--painel">
+        <span class="fc__t">Minha rede · hoje</span>
+        <b class="fc__big num">R$ <span id="h3tot">31.480</span></b>
+        <span class="fc__bars"><i style="--w:92%"></i><i style="--w:76%"></i><i style="--w:58%"></i><i style="--w:34%"></i></span>
+        <span class="fc__chip" id="h3chip">+ R$ 149,90 · Centro</span>
+      </div>
+
+      <div class="fc fc--loja">
+        <img src="{{ asset('site/redes/sandalia.jpg') }}" alt="" width="480" height="480">
+        <span class="fc__t">Loja online</span>
+        <b>Pedido novo</b>
+        <span class="fc__s">Sandália preta 37 · PIX pago</span>
+      </div>
+
+      <div class="fc fc--wa">
+        <span class="fc__t"><i class="fc__dot"></i>WhatsApp · atendente de IA</span>
+        <span class="fc__in">Tem a sandália preta 37?</span>
+        <span class="fc__out">Tem 2 no Centro. Separo para você?</span>
+      </div>
+
+      <div class="m3d" id="m3d">
+        <div class="m3d__tilt" id="m3dTilt">
+          <div class="m3d__spin">
+            <div class="m3d__body" id="m3dBody">
+              <div class="m3d__face m3d__front">
+                <div class="m3d__printer"><span class="m3d__slot"></span><span class="m3d__paper"><i></i><i></i><i></i><b>NFC-e emitida</b></span></div>
+                <div class="m3d__glass">
+                  <div class="m3d__screen">
+                    <div class="ms ms--cobrar">
+                      <span class="ms__bar">Venda · Loja Centro</span>
+                      <span class="ms__item"><em>Sandália preta 37</em><b class="num">149,90</b></span>
+                      <span class="ms__item ms__item--soft"><em>Vendedora</em><b>Ana</b></span>
+                      <span class="ms__total"><em>Total</em><b class="num">R$ 149,90</b></span>
+                      <span class="ms__btn">Cobrar</span>
+                    </div>
+                    <div class="ms ms--aproxime">
+                      <span class="ms__waves"><i></i><i></i><i></i></span>
+                      <b class="num">R$ 149,90</b>
+                      <span>Aproxime ou insira o cartão</span>
+                    </div>
+                    <div class="ms ms--ok">
+                      <span class="ms__check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+                      <b>Aprovado</b>
+                      <span>Estoque, caixa e nota já saíram</span>
+                    </div>
+                  </div>
+                </div>
+                <span class="m3d__marca">stone</span>
+              </div>
+              <div class="m3d__face m3d__back"><span class="m3d__marca m3d__marca--g">stone</span><i class="m3d__cam"></i></div>
+            </div>
+          </div>
+        </div>
+        <div class="m3d__sombra"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
 <section class="hero">
   <div class="wrap">
-    <h1>O sistema para quem tem mais de uma loja.</h1>
-    <p class="lede">Estoque, caixa, vendedores e nota fiscal de todas as lojas no mesmo painel, com venda na maquininha Stone, loja online e atendente de IA no WhatsApp.</p>
-    <div class="hero__actions">
-      <a class="pill" href="#demo">Quero ver com as minhas lojas</a>
-      <a class="pill pill--ghost" href="{{ $wa }}" target="_blank" rel="noopener">Chamar no WhatsApp</a>
-    </div>
-    <p class="hero__fine">Feito para redes de 2 a 10 lojas. A implantação é feita pela nossa equipe.</p>
+    <h2 class="d2">Você abre o celular e vê todas as lojas.</h2>
+    <p class="lede">Quanto cada uma vendeu, qual caixa fechou com diferença e onde o estoque está acabando. Sem ligar para o gerente.</p>
   </div>
 
   <div class="stage">
@@ -444,17 +613,35 @@ html.js .rv.in{opacity:1;transform:none}
 
       <div class="uno__grid">
         <figure class="dev is-on" data-dev="pos">
-          <div class="pos" aria-hidden="true">
-            <div class="pos__paper"><i></i><i></i><i></i><b>NFC-e emitida</b></div>
-            <div class="pos__screen">
-              <div class="pos__bar">Venda · Loja Centro</div>
-              <div class="pos__item"><span>Sandália preta 37</span><b class="num">R$ 149,90</b></div>
-              <div class="pos__item pos__item--soft"><span>Vendedora</span><b>Ana</b></div>
-              <div class="pos__total"><span>Total</span><b class="num">R$ 149,90</b></div>
-              <div class="pos__btn pos__btn--pay">Cobrar no cartão</div>
-              <div class="pos__btn pos__btn--ok">Aprovado · nota emitida</div>
-            </div>
-            <div class="pos__keys"><i></i><i></i><i></i></div>
+          <div class="m3d m3d--parada" aria-hidden="true">
+            <div class="m3d__tilt"><div class="m3d__spin"><div class="m3d__body">
+              <div class="m3d__face m3d__front">
+                <div class="m3d__printer"><span class="m3d__slot"></span><span class="m3d__paper"><i></i><i></i><i></i><b>NFC-e emitida</b></span></div>
+                <div class="m3d__glass">
+                  <div class="m3d__screen">
+                    <div class="ms ms--cobrar">
+                      <span class="ms__bar">Venda · Loja Centro</span>
+                      <span class="ms__item"><em>Sandália preta 37</em><b class="num">149,90</b></span>
+                      <span class="ms__item ms__item--soft"><em>Vendedora</em><b>Ana</b></span>
+                      <span class="ms__total"><em>Total</em><b class="num">R$ 149,90</b></span>
+                      <span class="ms__btn">Cobrar</span>
+                    </div>
+                    <div class="ms ms--aproxime">
+                      <span class="ms__waves"><i></i><i></i><i></i></span>
+                      <b class="num">R$ 149,90</b>
+                      <span>Aproxime ou insira o cartão</span>
+                    </div>
+                    <div class="ms ms--ok">
+                      <span class="ms__check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+                      <b>Aprovado</b>
+                      <span>Estoque, caixa e nota já saíram</span>
+                    </div>
+                  </div>
+                </div>
+                <span class="m3d__marca">stone</span>
+              </div>
+            </div></div></div>
+            <div class="m3d__sombra"></div>
           </div>
           <figcaption><b>Maquininha Stone</b>O vendedor fecha a venda na própria maquininha, no corredor ou na fila. Estoque, caixa e nota saem dali.</figcaption>
         </figure>
@@ -590,6 +777,43 @@ html.js .rv.in{opacity:1;transform:none}
   var reduz = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   var fmt = function (n) { return Math.round(n).toLocaleString('pt-BR'); };
 
+
+  /* 0. topo: maquininha em 3D, fases da venda e cartões em volta */
+  var stage = document.getElementById('h3stage');
+  document.querySelectorAll('.m3d__body').forEach(function (corpo) {
+    for (var z = -16; z <= 16; z += 2) { var c = document.createElement('div'); c.className = 'm3d__camada'; c.style.transform = 'translateZ(' + z + 'px)'; corpo.insertBefore(c, corpo.firstChild); }
+  });
+  if (stage) {
+    var hTot = document.getElementById('h3tot'), hChip = document.getElementById('h3chip'), tilt = document.getElementById('m3dTilt');
+    var soma = 31480;
+    var origens = ['Centro', 'Loja online', 'WhatsApp'];
+    function fase(n) { stage.setAttribute('data-fase', n); }
+    function entrou(i) { soma += 150; if (hTot) hTot.textContent = fmt(soma); if (hChip) hChip.textContent = '+ R$ 149,90 · ' + origens[i]; }
+    function rodar() {
+      fase(0);
+      setTimeout(function () { fase(1); }, 1800);
+      setTimeout(function () { fase(2); entrou(0); }, 3800);
+      setTimeout(function () { fase(3); entrou(1); }, 6000);
+      setTimeout(function () { fase(4); entrou(2); }, 8200);
+      setTimeout(rodar, 11800);
+    }
+    if (reduz) { fase(4); } else { setTimeout(rodar, 2300); }
+
+    if (!reduz && tilt) {
+      var cartoes = stage.querySelectorAll('.fc');
+      stage.addEventListener('pointermove', function (e) {
+        var r = stage.getBoundingClientRect(), x = (e.clientX - r.left) / r.width - 0.5, y = (e.clientY - r.top) / r.height - 0.5;
+        tilt.style.setProperty('--ry', (x * 34).toFixed(1) + 'deg');
+        tilt.style.setProperty('--rx', (4 - y * 16).toFixed(1) + 'deg');
+        cartoes.forEach(function (c, i) { var f = (i + 1) * 9; c.style.setProperty('--px', (-x * f).toFixed(1) + 'px'); c.style.setProperty('--py', (-y * f).toFixed(1) + 'px'); });
+      });
+      stage.addEventListener('pointerleave', function () {
+        tilt.style.setProperty('--ry', '0deg'); tilt.style.setProperty('--rx', '4deg');
+        cartoes.forEach(function (c) { c.style.setProperty('--px', '0px'); c.style.setProperty('--py', '0px'); });
+      });
+    }
+  }
+
   /* 1. entrada das partes ao rolar */
   var alvos = document.querySelectorAll('.sec__head, .row, .dev, .uno__stock, .modelos, .cmp__scroll, .price__box, .steps li, .form, .cta__grid > div, .ia > div, .chat:not(.chat--mini), .proof > div, .board');
   alvos.forEach(function (el, i) {
@@ -683,6 +907,8 @@ html.js .rv.in{opacity:1;transform:none}
     var h = document.documentElement, y = window.pageYOffset, vh = window.innerHeight;
     if (prog) prog.style.transform = 'scaleX(' + (y / Math.max(h.scrollHeight - vh, 1)) + ')';
     if (reduz) return;
+    var st = document.getElementById('h3stage'), mt = document.getElementById('m3dTilt');
+    if (st && mt && !st.matches(':hover')) { var sr = st.getBoundingClientRect(); if (sr.bottom > 0) { var fora = (sr.top + sr.height / 2 - vh / 2) / vh; mt.style.setProperty('--ry', (Math.max(-1, Math.min(1, fora)) * -70).toFixed(1) + 'deg'); } }
     if (board) { var r = board.getBoundingClientRect(); var k = Math.max(0, Math.min(1, (r.top - vh * 0.25) / (vh * 0.6))); board.style.setProperty('--tilt', (k * 9).toFixed(2) + 'deg'); }
     if (phone && img) { var p = phone.getBoundingClientRect(); var q = Math.max(0, Math.min(1, (vh - p.top) / (vh + p.height))); img.style.setProperty('--p', q.toFixed(3)); }
     if (modelos) { var m = modelos.getBoundingClientRect(); var z = Math.max(0, Math.min(1, (vh - m.top) / (vh + m.height))); modelos.style.setProperty('--m', z.toFixed(3)); }
