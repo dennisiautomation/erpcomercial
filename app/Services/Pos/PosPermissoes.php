@@ -10,7 +10,7 @@ use App\Models\User;
  * do ERP web (CheckPermission::canUser), para não divergir (armadilha 59).
  *
  * - vender no PDV: vendas,criar (vendedor, caixa, gerente, dono, admin)
- * - emitir pedido: pedidos,criar (o perfil caixa NÃO emite pedido, como na web)
+ * - emitir pedido: pedidos,criar (o perfil caixa emite, como na web desde 03/11/2026)
  * - cancelar venda: vendas,excluir (gerente, dono, admin). Vendedor/caixa cancelam
  *   só a PRÓPRIA venda com o caixa da venda ainda aberto (desfazer o erro na hora).
  */

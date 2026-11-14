@@ -284,7 +284,7 @@ class PosVendaController extends Controller
             }
         }
 
-        $resp = app(VendaController::class)->destroy($venda);
+        $resp = app(VendaController::class)->destroy($request, $venda);
         $erro = session()->get('error');
         $venda->refresh();
         if ($erro || $venda->status !== StatusVenda::Cancelada) {

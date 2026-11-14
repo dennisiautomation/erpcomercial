@@ -122,7 +122,7 @@ class PosApiTest extends TestCase
         $this->api($token)->getJson(self::BASE . '/me')
             ->assertOk()
             ->assertJsonPath('permissoes.vender', true)
-            ->assertJsonPath('permissoes.emitir_pedido', false) // caixa não tira pedido, como na web
+            ->assertJsonPath('permissoes.emitir_pedido', true) // caixa tira pedido, como na web desde 03/11/2026
             ->assertJsonPath('loja.id', $this->unidade->id)
             ->assertJsonPath('caixa', null);
     }
@@ -383,15 +383,16 @@ class PosApiTest extends TestCase
         $this->api($token)->getJson(self::BASE . '/pedidos?pagamento=outro')->assertStatus(422);
     }
 
-    public function test_perfil_caixa_nao_emite_pedido(): void
+    public function test_perfil_caixa_emite_pedido_como_na_web(): void
     {
+        // Caixa passou a tirar pedido na web em 03/11/2026; o app segue a mesma matriz
         [, $token] = $this->prepararVenda('caixa');
         $cliente = $this->createCliente($this->empresa);
 
         $this->api($token)->postJson(self::BASE . '/pedidos', [
             'chave' => 'chave-123456', 'cliente_id' => $cliente->id,
             'itens' => [['produto_id' => $this->produto->id, 'quantidade' => 1]],
-        ])->assertForbidden();
+        ])->assertSuccessful();
     }
 
     public function test_fechar_caixa_e_comprovante(): void
