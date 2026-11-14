@@ -11,6 +11,7 @@ use App\Services\FiscalAutoConfig;
 use App\Services\TabelaPrecoService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use App\Models\ProdutoFoto;
 use Illuminate\Support\Facades\Storage;
 
 class ProdutoController extends Controller
@@ -109,6 +110,8 @@ class ProdutoController extends Controller
             return redirect()->route('app.produtos.index')
                 ->with('warning', 'Seu usuário não está vinculado a uma empresa. Produtos pertencem a uma empresa — acesse com um usuário da empresa para cadastrar.');
         }
+
+        $this->validarLojaOnline($request);
 
         $validated = $request->validate([
             'codigo_barras'      => 'nullable|string|max:50',
@@ -233,6 +236,7 @@ class ProdutoController extends Controller
 
         $produto = Produto::create($validated);
         $this->salvarPrecosPorForma($produto, $precoDebito, $precoCredito, $precoAtacado, $precoPix);
+        $this->gravarLojaOnline($request, $produto);
 
         return redirect()->route('app.produtos.index')
             ->with('success', 'Produto cadastrado com sucesso!');
@@ -327,6 +331,8 @@ class ProdutoController extends Controller
             return redirect()->route('app.produtos.show', $produto)
                 ->with('success', 'Foto do produto atualizada!');
         }
+
+        $this->validarLojaOnline($request);
 
         $validated = $request->validate([
             'codigo_barras'      => 'nullable|string|max:50',
@@ -431,6 +437,7 @@ class ProdutoController extends Controller
 
         $produto->update($validated);
         $this->salvarPrecosPorForma($produto, $precoDebito, $precoCredito, $precoAtacado, $precoPix);
+        $this->gravarLojaOnline($request, $produto);
 
         return redirect()->route('app.produtos.index')
             ->with('success', 'Produto atualizado com sucesso!');
@@ -531,10 +538,68 @@ class ProdutoController extends Controller
         if ($produto->foto) {
             Storage::disk('public')->delete($produto->foto);
         }
+        foreach ($produto->fotos as $extra) {
+            Storage::disk('public')->delete($extra->caminho);
+        }
+        $produto->fotos()->delete();
 
         $produto->delete();
 
         return redirect()->route('app.produtos.index')
             ->with('success', 'Produto excluido com sucesso!');
+    }
+
+    /* ---------------------------------------------------------------- */
+    /*  Loja online: mais fotos + "aparece na loja" (14/11/2026)         */
+    /* ---------------------------------------------------------------- */
+
+    /** Valida os campos da loja online ANTES do validate principal (nada é gravado se falhar). */
+    private function validarLojaOnline(Request $request): void
+    {
+        $request->validate([
+            'fotos_extras'   => 'nullable|array|max:' . ProdutoFoto::MAXIMO,
+            'fotos_extras.*' => 'image|max:10240',
+            'remover_fotos'   => 'nullable|array',
+            'remover_fotos.*' => 'integer',
+        ], [
+            'fotos_extras.max'     => 'Envie no máximo ' . ProdutoFoto::MAXIMO . ' fotos adicionais por vez.',
+            'fotos_extras.*.image' => 'Um dos arquivos das fotos adicionais não é uma imagem.',
+            'fotos_extras.*.max'   => 'Cada foto adicional pode ter até 10 MB.',
+        ]);
+    }
+
+    /**
+     * Fotos adicionais (a capa continua em `foto`) e as marcas da loja online.
+     * As marcas só mudam quando a tela mandou o bloco (`loja_online_bloco`) —
+     * tela antiga, modo "só foto" e import nunca desmarcam o produto por tabela.
+     */
+    private function gravarLojaOnline(Request $request, Produto $produto): void
+    {
+        if ($ids = array_filter((array) $request->input('remover_fotos', []))) {
+            foreach ($produto->fotos()->whereIn('id', $ids)->get() as $foto) {
+                Storage::disk('public')->delete($foto->caminho);
+                $foto->delete();
+            }
+        }
+
+        if ($request->hasFile('fotos_extras')) {
+            $livres = ProdutoFoto::MAXIMO - $produto->fotos()->count();
+            $ordem = (int) $produto->fotos()->max('ordem');
+            foreach (array_slice($request->file('fotos_extras'), 0, max(0, $livres)) as $arquivo) {
+                $produto->fotos()->create([
+                    'empresa_id' => $produto->empresa_id,
+                    'caminho'    => $arquivo->store('produtos', 'public'),
+                    'ordem'      => ++$ordem,
+                ]);
+            }
+        }
+
+        if ($request->boolean('loja_online_bloco') && \App\Models\LojaOnline::ativaPara((int) $produto->empresa_id)) {
+            $naLoja = $request->boolean('loja_online');
+            $produto->forceFill([
+                'loja_online'          => $naLoja,
+                'loja_online_destaque' => $naLoja && $request->boolean('loja_online_destaque'),
+            ])->save();
+        }
     }
 }

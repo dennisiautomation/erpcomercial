@@ -165,6 +165,18 @@ public/
 - **ST interestadual**: tabela `regras_icms` com alíquotas reais, calculadora ICMS-ST, FCP
 - `FiscalAutoConfig`: presets CST/CSOSN/alíquotas por regime (Simples/Presumido/Real)
 
+### Loja online — e-commerce por empresa (14/11/2026, branch `ecommerce-14nov`, NÃO em produção)
+- **Onde vive:** a loja NÃO tem produto, estoque, pedido nem gateway próprios. Mostra os produtos com `produtos.loja_online`, lê o saldo da loja/estoque escolhidos e cada compra vira um **Pedido** comum (rascunho, canal `online`, `pedidos.loja_token`). O que é só dela mora em `lojas_online` (1 por empresa).
+- **Duas chaves:** `lojas_online.ativo` (PLATAFORMA liga em `/admin/empresas/{id}` → Integração) e `publicada` (LOJISTA, em Gestão → Loja online). Sem `ativo`: vitrine 404, menu some, `/app/loja-online` 404.
+- **Rotas públicas existem UMA vez em `/loja/{slug}/...`**; subdomínio (`LOJA_ONLINE_DOMINIO_BASE`) e domínio do cliente (`lojas_online.dominio`) chegam por `ResolverLojaPorHost` (global, registrado no `AppServiceProvider`), que reescreve o caminho. **Nas views da loja o link é `$ctx->url()`, nunca `route()`**; erro de formulário volta com `redirect($ctx->url(...))`, nunca `back()`.
+- **Vitrine é pública:** toda consulta filtra `empresa_id` na mão (`withoutGlobalScope(EmpresaScope)`); o visitante pode estar logado no ERP de outra empresa.
+- `app/Services/LojaOnline/`: `CatalogoLoja` (o que aparece, preço à vista, saldo), `CarrinhoLoja` (sessão, por loja), `CheckoutLoja` (cria o pedido; frete recalculado no servidor), `PagamentoLoja` (PIX Sicredi → Asaas → link InfinitePay; cartão por link; combinar), `ModelosLoja` (6 modelos + tipos de bloco + higiene do editor), `TemaCss`, `LojaContexto`.
+- **Frete:** `App\Services\Entrega\CotacaoEntregaService::resolver` — regra única, usada pelo agente (`IntegracaoAgenteController` delega) e pela loja.
+- **Editor visual** grava em `lojas_online.rascunho`; a loja no ar só muda em Publicar. Nenhum HTML é aceito do editor.
+- **Limites (`throttle`) da loja levam prefixo próprio** (`throttle:10,1,lj-fechar`) — sem prefixo o Laravel soma todas as rotas limitadas do IP num contador só.
+- Produto: `produto_fotos` = fotos adicionais (a capa continua em `produtos.foto`); `ProdutoController::gravarLojaOnline` só muda as marcas quando a tela manda `loja_online_bloco`.
+- Validação: `scripts/validar-loja-online-14nov.py` (HTTP+banco), `…-pagamentos-14nov.php` (provedores simulados), `…browser.mjs` (navegador) e `tests/Feature/App/LojaOnlineTest.php`. Ver docs.md, seção própria.
+
 ### Estoque
 - Movimentações (entrada/saída/ajuste/transferência)
 - Transferências entre unidades (solicitação→aprovação)

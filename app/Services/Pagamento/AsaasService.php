@@ -104,4 +104,49 @@ class AsaasService
             'link' => (string) ($res['invoiceUrl'] ?? ''),
         ];
     }
+
+    /**
+     * Cobrança PIX do pedido com QR Code para mostrar NA TELA (loja online,
+     * 14/11/2026). Mesmo `externalReference` do cartão: o webhook que já existe
+     * confirma o pedido.
+     *
+     * @return array{id: string, copia_cola: string, qr_base64: string, expira_em: ?string}
+     */
+    public function pixParaPedido(Pedido $pedido): array
+    {
+        $pedido->loadMissing('cliente');
+
+        $res = $this->http()->post('/payments', [
+            'customer' => $this->customerId($pedido),
+            'billingType' => 'PIX',
+            'value' => (float) $pedido->total,
+            'dueDate' => now()->addDay()->toDateString(),
+            'description' => "Pedido #{$pedido->numero}",
+            'externalReference' => "pedido:{$pedido->id}",
+        ])->throw()->json();
+
+        $id = (string) ($res['id'] ?? '');
+        if ($id === '') {
+            throw new \RuntimeException('O Asaas não devolveu a cobrança PIX.');
+        }
+
+        $qr = $this->http()->get("/payments/{$id}/pixQrCode")->throw()->json();
+
+        Log::channel('integracao')->info('Asaas: PIX criado', ['pedido_id' => $pedido->id, 'payment_id' => $id]);
+
+        return [
+            'id' => $id,
+            'copia_cola' => (string) ($qr['payload'] ?? ''),
+            'qr_base64' => (string) ($qr['encodedImage'] ?? ''),
+            'expira_em' => $qr['expirationDate'] ?? null,
+        ];
+    }
+
+    /** Situação de uma cobrança (rede de segurança do webhook). */
+    public function pagamentoRecebido(string $paymentId): bool
+    {
+        $res = $this->http()->get("/payments/{$paymentId}")->throw()->json();
+
+        return in_array($res['status'] ?? '', ['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH'], true);
+    }
 }

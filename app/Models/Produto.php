@@ -66,11 +66,16 @@ class Produto extends Model
         'di_forma_importacao',
         'di_adicao_numero',
         'status',
+        // Loja online (14/11/2026)
+        'loja_online',
+        'loja_online_destaque',
     ];
 
     protected function casts(): array
     {
         return [
+            'loja_online' => 'boolean',
+            'loja_online_destaque' => 'boolean',
             'preco_custo' => 'decimal:2',
             'preco_venda' => 'decimal:2',
             'markup' => 'decimal:2',
@@ -115,6 +120,12 @@ class Produto extends Model
      * Fornecedor de quem a loja compra este produto. Opcional — produto sem
      * fornecedor é o caso normal de quem não controla compra por aqui.
      */
+    /** Fotos além da capa (`foto`), na ordem da galeria — 14/11/2026. */
+    public function fotos(): HasMany
+    {
+        return $this->hasMany(ProdutoFoto::class)->orderBy('ordem')->orderBy('id');
+    }
+
     public function fornecedor(): BelongsTo
     {
         return $this->belongsTo(Fornecedor::class);

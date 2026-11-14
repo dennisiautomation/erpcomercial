@@ -23,6 +23,9 @@ class AppServiceProvider extends ServiceProvider
 
         // Cache das promoções da loja/dia vive uma requisição (ou um job da fila)
         $this->app->scoped(\App\Services\PromocaoService::class);
+
+        // Loja online (14/11/2026): a loja que responde a requisição atual
+        $this->app->scoped(\App\Services\LojaOnline\LojaContexto::class);
     }
 
     public function boot(): void
@@ -30,6 +33,14 @@ class AppServiceProvider extends ServiceProvider
         // Paginação com markup Bootstrap 5 (a view padrão do Laravel é
         // Tailwind — sem Tailwind na página, as setas SVG saem gigantes)
         Paginator::useBootstrapFive();
+
+        // Loja online por subdomínio/domínio próprio (14/11/2026): global e registrado
+        // AQUI, não em bootstrap/app.php (que só chega em produção com rebuild — armadilha 46).
+        // pushMiddleware = depois do TrustProxies, então o host já é o que o visitante digitou.
+        if (! $this->app->runningInConsole() || $this->app->runningUnitTests()) {
+            $this->app->make(\Illuminate\Contracts\Http\Kernel::class)
+                ->pushMiddleware(\App\Http\Middleware\ResolverLojaPorHost::class);
+        }
 
         // Snapshot fiscal automático: copia NCM/CFOP/CST/alíquotas do produto
         // para o venda_item na criação. Imuniza histórico contra edições do produto.

@@ -128,6 +128,14 @@ class CheckPermission
             'dono' => ['ver', 'criar', 'editar'],
             'gerente' => ['ver', 'criar', 'editar'],
         ],
+        // Loja online (14/11/2026): vitrine, produtos que aparecem e editor visual.
+        // Mesmo público de Configurações da Loja. A chave que LIBERA o módulo para
+        // a empresa não é permissão — é lojas_online.ativo, da plataforma.
+        'loja_online' => [
+            'admin' => ['ver', 'criar', 'editar', 'excluir'],
+            'dono' => ['ver', 'criar', 'editar'],
+            'gerente' => ['ver', 'criar', 'editar'],
+        ],
         // Configuração FISCAL vive separada de propósito (02/09/2026): certificado
         // A1, token da Focus, CSC, série e regime tributário. Errar aqui derruba a
         // emissão da loja inteira e é a IA365 que configura. Antes compartilhava o

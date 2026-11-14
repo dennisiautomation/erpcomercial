@@ -30,6 +30,41 @@ Route::get('/offline', [\App\Http\Controllers\PwaController::class, 'offline'])
     ->name('pwa.offline');
 
 /* ------------------------------------------------------------------ */
+/*  Loja online (e-commerce) — vitrine pública, 14/11/2026             */
+/* ------------------------------------------------------------------ */
+// As rotas existem UMA vez, em /loja/{slug}/...; subdomínio e domínio próprio
+// chegam aqui pelo ResolverLojaPorHost (reescreve o caminho antes do roteador).
+// Por isso as views montam link com $ctx->url(), nunca com route().
+Route::prefix('loja/{loja}')->where(['loja' => '[a-z0-9\-]+'])->name('loja.')
+    ->middleware(\App\Http\Middleware\LojaOnlineMiddleware::class)
+    ->group(function () {
+        Route::get('/', [\App\Http\Controllers\Loja\VitrineController::class, 'home'])->name('home');
+        Route::get('/produtos', [\App\Http\Controllers\Loja\VitrineController::class, 'produtos'])->name('produtos');
+        Route::get('/p/{produto}', [\App\Http\Controllers\Loja\VitrineController::class, 'produto'])
+            ->where('produto', '[0-9]+(-[a-z0-9\-]*)?')->name('produto');
+        Route::get('/informacoes', [\App\Http\Controllers\Loja\VitrineController::class, 'informacoes'])->name('informacoes');
+        Route::get('/sitemap.xml', [\App\Http\Controllers\Loja\VitrineController::class, 'sitemap'])->name('sitemap');
+
+        Route::get('/carrinho', [\App\Http\Controllers\Loja\CarrinhoController::class, 'ver'])->name('carrinho');
+        Route::post('/carrinho/adicionar', [\App\Http\Controllers\Loja\CarrinhoController::class, 'adicionar'])
+            ->middleware('throttle:60,1,lj-carrinho')->name('carrinho.adicionar');
+        Route::post('/carrinho/atualizar', [\App\Http\Controllers\Loja\CarrinhoController::class, 'atualizar'])
+            ->middleware('throttle:60,1,lj-carrinho')->name('carrinho.atualizar');
+        Route::post('/frete', [\App\Http\Controllers\Loja\CarrinhoController::class, 'frete'])
+            ->middleware('throttle:20,1,lj-frete')->name('frete');
+        Route::get('/finalizar', [\App\Http\Controllers\Loja\CarrinhoController::class, 'finalizar'])->name('finalizar');
+        Route::post('/finalizar', [\App\Http\Controllers\Loja\CarrinhoController::class, 'fechar'])
+            ->middleware('throttle:10,1,lj-fechar')->name('fechar');
+
+        Route::get('/pedido/{token}', [\App\Http\Controllers\Loja\CarrinhoController::class, 'pedidoVer'])->name('pedido');
+        Route::post('/pedido/{token}/pagar', [\App\Http\Controllers\Loja\CarrinhoController::class, 'pagar'])
+            ->middleware('throttle:12,1,lj-pagar')->name('pedido.pagar');
+        Route::get('/pedido/{token}/situacao', [\App\Http\Controllers\Loja\CarrinhoController::class, 'situacao'])
+            ->middleware('throttle:40,1,lj-situacao')->name('pedido.situacao');
+    });
+
+
+/* ------------------------------------------------------------------ */
 /*  Auth                                                               */
 /* ------------------------------------------------------------------ */
 
@@ -125,6 +160,11 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
         ->name('empresas.gateway-infinitepay.store');
     Route::post('/empresas/{empresa}/gateway-infinitepay/testar', [Admin\EmpresaInfinitePayController::class, 'testar'])
         ->name('empresas.gateway-infinitepay.testar');
+    // Loja online (e-commerce) por empresa (14/11/2026) — aba Integração
+    Route::post('/empresas/{empresa}/loja-online/toggle', [Admin\LojaOnlineController::class, 'toggle'])
+        ->name('empresas.loja-online.toggle');
+    Route::post('/empresas/{empresa}/loja-online', [Admin\LojaOnlineController::class, 'salvar'])
+        ->name('empresas.loja-online.salvar');
     // Qual cartão o agente usa quando a empresa tem mais de um ligado (25/09/2026)
     Route::post('/empresas/{empresa}/agente-ia/cartao', [Admin\AgenteIaController::class, 'cartao'])
         ->name('empresas.agente-ia.cartao');
@@ -612,6 +652,25 @@ Route::middleware(['auth', 'suspensao', 'unidade', \App\Http\Middleware\Restring
 
     // Formas de pagamento (14/11/2026): botões do PDV + selects de faturar e balcão.
     // Da empresa inteira; mora dentro de Configurações, como os estoques.
+    /* ------ Loja online (e-commerce) — 14/11/2026 ------
+       O controller devolve 404 para empresa sem lojas_online.ativo (chave da plataforma). */
+    Route::prefix('loja-online')->name('loja-online.')->middleware('permission:loja_online')->group(function () {
+        Route::get('/', [App\LojaOnlineController::class, 'index'])->name('index');
+        Route::get('/configuracoes', [App\LojaOnlineController::class, 'configuracoes'])->name('configuracoes');
+        Route::put('/configuracoes', [App\LojaOnlineController::class, 'salvarConfiguracoes'])->middleware('permission:loja_online,editar')->name('configuracoes.salvar');
+        Route::post('/publicar', [App\LojaOnlineController::class, 'publicar'])->middleware('permission:loja_online,editar')->name('publicar');
+        Route::get('/produtos', [App\LojaOnlineController::class, 'produtos'])->name('produtos');
+        Route::post('/produtos', [App\LojaOnlineController::class, 'marcarProdutos'])->middleware('permission:loja_online,editar')->name('produtos.marcar');
+        Route::get('/editor', [App\LojaOnlineController::class, 'editor'])->name('editor');
+        Route::middleware('permission:loja_online,editar')->group(function () {
+            Route::post('/editor/rascunho', [App\LojaOnlineController::class, 'salvarRascunho'])->name('editor.rascunho');
+            Route::post('/editor/modelo', [App\LojaOnlineController::class, 'aplicarModelo'])->name('editor.modelo');
+            Route::post('/editor/publicar', [App\LojaOnlineController::class, 'publicarRascunho'])->name('editor.publicar');
+            Route::post('/editor/descartar', [App\LojaOnlineController::class, 'descartarRascunho'])->name('editor.descartar');
+            Route::post('/editor/imagem', [App\LojaOnlineController::class, 'enviarImagem'])->name('editor.imagem');
+        });
+    });
+
     Route::prefix('configuracoes/formas-pagamento')->name('formas-pagamento.')->middleware('permission:configuracoes')->group(function () {
         Route::get('/', [App\FormaPagamentoController::class, 'index'])->name('index');
         Route::put('/', [App\FormaPagamentoController::class, 'update'])->middleware('permission:configuracoes,editar')->name('update');

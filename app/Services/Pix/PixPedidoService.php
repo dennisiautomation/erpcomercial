@@ -41,6 +41,7 @@ class PixPedidoService
 
         $existente = PedidoCobranca::where('empresa_id', $pedido->empresa_id)
             ->where('pedido_id', $pedido->id)
+            ->where('provedor', \App\Models\EmpresaGateway::PROVEDOR_SICREDI_PIX)
             ->orderByDesc('id')
             ->first();
 
@@ -108,6 +109,12 @@ class PixPedidoService
     public function sincronizarCobranca(PedidoCobranca $cobranca): void
     {
         if ($cobranca->paga() || $cobranca->status === 'ERRO') {
+            return;
+        }
+
+        // 14/11/2026: a tabela passou a guardar também o PIX do Asaas (loja online);
+        // aquele é conferido em PagamentoLojaService, nunca no Sicredi.
+        if ($cobranca->provedor && $cobranca->provedor !== \App\Models\EmpresaGateway::PROVEDOR_SICREDI_PIX) {
             return;
         }
 
