@@ -6155,6 +6155,19 @@ não há nada a derrubar. Para apagar: `tools/validar/ambiente.sh derrubar posva
 **Status:** branch `feature/pos-stone-app` pronta para ir ao GitHub (o push do Mac em 29/10 voltou 403: credencial sem escrita); **sem merge na `main` e sem deploy** (deploy é do
 Dennis, pelo rito do topo). App Android (`app-pdv-stone`, `e5ea0b2`) segue só local: o repositório não tem remoto.
 
+**Atualização 14/11/2026:**
+- **GitHub:** branch `feature/pos-stone-app` enviada (`f82330e`), com as alterações de 29/10 que estavam sem commit (venda da
+  maquininha identificada no financeiro e nas telas, `cpf_cnpj_nota` ao faturar, cupom "RECIBO").
+- **Homologação:** a API `api/integracao/pos/v1` está no ar em `https://homolog-erp.ia365.com.br` (container `erp-caf-app`,
+  "homologação cafeteria"), publicada pelo Dennis em 14/11. **Produção (`erp.ia365.com.br`) ainda responde 404** nessas rotas.
+- **App:** `app-pdv-stone` agora está em `github.com/dennisiautomation/APP-IA365-STONE` (privado). O build `positivo` (maquininha
+  de teste) aponta para a homologação, sem servidor local; o release aponta para produção. Instalado na Gertec GPOS730
+  (serial 6801132650000263); o Dennis validou login e uso com usuários reais da homologação.
+- **Antes de ir para produção:** fazer merge da `main` de 14/11 (formas de pagamento configuráveis por empresa) — o merge
+  automático conflita só em `tools/validar/roteiros.tsv` (apagado na `main`), mas o POS ainda usa as quatro formas fixas
+  (dinheiro, PIX, débito, crédito) e esse encaixe precisa ser conferido e testado; rodar as migrations `pos_*` no deploy.
+- **Não rodado em 14/11:** PHPUnit e roteiro de validação (ambiente Docker local desligado).
+
 ## Armadilhas conhecidas
 
 1. **EmpresaScope recursão**: `auth()->user()` dentro do scope chama User model que tem o scope → loop infinito. Scopes têm flag `static $applying`. Não remover.
