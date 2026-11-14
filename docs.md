@@ -6034,6 +6034,135 @@ nada muda no app; é ferramenta de validação + `CLAUDE.md`/`docs.md`. Manual c
 
 ---
 
+## App de vendas na maquininha Stone — API `api/integracao/pos/v1` (28/10/2026, branch `feature/pos-stone-app`)
+
+**Pedido (Dennis, 28/10):** versão do ERP para app na maquininha Stone (igual ao JL Passagens), só **venda** e **emissão de pedido**,
+com cupom. App Android em repositório próprio (`app-pdv-stone`, pacote `br.com.ia365.vendas.pos`, Deeplink Stone).
+
+**Causa / lacuna:** o ERP não tinha API por usuário (só `integracao_tokens`, por empresa, sem perfil nem vendedor), nem Stone/TEF.
+O PDV, o caixa e o faturamento dependem de `session('empresa_id'|'unidade_id'|'caixa_id')` e respondem para navegador.
+
+**O que mudou (aditivo — nenhuma tela web muda):**
+- Migration `2026_10_28_200000_create_pos_tables`: `pos_tokens` (sha256, usuário+loja+serial do POS, 16 h), `pos_operacoes`
+  (chave de idempotência do app), `pos_eventos` (log de atividade — contrato Stone exige 180 dias).
+- `PosApiToken` (middleware por classe): token do operador → `Auth::setUser` + **sessão em memória** (driver array) com
+  empresa/loja/caixa. Assim `PdvController::registrarVenda`, `CaixaController`, `VendaController::destroy` e
+  `PedidoController::updateStatus/faturar` rodam **sem alteração** (regra num lugar só). Rotas sob `api/integracao/*`
+  (isenção de CSRF existente) com `withoutMiddleware(StartSession…)`; **nada em `bootstrap/`** (armadilha 46).
+- Controllers `app/Http/Controllers/Api/Pos/*`, services `app/Services/Pos/*` (permissões = `CheckPermission::canUser`,
+  cupom 58 mm em linhas JSON, tradução Stone → NFC-e: bandeira tBand, CNPJ credenciadora 16.501.555/0001-57, autorização).
+- `CaixaController::resumoCaixa` passou de `private` para `public` (reuso; sem mudança de comportamento).
+- Limitadores nomeados `pos` (300/min por aparelho) e `pos-login` (10/min por e-mail+IP, 60/min por IP) no
+  `AppServiceProvider` — `throttle:N,1` sem nome compartilha a chave por IP entre rotas e travaria o login de uma loja
+  com várias maquininhas no mesmo IP.
+
+**Fluxo de dinheiro:** `POST vendas/cotar` roda o `registrarVenda` numa transação **desfeita** (documento=recibo, sem NFC-e)
+→ total exato (tabela da forma + acréscimo por parte + juros) → app cobra na Stone → `POST vendas` com ATK/autorização/bandeira
+e `chave` (uuid). Antes de gravar, nova simulação confere **valor da Stone = total**; diferente → 409 `estornar=true`.
+Mesma chave reenviada → devolve a venda já gravada (`repetida=true`). ERP recusou (4xx) → app estorna na Stone.
+Cancelamento: `cancelamento/validar` (travas do `destroy` + só gerente cancela venda de outro; vendedor/caixa só a própria
+com o caixa dela aberto) → app estorna por ATK → `cancelar` (cancela NFC-e autorizada na Focus, depois `destroy`).
+
+**Impacto:** rotas novas `api/integracao/pos/v1/*` (27); tabelas novas; perfis via matriz existente (caixa não emite pedido).
+Nenhum cron, fila, webhook ou tela web alterado. Focus é chamada só quando a loja emite NFC-e (mesma regra do PDV).
+
+**Validação (local, 28/10 — ambiente descartável do `tools/validar/ambiente.sh`, imagem da branch):**
+- PHPUnit completo: antes (main) 243 ✅ / 2 ❌; depois 262 ✅ / 2 ❌ — os 2 ❌ são os pré-existentes (9ag); 19 testes novos em
+  `tests/Feature/Api/PosApiTest.php`.
+- Roteiro `scripts/validar-pos-stone-28out.sh` (registrado em `roteiros.tsv`): 25 ✅ / 0 ❌ duas vezes na imagem nova;
+  na imagem da main as rotas `pos/v1` não existem (0 rotas) → ❌.
+- App no emulador contra este ambiente: venda crédito 4x com juros, retomada após app morto no meio do pagamento,
+  cancelamento com estorno (estoque/caixa/contas a receber revertidos), pedido emitido/confirmado e recebido no PIX.
+- Não rodou aqui: smoke de telas × 7 perfis (puppeteer do servidor) — rodar `tools/validar/validar.sh … depois` no sp1.
+
+**Deploy:** do Dennis (`sudo tools/deploy.sh feature/pos-stone-app`), depois do merge. Precisa de `php artisan migrate`
+(3 tabelas novas). **Rollback:** voltar a imagem `pre-…`; as tabelas `pos_*` podem ficar (nada as lê fora da API nova).
+
+### Catálogo com foto e ordenação no app POS (29/10/2026, mesma branch)
+
+**Pedido (Dennis, 29/10):** produtos com foto, em catálogo, para achar mais fácil; opções de ordenar; navegar sem abrir o caixa.
+**O que mudou:** `GET produtos` aceita `ordem` = `nome` (padrão) · `mais_vendidos` (soma de `venda_itens` de vendas `concluida`
+da loja nos últimos 90 dias) · `menor_preco` · `maior_preco` · `estoque` (mesmo saldo do `SaldoEstoque::naUnidade`, em
+subconsulta); desempate por descrição e id (paginação estável); valor fora da lista → 422. `foto_url` passou a ser montada com
+o host do pedido (`url('storage/…')`; `TrustProxies` já resolve https/host atrás do nginx) — antes vinha do `APP_URL`, que no
+ambiente local não chega ao aparelho. Catálogo e carrinho nunca exigiram caixa; o app tirou a faixa "caixa fechado" da aba
+Vender e o botão Cobrar, com caixa fechado, vira "Abrir caixa" (leva à aba Caixa e guarda o carrinho).
+**Impacto:** só leitura na API do POS; nenhuma tela web, cron ou integração. Foto continua vindo do cadastro de produto do ERP.
+**Validação (local):** PHPUnit completo 264 ✅ / 2 ❌ pré-existentes (+2 testes: ordenações, foto e catálogo sem caixa; mais
+vendidos primeiro); roteiro `validar-pos-stone-28out.sh` 27 ✅ / 0 ❌ duas vezes (+2 itens de ordenação); app no emulador.
+**Rollback:** o mesmo da entrega acima (sem migration nova).
+
+### Pedido de balcão sem cliente no app POS (29/10/2026, mesma branch)
+
+**Pedido (Dennis, 29/10):** gerar o pedido no Revisar sem cliente selecionado, para entregar e cobrar depois (atendimento tipo
+cafeteria), sem mudar muita coisa.
+**O que mudou:** `POST pedidos` aceita `cliente_id` vazio (a coluna já era nullable; web, impresso A4, faturar e conta a receber
+já tratavam pedido sem cliente) e o campo novo `identificacao` (nome ou mesa, até 60). **Sem migration:** a identificação vai na
+1ª linha de `observacoes_externas` como `Para: <nome>` (aparece também no impresso web). `PosCupomService::identificacao()` lê
+de volta; o cupom do pedido mostra `PARA: <NOME>` em letra grande e omite a linha de assinatura quando não há cliente. A busca
+de pedidos do POS (`q`) acha também pelo nome. Cliente informado de outra empresa continua 422.
+**Impacto:** só a API do POS; nenhuma tela web, cron ou integração. Pedidos com cliente seguem iguais.
+**Validação (local):** PHPUnit completo 265 ✅ / 2 ❌ pré-existentes (+1 teste: pedido sem cliente com nome, cupom, busca,
+faturar em dinheiro); roteiro 29 ✅ / 0 ❌ duas vezes (+2 itens); emulador: pedido só com "Ana mesa 4" → lista de Pedidos →
+Receber no PIX → pedido faturado com venda ligada.
+**Rollback:** o mesmo da entrega acima (sem migration nova).
+
+### Pedidos do POS separados em "a receber" × "pago" (29/10/2026, mesma branch)
+
+**Pedido (Dennis, 29/10):** ao procurar o pedido, deixar mais fácil ver o que está pago e o que não está.
+**O que mudou:** `GET pedidos` aceita `pagamento` = `a_receber` · `pago` · `cancelado` (o `status=` antigo continua) e devolve
+`totais` (quantidade e soma do total de cada lado, respeitando a busca e o "vendedor vê os próprios") e `pago` em cada pedido.
+**Pago** = faturado/entregue **sem** conta a receber em aberto (`pendente`/`vencida`, não excluída) ligada ao pedido; o resto
+que não foi cancelado é **a receber** — inclusive pedido faturado a prazo pelo ERP. Subconsulta direta em `contas_receber`
+(o model `Pedido` não ganhou relação nova). App: dois cartões "A receber (n) R$" e "Pagos (n) R$" no topo, etiqueta
+âmbar/verde em cada pedido, nome/mesa ao lado do número; cancelados num atalho.
+**Impacto:** só a API do POS; nada na web, cron ou integração.
+**Validação (local):** PHPUnit completo 266 ✅ / 2 ❌ pré-existentes (+1 teste: lados, totais, faturado a prazo, busca, 422);
+roteiro 31 ✅ / 0 ❌ duas vezes (+2 itens); emulador: cartões, etiquetas e busca "Mesa".
+**Rollback:** o mesmo da entrega acima (sem migration nova).
+
+### Textos do login do app POS (29/10/2026, mesma branch)
+
+**Pedido (Dennis, 29/10):** melhorar os textos da tela de login.
+**O que mudou:** só mensagens de `PosAuthController` (login/escolher loja) — mais claras e dizendo o que fazer: "E-mail ou senha
+não conferem. Confira e tente de novo.", usuário desativado/sem loja/perfil sem acesso → "peça ao gerente…". Nenhuma regra
+mudou; o login web do ERP (e o `LoginTest`) não foi tocado. No app: "Acesse sua conta", aviso de que é o mesmo e-mail e senha
+do sistema da loja, validação de e-mail incompleto, "Entrando…", "Esqueci a senha" (explica que a troca é pelo sistema ou
+pelo gerente) e mensagens de rede/servidor reescritas.
+**Validação (local):** PHPUnit completo 266 ✅ / 2 ❌ pré-existentes; roteiro 31 ✅ / 0 ❌ duas vezes; emulador: e-mail
+incompleto, senha errada, "Esqueci a senha" e login certo.
+**Rollback:** o mesmo da entrega acima (sem migration nova).
+
+### Teste do app POS com cópia do banco de produção (29/10/2026, mesma branch)
+
+**Pedido (Dennis, 29/10):** copiar o banco e testar local com dados reais (na maquininha só depois do deploy do ERP).
+**Como:** `mysqldump --single-transaction` do `erp-com-mysql` no eveo (só leitura, 79 tabelas, 68 MB) + as fotos de
+`storage/app/public/produtos` (1.070 arquivos, 247 MB), carregados no ambiente descartável (`ambiente.sh`, Focus/IA/gateways
+mortos, sem queue/schedule). Usuário local `teste.pos@local.test` (gerente) só na cópia, na DONA DOURO (2.359 produtos, 948
+com foto, NFC-e ligada). Dump e fotos ficam fora do repositório e são apagados com o ambiente.
+**O que o teste real achou e foi corrigido:**
+- `produtos?ordem=estoque` levava **~48 s** (subconsulta correlacionada por produto sobre 19 mil movimentações) → saldo da
+  loja calculado uma vez (`joinSub` das últimas movimentações por produto/estoque) e juntado: **0,14 s**, mesmos saldos do
+  `SaldoEstoque::naUnidade`.
+- Falha da NFC-e chegava crua na tela ("cURL error 7 … https://…") → `PosCupomService::mensagemNfce()`: falha de rede vira
+  "Sem conexão com o emissor de notas agora."; rejeição da SEFAZ fica, sem URL e curta. Texto técnico segue no log.
+- 132 produtos ativos com preço 0 na loja → o app mostra "Sem preço" e não põe no carrinho (o app não edita preço).
+**Visto e não mudado:** fotos de produto vão no tamanho original (média ~230 KB, até 2 MB; ~7 MB por página de 30) — pesado
+no chip da maquininha. **Decisão do Dennis (29/10): não fazer miniatura** — já há clientes no ERP usando foto assim; só
+revisitar se o catálogo ficar lento no chip. Venda de crédito com NFC-e ligada: venda gravada,
+estoque baixado, nota `rejeitada` (Focus morto) e cupom não fiscal impresso.
+**Validação:** PHPUnit completo 268 ✅ / 2 ❌ pré-existentes (+2 testes de `mensagemNfce`). O roteiro `validar-pos-stone-28out.sh`
+não rodou nesta rodada: o ambiente estava com a cópia de produção, sem os usuários demo que ele usa (última rodada: 31 ✅).
+**Rollback:** o mesmo da entrega acima (sem migration nova).
+**2ª rodada (29/10, ~04h40 BRT):** a cópia foi refeita do zero (mesmo dump só leitura + fotos) para o Dennis testar no
+emulador com a Dona Douro; a imagem `erp-com-app:pos-29out` é anterior a `37df740`, então os 4 arquivos de `app/Http/Controllers/Api/Pos`
+e `app/Services/Pos` do commit foram copiados para o container (+ `USR2` no php-fpm). Login do usuário local conferido pela API
+(`auth/login` → loja Matriz da DONA DOURO direto, catálogo com foto 200). A senha do usuário local fica só fora do repositório.
+**Onde fica o ambiente:** no Mac do Dennis (Docker local, porta 8097, app aponta `10.0.2.2:8097`) — **não no eveo**; no servidor
+não há nada a derrubar. Para apagar: `tools/validar/ambiente.sh derrubar posval` no Mac + remover o dump e as fotos copiadas.
+**Status:** branch `feature/pos-stone-app` pronta para ir ao GitHub (o push do Mac em 29/10 voltou 403: credencial sem escrita); **sem merge na `main` e sem deploy** (deploy é do
+Dennis, pelo rito do topo). App Android (`app-pdv-stone`, `e5ea0b2`) segue só local: o repositório não tem remoto.
+
 ## Armadilhas conhecidas
 
 1. **EmpresaScope recursão**: `auth()->user()` dentro do scope chama User model que tem o scope → loop infinito. Scopes têm flag `static $applying`. Não remover.

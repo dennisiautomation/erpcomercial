@@ -54,6 +54,10 @@ class VendaController extends Controller
         // Mesmos filtros na lista E nos cartões do topo (antes os cartões só
         // olhavam loja e datas — filtrar tipo/status/busca não mudava nada neles).
         $filtros = function ($q, bool $comDatas = true) use ($request, $origemFiltro) {
+            if ($request->input('origem') === 'maquininha') {
+                // Vendas do app da maquininha: o pagamento leva origem "pos_stone" (PosStone::pagamento)
+                $q->whereRaw("JSON_SEARCH(pagamento_detalhes, 'one', 'pos_stone', NULL, '$[*].origem') IS NOT NULL");
+            }
             if ($request->filled('busca')) {
                 $busca = $request->busca;
                 $q->where(function ($q) use ($busca) {

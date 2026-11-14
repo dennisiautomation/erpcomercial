@@ -23,7 +23,7 @@ class CaixaController extends Controller
      * Movimentações de venda antigas (sem forma_pagamento) são tratadas
      * como dinheiro para não quebrar a conferência de caixas legados.
      */
-    private function resumoCaixa(Caixa $caixa): array
+    public function resumoCaixa(Caixa $caixa): array
     {
         $movs = $caixa->movimentacoes;
 

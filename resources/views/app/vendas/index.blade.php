@@ -132,6 +132,7 @@
                     @foreach($origens as $valor => $rotulo)
                         <option value="{{ $valor }}" @selected($origemFiltro === $valor)>{{ $rotulo }}</option>
                     @endforeach
+                    <option value="maquininha" @selected(request('origem') === 'maquininha')>Maquininha Stone</option>
                 </select>
             </div>
             <div class="col-md-2">
@@ -209,6 +210,9 @@
                                 $origemRotulo = ['importada' => 'Histórico'][$origemVenda] ?? $origens[$origemVenda];
                             @endphp
                             <span class="badge bg-{{ $origemCor }}"><i class="bi {{ $origemIcone }} me-1"></i>{{ $origemRotulo }}</span>
+                            @if(\App\Services\Pos\PosStone::daMaquininha($venda->pagamento_detalhes))
+                                <span class="badge bg-dark" title="Feita no app IA365 Vendas da maquininha Stone"><i class="bi bi-credit-card-2-front me-1"></i>MAQUININHA</span>
+                            @endif
                             @if($venda->tipo !== 'importada')
                                 {{-- Como foi lançada: PDV, Pedido ou Balcão --}}
                                 <div class="small text-muted">{{ $tipos[$venda->tipo] ?? $venda->tipo }}</div>
