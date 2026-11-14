@@ -601,15 +601,15 @@ html.js .rv.in{opacity:1;transform:none}
 <section class="sec vid" id="video">
   <div class="wrap">
     <div class="sec__head">
-      <span class="kicker">Em menos de 1 minuto</span>
+      <span class="kicker">Em 1 minuto e meio</span>
       <h2 class="d2">Veja uma venda acontecer nas suas lojas.</h2>
     </div>
     <div class="vid__box">
       <video id="vd" preload="none" playsinline controls poster="{{ asset('site/redes/video-capa.jpg') }}" width="1280" height="720">
         <source src="{{ asset('site/redes/erp-redes.mp4') }}" type="video/mp4">
       </video>
-      <button class="vid__play" id="vdPlay" type="button" aria-label="Assistir ao vídeo de 53 segundos">
-        <span class="vid__tri" aria-hidden="true"></span><span>Assistir · 53 s</span>
+      <button class="vid__play" id="vdPlay" type="button" aria-label="Assistir ao vídeo de 1 minuto e 28 segundos">
+        <span class="vid__tri" aria-hidden="true"></span><span>Assistir · 1 min 28 s</span>
       </button>
     </div>
     <p class="vid__nota">Com narração e legenda. Dá para assistir sem som.</p>
@@ -684,7 +684,7 @@ html.js .rv.in{opacity:1;transform:none}
     <div>
       <span class="kicker">Atendente de IA no WhatsApp</span>
       <h2 class="d2">Sua loja responde o cliente às 11 da noite.</h2>
-      <p class="lede" style="margin-top:.8rem">O atendente de IA conversa no WhatsApp da loja, consulta o estoque de verdade e monta o pedido. Quando precisa de gente, passa para o seu vendedor.</p>
+      <p class="lede" style="margin-top:.8rem">O atendente de IA já vem pronto no sistema: você só configura como ele deve atender. Ele conversa no WhatsApp da loja, consulta o estoque de verdade e monta o pedido. Quando precisa de gente, passa para o seu vendedor.</p>
       <ul>
         <li>{!! $check !!} Responde preço e disponibilidade olhando o estoque do sistema</li>
         <li>{!! $check !!} Monta o pedido e manda o link de pagamento</li>
@@ -772,7 +772,7 @@ html.js .rv.in{opacity:1;transform:none}
             </div></div></div>
             <div class="m3d__sombra"></div>
           </div>
-          <figcaption><b>Maquininha Stone</b>O vendedor fecha a venda na própria maquininha, no corredor ou na fila. Estoque, caixa e nota saem dali.</figcaption>
+          <figcaption><b>Maquininha Stone</b>Você não troca de máquina: é só baixar o nosso aplicativo na própria Stone. O vendedor fecha a venda ali, e estoque, caixa e nota saem na hora.</figcaption>
         </figure>
 
         <figure class="dev is-on" data-dev="loja">
@@ -780,7 +780,7 @@ html.js .rv.in{opacity:1;transform:none}
             <div class="phone__in"><img id="lojaImg" src="{{ asset('site/redes/loja-celular.jpg') }}" alt="" width="390" height="1440" loading="lazy"></div>
             <div class="phone__toast"><b>Pedido novo da loja online</b><span>Sandália preta 37 · PIX pago</span></div>
           </div>
-          <figcaption><b>Loja online</b>A vitrine na internet usa os produtos e o estoque do sistema. O cliente paga por PIX ou cartão e o pedido chega junto com os das lojas.</figcaption>
+          <figcaption><b>Loja online</b>Já vem pronta no sistema: você só escolhe um modelo e configura. Ela usa os seus produtos, os seus preços e o estoque das lojas. O cliente paga por PIX ou cartão.</figcaption>
         </figure>
 
         <figure class="dev is-on" data-dev="wa">
@@ -791,7 +791,7 @@ html.js .rv.in{opacity:1;transform:none}
             <div class="msg msg--in wa__r2">Separa, pago agora</div>
             <div class="msg msg--out wa__r3">Separado. Segue o link do PIX.</div>
           </div>
-          <figcaption><b>WhatsApp com atendente de IA</b>Responde olhando o estoque de todas as lojas e fecha o pedido, a qualquer hora.</figcaption>
+          <figcaption><b>WhatsApp com atendente de IA</b>Também já vem pronto: você só configura como ele deve atender. Ele responde olhando o estoque de todas as lojas e fecha o pedido, a qualquer hora.</figcaption>
         </figure>
       </div>
       <p class="uno__note">Telas de exemplo. A loja online mostrada é uma loja de demonstração do sistema.</p>
@@ -800,7 +800,7 @@ html.js .rv.in{opacity:1;transform:none}
     <div class="modelos">
       <div class="modelos__txt">
         <h3>Seis modelos de loja online prontos</h3>
-        <p>Você escolhe o modelo, troca cores e fotos num editor visual e publica. Pode usar o seu próprio endereço na internet.</p>
+        <p>A loja já está no sistema. Você escolhe o modelo, troca cores e fotos num editor visual e publica. Pode usar o seu próprio endereço na internet.</p>
       </div>
       <div class="modelos__row">
         <div class="brow"><div class="brow__bar"><i></i><i></i><i></i></div><img src="{{ asset('site/redes/modelo-vitrine.jpg') }}" alt="Modelo de loja online com vitrine azul" width="600" height="520" loading="lazy"></div>
@@ -847,7 +847,7 @@ html.js .rv.in{opacity:1;transform:none}
     <div class="faq__lista">
       <details open><summary>Vou perder meus produtos e clientes do sistema atual?</summary><p>Não. Nossa equipe importa o cadastro de produtos e de clientes do sistema que você usa hoje e confere com você antes da virada.</p></details>
       <details><summary>Preciso parar a loja para trocar?</summary><p>Não. Deixamos tudo configurado antes, treinamos caixa e vendedor no próprio balcão e fazemos a virada junto com você, loja por loja.</p></details>
-      <details><summary>Funciona com a minha maquininha?</summary><p>A venda direto na maquininha é com a Stone. Com outras máquinas você continua vendendo normalmente pelo caixa do sistema e informa a forma de pagamento.</p></details>
+      <details><summary>Funciona com a minha maquininha?</summary><p>Se a sua maquininha é Stone, você não troca nada: é só baixar o nosso aplicativo na própria máquina e ela já fica ligada ao sistema. Com outras máquinas você continua vendendo normalmente pelo caixa do sistema e informa a forma de pagamento.</p></details>
       <details><summary>E a nota fiscal? Não entendo de imposto.</summary><p>A nota sai sozinha quando a venda fecha, no CNPJ da loja certa. Você não precisa preencher nada de imposto na hora da venda, e o seu contador recebe tudo organizado.</p></details>
       <details><summary>Quanto custa para a minha rede?</summary><p>A partir de R$ 590 por mês. O valor é fechado pelo número de lojas e você recebe a proposta no mesmo dia da demonstração.</p></details>
     </div>
