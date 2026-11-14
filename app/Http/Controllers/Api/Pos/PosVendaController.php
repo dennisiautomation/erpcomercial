@@ -193,6 +193,7 @@ class PosVendaController extends Controller
 
         $venda = Venda::withoutGlobalScope(UnidadeScope::class)->find($dados['venda']['id']);
         $op->update(['status' => 'concluida', 'venda_id' => $venda->id]);
+        PosStone::marcarFinanceiro($venda);
         $this->evento($request, 'venda_registrada', "Venda #{$venda->numero} R$ " . number_format((float) $venda->total, 2, ',', '.'), [
             'venda_id' => $venda->id, 'forma' => $forma, 'atk' => $stone['atk'] ?? null,
         ]);

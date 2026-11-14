@@ -45,7 +45,9 @@ class PosStone
      */
     public static function pagamento(string $forma, float $valor, ?int $parcelas, ?array $stone): array
     {
-        $pg = ['forma' => $forma, 'valor' => round($valor, 2)];
+        // `origem` marca TODO pagamento feito pelo app da maquininha, inclusive dinheiro (29/10/2026): é o que separa,
+        // na lista de vendas e no financeiro, a venda da maquininha da venda do PDV do sistema.
+        $pg = ['forma' => $forma, 'valor' => round($valor, 2), 'origem' => 'pos_stone'];
         if ($parcelas && $parcelas > 1) {
             $pg['parcelas'] = $parcelas;
         }
@@ -61,10 +63,88 @@ class PosStone
                 'stone_tipo' => $stone['tipo'] ?? null,
                 'stone_data_hora' => $stone['data_hora'] ?? null,
                 'stone_valor_centavos' => isset($stone['valor_centavos']) ? (int) $stone['valor_centavos'] : null,
-                'origem' => 'pos_stone',
             ], fn ($v) => $v !== null && $v !== '');
         }
 
         return $pg;
+    }
+
+    /**
+     * Deixa claro no financeiro que a venda foi feita na maquininha (Dennis, 29/10/2026): a conta a receber
+     * criada pelo PDV/pedido ("Venda PDV #169 - Cartao_credito") vira "Venda Maquininha Stone #169 - Cartão de
+     * crédito VISA" e ganha nas observações o terminal (série do ITK), autorização, ATK, operador e horário.
+     */
+    public static function marcarFinanceiro(\App\Models\Venda $venda): void
+    {
+        $formas = ['dinheiro' => 'Dinheiro', 'pix' => 'PIX', 'cartao_debito' => 'Cartão de débito', 'cartao_credito' => 'Cartão de crédito'];
+        $pgs = collect($venda->pagamento_detalhes ?? []);
+        $venda->loadMissing('vendedor');
+
+        foreach (\App\Models\ContaReceber::withoutGlobalScopes()->where('venda_id', $venda->id)->get() as $conta) {
+            $pg = $pgs->firstWhere('forma', $conta->forma_pagamento) ?? [];
+            $cartao = in_array($conta->forma_pagamento, ['cartao_credito', 'cartao_debito'], true);
+            $forma = trim(($formas[$conta->forma_pagamento] ?? ucfirst(str_replace('_', ' ', (string) $conta->forma_pagamento)))
+                . ' ' . ($cartao ? ($pg['bandeira_nome'] ?? '') : ''));
+            $parcela = $conta->total_parcelas > 1 ? " {$conta->parcela}/{$conta->total_parcelas}" : '';
+            $origem = $venda->pedido_id
+                ? 'Pedido #' . ($venda->pedido?->numero ?? $venda->pedido_id) . ' (venda #' . $venda->numero . ') - Maquininha Stone'
+                : 'Venda Maquininha Stone #' . $venda->numero;
+            $terminal = ! empty($pg['stone_itk']) ? strtok((string) $pg['stone_itk'], '-') : null;
+
+            $conta->update([
+                'descricao' => mb_substr("{$origem} - {$forma}{$parcela}", 0, 255),
+                'observacoes' => implode(' · ', array_filter([
+                in_array($conta->forma_pagamento, self::FORMAS_ELETRONICAS, true)
+                    ? 'Recebido na maquininha Stone' . ($terminal ? " {$terminal}" : '')
+                    : 'Lançado pelo app da maquininha (dinheiro no caixa)',
+                    ! empty($pg['autorizacao']) ? 'Aut ' . $pg['autorizacao'] : null,
+                    ! empty($pg['stone_atk']) ? 'ATK ' . $pg['stone_atk'] : null,
+                    $venda->vendedor?->name ? 'Operador ' . $venda->vendedor->name : null,
+                    $venda->created_at->timezone('America/Sao_Paulo')->format('d/m/Y H:i'),
+                ])),
+            ]);
+        }
+    }
+
+    /**
+     * Item de `pagamento_detalhes` que passou pela maquininha → dados prontos para a tela (venda e conta a receber):
+     * terminal (série do ITK), valor aprovado, se bate com o valor registrado e a hora da Stone em Brasília
+     * (a Stone devolve em UTC). Null quando o pagamento não veio da maquininha.
+     */
+    public static function transacao(array $pg): ?array
+    {
+        // Só pagamento cobrado NA Stone (cartão/PIX com ATK); dinheiro lançado pelo app não tem transação.
+        if (($pg['origem'] ?? null) !== 'pos_stone' || empty($pg['stone_atk'])) {
+            return null;
+        }
+        $aprovado = isset($pg['stone_valor_centavos']) ? $pg['stone_valor_centavos'] / 100 : null;
+        try {
+            $hora = ! empty($pg['stone_data_hora'])
+                ? \Carbon\Carbon::createFromFormat('d/m/Y H:i:s', $pg['stone_data_hora'], 'UTC')->timezone('America/Sao_Paulo')->format('d/m/Y H:i:s')
+                : null;
+        } catch (\Throwable) {
+            $hora = $pg['stone_data_hora'];
+        }
+
+        return [
+            'forma' => $pg['forma'] ?? null,
+            'valor' => (float) ($pg['valor'] ?? 0),
+            'aprovado' => $aprovado,
+            'conciliado' => $aprovado !== null && abs($aprovado - (float) ($pg['valor'] ?? 0)) < 0.01,
+            'tipo' => $pg['stone_tipo'] ?? null,
+            'bandeira' => $pg['bandeira_nome'] ?? null,
+            'parcelas' => (int) ($pg['parcelas'] ?? 1),
+            'autorizacao' => $pg['autorizacao'] ?? null,
+            'atk' => $pg['stone_atk'] ?? null,
+            'terminal' => ! empty($pg['stone_itk']) ? strtok((string) $pg['stone_itk'], '-') : null,
+            'hora' => $hora,
+            'cnpj' => $pg['cnpj_credenciadora'] ?? null,
+        ];
+    }
+
+    /** A venda teve algum pagamento feito na maquininha? (selo nas listas e telas). */
+    public static function daMaquininha(?array $pagamentos): bool
+    {
+        return collect($pagamentos ?? [])->contains('origem', 'pos_stone');
     }
 }

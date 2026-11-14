@@ -117,7 +117,7 @@ class ContaReceberController extends Controller
 
     public function show(ContaReceber $contaReceber)
     {
-        $contaReceber->load(['cliente', 'venda']);
+        $contaReceber->load(['cliente', 'venda.itens', 'venda.vendedor', 'venda.pedido', 'venda.unidade', 'venda.caixa', 'venda.cliente']);
 
         // Load sibling parcelas
         $parcelas = ContaReceber::where('empresa_id', $contaReceber->empresa_id)

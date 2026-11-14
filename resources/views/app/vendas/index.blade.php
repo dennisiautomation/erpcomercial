@@ -129,6 +129,7 @@
                 <select id="campo-tipo" name="tipo" class="form-select form-select-sm">
                     <option value="">Todos</option>
                     <option value="pdv" {{ request('tipo') === 'pdv' ? 'selected' : '' }}>PDV</option>
+                    <option value="maquininha" {{ request('tipo') === 'maquininha' ? 'selected' : '' }}>Maquininha Stone</option>
                     <option value="balcao" {{ request('tipo') === 'balcao' ? 'selected' : '' }}>Balcão</option>
                     <option value="online" {{ request('tipo') === 'online' ? 'selected' : '' }}>Online</option>
                 </select>
@@ -195,7 +196,11 @@
                                 $tipoColors = ['pdv' => 'info', 'balcao' => 'primary', 'online' => 'success'];
                                 $tipoBg = $tipoColors[$venda->tipo] ?? 'secondary';
                             @endphp
-                            <span class="badge bg-{{ $tipoBg }}">{{ strtoupper($venda->tipo ?? 'N/A') }}</span>
+                            @if(\App\Services\Pos\PosStone::daMaquininha($venda->pagamento_detalhes))
+                                <span class="badge bg-dark" title="Feita no app IA365 Vendas da maquininha Stone"><i class="bi bi-credit-card-2-front me-1"></i>MAQUININHA</span>
+                            @else
+                                <span class="badge bg-{{ $tipoBg }}">{{ strtoupper($venda->tipo ?? 'N/A') }}</span>
+                            @endif
                         </td>
                         <td>
                             @php
@@ -211,6 +216,7 @@
                             @endphp
                             <i class="bi {{ $formaIcon }} me-1 text-muted"></i>
                             <span class="small">{{ ucfirst(str_replace('_', ' ', $venda->forma_pagamento ?? '-')) }}</span>
+
                         </td>
                         <td class="text-end fw-bold">
                             @if($venda->status->value === 'cancelada')

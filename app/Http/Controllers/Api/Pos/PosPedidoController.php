@@ -240,6 +240,8 @@ class PosPedidoController extends Controller
         $request->validate([
             'chave' => ['required', 'string', 'min:8', 'max:64'],
             'documento' => ['nullable', 'in:recibo,cupom_fiscal'],
+            // CPF/CNPJ da nota informado na hora de receber (pedido tirado sem cliente ou sem documento).
+            'cpf_cnpj_nota' => ['nullable', 'string', 'max:18'],
             'pagamento.forma' => ['required', 'in:dinheiro,pix,cartao_debito,cartao_credito'],
             'pagamento.parcelas' => ['nullable', 'integer', 'min:1', 'max:24'],
             'pagamento.stone' => ['nullable', 'array'],
@@ -303,8 +305,13 @@ class PosPedidoController extends Controller
         }
 
         // Dados da Stone na venda (conciliação + grupo de cartão da NFC-e).
-        $venda->update(['pagamento_detalhes' => [PosStone::pagamento($forma, (float) $venda->total, $parcelas, $eletronico ? $stone : null)]]);
+        $docNota = preg_replace('/\D/', '', (string) $request->input('cpf_cnpj_nota'));
+        $venda->update(array_filter([
+            'pagamento_detalhes' => [PosStone::pagamento($forma, (float) $venda->total, $parcelas, $eletronico ? $stone : null)],
+            'cpf_cnpj_nota' => in_array(strlen($docNota), [11, 14], true) ? $docNota : null,
+        ]));
         $op->update(['status' => 'concluida', 'venda_id' => $venda->id]);
+        PosStone::marcarFinanceiro($venda);
 
         $nfceErro = null;
         if ($request->input('documento') === 'cupom_fiscal') {

@@ -229,7 +229,7 @@ class PosApiTest extends TestCase
 
         $r->assertOk()->assertJsonPath('venda.total', 100)->assertJsonPath('venda.troco', 50);
         $this->assertNotEmpty($r->json('cupom'));
-        $this->assertTrue(collect($r->json('cupom'))->contains('v', 'CUPOM NÃO FISCAL'));
+        $this->assertTrue(collect($r->json('cupom'))->contains('v', 'RECIBO'));
 
         $venda = Venda::withoutGlobalScopes()->first();
         $this->assertSame($user->id, $venda->vendedor_id);

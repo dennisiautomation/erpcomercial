@@ -79,7 +79,11 @@
                             $tipoColors = ['pdv' => 'info', 'balcao' => 'primary', 'online' => 'success'];
                             $tipoBg = $tipoColors[$venda->tipo] ?? 'secondary';
                         @endphp
-                        <span class="badge bg-{{ $tipoBg }}">{{ strtoupper($venda->tipo ?? 'N/A') }}</span>
+                        @if(\App\Services\Pos\PosStone::daMaquininha($venda->pagamento_detalhes))
+                            <span class="badge bg-dark"><i class="bi bi-credit-card-2-front me-1"></i>MAQUININHA STONE</span>
+                        @else
+                            <span class="badge bg-{{ $tipoBg }}">{{ strtoupper($venda->tipo ?? 'N/A') }}</span>
+                        @endif
                     </div>
                     <div class="col-6">
                         <small class="text-muted d-block">Status</small>
@@ -248,6 +252,9 @@
                         <i class="bi {{ $formaIcon }} me-1"></i>
                         {{ ucfirst(str_replace('_', ' ', $venda->forma_pagamento ?? '-')) }}
                     </span>
+                    @if(\App\Services\Pos\PosStone::daMaquininha($venda->pagamento_detalhes))
+                        <span class="badge bg-dark ms-2 align-middle"><i class="bi bi-credit-card-2-front me-1"></i>Feita na maquininha Stone</span>
+                    @endif
                 </div>
 
                 @if($venda->pagamento_detalhes && is_array($venda->pagamento_detalhes))
@@ -259,9 +266,14 @@
                                     @php $pgtoIcon = $formaIcons[$pgto['forma'] ?? ''] ?? 'bi-wallet2'; @endphp
                                     <i class="bi {{ $pgtoIcon }} me-1 text-muted"></i>
                                     <span>{{ ucfirst(str_replace('_', ' ', $pgto['forma'] ?? '-')) }}</span>
+                                    @if(in_array($pgto['forma'] ?? '', ['cartao_credito', 'cartao_debito'], true) && ! empty($pgto['bandeira_nome']))
+                                        <span class="text-muted small">{{ $pgto['bandeira_nome'] }}</span>
+                                    @endif
+                                    @if(($pgto['parcelas'] ?? 1) > 1) <span class="text-muted small">· {{ $pgto['parcelas'] }}x</span> @endif
                                 </div>
                                 <strong>R$ {{ number_format($pgto['valor'] ?? 0, 2, ',', '.') }}</strong>
                             </div>
+                            @include('app.vendas._stone', ['pg' => $pgto])
                         @endforeach
                     </div>
                 @endif

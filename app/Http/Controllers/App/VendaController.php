@@ -57,7 +57,10 @@ class VendaController extends Controller
             $query->where('status', $request->status);
         }
 
-        if ($request->filled('tipo')) {
+        if ($request->input('tipo') === 'maquininha') {
+            // Vendas do app da maquininha: o pagamento leva origem "pos_stone" (PosStone::pagamento)
+            $query->whereRaw("JSON_SEARCH(pagamento_detalhes, 'one', 'pos_stone', NULL, '$[*].origem') IS NOT NULL");
+        } elseif ($request->filled('tipo')) {
             $query->where('tipo', $request->tipo);
         }
 

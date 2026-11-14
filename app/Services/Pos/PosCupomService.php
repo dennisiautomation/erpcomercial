@@ -38,47 +38,100 @@ class PosCupomService
         $this->colunas = max(24, min(48, $colunas));
     }
 
+    /**
+     * Recibo da venda no MESMO modelo do recibo da plataforma (app/pdv/cupom-nao-fiscal.blade.php), na ordem dele:
+     * cabeçalho → tipo → dados da venda → itens → totais → tributos (Lei 12.741) → pagamento → NFC-e → rodapé.
+     * Sem NFC-e autorizada sai "RECIBO" (Dennis, 29/10/2026), nunca "cupom não fiscal".
+     */
     public function venda(Venda $venda, ?NotaFiscal $nota = null): array
     {
         $venda->loadMissing(['itens', 'cliente', 'vendedor', 'empresa', 'unidade']);
         $nota ??= $venda->notasFiscais()->where('tipo', 'nfce')->latest()->first();
-        $fiscal = $nota && $nota->status === StatusNotaFiscal::Autorizada;
+        $fiscal = $nota && in_array($nota->status, [StatusNotaFiscal::Autorizada, StatusNotaFiscal::Contingencia], true);
+        $quando = $venda->created_at->timezone('America/Sao_Paulo');
 
         $l = $this->cabecalho($venda->empresa, $venda->unidade);
 
+        // Tipo do documento
         if ($fiscal) {
-            $l[] = $this->texto('DANFE NFC-e - Documento Auxiliar', 'centro', 'p');
-            $l[] = $this->texto('da Nota Fiscal de Consumidor Eletrônica', 'centro', 'p');
+            $l[] = $this->texto('DANFE NFC-e', 'centro', 'g');
+            $l[] = $this->texto('Documento Auxiliar da Nota Fiscal de Consumidor Eletrônica', 'centro', 'p');
+            $l[] = $this->texto('Não permite aproveitamento de crédito de ICMS', 'centro', 'p');
+            if ($nota->ambiente && $nota->ambiente !== 'producao') {
+                $l[] = $this->texto('EMITIDA EM AMBIENTE DE HOMOLOGAÇÃO - SEM VALOR FISCAL', 'centro', 'p');
+            }
         } else {
-            $l[] = $this->texto('CUPOM NÃO FISCAL', 'centro', 'g');
+            if ($nota) {
+                $l[] = $this->texto('NFC-e NÃO AUTORIZADA - RECIBO SEM VALOR FISCAL', 'centro', 'p');
+            }
+            $l[] = $this->texto('RECIBO', 'centro', 'g');
         }
-        $l[] = $this->texto('Venda nº ' . $venda->numero . '   ' . $venda->created_at->timezone('America/Sao_Paulo')->format('d/m/Y H:i'), 'centro', 'p');
         if ($venda->status->value === 'cancelada') {
             $l[] = $this->texto('*** VENDA CANCELADA ***', 'centro', 'g');
         }
         $l[] = $this->linha();
 
+        // Dados da venda
+        $l[] = $this->par('Venda: #' . str_pad((string) $venda->numero, 6, '0', STR_PAD_LEFT), $quando->format('d/m/Y H:i'), 'p');
+        if (! $venda->cliente && $venda->cpf_cnpj_nota) {
+            $l[] = $this->texto('CPF/CNPJ do consumidor: ' . $this->documento($venda->cpf_cnpj_nota), 'esq', 'p');
+        }
+        if ($venda->cliente) {
+            $l[] = $this->texto('Cliente: ' . $venda->cliente->nome_razao_social, 'esq', 'p');
+            if ($venda->cliente->cpf_cnpj) {
+                $l[] = $this->texto('CPF/CNPJ: ' . $this->documento($venda->cliente->cpf_cnpj), 'esq', 'p');
+            }
+        }
+        $l[] = $this->texto('Operador: ' . ($venda->vendedor->name ?? 'N/A'), 'esq', 'p');
+        if ($venda->unidade?->nome) {
+            $l[] = $this->texto('Loja: ' . $venda->unidade->nome, 'esq', 'p');
+        }
+        $l[] = $this->linha();
+
+        // Itens
         array_push($l, ...$this->itens($venda->itens));
         $l[] = $this->linha();
 
-        $l[] = $this->par('Qtd. de itens', (string) $venda->itens->count());
-        if ((float) $venda->desconto_valor > 0 || $venda->itens->sum('desconto_valor') > 0) {
-            $l[] = $this->par('Subtotal', $this->moeda((float) $venda->itens->sum(fn ($i) => $i->preco_unitario * $i->quantidade)));
-            $l[] = $this->par('Descontos', '-' . $this->moeda((float) $venda->itens->sum('desconto_valor') + (float) $venda->desconto_valor));
+        // Totais
+        $l[] = $this->par('Qtd. Itens:', (string) $venda->itens->count());
+        $l[] = $this->par('Subtotal:', 'R$ ' . $this->moeda((float) $venda->subtotal));
+        if ((float) $venda->desconto_valor > 0) {
+            $l[] = $this->par('Desconto:', '- R$ ' . $this->moeda((float) $venda->desconto_valor));
         }
-        if ($venda->outras_despesas > 0) {
-            $l[] = $this->par('Acréscimos', $this->moeda($venda->outras_despesas));
+        if ((float) $venda->outras_despesas > 0) {
+            $pgs = collect($venda->pagamento_detalhes ?? []);
+            $juros = $pgs->contains(fn ($pg) => (float) ($pg['juros_valor'] ?? 0) > 0);
+            $acrescimo = $pgs->contains(fn ($pg) => (float) ($pg['acrescimo_forma_valor'] ?? 0) > 0);
+            $rotulo = match (true) {
+                $juros && $acrescimo => 'Acréscimo cartão + juros',
+                $acrescimo => 'Acréscimo cartão',
+                default => 'Juros parcelamento',
+            };
+            $l[] = $this->par($rotulo . ':', '+ R$ ' . $this->moeda((float) $venda->outras_despesas));
         }
-        $l[] = $this->par('TOTAL R$', $this->moeda((float) $venda->total), 'g');
+        $l[] = $this->par('TOTAL:', 'R$ ' . $this->moeda((float) $venda->total), 'g');
+
+        // Tributos aproximados (Lei 12.741/2012) — mesmo cálculo do recibo web: IBPT do item, 25% sem cadastro
+        $tributos = 0.0;
+        foreach ($venda->itens as $item) {
+            $perc = (float) ($item->fiscal('percentual_tributos_ibpt', 25.0) ?: 25.0);
+            $tributos += round((float) $item->total * ($perc / 100), 2);
+        }
+        if ($tributos > 0) {
+            $l[] = $this->linha();
+            $l[] = $this->texto('Tributos Totais Incidentes (Lei 12.741/2012): R$ ' . $this->moeda($tributos), 'esq', 'p');
+            $l[] = $this->texto('Valor aproximado. Fonte: IBPT', 'esq', 'p');
+        }
         $l[] = $this->linha();
 
-        $l[] = $this->texto('FORMA DE PAGAMENTO', 'esq', 'p');
+        // Pagamento
+        $l[] = $this->texto('FORMA DE PAGAMENTO', 'centro', 'p');
         foreach ($venda->pagamento_detalhes ?? [] as $pg) {
             $nome = self::FORMAS[$pg['forma'] ?? ''] ?? ucfirst((string) ($pg['forma'] ?? ''));
             if (! empty($pg['parcelas']) && (int) $pg['parcelas'] > 1) {
                 $nome .= ' ' . (int) $pg['parcelas'] . 'x';
             }
-            $l[] = $this->par($nome, $this->moeda((float) ($pg['valor'] ?? 0)));
+            $l[] = $this->par($nome, 'R$ ' . $this->moeda((float) ($pg['valor'] ?? 0)));
             $detalhe = trim(implode('  ', array_filter([
                 $pg['bandeira_nome'] ?? null,
                 ! empty($pg['autorizacao']) ? 'Aut ' . $pg['autorizacao'] : null,
@@ -89,43 +142,47 @@ class PosCupomService
             }
         }
         if ((float) $venda->troco > 0) {
-            $l[] = $this->par('Troco', $this->moeda((float) $venda->troco));
+            $l[] = $this->par('TROCO:', 'R$ ' . $this->moeda((float) $venda->troco));
         }
         $l[] = $this->linha();
 
-        $doc = $venda->cpf_cnpj_nota ?: $venda->cliente?->cpf_cnpj;
-        if ($venda->cliente) {
-            $l[] = $this->texto('Cliente: ' . $venda->cliente->nome_razao_social, 'esq', 'p');
-        }
-        $l[] = $this->texto($doc ? 'CONSUMIDOR CPF/CNPJ: ' . $this->documento($doc) : 'CONSUMIDOR NÃO IDENTIFICADO', 'esq', 'p');
-
+        // NFC-e (Manual DANFE NFC-e)
         if ($fiscal) {
-            $l[] = $this->linha();
-            $l[] = $this->texto('NFC-e nº ' . $nota->numero . '  Série ' . $nota->serie, 'centro', 'p');
-            $l[] = $this->texto('Emissão ' . ($nota->emitida_em ?? $nota->created_at)->timezone('America/Sao_Paulo')->format('d/m/Y H:i:s'), 'centro', 'p');
+            $l[] = $this->texto('NFC-e nº ' . ($nota->numero ?? '-') . '  Série ' . ($nota->serie ?? '-') . '  '
+                . ($nota->emitida_em ?? $venda->created_at)->timezone('America/Sao_Paulo')->format('d/m/Y H:i:s'), 'centro', 'p');
+            $l[] = $this->texto('Via Consumidor', 'centro', 'p');
             if ($nota->url_consulta) {
-                $l[] = $this->texto('Consulte pela Chave de Acesso em', 'centro', 'p');
+                $l[] = $this->texto('Consulte pela chave de acesso em', 'centro', 'p');
                 $l[] = $this->texto($nota->url_consulta, 'centro', 'p');
             }
-            $l[] = $this->texto(trim(chunk_split((string) $nota->chave_acesso, 4, ' ')), 'centro', 'p');
-            if ($nota->protocolo) {
-                $l[] = $this->texto('Protocolo ' . $nota->protocolo, 'centro', 'p');
+            if ($nota->chave_acesso) {
+                $l[] = $this->texto('CHAVE DE ACESSO', 'centro', 'p');
+                $l[] = $this->texto(trim(chunk_split((string) preg_replace('/^NFe/', '', $nota->chave_acesso), 4, ' ')), 'centro', 'p');
             }
+            $l[] = $this->linha();
+            $l[] = $this->texto('CONSUMIDOR', 'centro', 'p');
+            $doc = $venda->cliente?->cpf_cnpj ?: $venda->cpf_cnpj_nota;
+            $l[] = $this->texto($doc
+                ? ($venda->cliente->nome_razao_social ?? 'CONSUMIDOR') . ' - CPF/CNPJ: ' . $this->documento($doc)
+                : 'CONSUMIDOR NÃO IDENTIFICADO', 'centro', 'p');
             if ($nota->qrcode_url) {
+                $l[] = $this->texto('Consulta via leitor de QR Code', 'centro', 'p');
                 $l[] = ['t' => 'qrcode', 'v' => $nota->qrcode_url];
             }
-            if ($nota->ambiente && $nota->ambiente !== 'producao') {
-                $l[] = $this->texto('EMITIDA EM AMBIENTE DE HOMOLOGAÇÃO - SEM VALOR FISCAL', 'centro', 'p');
-            }
-        } elseif ($nota && in_array($nota->status, [StatusNotaFiscal::Pendente, StatusNotaFiscal::Contingencia], true)) {
+            $l[] = $this->texto('Protocolo de autorização: ' . ($nota->protocolo ?? '-'), 'centro', 'p');
+            $l[] = $this->linha();
+        } elseif ($nota && $nota->status === StatusNotaFiscal::Pendente) {
             $l[] = $this->texto('NFC-e em processamento. Reimprima em instantes.', 'centro', 'p');
+            $l[] = $this->linha();
         }
 
-        $l[] = $this->linha();
-        if ($venda->vendedor) {
-            $l[] = $this->texto('Vendedor: ' . $venda->vendedor->name, 'esq', 'p');
-        }
+        // Rodapé
         $l[] = $this->texto('Obrigado pela preferência!', 'centro', 'm');
+        if (! $fiscal) {
+            $l[] = $this->texto('ESTE RECIBO NÃO POSSUI VALOR FISCAL', 'centro', 'p');
+        }
+        $l[] = $this->texto('Documento gerado eletronicamente | ' . $quando->format('d/m/Y H:i:s'), 'centro', 'p');
+        $l[] = $this->texto('TROCA: V' . $venda->id, 'centro', 'p');
 
         return $l;
     }
@@ -283,6 +340,9 @@ class PosCupomService
             if ($unidade->cidade) {
                 $l[] = $this->texto($unidade->cidade . ($unidade->uf ? '/' . $unidade->uf : ''), 'centro', 'p');
             }
+        }
+        if ($empresa?->telefone) { // como no recibo da plataforma
+            $l[] = $this->texto('Fone: ' . $empresa->telefone, 'centro', 'p');
         }
         $l[] = $this->linha();
 
