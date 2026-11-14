@@ -387,4 +387,148 @@ class LojaOnlineTest extends TestCase
         $this->get('http://nao-existe.lojas.teste/')->assertDontSee('Minha Loja'); // host sem loja cai no site do ERP
         $this->get('/login')->assertOk()->assertSee('name="email"', false);      // host do ERP intacto
     }
+
+    /* ───────────── 2ª rodada: promoções, e-mails, políticas, cookies, rastreamento ───────────── */
+
+    public function test_cupom_desconta_no_pedido_conta_o_uso_e_respeita_minimo_e_limite(): void
+    {
+        $this->eu()->post(route('app.loja-online.cupons.criar'), ['codigo' => 'dez off!', 'tipo' => 'percentual', 'valor' => '10', 'minimo' => '150', 'limite_usos' => 1])->assertSessionHasNoErrors();
+        $cupom = \App\Models\LojaCupom::firstOrFail();
+        $this->assertSame(['DEZOFF', 1], [$cupom->codigo, $cupom->empresa_id === $this->empresa->id ? 1 : 0]);
+        $this->eu()->post(route('app.loja-online.cupons.criar'), ['codigo' => 'DEZOFF', 'tipo' => 'valor', 'valor' => '5'])->assertSessionHasErrors(['codigo']);
+        $this->eu()->post(route('app.loja-online.cupons.criar'), ['codigo' => 'CEM', 'tipo' => 'percentual', 'valor' => '150'])->assertSessionHasErrors(['valor']);
+        auth()->logout();
+
+        $this->post('/loja/minha-loja/carrinho/adicionar', ['produto_id' => $this->produto->id, 'quantidade' => 1]);   // R$ 100
+        $this->post('/loja/minha-loja/carrinho/cupom', ['codigo' => 'dezoff'])->assertSessionHas('loja_erro');           // mínimo R$ 150
+        $this->post('/loja/minha-loja/carrinho/adicionar', ['produto_id' => $this->produto->id, 'quantidade' => 1]);   // R$ 200
+        $this->post('/loja/minha-loja/carrinho/cupom', ['codigo' => 'dezoff'])->assertSessionHas('loja_ok');
+        $this->get('/loja/minha-loja/carrinho')->assertSee('class="lj-cupom-aplicado"', false)->assertSee('R$ 180,00');
+
+        $this->post('/loja/minha-loja/finalizar', ['nome' => 'Maria Cliente', 'telefone' => '(86) 98888-1111', 'entrega' => 'retirada', 'pagamento' => 'combinar']);
+        $pedido = Pedido::withoutGlobalScopes()->whereNotNull('loja_token')->firstOrFail();
+        $this->assertEquals([200.00, 20.00, 180.00, 'DEZOFF'], [(float) $pedido->subtotal, (float) $pedido->desconto_valor, (float) $pedido->total, $pedido->loja_cupom]);
+        $this->assertSame(1, $cupom->fresh()->usos);
+
+        // limite de 1 uso: não aplica de novo
+        $this->post('/loja/minha-loja/carrinho/adicionar', ['produto_id' => $this->produto->id, 'quantidade' => 2]);
+        $this->post('/loja/minha-loja/carrinho/cupom', ['codigo' => 'DEZOFF'])->assertSessionHas('loja_erro');
+
+        // dono exclui o próprio cupom; o de outra empresa não
+        $this->eu()->delete(route('app.loja-online.cupons.excluir', $cupom->id))->assertRedirect();
+        $this->assertSame(0, \App\Models\LojaCupom::count());
+        [$outra] = $this->createTenant('2');
+        $alheio = \App\Models\LojaCupom::create(['empresa_id' => $outra->id, 'codigo' => 'ALHEIO', 'tipo' => 'valor', 'valor' => 5, 'ativo' => true]);
+        $this->eu()->delete(route('app.loja-online.cupons.excluir', $alheio->id))->assertNotFound();
+    }
+
+    public function test_emails_do_pedido_saem_ao_fechar_e_quando_a_situacao_muda(): void
+    {
+        \Illuminate\Support\Facades\Mail::fake();
+        $this->loja->update(['config' => ['email_pedidos' => 'pedidos@loja.test']]);
+        $quantos = fn (string $tipo) => \Illuminate\Support\Facades\Mail::queued(\App\Mail\PedidoLoja::class, fn ($m) => $m->tipo === $tipo)->count();
+
+        $this->comprar(['email' => 'comprador@teste.test']);
+        $pedido = Pedido::withoutGlobalScopes()->whereNotNull('loja_token')->firstOrFail();
+        $this->assertSame([1, 1], [$quantos('recebido'), $quantos('loja_novo')]);
+        \Illuminate\Support\Facades\Mail::assertQueued(\App\Mail\PedidoLoja::class, fn ($m) => $m->tipo === 'recebido' && $m->hasTo('comprador@teste.test'));
+        \Illuminate\Support\Facades\Mail::assertQueued(\App\Mail\PedidoLoja::class, fn ($m) => $m->tipo === 'loja_novo' && $m->hasTo('pedidos@loja.test'));
+
+        $pedido->update(['status' => StatusPedido::Confirmado]);
+        $pedido->update(['observacoes_internas' => 'mexida que não muda a situação']);
+        $pedido->update(['status' => StatusPedido::Faturado]);
+        $this->assertSame([1, 1], [$quantos('confirmado'), $quantos('faturado')]);
+
+        $html = (new \App\Mail\PedidoLoja($pedido->id, $this->loja->id, 'recebido'))->render();
+        $this->assertStringContainsString('/loja/minha-loja/pedido/' . $pedido->loja_token, $html);
+        $this->assertStringContainsString('Camisa Azul', $html);
+
+        // lojista desliga o andamento: cancelar não avisa
+        $this->loja->update(['config' => ['email_cliente_andamento' => false]]);
+        $pedido->update(['status' => StatusPedido::Cancelado]);
+        $this->assertSame(0, $quantos('cancelado'));
+    }
+
+    public function test_politicas_tem_texto_de_partida_e_aceitam_o_texto_da_loja_sem_html(): void
+    {
+        foreach (['privacidade' => 'Lei Geral de Proteção de Dados', 'trocas' => 'artigo 49', 'entrega' => 'Retirada na loja', 'termos' => 'Estes termos valem'] as $tipo => $trecho) {
+            $this->get('/loja/minha-loja/politica/' . $tipo)->assertOk()->assertSee($trecho);
+        }
+        $this->get('/loja/minha-loja/politica/outra')->assertNotFound();
+
+        $this->eu()->put(route('app.loja-online.secao.salvar', 'politicas'), ['politica_privacidade' => "Nosso jeito:\n\nGuardamos <script>x</script> pouco."])->assertSessionHasNoErrors();
+        auth()->logout();
+        $this->get('/loja/minha-loja/politica/privacidade')->assertOk()->assertSee('<h2>Nosso jeito</h2>', false)
+            ->assertSee('&lt;script&gt;x&lt;/script&gt;', false)->assertDontSee('<script>x</script>', false)->assertDontSee('Lei Geral');
+    }
+
+    public function test_rastreamento_valida_os_ids_e_nao_poe_tag_de_terceiro_no_html(): void
+    {
+        $rota = route('app.loja-online.secao.salvar', 'rastreamento');
+        $this->eu()->put($rota, ['meta_pixel' => 'abc'])->assertSessionHasErrors(['meta_pixel']);
+        $this->eu()->put($rota, ['ga4' => 'UA-1'])->assertSessionHasErrors(['ga4']);
+        $this->eu()->put($rota, ['google_ads' => '"><script>'])->assertSessionHasErrors(['google_ads']);
+        $this->eu()->put($rota, ['meta_pixel' => '1234567890123456', 'ga4' => 'G-AB12CD34EF', 'verificacao_google' => 'abcDEF123456_-xyz'])->assertSessionHasNoErrors();
+        $this->assertTrue($this->loja->fresh()->temRastreamento());
+        auth()->logout();
+
+        $html = $this->get('/loja/minha-loja')->assertOk()->getContent();
+        $this->assertStringContainsString('"meta":"1234567890123456"', $html);
+        $this->assertStringContainsString('name="google-site-verification" content="abcDEF123456_-xyz"', $html);
+        $this->assertDoesNotMatchRegularExpression('#<script[^>]+src="https://(www\.googletagmanager|connect\.facebook)#', $html); // só carrega depois do aceite
+        $this->assertMatchesRegularExpression('#<button[^>]*data-lj-cookies-recusar#', $html);                                    // aviso com escolha é obrigatório
+        $this->assertStringContainsString('Meta (Facebook e Instagram)', $this->get('/loja/minha-loja/politica/privacidade')->getContent());
+
+        // valor adulterado direto no banco não chega à página
+        $this->loja->update(['config' => ['meta_pixel' => '1"};alert(1);//']]);
+        $this->assertStringContainsString('"meta":""', $this->get('/loja/minha-loja')->getContent());
+    }
+
+    public function test_popup_redes_e_cadastro_para_novidades(): void
+    {
+        $promo = route('app.loja-online.secao.salvar', 'promocoes');
+        $this->eu()->put($promo, ['popup_ativo' => 1, 'popup_titulo' => '', 'popup_gatilho' => 'tempo'])->assertSessionHasErrors(['popup_titulo']);
+        $this->eu()->put($promo, ['popup_ativo' => 1, 'popup_titulo' => 'Oi', 'popup_cupom' => 'NAOHA', 'popup_gatilho' => 'tempo'])->assertSessionHasErrors(['popup_cupom']);
+        \App\Models\LojaCupom::create(['empresa_id' => $this->empresa->id, 'codigo' => 'OLA5', 'tipo' => 'valor', 'valor' => 5, 'ativo' => true]);
+        $this->eu()->put($promo, ['popup_ativo' => 1, 'popup_capturar' => 1, 'popup_titulo' => 'Ganhe R$ 5', 'popup_cupom' => 'ola5', 'popup_gatilho' => 'entrar',
+            'popup_link' => 'javascript:alert(1)', 'frete_gratis_acima' => '150,00'])->assertSessionHasNoErrors();
+        $loja = $this->loja->fresh();
+        $this->assertSame(['OLA5', '', 150.0], [$loja->opcao('popup_cupom'), $loja->opcao('popup_link'), (float) $loja->opcao('frete_gratis_acima')]);
+
+        $this->eu()->put(route('app.loja-online.configuracoes.salvar'), ['nome' => 'Minha Loja', 'unidade_id' => $this->unidade->id, 'retirada' => 1, 'entrega' => 1,
+            'whatsapp' => '(86) 99999-0000', 'instagram' => '@minhaloja', 'tiktok' => '@minhaloja', 'whatsapp_flutuante' => 1])->assertSessionHasNoErrors();
+        auth()->logout();
+
+        $html = $this->get('/loja/minha-loja')->assertOk()->getContent();
+        $this->assertStringContainsString('data-lj-popup ', $html);
+        $this->assertStringContainsString('instagram.com/minhaloja', $html);
+        $this->assertStringContainsString('tiktok.com/@minhaloja', $html);
+        $this->assertStringContainsString('class="lj-zap"', $html);
+        $this->post('/loja/minha-loja/carrinho/adicionar', ['produto_id' => $this->produto->id, 'quantidade' => 1]);
+        $this->assertStringNotContainsString('data-lj-popup ', $this->get('/loja/minha-loja/finalizar')->getContent()); // nada de popup no fechamento
+        $this->get('/loja/minha-loja/carrinho')->assertSee('para o frete grátis');
+
+        $this->postJson('/loja/minha-loja/contato', ['email' => 'a@b.test', 'origem' => 'popup'])->assertStatus(422);              // sem aceite
+        $this->postJson('/loja/minha-loja/contato', ['email' => 'A@B.test', 'aceite' => 1, 'origem' => 'popup'])->assertOk()->assertJson(['ok' => true, 'cupom' => 'OLA5']);
+        $this->postJson('/loja/minha-loja/contato', ['email' => 'a@b.test', 'aceite' => 1])->assertOk()->assertJson(['cupom' => null]);
+        $this->assertSame(1, \App\Models\LojaContato::where('empresa_id', $this->empresa->id)->count());
+        $this->assertNotNull(\App\Models\LojaContato::first()->aceitou_em);
+    }
+
+    public function test_blocos_novos_passam_pela_higiene_do_editor(): void
+    {
+        $limpos = ModelosLoja::limparBlocos([
+            ['id' => 'a1', 'tipo' => 'video', 'titulo' => 'v', 'video' => 'https://youtu.be/dQw4w9WgXcQ?t=3'],
+            ['id' => 'a2', 'tipo' => 'video', 'titulo' => 'v', 'video' => 'https://exemplo.com/x" onload="alert(1)'],
+            ['id' => 'a3', 'tipo' => 'oferta', 'titulo' => 'o', 'termina_em' => '2099-01-01T10:00', 'botao_link' => 'data:text/html,x'],
+            ['id' => 'a4', 'tipo' => 'oferta', 'titulo' => 'o', 'termina_em' => 'ontem'],
+            ['id' => 'a5', 'tipo' => 'faq', 'titulo' => 'f', 'lista' => array_fill(0, 12, ['nome' => str_repeat('p', 300), 'texto' => 'r'])],
+        ]);
+        $this->assertSame(['dQw4w9WgXcQ', ''], [$limpos[0]['video'], $limpos[1]['video']]);
+        $this->assertSame(['2099-01-01T10:00', '', ''], [$limpos[2]['termina_em'], $limpos[2]['botao_link'], $limpos[3]['termina_em']]);
+        $this->assertCount(8, $limpos[4]['lista']);
+        $this->assertSame(120, mb_strlen($limpos[4]['lista'][0]['nome']));
+        $this->assertSame(['completo', 'correndo'], [ModelosLoja::tema('vitrine')['movimento'], ModelosLoja::limparTema(['faixa' => 'correndo', 'movimento' => 'girando'])['faixa']]);
+        $this->assertArrayNotHasKey('movimento', ModelosLoja::limparTema(['movimento' => 'girando']));
+    }
 }

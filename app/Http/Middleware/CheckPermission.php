@@ -133,8 +133,9 @@ class CheckPermission
         // a empresa não é permissão — é lojas_online.ativo, da plataforma.
         'loja_online' => [
             'admin' => ['ver', 'criar', 'editar', 'excluir'],
-            'dono' => ['ver', 'criar', 'editar'],
-            'gerente' => ['ver', 'criar', 'editar'],
+            // 'excluir' aqui é só o cupom de desconto (o middleware deriva a ação do verbo DELETE)
+            'dono' => ['ver', 'criar', 'editar', 'excluir'],
+            'gerente' => ['ver', 'criar', 'editar', 'excluir'],
         ],
         // Configuração FISCAL vive separada de propósito (02/09/2026): certificado
         // A1, token da Focus, CSC, série e regime tributário. Errar aqui derruba a

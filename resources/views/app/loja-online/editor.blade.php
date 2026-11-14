@@ -139,7 +139,7 @@
             publicar: @json(route('app.loja-online.editor.publicar')), descartar: @json(route('app.loja-online.editor.descartar')),
             imagem: @json(route('app.loja-online.editor.imagem'))
         },
-        rotulosTema: {raio: 'Cantos', botao: 'Botões', cartao: 'Cartão do produto', cabecalho: 'Cabeçalho', titulos: 'Títulos', preco: 'Preço', foto: 'Foto do produto'}
+        rotulosTema: {raio: 'Cantos', botao: 'Botões', cartao: 'Cartão do produto', cabecalho: 'Cabeçalho', titulos: 'Títulos', preco: 'Preço', foto: 'Foto do produto', movimento: 'Movimento da página', faixa: 'Faixa de aviso'}
     };
     var csrf = document.querySelector('meta[name=csrf-token]').content;
     var estado = JSON.parse(JSON.stringify(DADOS.rascunho));
@@ -328,6 +328,7 @@
     /* ── blocos da página inicial ── */
     function resumo(b) {
         if (b.tipo === 'beneficios') return (b.itens || []).map(function (i) { return i.titulo; }).filter(Boolean).join(' · ');
+        if (b.lista) return (b.titulo ? b.titulo + ' — ' : '') + b.lista.length + (b.lista.length === 1 ? ' item' : ' itens');
         return b.titulo || b.texto || '';
     }
     function destinos() {
@@ -369,6 +370,35 @@
         } else if (tipo === 'imagem') {
             caixa.appendChild(campoImagem(b[chave] || '', aoMudar));
             if (b.tipo === 'banner') caixa.appendChild(el('div', {class: 'form-text', text: 'Sem imagem, o banner mostra fotos de produtos da loja. Use imagem deitada, com pelo menos 1600 px de largura.'}));
+            return caixa;
+        } else if (tipo === 'datahora') {
+            entrada = el('input', {type: 'datetime-local', class: 'form-control form-control-sm', id: id, value: b[chave] || ''});
+            entrada.addEventListener('change', function () { aoMudar(entrada.value); });
+            caixa.appendChild(entrada);
+            caixa.appendChild(el('div', {class: 'form-text', text: 'Em branco: sem relógio. Depois da data, o bloco some sozinho da loja.'}));
+            return caixa;
+        } else if (tipo === 'youtube') {
+            entrada = el('input', {type: 'url', class: 'form-control form-control-sm', id: id, value: b[chave] ? 'https://youtu.be/' + b[chave] : '', placeholder: 'https://www.youtube.com/watch?v=…'});
+            entrada.addEventListener('change', function () { aoMudar(entrada.value); });
+        } else if (tipo === 'lista') {
+            var sub = campo[3], maximo = campo[4] || 6;
+            b[chave] = b[chave] || [];
+            b[chave].forEach(function (linha, n) {
+                var quadro = el('div', {class: 'border rounded p-2 mb-2'});
+                sub.forEach(function (sc) {
+                    var e2 = sc[2] === 'textolongo'
+                        ? el('textarea', {class: 'form-control form-control-sm mb-1', rows: 2, maxlength: 600, placeholder: sc[1], 'aria-label': sc[1] + ' ' + (n + 1)})
+                        : el('input', {type: 'text', class: 'form-control form-control-sm mb-1', maxlength: 120, placeholder: sc[1], 'aria-label': sc[1] + ' ' + (n + 1)});
+                    e2.value = linha[sc[0]] || '';
+                    e2.addEventListener('input', function () { linha[sc[0]] = e2.value; mudou(); });
+                    quadro.appendChild(e2);
+                });
+                quadro.appendChild(el('button', {type: 'button', class: 'btn btn-sm btn-link text-danger p-0', text: 'Tirar', onclick: function () { b[chave].splice(n, 1); desenharBlocos(); mudou(); }}));
+                caixa.appendChild(quadro);
+            });
+            if (b[chave].length < maximo) caixa.appendChild(el('button', {type: 'button', class: 'btn btn-sm btn-outline-secondary', text: '+ Adicionar', onclick: function () {
+                var nova = {}; sub.forEach(function (sc) { nova[sc[0]] = ''; }); b[chave].push(nova); desenharBlocos(); mudou();
+            }}));
             return caixa;
         } else if (tipo === 'itens') {
             b.itens = b.itens || [];

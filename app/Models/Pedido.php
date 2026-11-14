@@ -38,6 +38,7 @@ class Pedido extends Model
         'frete_servico_nome',
         'frete_prazo_dias',
         'canal',
+        'loja_cupom',
         'loja_token', // pedido da loja online: endereço público de acompanhamento (14/11/2026)
         'observacoes_internas',
         'observacoes_externas',

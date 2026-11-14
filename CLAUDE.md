@@ -175,6 +175,7 @@ public/
 - **Editor visual** grava em `lojas_online.rascunho`; a loja no ar só muda em Publicar. Nenhum HTML é aceito do editor.
 - **Limites (`throttle`) da loja levam prefixo próprio** (`throttle:10,1,lj-fechar`) — sem prefixo o Laravel soma todas as rotas limitadas do IP num contador só.
 - Produto: `produto_fotos` = fotos adicionais (a capa continua em `produtos.foto`); `ProdutoController::gravarLojaOnline` só muda as marcas quando a tela manda `loja_online_bloco`.
+- **2ª rodada (14/11, tarde):** configuração em `lojas_online.config`; listas em `loja_cupons` e `loja_contatos`; `pedidos.loja_cupom`. `CupomLoja` (cupom + frete grátis, conta refeita em `CheckoutLoja`), `AvisosLoja` + `Mail\PedidoLoja` + `PedidoLojaObserver` (e-mail ao fechar e a cada mudança de situação de pedido com `loja_token`), `PoliticasLoja` (texto de partida + texto da loja). `loja/partials/extras.blade.php`: aviso de cookies, popup, WhatsApp flutuante e o carregador de rastreamento — **nenhuma tag de terceiro no HTML; Meta/Google/TikTok só carregam depois do aceite**. Painel com 8 abas; telas de configuração passam por `LojaOnlineController::salvarSecao` (`SECOES`). Movimento em `loja/partials/estilo2.blade.php` (tema `movimento`: completo/suave/nenhum).
 - Validação: `scripts/validar-loja-online-14nov.py` (HTTP+banco), `…-pagamentos-14nov.php` (provedores simulados), `…browser.mjs` (navegador) e `tests/Feature/App/LojaOnlineTest.php`. Ver docs.md, seção própria.
 
 ### Estoque

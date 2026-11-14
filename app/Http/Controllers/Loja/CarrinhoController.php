@@ -8,7 +8,9 @@ use App\Scopes\EmpresaScope;
 use App\Scopes\UnidadeScope;
 use App\Services\LojaOnline\CarrinhoLoja;
 use App\Services\LojaOnline\CatalogoLoja;
+use App\Services\LojaOnline\AvisosLoja;
 use App\Services\LojaOnline\CheckoutLoja;
+use App\Services\LojaOnline\CupomLoja;
 use App\Services\LojaOnline\LojaContexto;
 use App\Services\LojaOnline\PagamentoLoja;
 use Illuminate\Http\Request;
@@ -36,7 +38,54 @@ class CarrinhoController extends Controller
 
     private function comum(CatalogoLoja $catalogo, CarrinhoLoja $carrinho): array
     {
-        return ['categoriasMenu' => $catalogo->categorias(), 'carrinhoTotal' => $carrinho->quantidadeTotal()];
+        return ['categoriasMenu' => $catalogo->categorias(), 'carrinhoTotal' => $carrinho->quantidadeTotal(), 'temOfertas' => $catalogo->idsEmPromocao() !== []];
+    }
+
+    /**
+     * Conta do carrinho com as promoções da loja: cupom da sessão (reconferido
+     * agora) e frete grátis acima de um valor.
+     *
+     * @return array{cupom: ?string, cupomOk: bool, cupomMensagem: ?string, desconto: float, freteGratis: bool, freteGratisAcima: float, faltaFreteGratis: float, cupomDeFrete: bool}
+     */
+    private function promocoes(float $subtotal): array
+    {
+        $loja = $this->ctx->loja;
+        $codigo = CupomLoja::naSessao($loja);
+        $r = $codigo ? CupomLoja::avaliar($loja, $codigo, $subtotal) : null;
+        $desconto = $r && $r['ok'] ? $r['desconto'] : 0.0;
+        $acima = (float) $loja->opcao('frete_gratis_acima');
+
+        return [
+            'cupom' => $codigo,
+            'cupomOk' => (bool) ($r['ok'] ?? false),
+            'cupomMensagem' => $r['mensagem'] ?? null,
+            'desconto' => $desconto,
+            'cupomDeFrete' => (bool) ($r && $r['ok'] && $r['frete_gratis']),
+            'freteGratis' => CupomLoja::freteGratis($loja, $subtotal - $desconto, (bool) ($r && $r['ok'] && $r['frete_gratis'])),
+            'freteGratisAcima' => $acima,
+            'faltaFreteGratis' => $acima > 0 ? max(0, round($acima - ($subtotal - $desconto), 2)) : 0.0,
+        ];
+    }
+
+    public function cupom(Request $request)
+    {
+        $loja = $this->ctx->loja;
+        [, $carrinho] = $this->partes();
+        $volta = $request->input('volta') === 'finalizar' ? 'finalizar' : 'carrinho';
+
+        if ($request->boolean('remover')) {
+            CupomLoja::guardar($loja, null);
+
+            return redirect($this->ctx->url($volta))->with('loja_ok', 'Cupom retirado.');
+        }
+
+        $r = CupomLoja::avaliar($loja, (string) $request->input('codigo'), CarrinhoLoja::subtotal($carrinho->itens()));
+        if (! $r['ok']) {
+            return redirect($this->ctx->url($volta))->with('loja_erro', $r['mensagem'])->withInput();
+        }
+        CupomLoja::guardar($loja, $r['cupom']->codigo);
+
+        return redirect($this->ctx->url($volta))->with('loja_ok', $r['mensagem']);
     }
 
     public function ver()
@@ -44,7 +93,7 @@ class CarrinhoController extends Controller
         [$catalogo, $carrinho] = $this->partes();
         $itens = $carrinho->itens();
 
-        return view('loja.carrinho', $this->comum($catalogo, $carrinho) + [
+        return view('loja.carrinho', $this->comum($catalogo, $carrinho) + $this->promocoes(CarrinhoLoja::subtotal($itens)) + [
             'itens' => $itens,
             'subtotal' => CarrinhoLoja::subtotal($itens),
             'avisos' => $carrinho->avisos,
@@ -82,6 +131,9 @@ class CarrinhoController extends Controller
                 'aviso' => $carrinho->avisos[0] ?? null,
                 'total' => $total,
                 'subtotal' => CarrinhoLoja::subtotal($itens),
+                // para o evento "adicionou ao carrinho" do rastreamento
+                'item' => $produto && ! $erro ? ['id' => $produto->id, 'nome' => $produto->descricao,
+                    'preco' => (float) ($itens->firstWhere('id', $produto->id)['preco'] ?? $produto->preco_venda), 'quantidade' => (int) ($dados['quantidade'] ?? 1)] : null,
             ], $erro ? 422 : 200);
         }
 
@@ -128,7 +180,9 @@ class CarrinhoController extends Controller
             return response()->json(['disponivel' => false, 'opcoes' => [], 'mensagem' => 'Esta loja trabalha só com retirada.']);
         }
 
-        $r = $checkout->cotar($this->ctx->loja, $itens, ['cep' => $dados['cep']]);
+        // Na página do produto a conta é de UM item: o frete grátis só é prometido pelo carrinho de verdade.
+        $gratis = empty($dados['produto_id']) && $this->promocoes(CarrinhoLoja::subtotal($itens))['freteGratis'];
+        $r = $checkout->cotar($this->ctx->loja, $itens, ['cep' => $dados['cep']], null, $gratis);
         unset($r['bruto']);
 
         return response()->json($r);
@@ -147,7 +201,7 @@ class CarrinhoController extends Controller
             return redirect($this->ctx->url('carrinho'));
         }
 
-        return view('loja.finalizar', $this->comum($catalogo, $carrinho) + [
+        return view('loja.finalizar', $this->comum($catalogo, $carrinho) + $this->promocoes($subtotal) + [
             'itens' => $itens,
             'subtotal' => $subtotal,
             'avisos' => $carrinho->avisos,
@@ -184,6 +238,7 @@ class CarrinhoController extends Controller
             'uf' => ['nullable', 'string', 'size:2'],
             'servico_id' => ['nullable', 'string', 'max:20'],
             'pagamento' => ['required', Rule::in($pagamentos)],
+            'novidades' => ['nullable', 'boolean'],
         ], [
             'nome.required' => 'Diga seu nome completo.',
             'telefone.required' => 'Informe um telefone com DDD.',
@@ -218,7 +273,7 @@ class CarrinhoController extends Controller
             return redirect($this->ctx->url('carrinho'));
         }
 
-        $r = $checkout->criarPedido($loja, $itens, $dados);
+        $r = $checkout->criarPedido($loja, $itens, $dados + ['cupom' => CupomLoja::naSessao($loja)]);
         $pedido = $r['pedido'];
 
         if ($r['frete_combinar'] && ! $meios['combinar'] && $dados['entrega'] === 'entrega') {
@@ -232,6 +287,18 @@ class CarrinhoController extends Controller
         }
 
         $carrinho->limpar();
+        CupomLoja::guardar($loja, null);
+
+        // Aceitou receber novidades: entra nos contatos da loja, com a data do aceite.
+        if (! empty($dados['novidades']) && (filled($dados['email'] ?? null) || filled($dados['telefone']))) {
+            $fone = preg_replace('/\D/', '', $dados['telefone']);
+            $chave = filled($dados['email'] ?? null) ? ['email' => mb_strtolower($dados['email'])] : ['email' => null, 'whatsapp' => $fone];
+            \App\Models\LojaContato::updateOrCreate(['empresa_id' => $loja->empresa_id] + $chave,
+                ['nome' => $dados['nome'], 'whatsapp' => $fone, 'origem' => 'checkout', 'aceitou_em' => now()]);
+        }
+
+        AvisosLoja::pedidoFechado($loja, $pedido);
+        session()->flash('loja_compra', $pedido->id); // a página do pedido dispara o evento de compra UMA vez
 
         $destino = $this->ctx->url('pedido/' . $pedido->loja_token);
 
@@ -304,6 +371,7 @@ class CarrinhoController extends Controller
             'linkCartao' => $linkCartao,
             'escolha' => $escolha,
             'unidade' => $loja->unidade,
+            'compraAgora' => (int) session('loja_compra') === (int) $pedido->id,
             'cliente' => DB::table('clientes')->where('id', $pedido->cliente_id)->first(['nome_razao_social', 'logradouro', 'numero', 'complemento', 'bairro', 'cidade', 'uf', 'cep']),
             'titulo' => 'Pedido #' . $pedido->numero . ' — ' . $loja->nome,
         ]);

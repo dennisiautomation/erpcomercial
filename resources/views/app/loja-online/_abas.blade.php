@@ -4,6 +4,10 @@
         ['app.loja-online.index', 'speedometer2', 'Visão geral'],
         ['app.loja-online.produtos', 'box-seam', 'Produtos'],
         ['app.loja-online.editor', 'palette', 'Aparência'],
+        ['app.loja-online.promocoes', 'tags', 'Promoções'],
+        ['app.loja-online.avisos', 'envelope', 'Avisos por e-mail'],
+        ['app.loja-online.politicas', 'shield-check', 'Políticas e cookies'],
+        ['app.loja-online.rastreamento', 'graph-up-arrow', 'Anúncios e busca'],
         ['app.loja-online.configuracoes', 'sliders', 'Configurações'],
     ] as [$rota, $icone, $rotulo])
         <li class="nav-item">

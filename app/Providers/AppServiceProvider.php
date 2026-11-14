@@ -50,6 +50,9 @@ class AppServiceProvider extends ServiceProvider
         // dispara job para empresas com o módulo ativo — ver o Observer)
         Produto::observe(ProdutoObserver::class);
 
+        // Loja online: pedido da loja mudou de situação → e-mail ao comprador (14/11/2026)
+        \App\Models\Pedido::observe(\App\Observers\PedidoLojaObserver::class);
+
         // Integração ligada/desligada (Uber, Melhor Envio, PIX, Asaas) ou Agente
         // IA ativado/desativado → aviso assinado ao app.ia365, que re-lê
         // /capacidades e atualiza o agente sozinho (08/09/2026).

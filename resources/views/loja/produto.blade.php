@@ -12,7 +12,7 @@
         <div class="lj-galeria @if(count($galeria) > 1) lj-galeria--varias @endif">
             <div class="lj-galeria__palco" data-lj-palco tabindex="0" aria-label="Fotos do produto">
                 @forelse($galeria as $i => $foto)
-                    <img src="{{ $foto }}" alt="{{ $p['nome'] }} — foto {{ $i + 1 }}" @if($i > 0) loading="lazy" @endif>
+                    <img src="{{ $foto }}" alt="{{ $p['nome'] }} — foto {{ $i + 1 }}" @if($i > 0) loading="lazy" @else data-lj-foto-fixa style="view-transition-name:lj-foto" @endif>
                 @empty
                     <span class="lj-semfoto">{{ mb_substr($p['nome'], 0, 1) }}</span>
                 @endforelse
@@ -128,6 +128,7 @@
         'availability' => 'https://schema.org/' . ($p['disponivel'] ? 'InStock' : 'OutOfStock')],
 ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG) !!}</script>
 <script>
+LJ.rastro.evento('ver_produto', {valor: {{ $p['preco'] }}, itens: [{id: {{ $p['id'] }}, nome: @json($p['nome']), preco: {{ $p['preco'] }}}]});
 (function () {
     var palco = document.querySelector('[data-lj-palco]');
     var minis = document.querySelectorAll('[data-lj-mini]');

@@ -110,8 +110,9 @@
             <h2>Resumo</h2>
             <dl>
                 <dt>Produtos</dt><dd>R$ {{ number_format((float) $pedido->subtotal, 2, ',', '.') }}</dd>
+                @if((float) $pedido->desconto_valor > 0)<dt class="lj-desconto">Desconto{{ $pedido->loja_cupom ? ' (cupom ' . $pedido->loja_cupom . ')' : '' }}</dt><dd class="lj-desconto">− R$ {{ number_format((float) $pedido->desconto_valor, 2, ',', '.') }}</dd>@endif
                 <dt>{{ $retirada ? 'Retirada na loja' : 'Entrega' . ($pedido->frete_servico_nome ? ' · ' . $pedido->frete_servico_nome : '') }}</dt>
-                <dd>{{ $retirada ? 'Grátis' : ($pedido->frete_valor !== null ? 'R$ ' . number_format((float) $pedido->frete_valor, 2, ',', '.') : 'a combinar') }}</dd>
+                <dd>{{ $retirada ? 'Grátis' : ($pedido->frete_valor !== null ? ((float) $pedido->frete_valor == 0 ? 'Grátis' : 'R$ ' . number_format((float) $pedido->frete_valor, 2, ',', '.')) : 'a combinar') }}</dd>
                 <dt class="lj-total">Total</dt><dd class="lj-total">R$ {{ number_format((float) $pedido->total, 2, ',', '.') }}</dd>
             </dl>
             <div class="lj-bloco">
@@ -143,6 +144,9 @@
 @push('scripts')
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
 <script>
+@if($compraAgora)
+LJ.rastro.evento('compra', {pedido: {{ (int) $pedido->numero }}, valor: {{ (float) $pedido->total }}, itens: {!! json_encode($itens->map(fn ($i) => ['id' => $i->produto_id, 'nome' => $i->descricao, 'preco' => (float) $i->preco_unitario, 'quantidade' => (float) $i->quantidade])->values(), JSON_HEX_TAG | JSON_UNESCAPED_UNICODE) !!}});
+@endif
 (function () {
     var raiz = document.querySelector('[data-lj-pedido]');
     document.addEventListener('click', function (ev) {

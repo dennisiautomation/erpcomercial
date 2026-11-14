@@ -45,7 +45,36 @@ class LojaOnline extends Model
         'texto_rodape' => '',
         'texto_trocas' => '',
         'descricao_busca' => '',
+        // redes sociais e WhatsApp
+        'facebook' => '', 'tiktok' => '', 'youtube' => '',
+        'whatsapp_flutuante' => true, 'whatsapp_mensagem' => 'Olá! Vim pela loja online.',
+        'horario_atendimento' => '',
+        // promoções da loja
+        'frete_gratis_acima' => 0,
+        'popup_ativo' => false, 'popup_titulo' => '', 'popup_texto' => '', 'popup_imagem' => '', 'popup_botao' => '', 'popup_link' => '',
+        'popup_cupom' => '', 'popup_gatilho' => 'tempo', 'popup_segundos' => 6, 'popup_capturar' => false, 'popup_dias' => 7,
+        // avisos por e-mail
+        'email_pedidos' => '', 'email_loja_novo' => true, 'email_cliente_recebido' => true, 'email_cliente_confirmado' => true,
+        'email_cliente_andamento' => true, 'email_remetente' => '',
+        // políticas e cookies
+        'politica_privacidade' => '', 'politica_entrega' => '', 'politica_termos' => '', 'cookies_aviso' => true,
+        // rastreamento e busca
+        'meta_pixel' => '', 'ga4' => '', 'google_ads' => '', 'google_ads_rotulo' => '', 'gtm' => '', 'tiktok_pixel' => '',
+        'verificacao_google' => '', 'verificacao_meta' => '',
+        'seo_titulo' => '', 'imagem_compartilhar' => '', 'favicon' => '',
     ];
+
+    /** Tem algum rastreador de anúncio/medição configurado? (obriga o aviso de cookies) */
+    public function temRastreamento(): bool
+    {
+        foreach (['meta_pixel', 'ga4', 'google_ads', 'gtm', 'tiktok_pixel'] as $k) {
+            if (filled($this->opcao($k))) {
+                return true;
+            }
+        }
+
+        return false;
+    }
 
     protected function casts(): array
     {

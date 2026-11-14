@@ -102,7 +102,7 @@
         </div>
     </x-erp.card>
 
-    <x-erp.card title="Contato e textos" icon="chat-text" class="mb-3">
+    <x-erp.card title="Contato, redes sociais e textos" icon="chat-text" class="mb-3">
         <div class="row g-3">
             <div class="col-md-4">
                 <label for="whatsapp" class="form-label">WhatsApp da loja</label>
@@ -118,23 +118,42 @@
                 <input type="email" name="email" id="email" class="form-control @error('email') is-invalid @enderror" value="{{ old('email', $loja->opcao('email')) }}">
                 @error('email') <div class="invalid-feedback">{{ $message }}</div> @enderror
             </div>
+            <div class="col-md-4">
+                <label for="facebook" class="form-label">Facebook</label>
+                <input type="text" name="facebook" id="facebook" class="form-control @error('facebook') is-invalid @enderror" value="{{ old('facebook', $loja->opcao('facebook')) }}" placeholder="minhaloja">
+                @error('facebook') <div class="invalid-feedback">{{ $message }}</div> @enderror
+            </div>
+            <div class="col-md-4">
+                <label for="tiktok" class="form-label">TikTok</label>
+                <input type="text" name="tiktok" id="tiktok" class="form-control @error('tiktok') is-invalid @enderror" value="{{ old('tiktok', $loja->opcao('tiktok')) }}" placeholder="@minhaloja">
+                @error('tiktok') <div class="invalid-feedback">{{ $message }}</div> @enderror
+            </div>
+            <div class="col-md-4">
+                <label for="youtube" class="form-label">YouTube</label>
+                <input type="text" name="youtube" id="youtube" class="form-control @error('youtube') is-invalid @enderror" value="{{ old('youtube', $loja->opcao('youtube')) }}" placeholder="@minhaloja">
+                @error('youtube') <div class="invalid-feedback">{{ $message }}</div> @enderror
+            </div>
+            <div class="col-md-6">
+                <div class="form-check form-switch mb-2">
+                    <input class="form-check-input" type="checkbox" role="switch" name="whatsapp_flutuante" id="whatsapp_flutuante" value="1" @checked(old('whatsapp_flutuante', $loja->opcao('whatsapp_flutuante')))>
+                    <label class="form-check-label" for="whatsapp_flutuante">Botão do WhatsApp flutuando no canto da loja</label>
+                </div>
+                <label for="whatsapp_mensagem" class="form-label">Mensagem que já vem escrita</label>
+                <input type="text" name="whatsapp_mensagem" id="whatsapp_mensagem" class="form-control" maxlength="160" value="{{ old('whatsapp_mensagem', $loja->opcao('whatsapp_mensagem')) }}">
+                <div class="form-text">Precisa do WhatsApp da loja preenchido acima. As redes preenchidas aparecem no rodapé e no bloco "Redes sociais".</div>
+            </div>
+            <div class="col-md-6">
+                <label for="horario_atendimento" class="form-label">Horário de atendimento <span class="text-muted fw-normal">(opcional)</span></label>
+                <input type="text" name="horario_atendimento" id="horario_atendimento" class="form-control" maxlength="120" value="{{ old('horario_atendimento', $loja->opcao('horario_atendimento')) }}" placeholder="Seg a sex, 9h às 18h · Sáb, 9h às 13h">
+            </div>
             <div class="col-md-6">
                 <label for="aviso_topo" class="form-label">Aviso no topo <span class="text-muted fw-normal">(opcional)</span></label>
                 <input type="text" name="aviso_topo" id="aviso_topo" class="form-control" maxlength="120" value="{{ old('aviso_topo', $loja->opcao('aviso_topo')) }}" placeholder="Ex.: Frete grátis acima de R$ 200 nesta semana">
-                <div class="form-text">Faixa fina acima do cabeçalho, em todas as páginas.</div>
-            </div>
-            <div class="col-md-6">
-                <label for="descricao_busca" class="form-label">Descrição para o Google <span class="text-muted fw-normal">(opcional)</span></label>
-                <input type="text" name="descricao_busca" id="descricao_busca" class="form-control" maxlength="160" value="{{ old('descricao_busca', $loja->opcao('descricao_busca')) }}">
+                <div class="form-text">Faixa fina acima do cabeçalho, em todas as páginas. Para ela correr como letreiro: Aparência → Cores e letras → Faixa de aviso.</div>
             </div>
             <div class="col-md-6">
                 <label for="texto_rodape" class="form-label">Frase do rodapé <span class="text-muted fw-normal">(opcional)</span></label>
-                <textarea name="texto_rodape" id="texto_rodape" class="form-control" rows="3" maxlength="300">{{ old('texto_rodape', $loja->opcao('texto_rodape')) }}</textarea>
-            </div>
-            <div class="col-md-6">
-                <label for="texto_trocas" class="form-label">Política de trocas <span class="text-muted fw-normal">(opcional)</span></label>
-                <textarea name="texto_trocas" id="texto_trocas" class="form-control" rows="3" maxlength="2000">{{ old('texto_trocas', $loja->opcao('texto_trocas')) }}</textarea>
-                <div class="form-text">Em branco, a página de informações mostra o texto padrão do Código de Defesa do Consumidor.</div>
+                <textarea name="texto_rodape" id="texto_rodape" class="form-control" rows="2" maxlength="300">{{ old('texto_rodape', $loja->opcao('texto_rodape')) }}</textarea>
             </div>
         </div>
     </x-erp.card>

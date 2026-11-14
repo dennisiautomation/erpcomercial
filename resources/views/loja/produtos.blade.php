@@ -50,3 +50,9 @@
 </div>
 <div style="height:clamp(2rem,5vw,3.5rem)"></div>
 @endsection
+
+@if(filled($filtros['q']))
+@push('scripts')
+<script>LJ.rastro.evento('busca', {termo: {!! json_encode(mb_substr((string) $filtros['q'], 0, 80), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE) !!}});</script>
+@endpush
+@endif

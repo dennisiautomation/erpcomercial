@@ -353,6 +353,89 @@ check('7.2 sem estoque separado, o pedido usa o estoque de venda da loja (estoqu
 check('7.3 todo pedido da loja tem token único de 32 letras/números', Pedido::withoutGlobalScopes()->whereNotNull('loja_token')->get()->every(fn ($x) => preg_match('/^[a-z0-9]{32}$/', $x->loja_token) === 1)
     && Pedido::withoutGlobalScopes()->whereNotNull('loja_token')->distinct()->count('loja_token') === Pedido::withoutGlobalScopes()->whereNotNull('loja_token')->count());
 
+/* ─────────────────────────── 8. cupom e frete grátis na conta do pedido ─────────────────────────── */
+echo "\n== 8. Cupom e frete grátis: a conta é do servidor ==\n";
+\App\Models\LojaCupom::where('empresa_id', $empresaId)->whereIn('codigo', ['T10', 'TFRETE', 'TUM'])->delete();
+$c10 = \App\Models\LojaCupom::create(['empresa_id' => $empresaId, 'codigo' => 'T10', 'tipo' => 'percentual', 'valor' => 10, 'ativo' => true]);
+\App\Models\LojaCupom::create(['empresa_id' => $empresaId, 'codigo' => 'TFRETE', 'tipo' => 'frete_gratis', 'valor' => 0, 'ativo' => true]);
+$cUm = \App\Models\LojaCupom::create(['empresa_id' => $empresaId, 'codigo' => 'TUM', 'tipo' => 'valor', 'valor' => 500, 'limite_usos' => 1, 'ativo' => true]);
+$duble->resposta = ['disponivel' => true, 'provedor' => 'melhor_envio', 'valor' => 22.50, 'prazo_dias' => 7, 'servico_id' => '1', 'servico_nome' => 'PAC', 'transportadora' => 'Correios', 'opcoes' => $opcoes];
+$entrega = ['telefone' => '(11) 95555-7777', 'entrega' => 'entrega', 'cep' => '01001-000', 'logradouro' => 'Praça da Sé', 'numero' => '1', 'bairro' => 'Sé', 'servico_id' => '1', 'pagamento' => 'pix'];
+$r = $checkout->criarPedido($loja->fresh(), $its, ['nome' => 'Cliente Cupom'] + $entrega + ['cupom' => 't10']);
+$pc = $r['pedido'];
+check('8.1 cupom de 10% + frete: 179,70 − 17,97 + 22,50 = 184,23', (float) $pc->desconto_valor === 17.97 && (float) $pc->desconto_percentual === 10.0 && (float) $pc->total === 184.23 && $pc->loja_cupom === 'T10',
+    [$pc->desconto_valor, $pc->total, $pc->loja_cupom]);
+check('8.2 o uso do cupom é contado', (int) $c10->fresh()->usos === 1);
+$pix = $pagamento->pix($loja->fresh(), $pc);
+check('8.3 o PIX cobra o total com desconto e frete', $pix['ok'] && (float) PedidoCobranca::where('pedido_id', $pc->id)->value('valor') === 184.23);
+$r = $checkout->criarPedido($loja->fresh(), $its, ['nome' => 'Cliente Frete Gratis'] + $entrega + ['cupom' => 'TFRETE']);
+check('8.4 cupom de frete grátis: cliente paga frete zero, o serviço e o custo (R$ 22,50) ficam anotados', (float) $r['pedido']->frete_valor === 0.0 && (float) $r['pedido']->total === 179.70
+    && $r['pedido']->frete_servico_nome === 'PAC' && str_contains((string) $r['pedido']->observacoes_internas, 'FRETE GRÁTIS') && str_contains((string) $r['pedido']->observacoes_internas, '22,50'),
+    [$r['pedido']->frete_valor, $r['pedido']->observacoes_internas]);
+$r = $checkout->criarPedido($loja->fresh(), $its, ['nome' => 'Cliente Sem Cupom'] + $entrega + ['cupom' => 'NAOEXISTE']);
+check('8.5 cupom inexistente mandado direto no pedido é ignorado (sem desconto)', (float) $r['pedido']->desconto_valor === 0.0 && $r['pedido']->loja_cupom === null && (float) $r['pedido']->total === 202.20);
+$r1 = $checkout->criarPedido($loja->fresh(), $its, ['nome' => 'Cliente Um'] + $entrega + ['cupom' => 'TUM']);
+$r2 = $checkout->criarPedido($loja->fresh(), $its, ['nome' => 'Cliente Dois'] + $entrega + ['cupom' => 'TUM']);
+check('8.6 cupom de R$ 500 numa compra de R$ 179,70: o desconto para no valor dos produtos (total = só o frete)', (float) $r1['pedido']->desconto_valor === 179.70 && (float) $r1['pedido']->total === 22.50);
+check('8.7 cupom com 1 uso: o segundo pedido sai sem desconto e o contador não passa de 1', (float) $r2['pedido']->desconto_valor === 0.0 && (int) $cUm->fresh()->usos === 1);
+$loja->update(['config' => array_merge($loja->fresh()->config, ['frete_gratis_acima' => 150])]);
+$r = $checkout->criarPedido($loja->fresh(), $its, ['nome' => 'Cliente Acima'] + $entrega);
+check('8.8 "frete grátis a partir de R$ 150": compra de R$ 179,70 sai com frete zero', (float) $r['pedido']->frete_valor === 0.0 && (float) $r['pedido']->total === 179.70);
+$r = $checkout->criarPedido($loja->fresh(), $its, ['nome' => 'Cliente Abaixo'] + $entrega + ['cupom' => 'T10']);
+check('8.9 a regra olha o valor JÁ com o cupom: 179,70 − 17,97 = 161,73 ainda ganha frete grátis', (float) $r['pedido']->frete_valor === 0.0 && (float) $r['pedido']->total === 161.73);
+$loja->update(['config' => array_merge($loja->fresh()->config, ['frete_gratis_acima' => 175])]);
+$r = $checkout->criarPedido($loja->fresh(), $its, ['nome' => 'Cliente Abaixo'] + $entrega + ['cupom' => 'T10']);
+check('8.10 …e com o mínimo em R$ 175 o mesmo pedido (161,73) paga o frete', (float) $r['pedido']->frete_valor === 22.50 && (float) $r['pedido']->total === 184.23);
+$c = $checkout->cotar($loja->fresh(), $its, ['cep' => '01001-000'], null, true);
+check('8.11 cotação com frete grátis: opções saem a R$ 0,00 marcadas "grátis", guardando o custo', $c['opcoes'][0]['valor'] === 0.0 && $c['opcoes'][0]['gratis'] === true && $c['opcoes'][0]['custo'] === 22.50);
+$loja->update(['config' => array_merge($loja->fresh()->config, ['frete_gratis_acima' => 0])]);
+\App\Models\LojaCupom::where('empresa_id', $empresaId)->whereIn('codigo', ['T10', 'TFRETE', 'TUM'])->delete();
+
+/* ─────────────────────────── 9. e-mails por mudança de situação ─────────────────────────── */
+echo "\n== 9. E-mails ao comprador quando o pedido anda ==\n";
+\Illuminate\Support\Facades\Mail::fake();
+$enviados = fn (string $tipo, ?int $pedidoId = null) => \Illuminate\Support\Facades\Mail::queued(\App\Mail\PedidoLoja::class, fn ($m) => $m->tipo === $tipo && ($pedidoId === null || $m->pedidoId === $pedidoId))->count();
+$loja->update(['config' => array_merge($loja->fresh()->config, ['email_pedidos' => 'pedidos@loja.test', 'email_loja_novo' => true, 'email_cliente_recebido' => true,
+    'email_cliente_confirmado' => true, 'email_cliente_andamento' => true])]);
+$loja = $loja->fresh();
+$pm = novoPedido($loja, ['email' => 'comprador@teste.test', 'telefone' => '(86) 97000-1000']);
+\App\Services\LojaOnline\AvisosLoja::pedidoFechado($loja, $pm);
+check('9.1 pedido fechado: 1 e-mail "recebido" ao comprador e 1 "pedido novo" à loja', $enviados('recebido', $pm->id) === 1 && $enviados('loja_novo', $pm->id) === 1
+    && \Illuminate\Support\Facades\Mail::queued(\App\Mail\PedidoLoja::class, fn ($m) => $m->tipo === 'loja_novo' && $m->hasTo('pedidos@loja.test'))->count() === 1);
+$r = $pagamento->pix($loja, $pm);
+$cob = PedidoCobranca::where('pedido_id', $pm->id)->first();
+$webhook(['event' => 'PAYMENT_RECEIVED', 'payment' => ['id' => $cob->txid, 'value' => (float) $pm->total, 'billingType' => 'PIX', 'externalReference' => 'pedido:' . $pm->id]], 'segredo-webhook');
+check('9.2 pagamento confirmado pelo webhook: sai o e-mail "pedido confirmado" ao comprador', $pm->fresh()->status === StatusPedido::Confirmado && $enviados('confirmado', $pm->id) === 1
+    && \Illuminate\Support\Facades\Mail::queued(\App\Mail\PedidoLoja::class, fn ($m) => $m->tipo === 'confirmado' && $m->hasTo('comprador@teste.test'))->count() === 1);
+$pm->refresh();
+$pm->update(['observacoes_internas' => $pm->observacoes_internas . "\nanotação qualquer"]);
+check('9.3 mexer no pedido sem mudar a situação não envia nada', $enviados('confirmado', $pm->id) === 1);
+$pm->update(['status' => StatusPedido::Faturado]);
+$pm->update(['status' => StatusPedido::Entregue]);
+check('9.4 faturar e entregar no ERP: e-mails "pronto/a caminho" e "entregue"', $enviados('faturado', $pm->id) === 1 && $enviados('entregue', $pm->id) === 1);
+$pcanc = novoPedido($loja, ['email' => 'comprador@teste.test', 'telefone' => '(86) 97000-1000']);
+$pcanc->update(['status' => StatusPedido::Cancelado]);
+check('9.5 cancelar: e-mail "cancelado"', $enviados('cancelado', $pcanc->id) === 1);
+$semEmail = novoPedido($loja, ['telefone' => '(86) 97000-2000']);
+$semEmail->update(['status' => StatusPedido::Confirmado]);
+check('9.6 comprador que não deu e-mail: nada é enviado (ele acompanha pelo endereço do pedido)', $enviados('confirmado', $semEmail->id) === 0);
+$loja->update(['config' => array_merge($loja->fresh()->config, ['email_cliente_andamento' => false, 'email_cliente_confirmado' => false])]);
+$pd = novoPedido($loja->fresh(), ['email' => 'comprador@teste.test', 'telefone' => '(86) 97000-1000']);
+$pd->update(['status' => StatusPedido::Confirmado]);
+$pd->update(['status' => StatusPedido::Faturado]);
+check('9.7 com os avisos desligados pelo lojista, a mudança de situação não envia', $enviados('confirmado', $pd->id) === 0 && $enviados('faturado', $pd->id) === 0);
+$doErp = Pedido::withoutGlobalScopes()->where('empresa_id', $empresaId)->whereNull('loja_token')->first()
+    ?? Pedido::withoutGlobalScopes()->create(['empresa_id' => $empresaId, 'unidade_id' => $loja->unidade_id, 'cliente_id' => $pm->cliente_id, 'numero' => 999999, 'subtotal' => 1, 'total' => 1, 'status' => StatusPedido::Rascunho]);
+$antes = \Illuminate\Support\Facades\Mail::queued(\App\Mail\PedidoLoja::class)->count();
+$doErp->update(['status' => StatusPedido::Confirmado]);
+check('9.8 pedido comum do ERP (que não nasceu na loja online) nunca dispara e-mail da loja', \Illuminate\Support\Facades\Mail::queued(\App\Mail\PedidoLoja::class)->count() === $antes);
+$html = (new \App\Mail\PedidoLoja($pm->id, $loja->id, 'recebido'))->render();
+check('9.9 o e-mail traz itens, total, o botão com o endereço do pedido e a cor da loja', str_contains($html, 'Camisa Linho Areia') && str_contains($html, '/pedido/' . $pm->loja_token)
+    && str_contains($html, 'Acompanhar o pedido') && str_contains($html, $loja->temaEfetivo()['cor_primaria']) && str_contains($html, 'R$ 179,70'));
+check('9.10 assunto de cada aviso leva o número do pedido e o nome da loja', \App\Mail\PedidoLoja::assunto('faturado', 12, 'Loja X') === 'Seu pedido #12 está pronto — Loja X'
+    && \App\Mail\PedidoLoja::assunto('loja_novo', 12, 'Loja X') === 'Novo pedido #12 na loja online');
+$loja->update(['config' => array_merge($loja->fresh()->config, ['email_pedidos' => '', 'email_loja_novo' => true, 'email_cliente_andamento' => true, 'email_cliente_confirmado' => true])]);
+
 // limpeza: a empresa volta a ficar sem provedor (o roteiro .py parte disso)
 EmpresaGateway::where('empresa_id', $empresaId)->delete();
 

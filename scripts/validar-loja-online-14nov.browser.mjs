@@ -4,7 +4,8 @@
 //   FOTOS=/pasta/das/fotos PRINTS=/pasta node scripts/validar-loja-online-14nov.browser.mjs
 // Cobre o que só o navegador prova: os 6 modelos no computador e no celular (sem erro de JavaScript e
 // sem rolagem lateral), botão "+" do cartão, galeria, quantidade, carrinho, fechamento com frete ao
-// vivo, tela do PIX (QR desenhado, copiar, confirmação automática), editor visual (trocar modelo,
+// vivo, tela do PIX (QR desenhado, copiar, confirmação automática), bloco H (2ª rodada: aviso de cookies,
+// rastreadores só depois do aceite, popup, cupom, eventos de compra, movimento), editor visual (trocar modelo,
 // cor, bloco, ordem, imagem, publicar) e o cadastro do produto (mais fotos + interruptor).
 import { createRequire } from 'module';
 import { execFileSync } from 'child_process';
@@ -48,7 +49,7 @@ const sobraLateral = page => page.evaluate(() => document.documentElement.scroll
 
 artisan('cache:clear');
 php('validar-loja-online-14nov.pix.php', ['ACAO=desligar']);
-sql("UPDATE lojas_online SET modelo='vitrine', tema=NULL, blocos=NULL, rascunho=NULL, publicada=1, estoque_id=NULL, config=JSON_SET(config,'$.pedido_minimo',0,'$.vender_sem_estoque',false,'$.entrega',true,'$.retirada',true) WHERE slug='demo'; UPDATE empresas SET exige_documento_cadastro=0 WHERE id=1;");
+sql("UPDATE lojas_online SET modelo='vitrine', tema=NULL, blocos=NULL, rascunho=NULL, publicada=1, estoque_id=NULL, config=JSON_SET(config,'$.pedido_minimo',0,'$.vender_sem_estoque',false,'$.entrega',true,'$.retirada',true,'$.cookies_aviso',false,'$.popup_ativo',false,'$.meta_pixel','','$.ga4','','$.google_ads','','$.gtm','','$.tiktok_pixel','','$.frete_gratis_acima',0,'$.whatsapp_flutuante',true) WHERE slug='demo'; UPDATE empresas SET exige_documento_cadastro=0 WHERE id=1;");
 const PID = Number(sql("SELECT id FROM produtos WHERE descricao='Camisa Linho Areia'"));
 const CAMINHO_P = `/loja/demo/p/${PID}-camisa-linho-areia`;
 
@@ -360,6 +361,247 @@ const r = await fora.goto(`${BASE}/loja/demo/p/${PID2}-vela-aromatica-figo`, { w
 check('F6 a página pública do produto desligado some (404)', r.status() === 404, r.status());
 await fora.close();
 sql(`UPDATE produtos SET loja_online=1 WHERE id=${PID2}`);
+
+// ───────────────────── H. 2ª rodada: cookies, rastreamento, popup, cupom, movimento ─────────────────────
+console.log('\n== H. Cookies, rastreamento, popup, cupom e movimento ==');
+artisan('cache:clear');
+sql("DELETE FROM loja_cupons WHERE codigo IN ('NAV20'); INSERT INTO loja_cupons (empresa_id,codigo,tipo,valor,minimo,usos,ativo,created_at,updated_at) VALUES (1,'NAV20','valor',20,0,0,1,NOW(),NOW()); DELETE FROM loja_contatos WHERE email='navegador@teste.test';");
+const cfg2 = { cookies_aviso: true, meta_pixel: '1234567890123456', ga4: 'G-AB12CD34EF', google_ads: 'AW-123456789', google_ads_rotulo: 'AbCdEf_123', gtm: '', tiktok_pixel: '',
+  popup_ativo: true, popup_capturar: true, popup_titulo: 'Ganhe R$ 20 na primeira compra', popup_texto: 'Cadastre seu e-mail.', popup_cupom: 'NAV20', popup_botao: 'Quero o cupom', popup_gatilho: 'entrar', popup_dias: 1,
+  whatsapp_flutuante: true, whatsapp: '(86) 99999-0000' };
+sql(`UPDATE lojas_online SET modelo='vitrine', tema=NULL, rascunho=NULL, config=JSON_MERGE_PATCH(config, '${JSON.stringify(cfg2)}'), blocos='${JSON.stringify([
+  { id: 'h1', tipo: 'banner', titulo: 'Loja de teste', subtitulo: 'Movimento e promoções', botao_texto: 'Ver produtos', botao_link: 'produtos', imagem: '', estilo: 'dividido', altura: 'media' },
+  { id: 'h2', tipo: 'oferta', titulo: 'Oferta relâmpago', texto: 'Só hoje', termina_em: '2099-12-31T23:59', cupom: 'NAV20', botao_texto: 'Ver', botao_link: 'produtos' },
+  { id: 'h3', tipo: 'vitrine', titulo: 'Destaques', origem: 'destaques', categoria_id: null, quantidade: '8', colunas: '4' },
+  { id: 'h4', tipo: 'video', titulo: 'Vídeo', video: 'dQw4w9WgXcQ' },
+  { id: 'h5', tipo: 'faq', titulo: 'Dúvidas', lista: [{ nome: 'Como pago?', texto: 'PIX ou cartão.' }] },
+  { id: 'h6', tipo: 'vitrine', titulo: 'Novidades', origem: 'novidades', categoria_id: null, quantidade: '8', colunas: '4' },
+])}' WHERE slug='demo'`);
+
+async function novoVisitante(largura = 1366, opts = {}) {
+  const ctx = await browser.createBrowserContext();
+  const p = await ctx.newPage();
+  await p.setViewport({ width: largura, height: largura < 500 ? 844 : 900 });
+  if (opts.semMovimento) await p.emulateMediaFeatures([{ name: 'prefers-reduced-motion', value: 'reduce' }]);
+  p.on('pageerror', e => erros.push(e.message));
+  const pedidos = [];
+  await p.setRequestInterception(true);
+  p.on('request', r => {
+    const u = r.url();
+    if (/googletagmanager\.com|google-analytics\.com|connect\.facebook\.net|facebook\.com\/tr|analytics\.tiktok\.com|youtube|ytimg/.test(u)) { pedidos.push(u); r.abort(); } else r.continue();
+  });
+  return { p, pedidos, ctx };
+}
+const rastreadores = l => l.filter(u => /googletagmanager|google-analytics|facebook|tiktok/.test(u));
+
+// primeira visita: aviso de cookies, nada de rastreador
+let v = await novoVisitante();
+await v.p.goto(BASE + '/loja/demo', { waitUntil: 'networkidle2' });
+await sleep(1800);
+let h = await v.p.evaluate(() => ({ barra: !document.querySelector('[data-lj-cookies]').hidden, popup: document.querySelector('[data-lj-popup]').open, fbq: typeof window.fbq, gtag: typeof window.gtag,
+  zap: getComputedStyle(document.querySelector('.lj-zap')).bottom, altBarra: document.querySelector('[data-lj-cookies]').offsetHeight }));
+check('H1 primeira visita: o aviso de cookies aparece e NENHUM rastreador é chamado', h.barra && rastreadores(v.pedidos).length === 0 && h.fbq === 'undefined' && h.gtag === 'undefined', { ...h, pedidos: v.pedidos });
+check('H2 o popup espera o aviso de cookies (não abre por cima dele)', h.popup === false, h);
+check('H3 o botão do WhatsApp sobe para não ficar embaixo do aviso', parseFloat(h.zap) >= h.altBarra, h);
+await print(v.p, 'h-aviso-cookies', false);
+await v.p.goto(BASE + CAMINHO_P, { waitUntil: 'networkidle2' });
+h = await v.p.evaluate(() => ({ registrados: LJ.rastro.registrados.map(e => e[0]), fila: LJ.rastro.fila.length }));
+check('H4 antes do aceite, "viu o produto" fica na fila da página, sem sair para ninguém', h.registrados.includes('ver_produto') && h.fila === 1 && rastreadores(v.pedidos).length === 0, h);
+// escolher: só medição
+await v.p.click('[data-lj-cookies-escolher]');
+h = await v.p.evaluate(() => ({ escolhas: !document.querySelector('[data-lj-cookies-escolhas]').hidden, salvar: !document.querySelector('[data-lj-cookies-salvar]').hidden,
+  necessario: document.querySelector('[data-lj-cookies-escolhas] input[disabled]').checked, analise: document.querySelector('[data-lj-cookie=analise]').checked, marketing: document.querySelector('[data-lj-cookie=marketing]').checked }));
+check('H5 "Escolher" abre as categorias: necessários travado e ligado; medição e publicidade DESMARCADAS de início', h.escolhas && h.salvar && h.necessario && !h.analise && !h.marketing, h);
+await v.p.click('[data-lj-cookie=analise]');
+await v.p.click('[data-lj-cookies-salvar]');
+await sleep(600);
+h = await v.p.evaluate(() => ({ barra: document.querySelector('[data-lj-cookies]').hidden, gtag: typeof window.gtag, fbq: typeof window.fbq, guardado: JSON.parse(localStorage.getItem('lj_cookies_' + (document.querySelector('[data-lj-popup]')?.dataset.x || '')) || 'null'),
+  consent: LJ.rastro.consentimento, fila: LJ.rastro.fila.length, eventos: (window.dataLayer || []).map(a => a[1]).filter(Boolean) }));
+check('H6 aceitou só medição: carrega o Google Analytics, NÃO carrega a Meta; o aviso some', h.barra && h.gtag === 'function' && h.fbq === 'undefined' && h.consent.analise === true && h.consent.marketing === false
+  && v.pedidos.some(u => u.includes('googletagmanager.com/gtag/js?id=G-AB12CD34EF')) && !v.pedidos.some(u => u.includes('facebook')), { ...h, pedidos: v.pedidos });
+check('H7 o que estava na fila sai agora: view_item foi para o Google', h.fila === 0 && h.eventos.includes('view_item'), h.eventos);
+await v.p.reload({ waitUntil: 'networkidle2' });
+h = await v.p.evaluate(() => ({ barra: document.querySelector('[data-lj-cookies]').hidden, gtag: typeof window.gtag, fbq: typeof window.fbq }));
+check('H8 na visita seguinte a escolha é lembrada: sem aviso, Analytics ligado, Meta desligada', h.barra && h.gtag === 'function' && h.fbq === 'undefined', h);
+// mudar de ideia pelo rodapé
+await v.p.evaluate(() => document.querySelector('.lj-rodape [data-lj-cookies-abrir]').click());
+h = await v.p.evaluate(() => ({ barra: !document.querySelector('[data-lj-cookies]').hidden, analise: document.querySelector('[data-lj-cookie=analise]').checked, marketing: document.querySelector('[data-lj-cookie=marketing]').checked }));
+check('H9 "Preferências de cookies" no rodapé reabre o aviso com a escolha atual marcada', h.barra && h.analise && !h.marketing, h);
+check('H9b ao reabrir, as categorias já vêm abertas para mudar', await v.p.evaluate(() => !document.querySelector('[data-lj-cookies-escolhas]').hidden && !document.querySelector('[data-lj-cookies-salvar]').hidden));
+await sleep(600); // o aviso chega deslizando
+await v.p.click('[data-lj-cookies-aceitar]');
+await sleep(500);
+h = await v.p.evaluate(() => ({ fbq: typeof window.fbq, fila: (window.fbq && window.fbq.queue || []).map(a => a[1]) }));
+check('H10 "Aceitar todos": a Meta passa a carregar, com PageView', h.fbq === 'function' && v.pedidos.some(u => u.includes('connect.facebook.net')) && h.fila.includes('PageView'), h);
+await v.p.click('.lj-comprar button[type=submit]');
+await v.p.waitForFunction(() => LJ.rastro.registrados.some(e => e[0] === 'carrinho'), { timeout: 8000 }).catch(() => {});
+h = await v.p.evaluate(() => ({ ev: LJ.rastro.registrados.find(e => e[0] === 'carrinho'), google: (window.dataLayer || []).filter(a => a[1] === 'add_to_cart').map(a => a[2]), meta: (window.fbq.queue || []).filter(a => a[1] === 'AddToCart').map(a => a[2]) }));
+check('H11 adicionar ao carrinho avisa Google (add_to_cart) e Meta (AddToCart) com valor e produto', h.ev && h.ev[1].valor > 0 && h.google.length === 1 && h.google[0].currency === 'BRL' && h.google[0].items[0].item_id === String(PID)
+  && h.meta.length === 1 && h.meta[0].content_ids[0] === String(PID), h);
+await v.ctx.close();
+
+// popup: abre depois do aceite; cadastro com aceite entrega o cupom
+v = await novoVisitante();
+await v.p.goto(BASE + '/loja/demo', { waitUntil: 'networkidle2' });
+await v.p.click('[data-lj-cookies-recusar]');
+await v.p.waitForFunction(() => document.querySelector('[data-lj-popup]').open, { timeout: 8000 }).catch(() => {});
+h = await v.p.evaluate(() => ({ aberto: document.querySelector('[data-lj-popup]').open, titulo: document.querySelector('#lj-popup-titulo').textContent, foco: document.activeElement.closest('[data-lj-popup]') !== null,
+  rastro: typeof window.gtag + typeof window.fbq, consent: LJ.rastro.consentimento }));
+check('H12 "Só os necessários": nenhum rastreador carrega; e aí o popup abre, com o foco dentro dele', h.aberto && h.foco && h.rastro === 'undefinedundefined' && rastreadores(v.pedidos).length === 0 && h.consent.marketing === false, h);
+await print(v.p, 'h-popup', false);
+await v.p.type('#lj-popup-email', 'navegador@teste.test');
+await v.p.click('[data-lj-popup] form button[type=submit]');
+await v.p.waitForFunction(() => document.querySelector('[data-lj-popup] [data-lj-contato-retorno]').textContent.length > 3, { timeout: 8000 }).catch(() => {});
+h = await v.p.evaluate(() => ({ msg: document.querySelector('[data-lj-popup] [data-lj-contato-retorno]').textContent, cupom: document.querySelector('[data-lj-popup-cupom]').hidden }));
+check('H13 sem marcar o aceite o cadastro não vai, e o popup explica', /aceita receber/.test(h.msg) && h.cupom === true && sql("SELECT COUNT(*) FROM loja_contatos WHERE email='navegador@teste.test'") === '0', h);
+await v.p.click('[data-lj-popup] input[name=aceite]');
+await v.p.click('[data-lj-popup] form button[type=submit]');
+await v.p.waitForFunction(() => !document.querySelector('[data-lj-popup-cupom]').hidden, { timeout: 8000 }).catch(() => {});
+h = await v.p.evaluate(() => ({ cupom: document.querySelector('[data-lj-popup-cupom] b').textContent, visivel: !document.querySelector('[data-lj-popup-cupom]').hidden, form: document.querySelector('[data-lj-popup] form').hidden }));
+check('H14 com o aceite: o contato é gravado e o popup mostra o cupom NAV20', h.visivel && h.cupom === 'NAV20' && h.form && sql("SELECT origem FROM loja_contatos WHERE email='navegador@teste.test'") === 'popup', h);
+await v.p.keyboard.press('Escape');
+await sleep(300);
+check('H15 a tecla Esc fecha o popup', await v.p.evaluate(() => !document.querySelector('[data-lj-popup]').open));
+await v.p.reload({ waitUntil: 'networkidle2' });
+await sleep(2500);
+check('H16 quem já viu o popup não vê de novo na visita seguinte', await v.p.evaluate(() => !document.querySelector('[data-lj-popup]').open));
+
+// blocos novos: relógio, cupom copiável, vídeo, perguntas
+h = await v.p.evaluate(() => [...document.querySelectorAll('[data-lj-relogio] b')].map(b => b.textContent).join(':'));
+await sleep(1300);
+const h2 = await v.p.evaluate(() => [...document.querySelectorAll('[data-lj-relogio] b')].map(b => b.textContent).join(':'));
+check('H17 o relógio da oferta anda de um segundo para o outro', /^\d+:\d\d:\d\d:\d\d$/.test(h) && h !== h2, { h, h2 });
+await v.p.click('.lj-oferta [data-lj-copiar-texto]');
+await sleep(250);
+check('H18 clicar no cupom da oferta avisa que copiou', /NAV20 copiado/.test(await v.p.$eval('[data-lj-brinde-texto]', e => e.textContent)));
+check('H19 o vídeo NÃO carrega o YouTube até o clique (só a capa)', !v.pedidos.some(u => /youtube(-nocookie)?\.com\/embed/.test(u)) && await v.p.evaluate(() => !document.querySelector('.lj-video iframe')));
+await v.p.click('.lj-video');
+await sleep(400);
+check('H20 no clique o vídeo entra pelo endereço sem cookies do YouTube', await v.p.evaluate(() => document.querySelector('.lj-video iframe')?.src.includes('youtube-nocookie.com/embed/dQw4w9WgXcQ')));
+await v.p.click('.lj-faq summary');
+check('H21 a pergunta abre ao clicar', await v.p.evaluate(() => document.querySelector('.lj-faq details').open));
+
+// cupom no carrinho e compra com evento
+await v.p.goto(BASE + CAMINHO_P, { waitUntil: 'networkidle2' });
+await v.p.$eval('#lj-qtd', e => { e.value = '2'; });
+await v.p.click('.lj-comprar button[type=submit]');
+await v.p.waitForFunction(() => document.querySelector('[data-lj-conta]').textContent.trim() === '2', { timeout: 8000 }).catch(() => {});
+await v.p.goto(BASE + '/loja/demo/carrinho', { waitUntil: 'networkidle2' });
+await v.p.type('#lj-cupom', 'nav20');
+await nav(v.p, () => v.p.click('.lj-cupom-form button'));
+h = await v.p.evaluate(() => ({ aplicado: !!document.querySelector('.lj-cupom-aplicado'), desconto: document.querySelector('dd.lj-desconto')?.textContent.trim(), total: document.querySelector('dd.lj-total').textContent.trim(), ok: document.querySelector('.lj-aviso--ok')?.textContent.trim() }));
+check('H22 digitar o cupom no carrinho: desconto de R$ 20,00 na conta e a confirmação na tela', h.aplicado && /20,00/.test(h.desconto || '') && h.total === 'R$ 99,80' && /NAV20 aplicado/.test(h.ok || ''), h);
+await print(v.p, 'h-carrinho-cupom', false);
+await nav(v.p, () => v.p.click('.lj-resumo a.lj-btn'));
+h = await v.p.evaluate(() => ({ zap: getComputedStyle(document.querySelector('.lj-zap')).display, busca: getComputedStyle(document.querySelector('.lj-busca')).display, popup: !!document.querySelector('[data-lj-popup]'),
+  ev: LJ.rastro.registrados.map(e => e[0]), total: document.querySelector('[data-lj-total]').textContent.trim() }));
+check('H23 fechamento: sem WhatsApp flutuante, sem busca e sem popup para distrair; total já com o cupom; evento "fechamento"', h.zap === 'none' && h.busca === 'none' && !h.popup && h.total === 'R$ 99,80' && h.ev.includes('fechamento'), h);
+await v.p.type('#f-nome', 'Cliente do Rastreio');
+await v.p.type('#f-tel', '86966665555');
+await v.p.click('input[name=entrega][value=retirada]');
+await nav(v.p, () => v.p.click('[data-lj-enviar]'));
+h = await v.p.evaluate(() => ({ compra: LJ.rastro.registrados.filter(e => e[0] === 'compra').map(e => e[1]), h1: document.querySelector('h1').textContent, desconto: document.querySelector('dd.lj-desconto')?.textContent.trim() }));
+check('H24 pedido fechado com o cupom: a página do pedido registra a COMPRA com número e valor (R$ 99,80)', h.compra.length === 1 && h.compra[0].valor === 99.8 && String(h.compra[0].pedido) === h.h1.replace(/\D/g, '') && /20,00/.test(h.desconto || ''), h);
+await v.p.reload({ waitUntil: 'networkidle2' });
+check('H25 recarregar a página do pedido NÃO conta a compra de novo', await v.p.evaluate(() => LJ.rastro.registrados.filter(e => e[0] === 'compra').length) === 0);
+await v.ctx.close();
+
+// movimento
+v = await novoVisitante();
+await v.p.goto(BASE + '/loja/demo', { waitUntil: 'networkidle2' });
+await v.p.click('[data-lj-cookies-recusar]');
+await v.p.evaluate(() => { const d = document.querySelector('[data-lj-popup]'); if (d) d.remove(); });
+h = await v.p.evaluate(() => ({ js: document.documentElement.classList.contains('lj-js'), mov: document.body.dataset.movimento, voar: typeof LJ.voar, ultima: [...document.querySelectorAll('.lj-grade')].pop().classList.contains('lj-vista'),
+  primeira: document.querySelector('.lj-grade').getBoundingClientRect().top < innerHeight }));
+check('H26 movimento completo: as listas ainda fora da tela esperam para entrar', h.js && h.mov === 'completo' && h.voar === 'function' && h.ultima === false, h);
+await v.p.evaluate(() => [...document.querySelectorAll('.lj-grade')].pop().scrollIntoView({ block: 'center' }));
+await sleep(1500);
+h = await v.p.evaluate(() => { const g = [...document.querySelectorAll('.lj-grade')].pop(); return { vista: g.classList.contains('lj-vista'), opacidade: getComputedStyle(g.querySelector('.lj-card')).opacity, atraso: getComputedStyle(g.querySelectorAll('.lj-card')[3]).animationDelay }; });
+check('H27 ao rolar, a lista entra em sequência (cada cartão com um pequeno atraso) e fica visível', h.vista && Number(h.opacidade) > 0.99 && h.atraso === '0.135s', h);
+await v.p.evaluate(() => window.scrollTo(0, 0));
+await sleep(400);
+await v.p.evaluate(() => document.querySelector('.lj-card form[data-lj-add] button').click());
+await v.p.waitForSelector('.lj-voo', { timeout: 4000 }).catch(() => {});
+h = await v.p.evaluate(() => ({ voo: !!document.querySelector('.lj-voo') }));
+await sleep(900);
+const depois = await v.p.evaluate(() => ({ voo: !!document.querySelector('.lj-voo'), conta: document.querySelector('[data-lj-conta]').textContent.trim() }));
+check('H28 adicionar pelo cartão: a foto voa até a sacola e some ao chegar', h.voo && !depois.voo && depois.conta === '1', { h, depois });
+h = await v.p.evaluate(() => { const c = document.querySelector('.lj-card'); c.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })); return c.querySelector('.lj-card__foto img').style.viewTransitionName; });
+check('H29 ao tocar num produto, a foto dele recebe o nome da transição (viaja para a página do produto)', h === 'lj-foto', h);
+await v.p.goto(BASE + CAMINHO_P, { waitUntil: 'networkidle2' });
+check('H30 na página do produto a foto principal é o destino da transição', await v.p.evaluate(() => getComputedStyle(document.querySelector('[data-lj-palco] img')).viewTransitionName) === 'lj-foto');
+await v.p.goto(BASE + '/loja/demo', { waitUntil: 'networkidle2' });
+await sleep(6600);
+check('H30b rede de segurança: sem rolar nada, em poucos segundos todas as listas aparecem (conteúdo nunca fica escondido)', await v.p.evaluate(() => [...document.querySelectorAll('.lj-grade')].every(g => g.classList.contains('lj-vista') && getComputedStyle(g.querySelector('.lj-card')).opacity > 0.99)));
+await v.ctx.close();
+v = await novoVisitante(1366, { semMovimento: true });
+await v.p.goto(BASE + '/loja/demo', { waitUntil: 'networkidle2' });
+h = await v.p.evaluate(() => { const g = [...document.querySelectorAll('.lj-grade')].pop(); return { voar: typeof LJ.voar, vista: g.classList.contains('lj-vista'), opacidade: getComputedStyle(g.querySelector('.lj-card')).opacity,
+  mosaico: getComputedStyle(document.querySelector('.lj-mosaico a')).animationName, titulo: getComputedStyle(document.querySelector('.lj-banner h1')).animationName }; });
+check('H31 quem pediu "reduzir movimento" no aparelho: tudo visível de imediato, sem voo, sem entrada, sem revelação', h.voar === 'undefined' && h.vista && h.opacidade === '1' && h.mosaico === 'none' && h.titulo === 'none', h);
+await v.ctx.close();
+sql("UPDATE lojas_online SET tema='{\"movimento\":\"nenhum\",\"faixa\":\"correndo\"}', config=JSON_SET(config,'$.aviso_topo','Frete grátis nesta semana') WHERE slug='demo'");
+v = await novoVisitante();
+await v.p.goto(BASE + '/loja/demo', { waitUntil: 'networkidle2' });
+h = await v.p.evaluate(() => ({ html: document.documentElement.dataset.movimento, mosaico: getComputedStyle(document.querySelector('.lj-mosaico a')).animationName, trilho: getComputedStyle(document.querySelector('.lj-faixa__trilho')).animationName,
+  copias: getComputedStyle(document.querySelector('.lj-faixa__trilho span + span')).display }));
+check('H32 lojista escolheu "sem movimento": nada anima, e o letreiro fica parado (sem texto repetido)', h.html === 'nenhum' && h.mosaico === 'none' && h.trilho === 'none' && h.copias === 'none', h);
+await v.ctx.close();
+sql("UPDATE lojas_online SET tema='{\"faixa\":\"correndo\"}' WHERE slug='demo'");
+v = await novoVisitante();
+await v.p.goto(BASE + '/loja/demo', { waitUntil: 'networkidle2' });
+h = await v.p.evaluate(() => ({ trilho: getComputedStyle(document.querySelector('.lj-faixa__trilho')).animationName, copias: getComputedStyle(document.querySelector('.lj-faixa__trilho span + span')).display, sobra: document.documentElement.scrollWidth - innerWidth }));
+check('H33 letreiro ligado: a faixa corre, sem criar rolagem lateral', h.trilho === 'lj-corre' && h.copias !== 'none' && h.sobra <= 1, h);
+await v.p.click('[data-lj-cookies-recusar]');
+await v.p.evaluate(() => { const d = document.querySelector('[data-lj-popup]'); if (d) d.remove(); });
+await print(v.p, 'h-inicio-blocos-novos');
+await v.ctx.close();
+for (const [larg, nome] of [[390, 'celular']]) {
+  v = await novoVisitante(larg);
+  for (const rota of ['/loja/demo', '/loja/demo/politica/privacidade', '/loja/demo/carrinho']) {
+    await v.p.goto(BASE + rota, { waitUntil: 'networkidle2' });
+    check(`H34 ${nome} ${rota}: sem rolagem lateral com aviso de cookies, letreiro e blocos novos`, await sobraLateral(v.p) <= 1, await sobraLateral(v.p));
+  }
+  const cab = await v.p.evaluate(() => { const b = document.querySelector('[data-lj-cookies]'); return { alt: b.offsetHeight, tela: innerHeight, botoes: [...b.querySelectorAll('button:not([hidden])')].map(x => Math.round(x.getBoundingClientRect().height)) }; });
+  check(`H35 ${nome}: o aviso de cookies ocupa menos da metade da tela e os botões têm 44 px de toque`, cab.alt < cab.tela / 2 && cab.botoes.every(x => x >= 44), cab);
+  await print(v.p, 'h-politica-celular', false);
+  await v.ctx.close();
+}
+
+// painel: abas novas
+await erp.goto(BASE + '/app/loja-online/promocoes', { waitUntil: 'networkidle2' });
+h = await erp.evaluate(() => ({ abas: [...document.querySelectorAll('.nav-pills .nav-link')].map(a => a.textContent.trim()), cupom: document.body.innerText.includes('NAV20'), contato: document.body.innerText.includes('navegador@teste.test') }));
+check('H36 painel: 8 abas, com o cupom e o contato captado no popup', h.abas.length === 8 && h.abas.includes('Promoções') && h.abas.includes('Anúncios e busca') && h.cupom && h.contato, h);
+await erp.select('#cupom_tipo', 'frete_gratis');
+check('H37 escolher "Frete grátis" no cupom trava o campo de valor', await erp.$eval('#cupom_valor', e => e.disabled));
+await print(erp, 'h-painel-promocoes');
+await erp.goto(BASE + '/app/loja-online/politicas', { waitUntil: 'networkidle2' });
+await erp.click('[data-usar-modelo=politica_privacidade]');
+h = await erp.$eval('#politica_privacidade', e => e.value);
+check('H38 políticas: "Copiar o texto de partida" preenche o campo com o modelo (com Google e Meta, que estão configurados)', h.includes('Lei Geral de Proteção de Dados') && h.includes('Meta (Facebook e Instagram)'), h.slice(0, 120));
+await print(erp, 'h-painel-politicas');
+for (const aba of ['avisos', 'rastreamento']) { await erp.goto(BASE + '/app/loja-online/' + aba, { waitUntil: 'networkidle2' }); await print(erp, 'h-painel-' + aba); }
+await erp.goto(BASE + '/app/loja-online/editor', { waitUntil: 'networkidle2' });
+await erp.click('[data-bs-target="#edPagina"]');
+await sleep(400);
+h = await erp.evaluate(() => [...document.querySelectorAll('#edNovoBloco .dropdown-item')].map(b => b.childNodes[1].textContent.trim()));
+check('H39 editor oferece os 13 tipos de bloco (6 novos)', h.length === 13 && ['Oferta com contagem', 'Depoimentos', 'Perguntas frequentes', 'Receber novidades', 'Vídeo', 'Redes sociais'].every(n => h.includes(n)), h);
+await erp.click('#edPagina .dropdown-toggle');
+await erp.evaluate(() => [...document.querySelectorAll('#edNovoBloco .dropdown-item')].find(b => b.textContent.includes('Depoimentos')).click());
+await sleep(300);
+await erp.type('.ed-bloco.aberto textarea', 'Atendimento excelente');
+await erp.evaluate(() => [...document.querySelectorAll('.ed-bloco.aberto button')].find(b => b.textContent.includes('+ Adicionar')).click());
+await sleep(300);
+h = await erp.evaluate(() => document.querySelectorAll('.ed-bloco.aberto textarea').length);
+await sleep(2800);
+const naPrevia = await erp.frames().find(f => f.url().includes('/loja/demo')).evaluate(() => document.body.innerText.includes('Atendimento excelente'));
+check('H40 editor: bloco de depoimentos com linhas que se adicionam, e o texto aparece na prévia', h === 2 && naPrevia, { h, naPrevia });
+await erp.click('#edDescartar');
+await erp.waitForSelector('.modal.show [data-role=ok]');
+await sleep(350);
+await erp.click('.modal.show [data-role=ok]');
+await sleep(800);
+sql("DELETE FROM loja_cupons WHERE codigo='NAV20'; UPDATE lojas_online SET tema=NULL, blocos=NULL, rascunho=NULL, config=JSON_SET(config,'$.popup_ativo',false,'$.cookies_aviso',false,'$.meta_pixel','','$.ga4','','$.google_ads','','$.aviso_topo','') WHERE slug='demo'");
 
 // ───────────────────── G. admin ─────────────────────
 console.log('\n== G. Admin: card da loja online ==');

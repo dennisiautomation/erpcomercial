@@ -38,6 +38,8 @@ class ModelosLoja
         'titulos' => ['normal' => 'Normais', 'maiusculas' => 'MAIÚSCULAS espaçadas'],
         'preco' => ['simples' => 'Simples', 'etiqueta' => 'Etiqueta de preço'],
         'foto' => ['quadrada' => 'Quadrada', 'retrato' => 'Em pé (moda)', 'paisagem' => 'Deitada'],
+        'movimento' => ['completo' => 'Completo', 'suave' => 'Suave', 'nenhum' => 'Sem movimento'],
+        'faixa' => ['parada' => 'Parada', 'correndo' => 'Correndo (letreiro)'],
     ];
 
     /** @return array<string, array{nome: string, ramo: string, descricao: string, tema: array, blocos: array}> */
@@ -56,7 +58,7 @@ class ModelosLoja
                     'cor_rodape' => '#131a26', 'cor_rodape_texto' => '#c9d1df', 'cor_destaque' => '#e11d48',
                     'fonte_titulo' => 'figtree', 'fonte_texto' => 'figtree',
                     'raio' => '12', 'botao' => 'arredondado', 'cartao' => 'borda', 'cabecalho' => 'esquerda',
-                    'titulos' => 'normal', 'preco' => 'simples', 'foto' => 'quadrada', 'logo' => '',
+                    'movimento' => 'completo', 'faixa' => 'parada', 'titulos' => 'normal', 'preco' => 'simples', 'foto' => 'quadrada', 'logo' => '',
                 ],
                 'blocos' => [
                     ['tipo' => 'banner', 'titulo' => 'Tudo da loja, agora online', 'subtitulo' => 'Escolha com calma, feche o pedido pelo site e combine tudo direto com a loja.',
@@ -65,6 +67,7 @@ class ModelosLoja
                     ['tipo' => 'vitrine', 'titulo' => 'Destaques', 'origem' => 'destaques', 'categoria_id' => null, 'quantidade' => 8, 'colunas' => 4],
                     ['tipo' => 'categorias', 'titulo' => 'Compre por categoria', 'estilo' => 'cartoes'],
                     ['tipo' => 'vitrine', 'titulo' => 'Acabou de chegar', 'origem' => 'novidades', 'categoria_id' => null, 'quantidade' => 8, 'colunas' => 4],
+                    ['tipo' => 'newsletter', 'titulo' => 'Receba as novidades primeiro', 'texto' => 'Lançamentos e ofertas no seu e-mail.', 'botao_texto' => 'Quero receber'],
                 ],
             ],
             'atelie' => [
@@ -76,7 +79,7 @@ class ModelosLoja
                     'cor_rodape' => '#111111', 'cor_rodape_texto' => '#d9d6d1', 'cor_destaque' => '#d6005f',
                     'fonte_titulo' => 'bodoni', 'fonte_texto' => 'jost',
                     'raio' => '0', 'botao' => 'reto', 'cartao' => 'limpo', 'cabecalho' => 'centralizado',
-                    'titulos' => 'maiusculas', 'preco' => 'simples', 'foto' => 'retrato', 'logo' => '',
+                    'movimento' => 'completo', 'faixa' => 'parada', 'titulos' => 'maiusculas', 'preco' => 'simples', 'foto' => 'retrato', 'logo' => '',
                 ],
                 'blocos' => [
                     ['tipo' => 'faixa', 'texto' => 'Compre pelo site  ·  Pedido direto com a loja'],
@@ -85,6 +88,7 @@ class ModelosLoja
                     ['tipo' => 'vitrine', 'titulo' => 'Acabou de chegar', 'origem' => 'novidades', 'categoria_id' => null, 'quantidade' => 6, 'colunas' => 3],
                     ['tipo' => 'categorias', 'titulo' => 'Por categoria', 'estilo' => 'lista'],
                     ['tipo' => 'vitrine', 'titulo' => 'As preferidas', 'origem' => 'destaques', 'categoria_id' => null, 'quantidade' => 6, 'colunas' => 3],
+                    ['tipo' => 'newsletter', 'titulo' => 'Receba as novidades primeiro', 'texto' => 'Lançamentos e ofertas no seu e-mail.', 'botao_texto' => 'Quero receber'],
                 ],
             ],
             'circuito' => [
@@ -96,7 +100,7 @@ class ModelosLoja
                     'cor_rodape' => '#0d1330', 'cor_rodape_texto' => '#b9c0dc', 'cor_destaque' => '#ff3d2e',
                     'fonte_titulo' => 'archivo', 'fonte_texto' => 'archivo',
                     'raio' => '12', 'botao' => 'arredondado', 'cartao' => 'sombra', 'cabecalho' => 'esquerda',
-                    'titulos' => 'normal', 'preco' => 'etiqueta', 'foto' => 'quadrada', 'logo' => '',
+                    'movimento' => 'completo', 'faixa' => 'parada', 'titulos' => 'normal', 'preco' => 'etiqueta', 'foto' => 'quadrada', 'logo' => '',
                 ],
                 'blocos' => [
                     ['tipo' => 'faixa', 'texto' => 'Preço de loja  ·  Pedido pelo site'],
@@ -117,7 +121,7 @@ class ModelosLoja
                     'cor_rodape' => '#0b4d2b', 'cor_rodape_texto' => '#cfe6d6', 'cor_destaque' => '#ffcf33',
                     'fonte_titulo' => 'bricolage', 'fonte_texto' => 'figtree',
                     'raio' => '20', 'botao' => 'pilula', 'cartao' => 'limpo', 'cabecalho' => 'esquerda',
-                    'titulos' => 'normal', 'preco' => 'etiqueta', 'foto' => 'quadrada', 'logo' => '',
+                    'movimento' => 'completo', 'faixa' => 'parada', 'titulos' => 'normal', 'preco' => 'etiqueta', 'foto' => 'quadrada', 'logo' => '',
                 ],
                 'blocos' => [
                     ['tipo' => 'banner', 'titulo' => 'Fresquinho, direto pra sua casa', 'subtitulo' => 'Monte seu pedido pelo site e combine a entrega ou a retirada com a loja.',
@@ -137,7 +141,7 @@ class ModelosLoja
                     'cor_rodape' => '#24163f', 'cor_rodape_texto' => '#d9cff2', 'cor_destaque' => '#ff5a5f',
                     'fonte_titulo' => 'fredoka', 'fonte_texto' => 'nunito',
                     'raio' => '20', 'botao' => 'pilula', 'cartao' => 'sombra', 'cabecalho' => 'centralizado',
-                    'titulos' => 'normal', 'preco' => 'simples', 'foto' => 'quadrada', 'logo' => '',
+                    'movimento' => 'completo', 'faixa' => 'parada', 'titulos' => 'normal', 'preco' => 'simples', 'foto' => 'quadrada', 'logo' => '',
                 ],
                 'blocos' => [
                     ['tipo' => 'faixa', 'texto' => 'Presentes escolhidos com carinho'],
@@ -146,6 +150,7 @@ class ModelosLoja
                     ['tipo' => 'categorias', 'titulo' => 'Para cada ocasião', 'estilo' => 'pilulas'],
                     ['tipo' => 'vitrine', 'titulo' => 'Queridinhos', 'origem' => 'destaques', 'categoria_id' => null, 'quantidade' => 8, 'colunas' => 4],
                     ['tipo' => 'vitrine', 'titulo' => 'Novidades', 'origem' => 'novidades', 'categoria_id' => null, 'quantidade' => 8, 'colunas' => 4],
+                    ['tipo' => 'newsletter', 'titulo' => 'Receba as novidades primeiro', 'texto' => 'Lançamentos e ofertas no seu e-mail.', 'botao_texto' => 'Quero receber'],
                 ],
             ],
             'balcao' => [
@@ -157,7 +162,7 @@ class ModelosLoja
                     'cor_rodape' => '#f2f6f6', 'cor_rodape_texto' => '#3d555b', 'cor_destaque' => '#c2410c',
                     'fonte_titulo' => 'manrope', 'fonte_texto' => 'manrope',
                     'raio' => '6', 'botao' => 'arredondado', 'cartao' => 'lista', 'cabecalho' => 'esquerda',
-                    'titulos' => 'normal', 'preco' => 'simples', 'foto' => 'quadrada', 'logo' => '',
+                    'movimento' => 'completo', 'faixa' => 'parada', 'titulos' => 'normal', 'preco' => 'simples', 'foto' => 'quadrada', 'logo' => '',
                 ],
                 'blocos' => [
                     ['tipo' => 'banner', 'titulo' => 'Peça pelo código, receba no prazo', 'subtitulo' => 'Catálogo com o estoque da loja. Busque pelo código ou pelo nome.',
@@ -263,6 +268,49 @@ class ModelosLoja
                 ],
                 'inicial' => ['titulo' => 'Título', 'texto' => '', 'alinhamento' => 'centro'],
             ],
+            'oferta' => [
+                'nome' => 'Oferta com contagem', 'icone' => 'stopwatch', 'descricao' => 'Chamada de promoção com relógio regressivo e cupom',
+                'campos' => [
+                    ['titulo', 'Título', 'texto'],
+                    ['texto', 'Texto de apoio', 'texto'],
+                    ['termina_em', 'Termina em', 'datahora'],
+                    ['cupom', 'Cupom para mostrar (opcional)', 'texto'],
+                    ['botao_texto', 'Texto do botão', 'texto'],
+                    ['botao_link', 'O botão leva para', 'link'],
+                ],
+                'inicial' => ['titulo' => 'Oferta por tempo limitado', 'texto' => '', 'termina_em' => '', 'cupom' => '', 'botao_texto' => 'Ver ofertas', 'botao_link' => 'produtos?promocao=1'],
+            ],
+            'depoimentos' => [
+                'nome' => 'Depoimentos', 'icone' => 'chat-quote', 'descricao' => 'O que os clientes dizem (até 4)',
+                'campos' => [
+                    ['titulo', 'Título', 'texto'],
+                    ['lista', 'Depoimentos', 'lista', [['texto', 'O que a pessoa disse', 'textolongo'], ['nome', 'Nome', 'texto'], ['detalhe', 'Cidade ou detalhe', 'texto']], 4],
+                ],
+                'inicial' => ['titulo' => 'Quem compra, recomenda', 'lista' => [['texto' => '', 'nome' => '', 'detalhe' => '']]],
+            ],
+            'faq' => [
+                'nome' => 'Perguntas frequentes', 'icone' => 'question-circle', 'descricao' => 'Perguntas que abrem e fecham (até 8)',
+                'campos' => [
+                    ['titulo', 'Título', 'texto'],
+                    ['lista', 'Perguntas', 'lista', [['nome', 'Pergunta', 'texto'], ['texto', 'Resposta', 'textolongo']], 8],
+                ],
+                'inicial' => ['titulo' => 'Perguntas frequentes', 'lista' => [['nome' => '', 'texto' => '']]],
+            ],
+            'newsletter' => [
+                'nome' => 'Receber novidades', 'icone' => 'envelope-heart', 'descricao' => 'Campo de e-mail para o cliente se cadastrar',
+                'campos' => [['titulo', 'Título', 'texto'], ['texto', 'Texto de apoio', 'texto'], ['botao_texto', 'Texto do botão', 'texto']],
+                'inicial' => ['titulo' => 'Receba as novidades primeiro', 'texto' => 'Lançamentos e ofertas no seu e-mail.', 'botao_texto' => 'Quero receber'],
+            ],
+            'video' => [
+                'nome' => 'Vídeo', 'icone' => 'play-btn', 'descricao' => 'Um vídeo do YouTube',
+                'campos' => [['titulo', 'Título', 'texto'], ['video', 'Endereço do vídeo no YouTube', 'youtube']],
+                'inicial' => ['titulo' => '', 'video' => ''],
+            ],
+            'redes' => [
+                'nome' => 'Redes sociais', 'icone' => 'share', 'descricao' => 'Botões das redes cadastradas em Configurações',
+                'campos' => [['titulo', 'Título', 'texto'], ['texto', 'Texto de apoio', 'texto']],
+                'inicial' => ['titulo' => 'Acompanhe a loja', 'texto' => ''],
+            ],
             'faixa' => [
                 'nome' => 'Faixa de aviso', 'icone' => 'megaphone', 'descricao' => 'Linha fina colorida (frete, promoção, horário)',
                 'campos' => [['texto', 'Aviso', 'texto']],
@@ -310,6 +358,9 @@ class ModelosLoja
                     'opcoes' => array_key_exists((string) $valor, $campo[3]) ? (string) $valor : (string) ($def['inicial'][$chave] ?? array_key_first($campo[3])),
                     'categoria' => in_array((int) $valor, $categoriasDaEmpresa, true) ? (int) $valor : null,
                     'itens' => self::limparItens(is_array($valor) ? $valor : []),
+                    'lista' => self::limparLista(is_array($valor) ? $valor : [], $campo[3], (int) ($campo[4] ?? 6)),
+                    'datahora' => preg_match('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/', (string) $valor) ? (string) $valor : '',
+                    'youtube' => self::idDoYoutube((string) $valor),
                     default => null,
                 };
             }
@@ -341,6 +392,35 @@ class ModelosLoja
         $caminho = trim($caminho);
 
         return preg_match('#^loja-online/\d+/[A-Za-z0-9_\-]+\.(jpg|jpeg|png|webp)$#', $caminho) ? $caminho : '';
+    }
+
+    /** Lista de itens com subcampos de texto (depoimentos, perguntas). Linha toda vazia é descartada. */
+    private static function limparLista(array $linhas, array $subcampos, int $maximo): array
+    {
+        $out = [];
+        foreach (array_slice($linhas, 0, $maximo) as $linha) {
+            if (! is_array($linha)) {
+                continue;
+            }
+            $limpa = [];
+            foreach ($subcampos as [$chave, , $controle]) {
+                $limpa[$chave] = mb_substr(trim((string) ($linha[$chave] ?? '')), 0, $controle === 'textolongo' ? 600 : 120);
+            }
+            $out[] = $limpa;
+        }
+
+        return $out;
+    }
+
+    /** Aceita o endereço (ou o id) de um vídeo do YouTube e devolve só o id de 11 caracteres. */
+    public static function idDoYoutube(string $valor): string
+    {
+        $valor = trim($valor);
+        if (preg_match('/^[A-Za-z0-9_-]{11}$/', $valor)) {
+            return $valor;
+        }
+
+        return preg_match('#(?:youtube\.com/(?:watch\?(?:.*&)?v=|embed/|shorts/)|youtu\.be/)([A-Za-z0-9_-]{11})#', $valor, $m) ? $m[1] : '';
     }
 
     private static function limparItens(array $itens): array

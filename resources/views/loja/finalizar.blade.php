@@ -138,11 +138,16 @@
             @endforeach
             <dl style="margin-top:1rem">
                 <dt>Produtos</dt><dd>R$ {{ number_format($subtotal, 2, ',', '.') }}</dd>
+                @if($desconto > 0)<dt class="lj-desconto">Cupom {{ $cupom }}</dt><dd class="lj-desconto">− R$ {{ number_format($desconto, 2, ',', '.') }}</dd>@endif
                 <dt>Entrega</dt><dd data-lj-frete-valor>—</dd>
-                <dt class="lj-total">Total</dt><dd class="lj-total" data-lj-total data-subtotal="{{ $subtotal }}">R$ {{ number_format($subtotal, 2, ',', '.') }}</dd>
+                <dt class="lj-total">Total</dt><dd class="lj-total" data-lj-total data-subtotal="{{ $subtotal - $desconto }}">R$ {{ number_format($subtotal - $desconto, 2, ',', '.') }}</dd>
             </dl>
+            @if($cupom && $cupomOk && $cupomDeFrete)<p style="font-size:.88rem;color:var(--ok);margin-top:.6rem"><i class="bi bi-ticket-perforated"></i> Cupom {{ $cupom }}: frete grátis.</p>@endif
+            @unless($cupom && $cupomOk)<p style="font-size:.85rem;color:var(--suave);margin-top:.6rem">Tem cupom? <a href="{{ $ctx->url('carrinho') }}">Aplique no carrinho</a>.</p>@endunless
+            <label class="lj-aceite"><input type="checkbox" name="novidades" value="1" @checked(old('novidades'))> <span>Quero receber novidades e ofertas de {{ $loja->nome }}.</span></label>
             <button class="lj-btn lj-btn--cheio" type="submit" style="margin-top:1.2rem" data-lj-enviar>Fechar pedido</button>
-            <p style="font-size:.82rem;color:var(--suave);margin-top:.8rem;text-align:center"><a href="{{ $ctx->url('carrinho') }}">Voltar ao carrinho</a></p>
+            <p style="font-size:.82rem;color:var(--suave);margin-top:.8rem;text-align:center">Ao fechar, você concorda com os <a href="{{ $ctx->url('politica/termos') }}" target="_blank" rel="noopener">termos de uso</a> e a <a href="{{ $ctx->url('politica/privacidade') }}" target="_blank" rel="noopener">política de privacidade</a>.</p>
+            <p style="font-size:.82rem;color:var(--suave);margin-top:.5rem;text-align:center"><a href="{{ $ctx->url('carrinho') }}">Voltar ao carrinho</a></p>
         </aside>
     </form>
 </div>
@@ -167,7 +172,7 @@
     }
     function aoEscolherFrete() {
         var r = fretes.querySelector('input[name=servico_id]:checked');
-        if (r) pintar(Number(r.dataset.valor), LJ.moeda(Number(r.dataset.valor)));
+        if (r) pintar(Number(r.dataset.valor), Number(r.dataset.valor) === 0 ? 'Grátis' : LJ.moeda(Number(r.dataset.valor)));
     }
     function aoTrocarModo() {
         var m = modo();
@@ -200,7 +205,7 @@
                 var i = document.createElement('input'); i.type = 'radio'; i.name = 'servico_id'; i.value = o.id; i.dataset.valor = o.valor;
                 i.checked = servicoAntigo ? servicoAntigo === o.id : n === 0;
                 var s = document.createElement('span'), t = document.createElement('strong'), p = document.createElement('small'), e = document.createElement('em');
-                t.textContent = o.nome; p.textContent = o.prazo; e.textContent = LJ.moeda(o.valor);
+                t.textContent = o.nome; p.textContent = o.prazo; e.textContent = o.gratis ? 'Grátis' : LJ.moeda(o.valor);
                 s.appendChild(t); s.appendChild(p); l.appendChild(i); l.appendChild(s); l.appendChild(e); lista.appendChild(l);
             });
             if (!lista.querySelector('input:checked')) lista.querySelector('input').checked = true;
@@ -223,6 +228,7 @@
     });
     aoTrocarModo();
     if (modo() === 'entrega') cotar();
+    LJ.rastro.evento('fechamento', {valor: subtotal, itens: {!! json_encode($itens->map(fn ($i) => ['id' => $i['id'], 'nome' => $i['nome'], 'preco' => $i['preco'], 'quantidade' => $i['quantidade']])->values(), JSON_HEX_TAG | JSON_UNESCAPED_UNICODE) !!}});
 })();
 </script>
 @endpush

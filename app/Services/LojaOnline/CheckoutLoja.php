@@ -45,7 +45,7 @@ class CheckoutLoja
      * @param  Collection<int, array<string, mixed>>  $itens  itens do CarrinhoLoja
      * @return array<string, mixed>  disponivel, opcoes[] {id, nome, valor, prazo}, endereco, mensagem
      */
-    public function cotar(LojaOnline $loja, Collection $itens, array $endereco, ?string $servicoId = null): array
+    public function cotar(LojaOnline $loja, Collection $itens, array $endereco, ?string $servicoId = null, bool $gratis = false): array
     {
         $unidade = $this->unidade($loja);
         $cep = preg_replace('/\D/', '', (string) ($endereco['cep'] ?? ''));
@@ -93,7 +93,12 @@ class CheckoutLoja
             ]];
         }
 
-        return ['disponivel' => true, 'provedor' => $r['provedor'], 'opcoes' => $opcoes, 'endereco' => $cepEnd, 'bruto' => $r, 'mensagem' => ''];
+        // Frete grátis (cupom ou "acima de R$ X"): o cliente paga zero; o custo real fica anotado para a loja.
+        if ($gratis) {
+            $opcoes = array_map(fn ($o) => array_merge($o, ['custo' => $o['valor'], 'valor' => 0.0, 'gratis' => true]), $opcoes);
+        }
+
+        return ['disponivel' => true, 'provedor' => $r['provedor'], 'opcoes' => $opcoes, 'endereco' => $cepEnd, 'bruto' => $r, 'gratis' => $gratis, 'mensagem' => ''];
     }
 
     /**
@@ -109,6 +114,15 @@ class CheckoutLoja
     {
         $unidade = $this->unidade($loja) ?? throw new \RuntimeException('Loja online sem loja de origem.');
 
+        // Cupom e frete grátis: conferidos AQUI, com o subtotal de agora.
+        $subtotal = CarrinhoLoja::subtotal($itens);
+        $cupom = filled($dados['cupom'] ?? null) ? CupomLoja::avaliar($loja, $dados['cupom'], $subtotal) : null;
+        if ($cupom && ! $cupom['ok']) {
+            $cupom = null;
+        }
+        $desconto = $cupom['desconto'] ?? 0.0;
+        $freteGratis = CupomLoja::freteGratis($loja, $subtotal - $desconto, (bool) ($cupom['frete_gratis'] ?? false));
+
         // Frete: recalculado AQUI, no servidor — o valor que veio da tela não vale.
         $frete = null;
         $freteCombinar = false;
@@ -120,9 +134,10 @@ class CheckoutLoja
                 $freteCombinar = true;
             }
         }
-        $freteValor = $frete ? (float) $frete['valor'] : null;
+        $freteCusto = $frete ? (float) $frete['valor'] : null;
+        $freteValor = $frete ? ($freteGratis ? 0.0 : $freteCusto) : null;
 
-        $pedido = DB::transaction(function () use ($loja, $unidade, $itens, $dados, $frete, $freteValor) {
+        $pedido = DB::transaction(function () use ($loja, $unidade, $itens, $dados, $frete, $freteValor, $freteCusto, $freteGratis, $cupom, $desconto, $subtotal) {
             $cliente = $this->cliente($loja, $unidade, $dados);
 
             $ultimoNumero = Pedido::withoutGlobalScope(EmpresaScope::class)
@@ -131,7 +146,16 @@ class CheckoutLoja
                 ->lockForUpdate()
                 ->max('numero');
 
-            $subtotal = CarrinhoLoja::subtotal($itens);
+            // Cupom com limite: a vaga é tomada dentro da transação (dois pedidos juntos não passam do limite)
+            if ($cupom) {
+                $tomou = \App\Models\LojaCupom::whereKey($cupom['cupom']->id)
+                    ->where(fn ($q) => $q->whereNull('limite_usos')->orWhereColumn('usos', '<', 'limite_usos'))
+                    ->increment('usos');
+                if (! $tomou) {
+                    $cupom = null;
+                    $desconto = 0.0;
+                }
+            }
 
             $pedido = Pedido::create([
                 'empresa_id' => $loja->empresa_id,
@@ -141,9 +165,9 @@ class CheckoutLoja
                 'vendedor_id' => $loja->vendedor_id,
                 'numero' => $ultimoNumero ? $ultimoNumero + 1 : 1,
                 'subtotal' => $subtotal,
-                'desconto_percentual' => 0,
-                'desconto_valor' => 0,
-                'total' => round($subtotal + ($freteValor ?? 0), 2),
+                'desconto_percentual' => $cupom['percentual'] ?? 0,
+                'desconto_valor' => $desconto,
+                'total' => round($subtotal - $desconto + ($freteValor ?? 0), 2),
                 'status' => StatusPedido::Rascunho,
                 'metodo_entrega' => $dados['entrega'],
                 'frete_valor' => $freteValor,
@@ -153,8 +177,11 @@ class CheckoutLoja
                 'frete_prazo_dias' => $frete['prazo_dias'] ?? null,
                 'canal' => CanalVenda::Online->value,
                 'loja_token' => Str::lower(Str::random(32)),
+                'loja_cupom' => $cupom ? $cupom['cupom']->codigo : null,
                 'observacoes_internas' => "Criado pela loja online ({$loja->nome}) — telefone {$dados['telefone']}."
-                    . ($dados['pagamento'] === 'combinar' ? "\nPagamento: a combinar com o cliente." : ''),
+                    . ($dados['pagamento'] === 'combinar' ? "\nPagamento: a combinar com o cliente." : '')
+                    . ($cupom ? "\nCupom {$cupom['cupom']->codigo}: " . $cupom['cupom']->descricao() . '.' : '')
+                    . ($freteGratis && $freteCusto !== null ? "\nFRETE GRÁTIS para o cliente — custo de R$ " . number_format($freteCusto, 2, ',', '.') . ' por conta da loja.' : ''),
                 'observacoes_externas' => filled($dados['observacoes'] ?? null) ? mb_substr((string) $dados['observacoes'], 0, 1000) : null,
             ]);
 

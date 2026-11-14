@@ -139,7 +139,7 @@ class TemaCss
     public static function atributos(array $tema): string
     {
         $out = [];
-        foreach (['cartao', 'botao', 'cabecalho', 'titulos', 'preco', 'foto'] as $k) {
+        foreach (['cartao', 'botao', 'cabecalho', 'titulos', 'preco', 'foto', 'movimento', 'faixa'] as $k) {
             $out[] = 'data-' . $k . '="' . e($tema[$k] ?? '') . '"';
         }
 

@@ -44,6 +44,13 @@ Route::prefix('loja/{loja}')->where(['loja' => '[a-z0-9\-]+'])->name('loja.')
             ->where('produto', '[0-9]+(-[a-z0-9\-]*)?')->name('produto');
         Route::get('/informacoes', [\App\Http\Controllers\Loja\VitrineController::class, 'informacoes'])->name('informacoes');
         Route::get('/sitemap.xml', [\App\Http\Controllers\Loja\VitrineController::class, 'sitemap'])->name('sitemap');
+        Route::get('/politica/{tipo}', [\App\Http\Controllers\Loja\VitrineController::class, 'politica'])
+            ->where('tipo', 'privacidade|trocas|entrega|termos')->name('politica');
+        Route::get('/ofertas', [\App\Http\Controllers\Loja\VitrineController::class, 'ofertas'])->name('ofertas');
+        Route::post('/contato', [\App\Http\Controllers\Loja\VitrineController::class, 'contato'])
+            ->middleware('throttle:8,1,lj-contato')->name('contato');
+        Route::post('/carrinho/cupom', [\App\Http\Controllers\Loja\CarrinhoController::class, 'cupom'])
+            ->middleware('throttle:15,1,lj-cupom')->name('carrinho.cupom');
 
         Route::get('/carrinho', [\App\Http\Controllers\Loja\CarrinhoController::class, 'ver'])->name('carrinho');
         Route::post('/carrinho/adicionar', [\App\Http\Controllers\Loja\CarrinhoController::class, 'adicionar'])
@@ -661,6 +668,18 @@ Route::middleware(['auth', 'suspensao', 'unidade', \App\Http\Middleware\Restring
         Route::post('/publicar', [App\LojaOnlineController::class, 'publicar'])->middleware('permission:loja_online,editar')->name('publicar');
         Route::get('/produtos', [App\LojaOnlineController::class, 'produtos'])->name('produtos');
         Route::post('/produtos', [App\LojaOnlineController::class, 'marcarProdutos'])->middleware('permission:loja_online,editar')->name('produtos.marcar');
+        // 2ª rodada: promoções (cupons, frete grátis, popup, contatos), avisos por e-mail, políticas e rastreamento
+        foreach (['promocoes', 'avisos', 'politicas', 'rastreamento'] as $secaoLoja) {
+            Route::get('/' . $secaoLoja, [App\LojaOnlineController::class, $secaoLoja])->name($secaoLoja);
+        }
+        Route::middleware('permission:loja_online,editar')->group(function () {
+            Route::put('/secao/{secao}', [App\LojaOnlineController::class, 'salvarSecao'])->where('secao', 'promocoes|avisos|politicas|rastreamento')->name('secao.salvar');
+            Route::post('/cupons', [App\LojaOnlineController::class, 'criarCupom'])->name('cupons.criar');
+            Route::patch('/cupons/{cupom}', [App\LojaOnlineController::class, 'alternarCupom'])->whereNumber('cupom')->name('cupons.alternar');
+            Route::delete('/cupons/{cupom}', [App\LojaOnlineController::class, 'excluirCupom'])->whereNumber('cupom')->name('cupons.excluir');
+            Route::post('/avisos/testar', [App\LojaOnlineController::class, 'testarAviso'])->middleware('throttle:6,1,lj-teste-email')->name('avisos.testar');
+        });
+        Route::get('/contatos/exportar', [App\LojaOnlineController::class, 'exportarContatos'])->name('contatos.exportar');
         Route::get('/editor', [App\LojaOnlineController::class, 'editor'])->name('editor');
         Route::middleware('permission:loja_online,editar')->group(function () {
             Route::post('/editor/rascunho', [App\LojaOnlineController::class, 'salvarRascunho'])->name('editor.rascunho');

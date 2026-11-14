@@ -26,6 +26,7 @@ class VitrineController extends Controller
         return [
             'categoriasMenu' => $catalogo->categorias(),
             'carrinhoTotal' => (new CarrinhoLoja($this->ctx->loja, $catalogo))->quantidadeTotal(),
+            'temOfertas' => $catalogo->idsEmPromocao() !== [],
         ];
     }
 
@@ -113,6 +114,7 @@ class VitrineController extends Controller
             'meios' => PagamentoLoja::meios($loja),
             'titulo' => $model->descricao . ' — ' . $loja->nome,
             'descricaoPagina' => Str::limit(trim((string) $model->descricao_detalhada), 155),
+            'imagemPagina' => $dados['foto'],
         ]);
     }
 
@@ -124,6 +126,49 @@ class VitrineController extends Controller
             'unidade' => $this->ctx->loja->unidade,
             'titulo' => 'Informações — ' . $this->ctx->loja->nome,
         ]);
+    }
+
+    public function ofertas()
+    {
+        return redirect($this->ctx->url('produtos?promocao=1'));
+    }
+
+    /** Páginas de política: privacidade, trocas e devoluções, entrega, termos. */
+    public function politica(string $tipo)
+    {
+        abort_unless(isset(\App\Services\LojaOnline\PoliticasLoja::TIPOS[$tipo]), 404);
+        $catalogo = new CatalogoLoja($this->ctx->loja);
+
+        return view('loja.politica', $this->comum($catalogo) + [
+            'tipo' => $tipo,
+            'tituloPolitica' => \App\Services\LojaOnline\PoliticasLoja::titulo($tipo),
+            'texto' => \App\Services\LojaOnline\PoliticasLoja::texto($this->ctx->loja, $tipo),
+            'titulo' => \App\Services\LojaOnline\PoliticasLoja::titulo($tipo) . ' — ' . $this->ctx->loja->nome,
+        ]);
+    }
+
+    /**
+     * Cadastro para receber novidades (popup ou bloco "Novidades"). Exige o aceite
+     * marcado; guarda a data dele. Se o popup tem cupom, devolve o código.
+     */
+    public function contato(Request $request)
+    {
+        $loja = $this->ctx->loja;
+        $dados = $request->validate([
+            'email' => ['required', 'email', 'max:190'],
+            'nome' => ['nullable', 'string', 'max:120'],
+            'aceite' => ['accepted'],
+            'origem' => ['nullable', 'in:popup,newsletter'],
+        ], ['email.required' => 'Informe o seu e-mail.', 'email.email' => 'Confira o e-mail.', 'aceite.accepted' => 'Marque que você aceita receber as novidades.']);
+
+        \App\Models\LojaContato::updateOrCreate(
+            ['empresa_id' => $loja->empresa_id, 'email' => mb_strtolower($dados['email'])],
+            ['nome' => $dados['nome'] ?? null, 'origem' => $dados['origem'] ?? 'newsletter', 'aceitou_em' => now()]
+        );
+
+        $cupom = ($dados['origem'] ?? '') === 'popup' ? \App\Services\LojaOnline\CupomLoja::normalizar($loja->opcao('popup_cupom')) : '';
+
+        return response()->json(['ok' => true, 'mensagem' => 'Pronto! Você vai receber as novidades da loja.', 'cupom' => $cupom !== '' ? $cupom : null]);
     }
 
     /** Mapa do site para os buscadores (só loja no ar). */
