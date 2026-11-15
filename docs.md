@@ -9047,3 +9047,30 @@ As duas branches de origem ficam como estavam (a da cafeteria não foi atualizad
   errado, mas a cafeteria só vende pelo app o que não tem opção obrigatória. Para vender com opções no app, o app precisa
   ganhar a janela (a API do PDV já existe: `GET app/pdv/produto/{id}/opcoes` → itens[].opcoes).
 
+
+## Página de venda para redes de lojas — `/redes` (14/11/2026)
+
+Branch `pagina-redes-14nov` (sai da main `8140122`). **Não está em produção.**
+
+- Rota pública `GET /redes` (`site.redes`) → `SiteController::redes` → view `resources/views/site/redes.blade.php`. Página única, CSS próprio no mesmo sistema visual da landing V2. Não redireciona quem está logado (o parceiro abre e mostra).
+- É a página de destino de anúncio e de indicação para redes de 2 a 10 lojas. O formulário usa a mesma rota `site.demo.store`; agora ela aceita `origem` (`landing` ou `redes`) e grava em `solicitacoes_demonstracao.origem`, para separar de onde veio o pedido.
+- **Antes de publicar, conferir o texto com o que está em produção:**
+  - Maquininha Stone e loja online aparecem como recurso disponível (ordem do Dennis em 14/11/2026: "pode considerar"). Em 14/11 as duas ainda estavam só em homologação (`homolog-cafeteria-14nov` e `ecommerce-14nov`): a página só deve ir ao ar junto com elas ou depois.
+  - A faixa de números (14 lojas, 7.900+ vendas em 30 dias, 54 pessoas) vem do banco de produção em 14/11/2026 (STILO VINTE + MISS MERLINDA, sem citar nome). Atualizar ou retirar se o Dennis não quiser usar.
+  - Preço "a partir de R$ 590" = plano Básico da tabela `planos`.
+  - O painel do topo e a conversa do WhatsApp são exemplos e estão marcados como exemplo na tela.
+- **Topo em 3D (14/11, pedido do Dennis):** a maquininha é feita só com CSS 3D (`.m3d`: frente, costas e camadas empilhadas que dão a espessura, criadas pelo script), sem biblioteca. Gira na entrada, balança sozinha, acompanha o mouse e vira conforme a página rola. As fases da venda (`data-fase` 0 a 4 no `#h3stage`) trocam a tela da maquininha, soltam o cupom e acendem os três cartões em volta (painel da rede, loja online, WhatsApp). A mesma maquininha, parada, é usada na seção "um estoque só" (`.m3d--parada`). Com `prefers-reduced-motion` tudo fica parado no estado final.
+  - A maquininha leva a palavra "stone" desenhada em texto (não é o logotipo oficial). Conferir a regra de uso de marca no programa de parceiros da Stone antes de anunciar.
+  - Fotos `public/site/redes/sandalia.jpg` e `bolsa.jpg` foram geradas por IA (conta HeyGen do Dennis, cota grátis, que acabou em 14/11). `loja-celular.jpg` e `modelo-*.jpg` são capturas da loja online de demonstração.
+- **Pronto para vender (14/11, tarde):**
+  - Ordem da página: topo 3D → números de uso → vídeo → painel das lojas → o que muda → atendente de IA → um estoque só → comparação → preço e troca → perguntas frequentes → formulário.
+  - Botão principal = WhatsApp (pesquisa RD Station 2023: 86% das empresas brasileiras vendem pelo WhatsApp); formulário é a alternativa, com 4 campos de texto e "quantas lojas" em botões (sem lista suspensa). No celular há uma barra fixa com WhatsApp e demonstração, que some no topo e no formulário.
+  - Preço "a partir de R$ 590" aparece na primeira tela.
+  - Vídeo de 53 s `public/site/redes/erp-redes.mp4` (720p, 1,7 MB) com capa `video-capa.jpg`; só carrega quando a pessoa clica (`preload="none"`). Fonte do vídeo: `/home/ubuntu/video-tutorial/redes/` (roteiro `narracao.json`, cenas em `index.html`, voz Speechify "adriana", render `scripts/hf.sh redes render`); original 1080p em `redes/saida/erp-redes.mp4`.
+  - **Vídeo trocado em 15/11 (4ª versão, "o uso"):** 58 s, 720p, 4,5 MB, no mesmo arquivo `erp-redes.mp4`. Mostra o sistema sendo usado (venda no balcão, estoque/caixa/nota, painel das lojas, transferência entre lojas, maquininha Stone, loja online, atendente de IA, preço) num app escuro com câmera 3D e cursor, no estilo "interface escura em 3D" da galeria `github.com/Felpborges/claude-video` (só a ficha do estilo foi usada; skill não instalada). Fonte: `/home/ubuntu/video-tutorial/redes2/` (`index.html`, `narracao.json`, `deixas.json`, `dados.py`); voz ElevenLabs "Gabriel Reels" (`k3f7zOv6LF88v78QHCNh`, velocidade 1,05, `scripts/el.py tts`), "ERP" escrito "ê-érre-pê" só no texto falado; original 1080p em `redes2/saida/erp-redes-uso.mp4`. As telas do vídeo são desenhadas, não capturas do sistema real. Áudio não conferido de ouvido.
+  - As perguntas frequentes afirmam: importação de produtos e clientes, virada sem parar a loja, venda na maquininha só com Stone, nota automática, preço a partir de R$ 590. Conferir com o Dennis antes de publicar.
+- Validação feita: `php -l` no controller e nas rotas; view renderizada em container descartável da imagem (`--entrypoint ""`); print em 1280 px e 390 px sem rolagem lateral e sem erro de JavaScript. O envio do formulário não foi testado contra banco.
+
+### 15/11/2026 — página `/redes` juntada na homologação
+
+Merge `--no-ff` de `pagina-redes-14nov` (`a14f795`) nesta branch: página de venda `/redes` (view `site/redes.blade.php`, `SiteController::redes`, rota `site.redes`, arquivos em `public/site/redes/`, vídeo de 58 s). Único conflito: este `docs.md` (as duas pontas acrescentaram texto no fim; ficaram as duas). Nada da cafeteria nem do app da maquininha foi alterado.

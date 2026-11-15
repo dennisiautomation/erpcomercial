@@ -49,6 +49,18 @@ class SiteController extends Controller
     }
 
     /**
+     * Página de venda para redes de lojas (2 a 10 lojas). É a página de destino
+     * dos anúncios e do material de indicação; não redireciona quem está logado,
+     * para o parceiro conseguir abrir e mostrar.
+     */
+    public function redes()
+    {
+        return response()
+            ->view('site.redes')
+            ->header('Cache-Control', 'no-cache, no-store, must-revalidate');
+    }
+
+    /**
      * Recebe o formulário "Agendar demonstração" (AJAX ou POST normal).
      */
     public function storeDemo(Request $request): JsonResponse|\Illuminate\Http\RedirectResponse
@@ -59,6 +71,8 @@ class SiteController extends Controller
             'email'    => ['required', 'email', 'max:160'],
             'whatsapp' => ['required', 'string', 'max:40'],
             'lojas'    => ['nullable', 'string', 'max:40'],
+            // de qual página veio o pedido (landing geral ou a de redes de lojas)
+            'origem'   => ['nullable', 'in:landing,redes'],
             // honeypot anti-bot: deve vir vazio
             'site'     => ['nullable', 'size:0'],
         ], [], [
@@ -74,7 +88,7 @@ class SiteController extends Controller
             'email'     => $data['email'],
             'whatsapp'  => $data['whatsapp'],
             'qtd_lojas' => $data['lojas'] ?? null,
-            'origem'    => 'landing',
+            'origem'    => $data['origem'] ?? 'landing',
             'ip'        => $request->ip(),
         ]);
 
