@@ -9202,5 +9202,14 @@ de texto devolvia sempre o mesmo); ordem dos atributos trocada (o MySQL reordena
   e o botão de "Criar conta" ficaram lado a lado).
 - **112. Todo comprador de teste com o mesmo CPF vira o MESMO cliente** (o fechamento casa pelo documento): usar um CPF por compra.
 
+**Ajuste de 15/11 (tarde) — página do produto no CELULAR** (Dennis: "ainda parece simples no celular"). Só CSS/JS/markup da vitrine
+(`estilo4`, `extras3`, `produto.blade.php`), até 699 px: foto de ponta a ponta com pontos no lugar das miniaturas; favoritar e enviar
+sobre a foto; preço com "à vista no PIX"; formas de pagamento num quadro; caixa de compra sem moldura, quantidade e "Adicionar" na
+mesma linha (56 px); frete num cartão; garantias em 3 quadros; Descrição/Ficha/Entrega viram **sanfona** (o JS monta a partir das abas,
+sem duplicar o texto); avaliações com barras por nota e cartões que deslizam; o botão flutuante do WhatsApp some nessa página (há
+"Tirar dúvida"). Computador não muda, fora os dois botões sobre a foto, o "à vista" e as barras das avaliações. Navegador **219 ✅ / 0 ❌**
+(J26b–d novos), py 485 ✅. **Armadilha 113:** botão com `white-space:nowrap` dentro de grade estoura a página no modelo de letra mais
+larga (Ateliê, 6 px) — deixar quebrar e reduzir a fonte com `clamp`.
+
 **Para subir:** rodar a migration `2026_11_15_100000` (+ as 2 das rodadas anteriores, se ainda não rodaram), `route:cache`, `view:cache`
 e conferir que o agendador (`schedule:run`) está de pé — a rotina `loja:rotinas` depende dele. Nenhuma variável nova de `.env`.

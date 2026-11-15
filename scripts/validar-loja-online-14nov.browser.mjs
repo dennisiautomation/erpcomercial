@@ -915,6 +915,16 @@ console.log('\n== J. 4ª rodada: favoritos, grade, avise-me, conta, carrinho sal
   }
   r = await m.evaluate(() => ({ alvo: Math.min(...[...document.querySelectorAll('.lj-variacao__opcao')].map(a => Math.min(a.getBoundingClientRect().height, a.getBoundingClientRect().width))) }));
   check('J26 celular: opções de tamanho e cor com alvo de toque de 44 px ou mais', r.alvo >= 44, r);
+  // página do produto no celular (ajuste de 15/11): foto de ponta a ponta, pontos, compra em uma linha, sanfona
+  r = await m.evaluate(() => { const g = document.querySelector('.lj-galeria__palco').getBoundingClientRect(), bt = document.querySelector('[data-lj-comprar-principal]').getBoundingClientRect(), q = document.querySelector('[data-lj-qtd]').getBoundingClientRect();
+    return { foto: Math.round(g.width), tela: innerWidth, pontos: getComputedStyle(document.querySelector('.lj-galeria__pontos') || document.body).display, minis: getComputedStyle(document.querySelector('.lj-miniaturas') || document.body).display,
+      mesmaLinha: Math.abs(bt.top - q.top) < 4, botaoAlt: Math.round(bt.height), moldura: getComputedStyle(document.querySelector('.lj-compra')).borderTopWidth,
+      fav: !!document.querySelector('.lj-galeria__acao[data-lj-fav]'), zap: getComputedStyle(document.querySelector('.lj-zap') || document.createElement('i')).display }; });
+  check('J26b celular: foto ocupa a largura inteira, com pontos no lugar das miniaturas e favoritar sobre a foto', r.foto === r.tela && (r.pontos === 'flex' || r.pontos === 'block') && r.fav, r);
+  check('J26c celular: quantidade e "Adicionar" na mesma linha, botão com 56 px, caixa de compra sem moldura', r.mesmaLinha && r.botaoAlt >= 56 && r.botaoAlt <= 60 && r.moldura === '0px', r);
+  r = await m.evaluate(() => { const ts = [...document.querySelectorAll('.lj-sanfona__topo')]; const antes = ts.map(t => t.getAttribute('aria-expanded')); ts[1].click();
+    return { n: ts.length, antes, ficha: !document.querySelector('#painel-ficha').hidden, abas: getComputedStyle(document.querySelector('.lj-abas__lista')).display }; });
+  check('J26d celular: Descrição, Ficha técnica e Entrega viram sanfona (a 1ª aberta; tocar abre a 2ª)', r.n === 3 && r.antes.join() === 'true,false,false' && r.ficha && r.abas === 'none', r);
   await m.evaluate(() => document.querySelector('form[action$="/sair"]')?.remove());
   await m.goto(BASE + '/loja/demo', { waitUntil: 'networkidle2' });
   await m.click('[data-lj-menu-abrir]');

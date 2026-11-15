@@ -37,7 +37,12 @@
                         <span class="lj-semfoto">{{ mb_substr($p['nome'], 0, 1) }}</span>
                     @endforelse
                 </div>
+                <div class="lj-galeria__acoes">
+                    <button type="button" class="lj-galeria__acao" data-lj-fav="{{ $p['id'] }}" aria-pressed="false" aria-label="Guardar nos favoritos"><i class="bi bi-heart" aria-hidden="true"></i></button>
+                    <button type="button" class="lj-galeria__acao" data-lj-partilhar data-titulo="{{ $p['nome'] }}" data-url="{{ $ctx->urlAbsoluta($p['caminho']) }}" aria-label="Enviar para alguém"><i class="bi bi-share" aria-hidden="true"></i></button>
+                </div>
                 @if(count($galeria) > 1)
+                    <div class="lj-galeria__pontos" aria-hidden="true">@foreach($galeria as $i => $foto)<i @if($i === 0) data-agora @endif></i>@endforeach</div>
                     <button type="button" class="lj-galeria__seta" data-lj-galeria="-1" aria-label="Foto anterior"><i class="bi bi-chevron-left" aria-hidden="true"></i></button>
                     <button type="button" class="lj-galeria__seta" data-lj-galeria="1" aria-label="Próxima foto"><i class="bi bi-chevron-right" aria-hidden="true"></i></button>
                     <span class="lj-galeria__conta" data-lj-galeria-conta aria-hidden="true">1 / {{ count($galeria) }}</span>
@@ -63,6 +68,7 @@
                 <div class="lj-produto__preco">
                     @if($p['promocao'])<s>R$ {{ number_format($p['normal'], 2, ',', '.') }}</s>@endif
                     <b>R$ {{ number_format($p['preco'], 2, ',', '.') }}</b>
+                    <span class="lj-preco-nota">à vista{{ $meios['pix'] ? ' no PIX' : '' }}</span>
                     @if($desconto)<span class="lj-economia">Você economiza R$ {{ number_format($p['normal'] - $p['preco'], 2, ',', '.') }}</span>@endif
                 </div>
                 <ul class="lj-formas">
@@ -139,9 +145,9 @@
             @endif
 
             <ul class="lj-garantias">
-                @if($loja->opcao('retirada'))<li><i class="bi bi-bag-check" aria-hidden="true"></i> <span><strong>Retire na loja</strong> sem pagar frete</span></li>@endif
-                <li><i class="bi bi-arrow-repeat" aria-hidden="true"></i> <span><strong>Troca e devolução</strong> — <a href="{{ $ctx->url('politica/trocas') }}">veja como funciona</a></span></li>
-                <li><i class="bi bi-shield-check" aria-hidden="true"></i> <span><strong>Pedido direto com a loja</strong>, sem intermediário</span></li>
+                @if($loja->opcao('retirada'))<li><i class="bi bi-bag-check" aria-hidden="true"></i> <span><strong>Retire na loja</strong> <small>sem pagar frete</small></span></li>@endif
+                <li><i class="bi bi-arrow-repeat" aria-hidden="true"></i> <span><strong>Troca e devolução</strong> <small><a href="{{ $ctx->url('politica/trocas') }}">veja como funciona</a></small></span></li>
+                <li><i class="bi bi-shield-check" aria-hidden="true"></i> <span><strong>Direto com a loja</strong> <small>sem intermediário</small></span></li>
             </ul>
 
             <div class="lj-partilha">
@@ -186,6 +192,11 @@
         <b>{{ number_format((float) $p['nota'], 1, ',', '') }}</b>
         <span class="lj-estrelas" aria-hidden="true">@for($n = 1; $n <= 5; $n++)<i class="bi bi-star{{ $n <= round((float) $p['nota']) ? '-fill' : '' }}"></i>@endfor</span>
         <small>{{ $p['avaliacoes'] }} {{ $p['avaliacoes'] === 1 ? 'avaliação' : 'avaliações' }}</small>
+        <div class="lj-avaliacoes__barras" aria-hidden="true">
+            @for($n = 5; $n >= 1; $n--)
+                <span>{{ $n }}</span><i><b style="width:{{ round($avaliacoes->where('nota', $n)->count() / max(1, $avaliacoes->count()) * 100) }}%"></b></i><span>{{ $avaliacoes->where('nota', $n)->count() }}</span>
+            @endfor
+        </div>
     </div>
     <ul class="lj-avaliacoes__lista">
         @foreach($avaliacoes as $a)

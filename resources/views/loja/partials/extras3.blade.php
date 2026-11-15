@@ -37,6 +37,32 @@
     // conta logada: junta o que está no navegador com o que está na conta (uma vez por aba)
     try { if (LOGADO && !sessionStorage.getItem(CHAVE + '_s')) { sessionStorage.setItem(CHAVE + '_s', '1'); sincronizar(false); } } catch (e) {}
 
+    // página do produto: pontos da galeria, enviar para alguém e sanfona no celular
+    var palco = document.querySelector('[data-lj-palco]'), pontos = document.querySelectorAll('.lj-galeria__pontos i');
+    if (palco && pontos.length) palco.addEventListener('scroll', function () {
+        var n = Math.round(palco.scrollLeft / palco.clientWidth);
+        pontos.forEach(function (p, i) { if (i === n) p.setAttribute('data-agora', ''); else p.removeAttribute('data-agora'); });
+    }, {passive: true});
+    var enviar = document.querySelector('[data-lj-partilhar]');
+    if (enviar) enviar.addEventListener('click', function () {
+        var d = {title: enviar.dataset.titulo, url: enviar.dataset.url};
+        if (navigator.share) navigator.share(d).catch(function () {});
+        else window.open('https://wa.me/?text=' + encodeURIComponent(d.title + ' — ' + d.url), '_blank', 'noopener');
+    });
+    var abas = document.querySelector('[data-lj-abas]');
+    if (abas && matchMedia('(max-width:699px)').matches) {
+        abas.classList.add('lj-abas--sanfona');
+        [].slice.call(abas.querySelectorAll('[role=tab]')).forEach(function (aba, i) {
+            var painel = document.getElementById(aba.getAttribute('aria-controls')), topo = document.createElement('button');
+            topo.type = 'button'; topo.className = 'lj-sanfona__topo'; topo.setAttribute('aria-controls', painel.id); topo.setAttribute('aria-expanded', i === 0 ? 'true' : 'false');
+            topo.appendChild(document.createTextNode(aba.textContent.trim()));
+            var seta = document.createElement('i'); seta.className = 'bi bi-chevron-down'; seta.setAttribute('aria-hidden', 'true'); topo.appendChild(seta);
+            painel.parentNode.insertBefore(topo, painel);
+            painel.removeAttribute('role'); painel.hidden = i !== 0;
+            topo.addEventListener('click', function () { var abrir = painel.hidden; painel.hidden = !abrir; topo.setAttribute('aria-expanded', abrir ? 'true' : 'false'); });
+        });
+    }
+
     // avise-me quando chegar
     var av = document.querySelector('[data-lj-avise]');
     if (av) av.addEventListener('submit', function (ev) {
