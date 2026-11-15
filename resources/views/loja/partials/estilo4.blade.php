@@ -93,4 +93,86 @@
 .lj-etiqueta--fim{background:color-mix(in oklab,var(--oferta) 14%,var(--fundo));color:var(--oferta)}
 .lj-vazio-quadro{padding:2.5rem 1rem;text-align:center;color:var(--suave);border:1px dashed var(--linha-forte);border-radius:var(--raio)}
 .lj-vazio-quadro i{display:block;font-size:2rem;margin-bottom:.6rem}
+
+/* ── página do produto: sobre a foto (favoritar, enviar, pontos) ── */
+.lj-galeria__acoes{position:absolute;top:12px;right:12px;z-index:3;display:grid;gap:.5rem}
+.lj-galeria__acao{width:42px;height:42px;border-radius:999px;border:0;background:rgb(255 255 255/.94);color:#111;display:grid;place-items:center;font-size:1.05rem;cursor:pointer;
+  box-shadow:0 6px 16px -8px rgb(0 0 0/.45);transition:transform .18s ease}
+.lj-galeria__acao:hover{transform:scale(1.08)}
+.lj-galeria__acao[aria-pressed=true]{color:var(--oferta)}
+.lj-galeria__acao:focus-visible{outline:2px solid var(--marca);outline-offset:2px}
+.lj-galeria__pontos{display:none}
+.lj-preco-nota{font-size:.86rem;color:var(--suave);font-weight:600}
+.lj-garantias small{display:block;font-size:.86rem;color:var(--suave);font-weight:400}
+.lj-garantias small a{color:inherit}
+.lj-avaliacoes__resumo{flex-wrap:wrap}
+.lj-avaliacoes__barras{display:grid;grid-template-columns:auto minmax(90px,180px) auto;gap:.2rem .6rem;align-items:center;font-size:.78rem;color:var(--suave);margin-left:auto}
+.lj-avaliacoes__barras i{display:block;height:6px;border-radius:99px;background:var(--linha);overflow:hidden}
+.lj-avaliacoes__barras b{display:block;height:100%;border-radius:99px;background:#e0a100}
+.lj-sanfona__topo{display:none}
+
+/* ── página do produto no CELULAR (15/11/2026): foto de ponta a ponta, compra sem moldura, sanfona ── */
+@media (max-width:699px){
+  .lj-trilha > span:last-child,.lj-trilha > span:nth-last-child(2){display:none}
+  .lj-trilha{padding-block:.7rem;font-size:.82rem}
+  .lj-produto{gap:0;grid-template-columns:minmax(0,1fr)}
+  .lj-produto > *{min-width:0}
+  .lj-galeria{margin-inline:calc(-1 * clamp(16px,4vw,40px));display:block}
+  .lj-galeria__moldura{border-radius:0}
+  .lj-galeria__palco{border-radius:0;aspect-ratio:1/1.08}
+  .lj-galeria__palco .lj-zoom,.lj-galeria__palco img{border-radius:0}
+  .lj-galeria__palco img{width:100%;height:100%;object-fit:contain}
+  .lj-galeria__seta,.lj-galeria__conta,.lj-miniaturas{display:none}
+  .lj-galeria__pontos{display:flex;gap:6px;position:absolute;left:50%;bottom:14px;translate:-50% 0;z-index:2;padding:6px 9px;border-radius:99px;background:rgb(17 17 17/.42);backdrop-filter:blur(6px)}
+  .lj-galeria__pontos i{width:6px;height:6px;border-radius:99px;background:rgb(255 255 255/.55);transition:width .25s cubic-bezier(.16,1,.3,1),background .25s ease}
+  .lj-galeria__pontos i[data-agora]{width:18px;background:#fff}
+  .lj-galeria .lj-selos{top:12px;left:12px}
+  .lj-produto__info{padding-top:1.1rem}
+  .lj-produto__info h1{font-size:1.5rem;line-height:1.2;margin-top:.25rem;text-wrap:balance}
+  .lj-produto__ref{margin-top:.35rem}
+  .lj-compra{border:0;padding:0;border-radius:0;margin-top:1rem;background:transparent}
+  .lj-produto__preco{display:flex;flex-wrap:wrap;align-items:baseline;gap:.15rem .6rem}
+  .lj-produto__preco b{font-size:2.15rem;line-height:1.05}
+  .lj-produto__preco s{flex-basis:100%;font-size:.95rem}
+  .lj-economia{flex-basis:auto;padding:.2rem .55rem;border-radius:99px;background:color-mix(in oklab,var(--oferta) 13%,var(--fundo));color:var(--oferta-tinta,var(--oferta));font-size:.8rem;font-weight:700}
+  .lj-formas{margin-top:.8rem;padding:.8rem .9rem;border-radius:var(--raio);background:var(--quadro);font-size:.9rem}
+  .lj-variacao{margin-top:1.2rem}
+  .lj-variacao__opcoes{gap:.5rem}
+  .lj-variacao__opcao{min-width:52px;min-height:48px;font-size:.95rem}
+  .lj-estoque{margin-top:1.1rem}
+  .lj-comprar{display:grid;grid-template-columns:auto minmax(0,1fr);gap:.6rem;align-items:stretch}
+  .lj-comprar .lj-qtd{height:56px}
+  .lj-comprar .lj-qtd button{width:40px}
+  .lj-comprar .lj-qtd input{width:38px}
+  .lj-comprar .lj-btn--grande{min-width:0;min-height:56px;padding-inline:.6rem;font-size:clamp(.88rem,4vw,1rem);letter-spacing:0;line-height:1.15;text-wrap:balance;gap:.45rem}
+  .lj-comprar .lj-btn--grande i{display:none}
+  .lj-compra > .lj-btn--cheio{min-height:52px}
+  .lj-produto__info > .lj-bloco{margin-top:1.4rem;padding:1rem;border:1px solid var(--linha);border-radius:var(--raio)}
+  .lj-garantias{grid-template-columns:repeat(auto-fit,minmax(0,1fr));grid-auto-flow:column;gap:.5rem;border-top:0;padding-top:0;margin-top:1.1rem}
+  .lj-garantias li{flex-direction:column;align-items:center;text-align:center;gap:.4rem;padding:.9rem .4rem;border-radius:var(--raio);background:var(--quadro);font-size:.8rem;line-height:1.3}
+  .lj-garantias i{font-size:1.35rem}
+  .lj-garantias small{font-size:.74rem;margin-top:.1rem}
+  .lj-partilha{margin-top:1rem}
+  .lj-partilha .lj-fav-texto,.lj-partilha a[href^="https://wa.me/?"]{display:none}
+  .lj-partilha .lj-btn{flex:1;justify-content:center;min-height:46px}
+  body:has([data-lj-produto]) .lj-zap{display:none}
+  /* abas viram sanfona */
+  .lj-abas{margin-top:1.6rem;border-top:1px solid var(--linha-forte)}
+  .lj-abas--sanfona .lj-abas__lista{display:none}
+  .lj-abas--sanfona .lj-sanfona__topo{display:flex;width:100%;align-items:center;justify-content:space-between;gap:1rem;padding:1.05rem 0;border:0;border-bottom:1px solid var(--linha);
+    background:transparent;color:var(--texto);font:inherit;font-weight:700;font-size:1.02rem;text-align:left;cursor:pointer}
+  .lj-abas--sanfona .lj-sanfona__topo i{transition:rotate .25s cubic-bezier(.16,1,.3,1);color:var(--suave)}
+  .lj-abas--sanfona .lj-sanfona__topo[aria-expanded=true]{border-bottom-color:transparent}
+  .lj-abas--sanfona .lj-sanfona__topo[aria-expanded=true] i{rotate:180deg}
+  .lj-abas--sanfona .lj-abas__painel{padding:0 0 1.2rem;border-bottom:1px solid var(--linha)}
+  /* avaliações deslizam */
+  .lj-avaliacoes__resumo{gap:.5rem .7rem}
+  .lj-avaliacoes__barras{flex-basis:100%;margin:.4rem 0 0;grid-template-columns:auto 1fr auto}
+  .lj-avaliacoes__lista{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;gap:.7rem;margin-inline:calc(-1 * clamp(16px,4vw,40px));padding-inline:clamp(16px,4vw,40px);scrollbar-width:none}
+  .lj-avaliacoes__lista::-webkit-scrollbar{display:none}
+  .lj-avaliacoes__lista{align-items:flex-start}
+  .lj-avaliacoes__lista li{flex:0 0 84%;scroll-snap-align:center}
+  .lj-barra-compra{padding:.7rem 1rem calc(.7rem + env(safe-area-inset-bottom))}
+}
+@media (prefers-reduced-motion:reduce){.lj-galeria__pontos i,.lj-sanfona__topo i,.lj-galeria__acao{transition:none}}
 </style>
