@@ -9553,3 +9553,5 @@ nginx local com o nome do site).
 `3540eca`; imagem `erp-caf-app:3540eca`; a anterior ficou em `src-e47b7dd` e `erp-caf-app:e47b7dd` (rollback igual ao de cima, com essa
 etiqueta). Só mudaram `estilo4`, `extras3`, `produto.blade.php`, o roteiro de navegador e este `docs.md`. Conferência de navegador
 contra a homologação: 23 ✅ / 0 ❌.
+
+**15/11/2026 16:22 BRT — homologação em `erp-caf-app:59d8656`** (merge do `3353fd0`: aba Aparência → **Editor visual**; Cores e letras → **Logo, cores e letras**; só rótulo). Anterior guardada em `src-3540eca` e `erp-caf-app:3540eca` (rollback = `docker tag erp-caf-app:3540eca erp-caf-app:latest` + `docker compose up -d app`). Conferido: `/login`, `/loja/demo`, `/loja/demo/produtos` e `/redes` 200, nenhuma migração pendente, rótulos novos dentro do container. Não reaberto no navegador na homologação (medido no ambiente descartável: 219 ✅).
