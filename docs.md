@@ -9544,3 +9544,7 @@ de cliques da cafeteria e do app da maquininha não foi rodado de novo; nenhuma 
 estão ligados lá (o fechamento só oferece "combinar com a loja"); o endereço público não responde de dentro do próprio servidor (testado pelo
 nginx local com o nome do site).
 
+**15/11/2026 12:09 BRT — ajuste da página do produto no celular no ar na homologação:** merge de `ecommerce-14nov` (`1fe5b76`) =
+`3540eca`; imagem `erp-caf-app:3540eca`; a anterior ficou em `src-e47b7dd` e `erp-caf-app:e47b7dd` (rollback igual ao de cima, com essa
+etiqueta). Só mudaram `estilo4`, `extras3`, `produto.blade.php`, o roteiro de navegador e este `docs.md`. Conferência de navegador
+contra a homologação: 23 ✅ / 0 ❌.
