@@ -385,6 +385,13 @@ class LojaOnlineController extends Controller
             'popup_segundos' => ['nullable', 'integer', 'min:1', 'max:120'],
             'popup_dias' => ['nullable', 'integer', 'min:1', 'max:90'],
         ],
+        // 4ª rodada: regras de venda (o formulário fica em Loja online → Pedidos)
+        'vendas' => [
+            'reservar_minutos' => ['nullable', 'integer', 'min:0', 'max:1440'],
+            'carrinho_lembrete_horas' => ['nullable', 'integer', 'min:1', 'max:72'],
+            'boleto' => 'bool', 'conta_cliente' => 'bool', 'avaliacoes' => 'bool', 'avaliacoes_moderar' => 'bool',
+            'avise_me' => 'bool', 'carrinho_lembrete' => 'bool',
+        ],
         'avisos' => [
             'email_pedidos' => ['nullable', 'email', 'max:120'],
             'email_remetente' => ['nullable', 'string', 'max:60'],
@@ -488,7 +495,7 @@ class LojaOnlineController extends Controller
                 $config[$chave] = round((float) ($dados[$chave] ?? LojaOnline::CONFIG_PADRAO[$chave]), 2);
             } elseif (in_array($chave, ['parcelas_max', 'selo_novo_dias'], true)) {
                 $config[$chave] = (int) ($dados[$chave] ?? 0);
-            } elseif (in_array($chave, ['popup_segundos', 'popup_dias'], true)) {
+            } elseif (in_array($chave, ['popup_segundos', 'popup_dias', 'reservar_minutos', 'carrinho_lembrete_horas'], true)) {
                 $config[$chave] = (int) ($dados[$chave] ?? LojaOnline::CONFIG_PADRAO[$chave]);
             } else {
                 $config[$chave] = trim((string) ($dados[$chave] ?? ''));
@@ -524,7 +531,7 @@ class LojaOnlineController extends Controller
 
         $loja->update(['config' => $config]);
 
-        return redirect()->route('app.loja-online.' . $secao)->with('success', 'Salvo.');
+        return redirect()->route('app.loja-online.' . ($secao === 'vendas' ? 'pedidos' : $secao))->with('success', 'Salvo.');
     }
 
     /* ----- cupons ----- */

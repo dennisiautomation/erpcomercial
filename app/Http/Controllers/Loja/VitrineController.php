@@ -57,7 +57,7 @@ class VitrineController extends Controller
             } elseif (in_array($bloco['tipo'] ?? '', ['carrossel', 'banners'], true)) {
                 // Banner sem imagem ganha a foto de um produto de verdade (um diferente por banner)
                 $comFoto ??= $catalogo->paraVitrine(
-                    $catalogo->base()->whereNotNull('foto')->orderByDesc('loja_online_destaque')->orderByDesc('id')->limit(12)->get()
+                    $catalogo->vitrine()->whereNotNull('foto')->orderByDesc('loja_online_destaque')->orderByDesc('id')->limit(12)->get(), true
                 )->values();
                 $bloco['produtosSlide'] = [];
                 foreach (array_values($bloco['lista'] ?? []) as $n => $item) {
@@ -66,7 +66,7 @@ class VitrineController extends Controller
             } elseif (($bloco['tipo'] ?? '') === 'banner' && blank($bloco['imagem'] ?? '')) {
                 // Banner sem imagem mostra produtos de verdade no lugar de enfeite
                 $mosaico ??= $catalogo->paraVitrine(
-                    $catalogo->base()->whereNotNull('foto')->orderByDesc('loja_online_destaque')->orderByDesc('id')->limit(3)->get()
+                    $catalogo->vitrine()->whereNotNull('foto')->orderByDesc('loja_online_destaque')->orderByDesc('id')->limit(3)->get(), true
                 );
                 $bloco['mosaico'] = $mosaico;
             }
@@ -121,7 +121,13 @@ class VitrineController extends Controller
             return redirect($this->ctx->url($dados['caminho']), 301);
         }
 
+        \App\Services\LojaOnline\MetricasLoja::produtoVisto($loja, (int) ($model->grade_id ?: $model->id));
+        $alvoAvaliacao = (int) ($model->grade_id ?: $model->id);
+
         return view('loja.produto', $this->comum($catalogo) + [
+            'grade' => $catalogo->grade($model),
+            'avaliacoes' => $loja->opcao('avaliacoes') ? \Illuminate\Support\Facades\DB::table('loja_avaliacoes')->where('empresa_id', $loja->empresa_id)
+                ->where('produto_id', $alvoAvaliacao)->where('status', 'aprovada')->orderByDesc('id')->limit(30)->get() : collect(),
             'p' => $dados,
             'model' => $model,
             'galeria' => $catalogo->galeria($model),

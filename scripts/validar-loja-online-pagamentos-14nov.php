@@ -87,7 +87,16 @@ Http::fake(function (HttpRequest $req) use (&$chamadas, &$estado) {
             $estado['seq']++;
             $tipo = $req->data()['billingType'] ?? '';
 
-            return Http::response(['id' => 'pay_' . strtolower($tipo) . '_' . $estado['rodada'] . '_' . $estado['seq'], 'invoiceUrl' => 'https://asaas.falso/i/' . $estado['seq']]);
+            return Http::response(['id' => 'pay_' . strtolower($tipo) . '_' . $estado['rodada'] . '_' . $estado['seq'], 'invoiceUrl' => 'https://asaas.falso/i/' . $estado['seq'],
+                'bankSlipUrl' => 'https://asaas.falso/b/' . $estado['seq']]);
+        }
+        if (str_ends_with($url, '/identificationField')) {
+            return Http::response(['identificationField' => '00190000090123456789012345678901234567890123']);
+        }
+        if ($req->method() === 'POST' && str_ends_with($url, '/refund')) {
+            $estado['estornos'][] = [$url, $req->data()];
+
+            return ($estado['estorno_recusa'] ?? false) ? Http::response(['errors' => [['description' => 'Saldo insuficiente']]], 400) : Http::response(['status' => 'REFUNDED']);
         }
 
         return Http::response(['status' => $estado['asaas_status']]);
@@ -450,6 +459,89 @@ check('9.9 o e-mail traz itens, total, o botão com o endereço do pedido e a co
 check('9.10 assunto de cada aviso leva o número do pedido e o nome da loja', \App\Mail\PedidoLoja::assunto('faturado', 12, 'Loja X') === 'Seu pedido #12 está pronto — Loja X'
     && \App\Mail\PedidoLoja::assunto('loja_novo', 12, 'Loja X') === 'Novo pedido #12 na loja online');
 $loja->update(['config' => array_merge($loja->fresh()->config, ['email_pedidos' => '', 'email_loja_novo' => true, 'email_cliente_andamento' => true, 'email_cliente_confirmado' => true])]);
+
+/* ─────────────────────────── 10. boleto, devolução e rotina (4ª rodada, 15/11/2026) ─────────────────────────── */
+echo "\n== 10. Boleto pelo Asaas, devolução do dinheiro e rotina ==\n";
+EmpresaGateway::where('empresa_id', $empresaId)->delete();
+$loja->update(['config' => array_merge($loja->fresh()->config, ['boleto' => true, 'pix' => true, 'cartao' => true])]);
+$loja = $loja->fresh();
+check('10.1 boleto ligado na loja mas SEM Asaas: não é oferecido', PagamentoLoja::temBoleto($loja) === false && $pagamento->boleto($loja, novoPedido($loja))['ok'] === false);
+gateway($empresaId, EmpresaGateway::PROVEDOR_ASAAS, ['client_secret' => '$aact_teste', 'config' => ['sandbox' => true, 'webhook_token' => 'segredo-webhook']]);
+check('10.2 com Asaas ligado e a opção marcada: boleto disponível', PagamentoLoja::temBoleto($loja->fresh()) === true);
+$loja->update(['config' => array_merge($loja->fresh()->config, ['boleto' => false])]);
+check('10.3 lojista desligou o boleto: não é oferecido, mesmo com Asaas', PagamentoLoja::temBoleto($loja->fresh()) === false);
+$loja->update(['config' => array_merge($loja->fresh()->config, ['boleto' => true])]);
+$loja = $loja->fresh();
+$estado['asaas_status'] = 'PENDING';
+$semDoc = novoPedido($loja);
+$chamadas = [];
+$r = $pagamento->boleto($loja, $semDoc);
+check('10.4 pedido sem CPF/CNPJ: boleto recusado com explicação, sem chamar o Asaas', $r['ok'] === false && str_contains($r['erro'], 'CPF') && $chamadas === [], $r);
+$pb = novoPedido($loja, ['cpf_cnpj' => '39053344705', 'telefone' => '(86) 97100-0001', 'pagamento' => 'boleto']);
+$chamadas = [];
+$r = $pagamento->boleto($loja, $pb);
+$cb = PedidoCobranca::where('pedido_id', $pb->id)->first();
+check('10.5 boleto gerado: link, linha digitável e vencimento', $r['ok'] && $r['tipo'] === 'boleto' && str_starts_with($r['link'], 'https://asaas.falso/b/') && strlen($r['linha']) === 44
+    && preg_match('~^\d{2}/\d{2}/\d{4}$~', (string) $r['vence_em']) === 1, $r);
+check('10.6 cobrança guardada como BOLETO do Asaas (não se confunde com PIX)', $cb && $cb->provedor === 'asaas' && ($cb->payload['tipo'] ?? '') === 'boleto' && str_starts_with($cb->txid, 'pay_boleto_'), $cb?->toArray());
+check('10.7 o pedido nasce anotado como boleto', str_contains((string) $pb->observacoes_internas, 'boleto'));
+$n = count($chamadas);
+$r2 = $pagamento->boleto($loja, $pb);
+check('10.8 pedir o boleto de novo reaproveita o mesmo (nenhuma chamada nova)', count($chamadas) === $n && $r2['link'] === $r['link'] && PedidoCobranca::where('pedido_id', $pb->id)->count() === 1);
+$rp = $pagamento->pix($loja, $pb);
+check('10.9 trocar para PIX no mesmo pedido cria OUTRA cobrança (o boleto não vira QR)', $rp['ok'] && $rp['tipo'] === 'qr' && PedidoCobranca::where('pedido_id', $pb->id)->count() === 2
+    && $pagamento->boleto($loja, $pb)['link'] === $r['link']);
+check('10.10 boleto emitido ainda não é pagamento: situação "aguardando"', PagamentoLoja::situacao($pb->fresh())['situacao'] === 'aguardando');
+$resp = $webhook(['event' => 'PAYMENT_RECEIVED', 'payment' => ['id' => $cb->txid, 'value' => (float) $pb->total, 'billingType' => 'BOLETO', 'externalReference' => 'pedido:' . $pb->id]], 'segredo-webhook');
+$pb->refresh();
+check('10.11 webhook do boleto compensado: pedido CONFIRMADO, cobrança paga, anotação "BOLETO PAGO", condição boleto', $resp->getStatusCode() === 200 && $pb->status === StatusPedido::Confirmado
+    && PedidoCobranca::find($cb->id)->paga() && str_contains((string) $pb->observacoes_internas, 'BOLETO PAGO via Asaas') && $pb->condicao_pagamento === 'boleto', [$pb->condicao_pagamento, $pb->observacoes_internas]);
+
+// rotina: boleto que o webhook perdeu
+$pr = novoPedido($loja, ['cpf_cnpj' => '39053344705', 'telefone' => '(86) 97100-0002', 'pagamento' => 'boleto']);
+$pagamento->boleto($loja, $pr);
+Cache::flush();
+Artisan::call('loja:rotinas');
+check('10.12 rotina com o boleto ainda em aberto: pedido continua aguardando', $pr->fresh()->status === StatusPedido::Rascunho, Artisan::output());
+$estado['asaas_status'] = 'RECEIVED';
+Cache::flush();
+Artisan::call('loja:rotinas');
+$pr->refresh();
+check('10.13 rotina acha o boleto pago que o webhook perdeu: pedido CONFIRMADO, anotação "BOLETO PAGO"', $pr->status === StatusPedido::Confirmado && str_contains((string) $pr->observacoes_internas, 'BOLETO PAGO via Asaas')
+    && $pr->condicao_pagamento === 'boleto', [$pr->status->value, $pr->observacoes_internas]);
+$estado['asaas_status'] = 'PENDING';
+
+// devolução do dinheiro
+$estado['estornos'] = [];
+// (o provedor falso respondeu "recebido" para tudo na rotina acima; o estorno vai na última cobrança paga do pedido)
+$pagaDoPedido = PedidoCobranca::where('pedido_id', $pb->id)->whereNotNull('pago_em')->orderByDesc('id')->value('txid');
+$r = $pagamento->estornar($pb->fresh(), 'cliente desistiu');
+check('10.14 devolver pedido pago pelo Asaas: chama o estorno com o valor do pedido e marca como devolvido', $r['ok'] && $r['automatico'] === true && count($estado['estornos']) === 1
+    && str_ends_with($estado['estornos'][0][0], '/payments/' . $pagaDoPedido . '/refund') && abs((float) $estado['estornos'][0][1]['value'] - (float) $pb->total) < 0.001
+    && $pb->fresh()->loja_estornado_em !== null && str_contains((string) $pb->fresh()->loja_estorno_obs, 'Devolvido pelo Asaas'), [$r, $estado['estornos']]);
+$r = $pagamento->estornar($pb->fresh(), 'de novo');
+check('10.15 devolver de novo o mesmo pedido: recusado, sem segunda chamada ao Asaas', $r['ok'] === false && count($estado['estornos']) === 1, $r);
+$estado['estorno_recusa'] = true;
+$r = $pagamento->estornar($pr->fresh(), 'teste de recusa');
+check('10.16 Asaas RECUSA o estorno: o pedido NÃO fica marcado como devolvido', $r['ok'] === false && $pr->fresh()->loja_estornado_em === null && str_contains($r['mensagem'], 'recusou'), $r);
+$r = $pagamento->estornar($pr->fresh(), 'devolvi no painel do Asaas', true);
+check('10.17 "já devolvi por fora": só registra, sem chamar o Asaas de novo', $r['ok'] && $r['automatico'] === false && count($estado['estornos']) === 2 && $pr->fresh()->loja_estornado_em !== null, [$r, count($estado['estornos'])]);
+$estado['estorno_recusa'] = false;
+$np = novoPedido($loja, ['telefone' => '(86) 97100-0003']);
+$r = $pagamento->estornar($np, 'sem pagamento');
+check('10.18 pedido que não foi pago não tem o que devolver', $r['ok'] === false && $np->fresh()->loja_estornado_em === null, $r);
+// cartão pelo Asaas (link pago) também devolve automático
+$pc = novoPedido($loja, ['telefone' => '(86) 97100-0004']);
+$pagamento->cartao($pc);
+$lk = PedidoLinkCartao::where('pedido_id', $pc->id)->first();
+$webhook(['event' => 'PAYMENT_CONFIRMED', 'payment' => ['id' => $lk->referencia, 'value' => (float) $pc->total, 'billingType' => 'CREDIT_CARD', 'externalReference' => 'pedido:' . $pc->id]], 'segredo-webhook');
+$antes = count($estado['estornos']);
+$r = $pagamento->estornar($pc->fresh(), 'cartão');
+check('10.19 pedido pago no CARTÃO pelo Asaas: devolução automática pelo id do pagamento', $r['ok'] && $r['automatico'] && count($estado['estornos']) === $antes + 1
+    && str_contains($estado['estornos'][$antes][0], '/payments/' . $lk->referencia . '/refund'), [$r, $lk?->toArray()]);
+$html = (new \App\Mail\PedidoLoja($pb->id, $loja->id, 'enviado'))->render();
+check('10.20 e-mail "pedido enviado" tem o título certo e o botão de acompanhar', str_contains($html, 'Seu pedido foi enviado') && str_contains($html, '/pedido/' . $pb->loja_token));
+$loja->update(['config' => array_merge($loja->fresh()->config, ['boleto' => false])]);
 
 // limpeza: a empresa volta a ficar sem provedor (o roteiro .py parte disso)
 EmpresaGateway::where('empresa_id', $empresaId)->delete();

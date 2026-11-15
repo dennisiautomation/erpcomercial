@@ -17,7 +17,7 @@ use Illuminate\Support\Facades\DB;
 /**
  * E-mails do pedido da loja online (14/11/2026).
  *
- * $tipo: recebido | confirmado | faturado | entregue | cancelado (para o comprador)
+ * $tipo: recebido | confirmado | faturado | enviado | entregue | cancelado (para o comprador)
  *        loja_novo (para a loja). Sai com o nome da LOJA como remetente e a
  *        resposta vai para o e-mail da loja; o endereço de envio é o da plataforma.
  */
@@ -35,6 +35,7 @@ class PedidoLoja extends Mailable implements ShouldQueue
             'loja_novo' => "Novo pedido #{$numero} na loja online",
             'confirmado' => "Pedido #{$numero} confirmado — {$loja}",
             'faturado' => "Seu pedido #{$numero} está pronto — {$loja}",
+            'enviado' => "Seu pedido #{$numero} foi enviado — {$loja}",
             'entregue' => "Pedido #{$numero} entregue — {$loja}",
             'cancelado' => "Pedido #{$numero} cancelado — {$loja}",
             default => "Recebemos o seu pedido #{$numero} — {$loja}",

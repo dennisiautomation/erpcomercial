@@ -52,10 +52,12 @@ class AsaasWebhookController extends Controller
 
         // 14/11/2026: o Asaas também cobra PIX (QR Code na tela da loja online).
         $ehPix = (string) $request->input('payment.billingType', '') === 'PIX';
+        // 15/11/2026: e boleto (loja online) — a cobrança guardada é marcada paga do mesmo jeito.
+        $ehBoleto = (string) $request->input('payment.billingType', '') === 'BOLETO';
 
         $nota = sprintf(
             "\n%s PAGO via Asaas em %s — R$ %s (payment %s).",
-            $ehPix ? 'PIX' : 'CARTÃO',
+            $ehPix ? 'PIX' : ($ehBoleto ? 'BOLETO' : 'CARTÃO'),
             now()->format('d/m/Y H:i'),
             number_format($valor, 2, ',', '.'),
             $paymentId
@@ -72,7 +74,12 @@ class AsaasWebhookController extends Controller
         }
         $pedido->save();
 
-        if ($ehPix && $paymentId !== '') {
+        if ($ehBoleto && ! $pedido->condicao_pagamento) {
+            $pedido->condicao_pagamento = 'boleto';
+            $pedido->save();
+        }
+
+        if (($ehPix || $ehBoleto) && $paymentId !== '') {
             \App\Models\PedidoCobranca::where('empresa_id', $pedido->empresa_id)
                 ->where('provedor', EmpresaGateway::PROVEDOR_ASAAS)
                 ->where('txid', $paymentId)

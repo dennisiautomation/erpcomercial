@@ -119,6 +119,9 @@ class CarrinhoController extends Controller
         } elseif ($carrinho->adicionar($produto->id, (int) ($dados['quantidade'] ?? 1)) === 0) {
             $erro = 'Seu carrinho já está no limite de itens diferentes.';
         }
+        if (! $erro) {
+            \App\Services\LojaOnline\MetricasLoja::contar($this->ctx->loja, 'carrinhos');
+        }
 
         // Confere contra o saldo (pode ter reduzido a quantidade)
         $itens = $carrinho->itens();
@@ -220,7 +223,20 @@ class CarrinhoController extends Controller
             return redirect($this->ctx->url('carrinho'));
         }
 
+        \App\Services\LojaOnline\MetricasLoja::contar($loja, 'fechamentos');
+        $conta = \App\Models\LojaConta::atual($loja);
+        $cadastro = $conta && $conta->cliente_id ? DB::table('clientes')->where('empresa_id', $loja->empresa_id)->where('id', $conta->cliente_id)->first() : null;
+
         return view('loja.finalizar', $this->comum($catalogo, $carrinho) + $this->promocoes($subtotal) + [
+            'conta' => $conta,
+            'temBoleto' => PagamentoLoja::temBoleto($loja),
+            // Conta logada: o formulário já vem com os dados dela (e o último endereço usado)
+            'preenchido' => $conta ? array_filter([
+                'nome' => $conta->nome, 'email' => $conta->email, 'telefone' => $conta->telefone,
+                'cpf_cnpj' => $cadastro->cpf_cnpj ?? null, 'cep' => $cadastro->cep ?? null, 'logradouro' => $cadastro->logradouro ?? null,
+                'numero' => $cadastro->numero ?? null, 'complemento' => $cadastro->complemento ?? null, 'bairro' => $cadastro->bairro ?? null,
+                'cidade' => $cadastro->cidade ?? null, 'uf' => $cadastro->uf ?? null,
+            ]) : [],
             'itens' => $itens,
             'subtotal' => $subtotal,
             'avisos' => $carrinho->avisos,
@@ -238,8 +254,8 @@ class CarrinhoController extends Controller
         $meios = PagamentoLoja::meios($loja);
 
         $entregas = array_keys(array_filter(['retirada' => $loja->opcao('retirada'), 'entrega' => $loja->opcao('entrega')])) ?: ['retirada'];
-        $pagamentos = array_keys(array_filter(['pix' => $meios['pix'], 'cartao' => $meios['cartao'], 'combinar' => $meios['combinar']]));
-        $exigeDoc = (bool) $loja->empresa?->exigeDocumentoCadastro();
+        $pagamentos = array_keys(array_filter(['pix' => $meios['pix'], 'cartao' => $meios['cartao'], 'boleto' => PagamentoLoja::temBoleto($loja), 'combinar' => $meios['combinar']]));
+        $exigeDoc = (bool) $loja->empresa?->exigeDocumentoCadastro() || $request->input('pagamento') === 'boleto';
 
         $validador = Validator::make($request->all(), [
             'nome' => ['required', 'string', 'min:3', 'max:255'],
@@ -262,7 +278,7 @@ class CarrinhoController extends Controller
             'nome.required' => 'Diga seu nome completo.',
             'telefone.required' => 'Informe um telefone com DDD.',
             'telefone.regex' => 'Informe o telefone com DDD (ex.: 86 99999-0000).',
-            'cpf_cnpj.required' => 'Esta loja pede o CPF ou CNPJ para emitir a nota.',
+            'cpf_cnpj.required' => $request->input('pagamento') === 'boleto' ? 'O boleto precisa do CPF ou CNPJ de quem paga.' : 'Esta loja pede o CPF ou CNPJ para emitir a nota.',
             'cpf_cnpj.regex' => 'Confira o CPF ou CNPJ.',
             'cep.required_if' => 'Informe o CEP da entrega.',
             'cep.regex' => 'O CEP tem 8 números.',
@@ -292,8 +308,12 @@ class CarrinhoController extends Controller
             return redirect($this->ctx->url('carrinho'));
         }
 
-        $r = $checkout->criarPedido($loja, $itens, $dados + ['cupom' => CupomLoja::naSessao($loja)]);
+        $conta = \App\Models\LojaConta::atual($loja);
+        $r = $checkout->criarPedido($loja, $itens, $dados + ['cupom' => CupomLoja::naSessao($loja), 'conta_id' => $conta?->id]);
         $pedido = $r['pedido'];
+        if ($conta && (int) $conta->cliente_id !== (int) $pedido->cliente_id) {
+            $conta->forceFill(['cliente_id' => $pedido->cliente_id])->save();
+        }
 
         if ($r['frete_combinar'] && ! $meios['combinar'] && $dados['entrega'] === 'entrega') {
             // Sem frete calculado e a loja não combina: o pedido não pode ficar cobrando sem frete.
@@ -307,6 +327,7 @@ class CarrinhoController extends Controller
 
         $carrinho->limpar();
         CupomLoja::guardar($loja, null);
+        \App\Services\LojaOnline\CarrinhoSalvo::fechou($loja, (int) $pedido->id);
 
         // Aceitou receber novidades: entra nos contatos da loja, com a data do aceite.
         if (! empty($dados['novidades']) && (filled($dados['email'] ?? null) || filled($dados['telefone']))) {
@@ -331,8 +352,8 @@ class CarrinhoController extends Controller
             if ($link['ok']) {
                 session(['loja_pagar_' . $pedido->id => 'cartao']);
             }
-        } elseif ($dados['pagamento'] === 'pix') {
-            session(['loja_pagar_' . $pedido->id => 'pix']);
+        } elseif (in_array($dados['pagamento'], ['pix', 'boleto'], true)) {
+            session(['loja_pagar_' . $pedido->id => $dados['pagamento']]);
         }
 
         return redirect($destino);
@@ -373,6 +394,8 @@ class CarrinhoController extends Controller
             $r = $pagamento->cartao($pedido);
             $linkCartao = $r['ok'] ? $r['link'] : null;
         }
+        $temBoleto = PagamentoLoja::temBoleto($loja);
+        $boleto = $podePagar && $temBoleto && $escolha === 'boleto' ? $pagamento->boleto($loja, $pedido) : null;
 
         $itens = DB::table('pedido_itens')->where('pedido_id', $pedido->id)->whereNull('deleted_at')->orderBy('id')
             ->get(['produto_id', 'descricao', 'quantidade', 'preco_unitario', 'total']);
@@ -391,6 +414,12 @@ class CarrinhoController extends Controller
             'escolha' => $escolha,
             'unidade' => $loja->unidade,
             'compraAgora' => (int) session('loja_compra') === (int) $pedido->id,
+            'temBoleto' => $temBoleto,
+            'boleto' => $boleto,
+            'entregaExterna' => DB::table('pedido_entregas')->where('pedido_id', $pedido->id)->whereNotNull('tracking_url')->orderByDesc('id')->value('tracking_url'),
+            'podeAvaliar' => $loja->opcao('avaliacoes') && ($situacao['pago'] || in_array($situacao['situacao'], ['faturado', 'enviado', 'entregue'], true)),
+            'avaliacoesFeitas' => DB::table('loja_avaliacoes')->where('pedido_id', $pedido->id)->get(['produto_id', 'nota', 'texto', 'status'])->keyBy('produto_id'),
+            'gradeDe' => DB::table('produtos')->whereIn('id', $itens->pluck('produto_id')->filter())->pluck('grade_id', 'id'),
             'cliente' => DB::table('clientes')->where('id', $pedido->cliente_id)->first(['nome_razao_social', 'logradouro', 'numero', 'complemento', 'bairro', 'cidade', 'uf', 'cep']),
             'titulo' => 'Pedido #' . $pedido->numero . ' — ' . $loja->nome,
         ]);
@@ -400,8 +429,8 @@ class CarrinhoController extends Controller
     public function pagar(Request $request, string $token, PagamentoLoja $pagamento)
     {
         $pedido = $this->pedido($token);
-        $dados = $request->validate(['meio' => ['required', Rule::in(['pix', 'cartao'])]]);
-        $meios = PagamentoLoja::meios($this->ctx->loja);
+        $dados = $request->validate(['meio' => ['required', Rule::in(['pix', 'cartao', 'boleto'])]]);
+        $meios = PagamentoLoja::meios($this->ctx->loja) + ['boleto' => PagamentoLoja::temBoleto($this->ctx->loja)];
 
         $situacao = PagamentoLoja::situacao($pedido);
         if ($situacao['situacao'] !== 'aguardando' || ($pedido->metodo_entrega === 'entrega' && $pedido->frete_valor === null)) {
@@ -411,7 +440,11 @@ class CarrinhoController extends Controller
             return response()->json(['ok' => false, 'erro' => 'Esta forma de pagamento não está disponível.'], 422);
         }
 
-        $r = $dados['meio'] === 'pix' ? $pagamento->pix($this->ctx->loja, $pedido) : $pagamento->cartao($pedido);
+        $r = match ($dados['meio']) {
+            'pix' => $pagamento->pix($this->ctx->loja, $pedido),
+            'boleto' => $pagamento->boleto($this->ctx->loja, $pedido),
+            default => $pagamento->cartao($pedido),
+        };
         if ($r['ok']) {
             session(['loja_pagar_' . $pedido->id => $dados['meio']]);
         }

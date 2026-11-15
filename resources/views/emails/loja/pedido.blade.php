@@ -5,6 +5,7 @@
         'loja_novo' => 'Chegou um pedido novo',
         'confirmado' => 'Pedido confirmado',
         'faturado' => $retirada ? 'Seu pedido está pronto para retirada' : 'Seu pedido está a caminho',
+        'enviado' => 'Seu pedido foi enviado',
         'entregue' => 'Pedido entregue',
         'cancelado' => 'Pedido cancelado',
         default => 'Recebemos o seu pedido',
@@ -13,6 +14,8 @@
         'loja_novo' => 'Um cliente fechou um pedido na sua loja online. Ele já está em Comercial → Pedidos, com o canal Online.',
         'confirmado' => 'Está tudo certo com o seu pedido. A loja já está separando os produtos.',
         'faturado' => $retirada ? 'Você já pode retirar em ' . ($unidade?->nome ?? 'nossa loja') . '.' : 'Os produtos foram separados e seguem para o seu endereço.',
+        'enviado' => 'Seu pedido saiu' . (filled($pedido->loja_transportadora) ? ' por ' . $pedido->loja_transportadora : '') . '.'
+            . (filled($pedido->loja_rastreio_codigo) ? ' Código de rastreio: ' . $pedido->loja_rastreio_codigo . '.' : '') . ' Pelo botão abaixo você acompanha.',
         'entregue' => 'Obrigado por comprar com a gente!',
         'cancelado' => 'Este pedido foi cancelado. Se você já pagou, a loja vai falar com você sobre a devolução.',
         default => 'Guardamos o seu pedido. Pelo botão abaixo você acompanha o andamento e faz o pagamento, se ainda faltar.',

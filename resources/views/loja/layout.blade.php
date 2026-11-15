@@ -16,7 +16,7 @@
 <title>{{ request()->routeIs('loja.home') && filled($loja->opcao('seo_titulo')) ? $loja->opcao('seo_titulo') : ($titulo ?? $loja->nome) }}</title>
 <script>document.documentElement.classList.add('lj-js')</script>
 <meta name="description" content="{{ ($descricaoPagina ?? '') !== '' ? $descricaoPagina : ($loja->opcao('descricao_busca') ?: $loja->nome . ' — compre online.') }}">
-@if($ctx->previa || $ctx->rascunho)<meta name="robots" content="noindex,nofollow">@endif
+@if($ctx->previa || $ctx->rascunho || ($semIndice ?? false))<meta name="robots" content="noindex,nofollow">@endif
 <meta name="theme-color" content="{{ $tema['cor_cabecalho'] }}">
 @php $imagemCompartilhar = $imagemPagina ?? \App\Services\LojaOnline\LojaContexto::arquivo($loja->opcao('imagem_compartilhar')); @endphp
 <meta property="og:site_name" content="{{ $loja->nome }}">
@@ -36,6 +36,7 @@
 @include('loja.partials.estilo')
 @include('loja.partials.estilo2')
 @include('loja.partials.estilo3')
+@include('loja.partials.estilo4')
 @stack('estilo')
 </head>
 <body {!! $temaAtributos !!} data-pagina="@yield('pagina', 'loja')">
@@ -92,6 +93,10 @@
                 @if($zapNumero)
                     <a class="lj-icone lj-acao" href="https://wa.me/55{{ $zapNumero }}" target="_blank" rel="noopener" aria-label="Falar no WhatsApp"><i class="bi bi-whatsapp" aria-hidden="true"></i><span>Atendimento</span></a>
                 @endif
+                @if($loja->opcao('conta_cliente'))
+                    <a class="lj-icone lj-acao lj-acao--conta" href="{{ $ctx->url(($contaLoja ?? null) ? 'conta' : 'entrar') }}" aria-label="{{ ($contaLoja ?? null) ? 'Minha conta' : 'Entrar' }}"><i class="bi bi-person{{ ($contaLoja ?? null) ? '-check' : '' }}" aria-hidden="true"></i><span>{{ ($contaLoja ?? null) ? \Illuminate\Support\Str::limit(\Illuminate\Support\Str::before($contaLoja->nome, ' '), 12, '') : 'Entrar' }}</span></a>
+                @endif
+                <a class="lj-icone lj-acao lj-acao--fav" href="{{ $ctx->url('favoritos') }}" aria-label="Favoritos"><i class="bi bi-heart" aria-hidden="true"></i><span>Favoritos</span><span class="lj-conta" data-lj-fav-conta hidden>0</span></a>
                 <a class="lj-icone lj-acao lj-sacola" href="{{ $ctx->url('carrinho') }}" aria-label="Carrinho" data-lj-sacola>
                     <i class="bi bi-bag" aria-hidden="true"></i><span>Sacola</span>
                     <span class="lj-conta" data-lj-conta @if(($carrinhoTotal ?? 0) < 1) hidden @endif>{{ $carrinhoTotal ?? 0 }}</span>
@@ -135,6 +140,8 @@
             <a href="{{ $ctx->url('produtos?categoria=' . $c['id']) }}"><span class="lj-mega__foto">@if($c['foto'])<img src="{{ $c['foto'] }}" alt="" loading="lazy">@endif</span> {{ $c['nome'] }} <small>{{ $c['total'] }}</small></a>
         @endforeach
         <hr>
+        @if($loja->opcao('conta_cliente'))<a href="{{ $ctx->url(($contaLoja ?? null) ? 'conta' : 'entrar') }}"><i class="bi bi-person" aria-hidden="true"></i> {{ ($contaLoja ?? null) ? 'Minha conta' : 'Entrar ou criar conta' }}</a>@endif
+        <a href="{{ $ctx->url('favoritos') }}"><i class="bi bi-heart" aria-hidden="true"></i> Favoritos</a>
         <a href="{{ $ctx->url('politica/entrega') }}">Entrega e retirada</a>
         <a href="{{ $ctx->url('politica/trocas') }}">Trocas e devoluções</a>
         @if($zapNumero)<a href="https://wa.me/55{{ $zapNumero }}" target="_blank" rel="noopener"><i class="bi bi-whatsapp" aria-hidden="true"></i> Falar com a loja</a>@endif
@@ -173,6 +180,8 @@
                     <li><a href="{{ $ctx->url('produtos?promocao=1') }}">Promoções</a></li>
                     <li><a href="{{ $ctx->url('produtos?ordem=novos') }}">Novidades</a></li>
                     <li><a href="{{ $ctx->url('carrinho') }}">Meu carrinho</a></li>
+                    <li><a href="{{ $ctx->url('favoritos') }}">Favoritos</a></li>
+                    @if($loja->opcao('conta_cliente'))<li><a href="{{ $ctx->url(($contaLoja ?? null) ? 'conta' : 'entrar') }}">{{ ($contaLoja ?? null) ? 'Minha conta' : 'Entrar' }}</a></li>@endif
                 </ul>
             </div>
             <div>
@@ -276,6 +285,7 @@
 </script>
 @include('loja.partials.extras')
 @include('loja.partials.extras2')
+@include('loja.partials.extras3')
 @stack('scripts')
 </body>
 </html>

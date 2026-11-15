@@ -55,7 +55,9 @@
         <div class="lj-produto__info">
             @if($p['categoria'])<a class="lj-produto__cat" href="{{ $ctx->url('produtos?categoria=' . $model->categoria_id) }}">{{ $p['categoria'] }}</a>@endif
             <h1>{{ $p['nome'] }}</h1>
-            <p class="lj-produto__ref">Cód. {{ $p['codigo'] }}</p>
+            <p class="lj-produto__ref">Cód. {{ $p['codigo'] }}
+                @if(($p['avaliacoes'] ?? 0) > 0) · <a class="lj-nota" href="#avaliacoes"><i class="bi bi-star-fill" aria-hidden="true"></i> {{ number_format((float) $p['nota'], 1, ',', '') }} <small>({{ $p['avaliacoes'] }} {{ $p['avaliacoes'] === 1 ? 'avaliação' : 'avaliações' }})</small></a>@endif
+            </p>
 
             <div class="lj-compra">
                 <div class="lj-produto__preco">
@@ -68,6 +70,18 @@
                     @if($meios['cartao'])<li><i class="bi bi-credit-card" aria-hidden="true"></i> <span><strong>Cartão de crédito</strong>@if($p['parcelas']) em até {{ $p['parcelas']['vezes'] }}x de R$ {{ number_format($p['parcelas']['valor'], 2, ',', '.') }}{{ $p['parcelas']['sem_juros'] ? ' sem juros' : '' }}@endif</span></li>@endif
                     @if(! $meios['pix'] && ! $meios['cartao'])<li><i class="bi bi-chat-dots" aria-hidden="true"></i> <span>Pagamento combinado com a loja depois do pedido</span></li>@endif
                 </ul>
+
+                @foreach(($grade ?? []) as $g)
+                    <div class="lj-variacao" data-lj-variacao>
+                        <span class="lj-variacao__nome">{{ $g['nome'] }}: <strong>{{ collect($g['opcoes'])->firstWhere('atual', true)['valor'] ?? '' }}</strong></span>
+                        <div class="lj-variacao__opcoes" role="group" aria-label="{{ $g['nome'] }}">
+                            @foreach($g['opcoes'] as $o)
+                                <a href="{{ $ctx->url($o['url']) }}" class="lj-variacao__opcao @if(! $o['disponivel']) lj-variacao__opcao--fim @endif" @if($o['atual']) aria-current="true" @endif
+                                   @if(! $o['disponivel']) title="Esgotado" @endif>{{ $o['valor'] }}@if(! $o['disponivel'])<span class="lj-so-leitor"> (esgotado)</span>@endif</a>
+                            @endforeach
+                        </div>
+                    </div>
+                @endforeach
 
                 @if($p['disponivel'])
                     <p class="lj-estoque @if($poucas) lj-estoque--pouco @else lj-estoque--ok @endif">
@@ -90,7 +104,19 @@
                     <button class="lj-btn lj-btn--linha lj-btn--cheio" type="button" data-lj-comprar-agora data-ir="{{ $ctx->url('finalizar') }}">Comprar agora</button>
                 @else
                     <p class="lj-estoque lj-estoque--fim"><i class="bi bi-x-circle-fill" aria-hidden="true"></i> Esgotado no momento</p>
-                    @if($zapProduto)
+                    @if($loja->opcao('avise_me'))
+                        <form class="lj-avise" data-lj-avise action="{{ $ctx->caminho('avise-me') }}" novalidate>
+                            <input type="hidden" name="produto_id" value="{{ $p['id'] }}">
+                            <label for="lj-avise-email"><strong>Avise-me quando chegar</strong></label>
+                            <div class="lj-avise__linha">
+                                <input class="lj-campo" id="lj-avise-email" type="email" name="email" required autocomplete="email" placeholder="seu@email.com" value="{{ $contaLoja->email ?? '' }}">
+                                <button class="lj-btn" type="submit">Avisar</button>
+                            </div>
+                            <label class="lj-aceite"><input type="checkbox" name="aceite" value="1" required> <span>Aceito receber um e-mail quando este produto voltar. <a href="{{ $ctx->url('politica/privacidade') }}">Privacidade</a></span></label>
+                            <p class="lj-avise__saida" data-lj-avise-saida aria-live="polite"></p>
+                        </form>
+                    @endif
+                    @if($zapProduto && ! $loja->opcao('avise_me'))
                         <div class="lj-comprar">
                             <a class="lj-btn lj-btn--linha" target="_blank" rel="noopener"
                                href="https://wa.me/55{{ preg_replace('/\D/', '', $loja->opcao('whatsapp')) }}?text={{ rawurlencode('Olá! Quando volta o produto "' . $p['nome'] . '" (cód. ' . $p['codigo'] . ')?') }}">
@@ -119,6 +145,7 @@
             </ul>
 
             <div class="lj-partilha">
+                <button class="lj-btn lj-btn--p lj-btn--linha lj-fav-texto" type="button" data-lj-fav="{{ $p['id'] }}" aria-pressed="false"><i class="bi bi-heart" aria-hidden="true"></i> <span>Favoritar</span></button>
                 @if($zapProduto)<a class="lj-btn lj-btn--p lj-btn--linha" href="{{ $zapProduto }}" target="_blank" rel="noopener"><i class="bi bi-whatsapp" aria-hidden="true"></i> Tirar dúvida</a>@endif
                 <a class="lj-btn lj-btn--p lj-btn--linha" target="_blank" rel="noopener" href="https://wa.me/?text={{ rawurlencode($p['nome'] . ' — ' . $ctx->urlAbsoluta($p['caminho'])) }}"><i class="bi bi-share" aria-hidden="true"></i> Enviar para alguém</a>
             </div>
@@ -151,6 +178,27 @@
         </div>
     </div>
 </div>
+
+@if($loja->opcao('avaliacoes') && ($avaliacoes ?? collect())->isNotEmpty())
+<section class="lj-caixa lj-secao lj-avaliacoes" id="avaliacoes">
+    <div class="lj-secao__topo"><h2>Avaliações de quem comprou</h2></div>
+    <div class="lj-avaliacoes__resumo">
+        <b>{{ number_format((float) $p['nota'], 1, ',', '') }}</b>
+        <span class="lj-estrelas" aria-hidden="true">@for($n = 1; $n <= 5; $n++)<i class="bi bi-star{{ $n <= round((float) $p['nota']) ? '-fill' : '' }}"></i>@endfor</span>
+        <small>{{ $p['avaliacoes'] }} {{ $p['avaliacoes'] === 1 ? 'avaliação' : 'avaliações' }}</small>
+    </div>
+    <ul class="lj-avaliacoes__lista">
+        @foreach($avaliacoes as $a)
+            <li>
+                <span class="lj-estrelas" aria-label="{{ $a->nota }} de 5 estrelas">@for($n = 1; $n <= 5; $n++)<i class="bi bi-star{{ $n <= $a->nota ? '-fill' : '' }}" aria-hidden="true"></i>@endfor</span>
+                <strong>{{ $a->nome }}</strong> <small>· {{ \Illuminate\Support\Carbon::parse($a->created_at)->format('d/m/Y') }} · compra verificada</small>
+                @if($a->texto)<p>{{ $a->texto }}</p>@endif
+                @if($a->resposta)<p class="lj-avaliacoes__resposta"><strong>{{ $loja->nome }}:</strong> {{ $a->resposta }}</p>@endif
+            </li>
+        @endforeach
+    </ul>
+</section>
+@endif
 
 @if($relacionados->isNotEmpty())
 <section class="lj-caixa lj-secao">

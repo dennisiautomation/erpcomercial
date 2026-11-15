@@ -177,9 +177,11 @@ class CheckoutLoja
                 'frete_prazo_dias' => $frete['prazo_dias'] ?? null,
                 'canal' => CanalVenda::Online->value,
                 'loja_token' => Str::lower(Str::random(32)),
+                'loja_conta_id' => $dados['conta_id'] ?? null,
                 'loja_cupom' => $cupom ? $cupom['cupom']->codigo : null,
                 'observacoes_internas' => "Criado pela loja online ({$loja->nome}) — telefone {$dados['telefone']}."
                     . ($dados['pagamento'] === 'combinar' ? "\nPagamento: a combinar com o cliente." : '')
+                    . ($dados['pagamento'] === 'boleto' ? "\nPagamento: boleto (compensa em até 3 dias úteis)." : '')
                     . ($cupom ? "\nCupom {$cupom['cupom']->codigo}: " . $cupom['cupom']->descricao() . '.' : '')
                     . ($freteGratis && $freteCusto !== null ? "\nFRETE GRÁTIS para o cliente — custo de R$ " . number_format($freteCusto, 2, ',', '.') . ' por conta da loja.' : ''),
                 'observacoes_externas' => filled($dados['observacoes'] ?? null) ? mb_substr((string) $dados['observacoes'], 0, 1000) : null,

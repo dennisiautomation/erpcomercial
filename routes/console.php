@@ -116,3 +116,13 @@ Schedule::command('agente:cartao-sincronizar')
     ->everyFifteenMinutes()
     ->name('agente-cartao-sincronizar')
     ->withoutOverlapping();
+
+// ──────────────────────────────────────────────────────────────────
+// Loja online (15/11/2026): avise-me quando chegar, lembrete do
+// carrinho parado (só loja que ligou) e conferência de boleto/PIX do
+// Asaas em aberto — rede de segurança do webhook.
+// ──────────────────────────────────────────────────────────────────
+Schedule::command('loja:rotinas')
+    ->everyFifteenMinutes()
+    ->name('loja-online-rotinas')
+    ->withoutOverlapping();

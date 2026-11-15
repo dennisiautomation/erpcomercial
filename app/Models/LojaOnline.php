@@ -64,6 +64,10 @@ class LojaOnline extends Model
         'seo_titulo' => '', 'imagem_compartilhar' => '', 'favicon' => '',
         // vitrine (3ª rodada): parcelamento mostrado no preço e selo "Novo"
         'parcelas_max' => 0, 'parcela_minima' => 20, 'parcelas_sem_juros' => false, 'selo_novo_dias' => 30,
+        // 4ª rodada (15/11/2026): reserva, boleto, conta, avaliações, carrinho abandonado
+        'reservar_minutos' => 30, 'boleto' => false, 'conta_cliente' => true,
+        'avaliacoes' => true, 'avaliacoes_moderar' => true,
+        'carrinho_lembrete' => false, 'carrinho_lembrete_horas' => 2, 'avise_me' => true,
     ];
 
     /** Tem algum rastreador de anúncio/medição configurado? (obriga o aviso de cookies) */

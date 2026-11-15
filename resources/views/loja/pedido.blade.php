@@ -5,7 +5,8 @@
 @section('conteudo')
 @php($s = $situacao['situacao'])
 @php($retirada = $pedido->metodo_entrega === 'retirada')
-@php($nivel = match($s) { 'entregue' => 4, 'faturado' => 3, 'pago', 'confirmado' => 2, default => 1 })
+@php($nivel = match($s) { 'entregue' => 4, 'faturado', 'enviado' => 3, 'pago', 'confirmado' => 2, default => 1 })
+@php($temBoleto = $temBoleto ?? false)
 @php($zap = filled($loja->opcao('whatsapp')) ? 'https://wa.me/55' . preg_replace('/\D/', '', $loja->opcao('whatsapp')) . '?text=' . rawurlencode('Olá! Fiz o pedido #' . $pedido->numero . ' na loja online.') : null)
 <div class="lj-caixa" data-lj-pedido data-situacao="{{ $s }}">
     <div class="lj-pagina__topo">
@@ -24,7 +25,7 @@
             <li data-feito>Pedido recebido</li>
             <li @if($nivel >= 2) data-feito @else data-agora @endif>{{ $s === 'confirmado' ? 'Confirmado' : 'Pagamento' }}</li>
             <li @if($nivel >= 3) data-feito @elseif($nivel === 2) data-agora @endif>Separação</li>
-            <li @if($nivel >= 4) data-feito @elseif($nivel === 3) data-agora @endif>{{ $retirada ? 'Retirada' : 'Entrega' }}</li>
+            <li @if($nivel >= 4) data-feito @elseif($nivel === 3) data-agora @endif>{{ $retirada ? 'Retirada' : ($s === 'enviado' ? 'A caminho' : 'Entrega') }}</li>
         </ol>
     @endif
 
@@ -36,7 +37,7 @@
                     <p style="color:var(--suave);margin-top:.5rem">O frete deste endereço não pôde ser calculado na hora. Assim que a loja confirmar o valor, você paga.</p>
                     @if($zap)<a class="lj-btn" style="margin-top:1rem" href="{{ $zap }}" target="_blank" rel="noopener"><i class="bi bi-whatsapp"></i> Falar com a loja</a>@endif
                 </div>
-            @elseif($podePagar && ($meios['pix'] || $meios['cartao']))
+            @elseif($podePagar && ($meios['pix'] || $meios['cartao'] || $temBoleto))
                 <div class="lj-pagar" data-lj-pagar data-url="{{ $ctx->url('pedido/' . $pedido->loja_token . '/pagar') }}">
                     <h2>Pague para confirmar o pedido</h2>
                     <p class="lj-pagar__valor">R$ {{ number_format((float) $pedido->total, 2, ',', '.') }}</p>
@@ -67,12 +68,24 @@
                         <p style="color:var(--suave);font-size:.9rem;margin-top:.6rem">Ela abre em outra aba. Depois de pagar, volte aqui.</p>
                     </div>
 
+                    <div data-lj-boleto @if(!($boleto['ok'] ?? false)) hidden @endif style="margin-top:1.2rem">
+                        <a class="lj-btn" data-lj-boleto-link target="_blank" rel="noopener" href="{{ $boleto['link'] ?? '#' }}"><i class="bi bi-upc-scan" aria-hidden="true"></i> Abrir o boleto</a>
+                        <div class="lj-pix__codigo" style="margin-top:.9rem">
+                            <label class="lj-so-leitor" for="lj-linha">Linha digitável do boleto</label>
+                            <input class="lj-campo" id="lj-linha" readonly value="{{ $boleto['linha'] ?? '' }}" data-lj-copia>
+                            <button class="lj-btn lj-btn--p lj-btn--linha" type="button" data-lj-copiar>Copiar a linha</button>
+                        </div>
+                        <p style="color:var(--suave);font-size:.9rem;margin-top:.6rem">Vence em <span data-lj-boleto-vence>{{ $boleto['vence_em'] ?? '' }}</span>. O banco leva até 3 dias úteis para avisar o pagamento — o pedido é separado depois disso.</p>
+                    </div>
+                    @if($boleto !== null && !($boleto['ok'] ?? false))<div class="lj-aviso lj-aviso--erro" style="margin-top:1rem"><i class="bi bi-exclamation-circle"></i><span>{{ $boleto['erro'] ?? 'Não foi possível gerar o boleto agora.' }}</span></div>@endif
+
                     @if(($pix !== null && !($pix['ok'] ?? false)))<div class="lj-aviso lj-aviso--erro" style="margin-top:1rem"><i class="bi bi-exclamation-circle"></i><span>{{ $pix['erro'] ?? 'Não foi possível gerar o PIX agora.' }} Tente de novo em instantes.</span></div>@endif
                     <div class="lj-aviso lj-aviso--erro" data-lj-pagar-erro hidden style="margin-top:1rem"><i class="bi bi-exclamation-circle"></i><span></span></div>
 
                     <div style="display:flex;gap:.6rem;flex-wrap:wrap;margin-top:1.3rem">
                         @if($meios['pix'])<button class="lj-btn {{ $escolha === 'pix' ? 'lj-btn--linha' : '' }}" type="button" data-lj-meio="pix"><i class="bi bi-qr-code"></i> {{ $escolha === 'pix' ? 'Gerar o PIX de novo' : 'Pagar com PIX' }}</button>@endif
                         @if($meios['cartao'])<button class="lj-btn lj-btn--linha" type="button" data-lj-meio="cartao"><i class="bi bi-credit-card"></i> Pagar com cartão</button>@endif
+                        @if($temBoleto)<button class="lj-btn lj-btn--linha" type="button" data-lj-meio="boleto"><i class="bi bi-upc-scan"></i> Pagar com boleto</button>@endif
                     </div>
                     <p class="lj-espera">Aguardando o pagamento…</p>
                 </div>
@@ -85,15 +98,31 @@
             @elseif($s !== 'cancelado')
                 <div class="lj-pagar lj-pagar--ok">
                     <i class="bi bi-check-circle-fill" aria-hidden="true"></i>
-                    <h2>@if($s === 'entregue')Pedido entregue @elseif($s === 'faturado'){{ $retirada ? 'Pronto para retirada' : 'Pedido a caminho' }} @elseif($s === 'pago')Pagamento confirmado @else Pedido confirmado pela loja @endif</h2>
+                    <h2>@if($s === 'entregue')Pedido entregue @elseif($s === 'enviado')Pedido enviado @elseif($s === 'faturado'){{ $retirada ? 'Pronto para retirada' : 'Pedido a caminho' }} @elseif($s === 'pago')Pagamento confirmado @else Pedido confirmado pela loja @endif</h2>
                     <p style="color:var(--suave);margin-top:.4rem">
                         @if($s === 'entregue')Obrigado pela compra!
+                        @elseif($s === 'enviado')Saiu em {{ $pedido->loja_enviado_em->format('d/m/Y') }}@if($pedido->loja_transportadora) por {{ $pedido->loja_transportadora }}@endif.
                         @elseif($s === 'faturado'){{ $retirada ? 'Seu pedido está separado e pronto para retirada' . ($unidade ? ' em ' . $unidade->nome . '.' : '.') : 'Seu pedido foi separado e está a caminho.' }}
                         @elseif($retirada)A loja já está separando o seu pedido. Você retira{{ $unidade ? ' em ' . $unidade->nome : '' }} assim que ela avisar.
                         @else A loja já está separando o seu pedido para a entrega.@endif
                     </p>
                 </div>
             @endif
+
+            @if($pedido->loja_enviado_em && $s !== 'cancelado' && (filled($pedido->loja_rastreio_codigo) || filled($pedido->loja_rastreio_url)))
+                <div class="lj-rastreio" data-lj-rastreio>
+                    <i class="bi bi-truck" aria-hidden="true"></i>
+                    <div>
+                        <strong>Rastreio{{ $pedido->loja_transportadora ? ' · ' . $pedido->loja_transportadora : '' }}</strong>
+                        @if(filled($pedido->loja_rastreio_codigo))<span class="lj-rastreio__codigo">{{ $pedido->loja_rastreio_codigo }}</span>@endif
+                    </div>
+                    @if(filled($pedido->loja_rastreio_url))<a class="lj-btn lj-btn--p" href="{{ $pedido->loja_rastreio_url }}" target="_blank" rel="noopener noreferrer">Rastrear</a>@endif
+                </div>
+            @elseif(($entregaExterna ?? null) && ! in_array($s, ['cancelado', 'entregue'], true))
+                <div class="lj-rastreio" data-lj-rastreio><i class="bi bi-bicycle" aria-hidden="true"></i><div><strong>Entrega em andamento</strong><span class="lj-rastreio__codigo">Acompanhe o entregador no mapa</span></div>
+                    <a class="lj-btn lj-btn--p" href="{{ $entregaExterna }}" target="_blank" rel="noopener noreferrer">Acompanhar</a></div>
+            @endif
+            @if($s === 'cancelado' && $pedido->loja_estornado_em)<div class="lj-aviso lj-aviso--ok" style="margin-top:1rem"><i class="bi bi-arrow-counterclockwise"></i><span>O valor deste pedido foi devolvido em {{ $pedido->loja_estornado_em->format('d/m/Y') }}.</span></div>@endif
 
             <h2 style="font-size:1.1rem;letter-spacing:0;margin-top:2rem">Itens</h2>
             @foreach($itens as $i)
@@ -104,6 +133,36 @@
                 </div>
             @endforeach
             @if(filled($pedido->observacoes_externas))<p style="margin-top:1rem;color:var(--suave)"><strong style="color:var(--texto)">Seu recado:</strong> {{ $pedido->observacoes_externas }}</p>@endif
+
+            @if(($podeAvaliar ?? false) && $s !== 'cancelado')
+            <section class="lj-avaliar" id="avaliar">
+                <h2>O que você achou?</h2>
+                <p style="color:var(--suave);font-size:.92rem;margin-bottom:.8rem">Sua avaliação ajuda quem está escolhendo.{{ $loja->opcao('avaliacoes_moderar') ? ' Ela aparece na loja depois de conferida.' : '' }}</p>
+                @if(session('loja_erro'))<div class="lj-aviso lj-aviso--erro"><i class="bi bi-exclamation-circle"></i><span>{{ session('loja_erro') }}</span></div>@endif
+                @php($jaVistos = [])
+                @foreach($itens as $i)
+                    @php($alvo = (int) (($gradeDe[$i->produto_id] ?? null) ?: $i->produto_id))
+                    @continue(in_array($alvo, $jaVistos, true))
+                    @php($jaVistos[] = $alvo)
+                    @php($feita = $avaliacoesFeitas[$alvo] ?? null)
+                    <form class="lj-avaliar__item" method="post" action="{{ $ctx->url('pedido/' . $pedido->loja_token . '/avaliar') }}">
+                        @csrf
+                        <input type="hidden" name="produto_id" value="{{ $i->produto_id }}">
+                        <strong>{{ $i->descricao }}</strong>
+                        <fieldset class="lj-estrelas-campo">
+                            <legend class="lj-so-leitor">Nota para {{ $i->descricao }}</legend>
+                            @for($n = 5; $n >= 1; $n--)
+                                <input type="radio" name="nota" value="{{ $n }}" id="nt-{{ $alvo }}-{{ $n }}" @checked((int) ($feita->nota ?? 0) === $n) required>
+                                <label for="nt-{{ $alvo }}-{{ $n }}" title="{{ $n }} {{ $n === 1 ? 'estrela' : 'estrelas' }}"><i class="bi bi-star-fill" aria-hidden="true"></i><span class="lj-so-leitor">{{ $n }} {{ $n === 1 ? 'estrela' : 'estrelas' }}</span></label>
+                            @endfor
+                        </fieldset>
+                        <label class="lj-so-leitor" for="tx-{{ $alvo }}">Comentário</label>
+                        <textarea class="lj-campo" id="tx-{{ $alvo }}" name="texto" rows="2" maxlength="1000" placeholder="Conte como foi (opcional)">{{ $feita->texto ?? '' }}</textarea>
+                        <button class="lj-btn lj-btn--p {{ $feita ? 'lj-btn--linha' : '' }}" type="submit">{{ $feita ? 'Atualizar avaliação' : 'Enviar avaliação' }}</button>
+                    </form>
+                @endforeach
+            </section>
+            @endif
         </div>
 
         <aside class="lj-resumo">
@@ -177,13 +236,21 @@ LJ.rastro.evento('compra', {pedido: {{ (int) $pedido->numero }}, valor: {{ (floa
                 if (!j.ok) { erro.querySelector('span').textContent = j.erro || 'Não foi possível gerar o pagamento agora.'; erro.hidden = false; return; }
                 if (j.tipo === 'qr') {
                     pagar.querySelector('[data-lj-cartao]').hidden = true;
+                    var bq = pagar.querySelector('[data-lj-boleto]'); if (bq) bq.hidden = true;
                     var qr = pagar.querySelector('[data-lj-qr]'); qr.innerHTML = '';
                     if (j.qr_base64) { var im = new Image(); im.alt = 'QR Code do PIX'; im.src = 'data:image/png;base64,' + j.qr_base64; qr.appendChild(im); }
                     copia.value = j.copia_cola; desenharQr(j.copia_cola);
                     pagar.querySelector('[data-lj-pix]').hidden = false;
                     b.classList.add('lj-btn--linha'); b.lastChild.textContent = ' Gerar o PIX de novo';
+                } else if (j.tipo === 'boleto') {
+                    pagar.querySelector('[data-lj-pix]').hidden = true; pagar.querySelector('[data-lj-cartao]').hidden = true;
+                    var cx = pagar.querySelector('[data-lj-boleto]');
+                    cx.querySelector('[data-lj-boleto-link]').href = j.link; cx.querySelector('#lj-linha').value = j.linha || '';
+                    cx.querySelector('[data-lj-boleto-vence]').textContent = j.vence_em || ''; cx.hidden = false;
+                    window.open(j.link, '_blank', 'noopener');
                 } else {
                     pagar.querySelector('[data-lj-pix]').hidden = true;
+                    var bx = pagar.querySelector('[data-lj-boleto]'); if (bx) bx.hidden = true;
                     pagar.querySelector('[data-lj-link]').href = j.link;
                     pagar.querySelector('[data-lj-cartao]').hidden = false;
                     window.open(j.link, '_blank', 'noopener');

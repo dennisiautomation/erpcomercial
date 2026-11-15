@@ -39,6 +39,8 @@ class Pedido extends Model
         'frete_prazo_dias',
         'canal',
         'loja_cupom',
+        'loja_conta_id', 'loja_transportadora', 'loja_rastreio_codigo', 'loja_rastreio_url', 'loja_enviado_em',
+        'loja_estornado_em', 'loja_estorno_obs', // loja online: conta do comprador, envio e devolução (15/11/2026)
         'loja_token', // pedido da loja online: endereço público de acompanhamento (14/11/2026)
         'observacoes_internas',
         'observacoes_externas',
@@ -49,6 +51,8 @@ class Pedido extends Model
         return [
             'status' => StatusPedido::class,
             'canal' => CanalVenda::class,
+            'loja_enviado_em' => 'datetime',
+            'loja_estornado_em' => 'datetime',
             'subtotal' => 'decimal:2',
             'desconto_valor' => 'decimal:2',
             'total' => 'decimal:2',

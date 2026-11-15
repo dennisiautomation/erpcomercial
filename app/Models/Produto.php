@@ -69,12 +69,16 @@ class Produto extends Model
         // Loja online (14/11/2026)
         'loja_online',
         'loja_online_destaque',
+        // Grade (tamanho/cor) da loja online (15/11/2026): variação = produto comum
+        'grade_id',
+        'grade_opcoes',
     ];
 
     protected function casts(): array
     {
         return [
             'loja_online' => 'boolean',
+            'grade_opcoes' => 'array',
             'loja_online_destaque' => 'boolean',
             'preco_custo' => 'decimal:2',
             'preco_venda' => 'decimal:2',

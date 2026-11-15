@@ -50,6 +50,8 @@ const sobraLateral = page => page.evaluate(() => document.documentElement.scroll
 artisan('cache:clear');
 php('validar-loja-online-14nov.pix.php', ['ACAO=desligar']);
 sql("UPDATE lojas_online SET modelo='vitrine', tema=NULL, blocos=NULL, rascunho=NULL, publicada=1, estoque_id=NULL, config=JSON_SET(config,'$.pedido_minimo',0,'$.vender_sem_estoque',false,'$.entrega',true,'$.retirada',true,'$.cookies_aviso',false,'$.popup_ativo',false,'$.meta_pixel','','$.ga4','','$.google_ads','','$.gtm','','$.tiktok_pixel','','$.frete_gratis_acima',0,'$.whatsapp_flutuante',true) WHERE slug='demo'; UPDATE empresas SET exige_documento_cadastro=0 WHERE id=1;");
+// 4ª rodada: pedido online pago RESERVA estoque — os pedidos deixados pelos roteiros anteriores saem da conta
+sql("UPDATE pedidos SET status='cancelado' WHERE loja_token IS NOT NULL AND status IN ('rascunho','confirmado')");
 const PID = Number(sql("SELECT id FROM produtos WHERE descricao='Camisa Linho Areia'"));
 const CAMINHO_P = `/loja/demo/p/${PID}-camisa-linho-areia`;
 
@@ -581,7 +583,7 @@ for (const [larg, nome] of [[390, 'celular']]) {
 // painel: abas novas
 await erp.goto(BASE + '/app/loja-online/promocoes', { waitUntil: 'networkidle2' });
 h = await erp.evaluate(() => ({ abas: [...document.querySelectorAll('.nav-pills .nav-link')].map(a => a.textContent.trim()), cupom: document.body.innerText.includes('NAV20'), contato: document.body.innerText.includes('navegador@teste.test') }));
-check('H36 painel: 8 abas, com o cupom e o contato captado no popup', h.abas.length === 8 && h.abas.includes('Promoções') && h.abas.includes('Anúncios e busca') && h.cupom && h.contato, h);
+check('H36 painel: 13 abas (4ª rodada), com o cupom e o contato captado no popup', h.abas.length === 13 && h.abas.includes('Promoções') && h.abas.includes('Anúncios') && h.abas.includes('Pedidos') && h.abas.includes('Grade') && h.cupom && h.contato, h);
 await erp.select('#cupom_tipo', 'frete_gratis');
 check('H37 escolher "Frete grátis" no cupom trava o campo de valor', await erp.$eval('#cupom_valor', e => e.disabled));
 await print(erp, 'h-painel-promocoes');
@@ -751,6 +753,205 @@ sql("UPDATE lojas_online SET modelo='vitrine', tema=NULL, blocos=NULL, rascunho=
   await ed.close();
 }
 sql("UPDATE lojas_online SET tema=NULL, blocos=NULL, rascunho=NULL WHERE slug='demo'");
+
+// ───────────────────── J. 4ª rodada (15/11/2026) ─────────────────────
+console.log('\n== J. 4ª rodada: favoritos, grade, avise-me, conta, carrinho salvo, avaliação, rastreio, painel ==');
+{
+  const phpJ = codigo => execFileSync('docker', ['exec', '-i', APP, 'php'], { input: "<?php require '/var/www/vendor/autoload.php'; $app = require '/var/www/bootstrap/app.php'; $app->make(Illuminate\\Contracts\\Console\\Kernel::class)->bootstrap();\n" + codigo, stdio: ['pipe', 'pipe', 'ignore'] }).toString().trim();
+  const dono = "App\\Models\\User::where('email','dono@demo.com')->value('id')";
+  sql("UPDATE lojas_online SET modelo='vitrine', tema=NULL, blocos=NULL, rascunho=NULL, config=JSON_SET(config,'$.conta_cliente',true,'$.avaliacoes',true,'$.avaliacoes_moderar',true,'$.avise_me',true,'$.reservar_minutos',30,'$.boleto',false,'$.popup_ativo',false,'$.cookies_aviso',false) WHERE slug='demo'; UPDATE produtos SET grade_id=NULL, grade_opcoes=NULL WHERE empresa_id=1; DELETE FROM loja_contas; DELETE FROM loja_carrinhos; DELETE FROM loja_avise_me; DELETE FROM loja_avaliacoes;");
+  // (repetível: desfaz o que uma execução anterior deste bloco tenha deixado)
+  const arrumarGrade = () => sql("UPDATE produtos SET grade_id=NULL, grade_opcoes=NULL WHERE empresa_id=1; UPDATE produtos SET descricao='Vestido Midi Floral' WHERE descricao='Vestido Midi Floral - P / Preto' AND empresa_id=1; UPDATE produtos SET loja_online=0, status='inativo' WHERE descricao LIKE 'Vestido Midi Floral - %' AND empresa_id=1;");
+  arrumarGrade();
+  // cenário: uma grade (Tamanho × Cor) com saldo só em P/Preto e M/Preto, e um produto esgotado
+  const GID = Number(sql("SELECT id FROM produtos WHERE descricao='Vestido Midi Floral' AND empresa_id=1"));
+  const EID = Number(sql("SELECT id FROM produtos WHERE descricao='Mochila Urbana' AND empresa_id=1"));
+  const estoque = Number(sql("SELECT id FROM estoques WHERE unidade_id=1 ORDER BY is_padrao DESC, id LIMIT 1"));
+  const saldo = (pid, alvo) => phpJ(`$a=App\\Services\\SaldoEstoque::noEstoque(${estoque},${pid}); App\\Services\\SaldoEstoque::registrar(1,1,${estoque},${pid},'ajuste',${alvo}-$a,['user_id'=>${dono}]);`);
+  sql(`UPDATE produtos SET loja_online=1, status='ativo' WHERE id IN (${GID},${EID})`);
+  phpJ(`App\\Services\\LojaOnline\\GradeLoja::gerar(App\\Models\\Produto::withoutGlobalScopes()->find(${GID}), ['Tamanho'=>['P','M','G'],'Cor'=>['Preto','Vinho']]);`);
+  const vars = sql(`SELECT id, grade_opcoes FROM produtos WHERE grade_id=${GID} ORDER BY id`).split('\n').map(l => { const [id, o] = l.split('\t'); return { id: Number(id), o: JSON.parse(o) }; });
+  for (const v of vars) saldo(v.id, (v.o.Cor === 'Preto' && v.o.Tamanho !== 'G') ? 4 : 0);
+  saldo(EID, 0);
+  const VMP = vars.find(v => v.o.Tamanho === 'M' && v.o.Cor === 'Preto').id;
+  artisan('cache:clear');
+
+  const ctxJ = await browser.createBrowserContext();
+  const j = await ctxJ.newPage();
+  await j.setViewport({ width: 1366, height: 900 });
+  j.on('pageerror', e => erros.push(e.message));
+  j.on('console', m => { if (m.type() === 'error' && !/favicon|ERR_|Failed to load resource/.test(m.text())) erros.push(m.text()); });
+
+  // favoritos
+  await j.goto(BASE + '/loja/demo/produtos?q=Camisa+Linho', { waitUntil: 'networkidle2' });
+  await j.hover('.lj-card');
+  await j.click('.lj-card [data-lj-fav]');
+  let r = await j.evaluate(() => ({ p: document.querySelector('.lj-card [data-lj-fav]').getAttribute('aria-pressed'), n: document.querySelector('[data-lj-fav-conta]').textContent.trim(), oculto: document.querySelector('[data-lj-fav-conta]').hidden }));
+  check('J1 favoritar no cartão: coração marcado e contador "1" no cabeçalho', r.p === 'true' && r.n === '1' && !r.oculto, r);
+  await j.reload({ waitUntil: 'networkidle2' });
+  check('J2 o favorito continua marcado depois de recarregar', await j.$eval('.lj-card [data-lj-fav]', b => b.getAttribute('aria-pressed')) === 'true');
+  await j.goto(BASE + '/loja/demo/favoritos', { waitUntil: 'networkidle2' });
+  await j.waitForSelector('[data-lj-fav-lista] .lj-card', { timeout: 5000 }).catch(() => {});
+  r = await j.evaluate(() => ({ n: document.querySelectorAll('[data-lj-fav-lista] .lj-card').length, nome: document.querySelector('[data-lj-fav-lista] .lj-card__nome')?.textContent.trim(), vazio: document.querySelector('[data-lj-fav-vazio]').hidden }));
+  check('J3 página Favoritos mostra o produto guardado', r.n === 1 && /Camisa Linho/.test(r.nome || '') && r.vazio === true, r);
+  await print(j, 'r4-favoritos', false);
+  await j.click('[data-lj-fav-lista] [data-lj-fav]');
+  await sleep(900);
+  r = await j.evaluate(() => ({ n: document.querySelectorAll('[data-lj-fav-lista] .lj-card').length, vazio: document.querySelector('[data-lj-fav-vazio]').hidden }));
+  check('J4 desfavoritar na própria página tira o cartão e mostra o aviso de lista vazia', r.n === 0 && r.vazio === false, r);
+
+  // grade
+  await j.goto(BASE + '/loja/demo/produtos?q=Vestido+Midi', { waitUntil: 'networkidle2' });
+  r = await j.evaluate(() => ({ n: document.querySelectorAll('.lj-card').length, nome: document.querySelector('.lj-card__nome')?.textContent.trim(), botao: document.querySelector('.lj-card__add')?.textContent.trim(), form: !!document.querySelector('.lj-card form[data-lj-add]') }));
+  check('J5 grade: um cartão só, com o nome comum e "Ver opções" no lugar de "Adicionar"', r.n === 1 && r.nome === 'Vestido Midi Floral' && /Ver opções/.test(r.botao || '') && !r.form, r);
+  await print(j, 'r4-cartao-grade', false);
+  await nav(j, () => j.click('.lj-card__nome'));
+  r = await j.evaluate(() => ({ grupos: [...document.querySelectorAll('[data-lj-variacao]')].map(g => g.querySelector('.lj-variacao__nome').textContent.replace(/\s+/g, ' ').trim()),
+    atuais: [...document.querySelectorAll('.lj-variacao__opcao[aria-current=true]')].map(a => a.textContent.trim()), fim: [...document.querySelectorAll('.lj-variacao__opcao--fim')].map(a => a.textContent.replace(/\s*\(esgotado\)/, '').trim()),
+    alvo: Math.min(...[...document.querySelectorAll('.lj-variacao__opcao')].map(a => a.getBoundingClientRect().height)) }));
+  check('J6 página do produto: seletores Tamanho e Cor, P/Preto marcados, G e Vinho riscados, botões com 44 px ou mais',
+    r.grupos.length === 2 && r.grupos[0] === 'Tamanho: P' && r.grupos[1] === 'Cor: Preto' && r.atuais.join() === 'P,Preto' && r.fim.includes('G') && r.fim.includes('Vinho') && r.alvo >= 44, r);
+  await print(j, 'r4-produto-grade', false);
+  await nav(j, () => j.evaluate(() => [...document.querySelectorAll('.lj-variacao__opcao')].find(a => a.textContent.trim() === 'M').click()));
+  r = await j.evaluate(() => ({ h1: document.querySelector('h1').textContent.trim(), atuais: [...document.querySelectorAll('.lj-variacao__opcao[aria-current=true]')].map(a => a.textContent.trim()), url: location.pathname }));
+  check('J7 clicar em M abre a variação M/Preto (endereço, título e opção marcada)', /M \/ Preto$/.test(r.h1) && r.atuais.join() === 'M,Preto' && r.url.includes('/p/' + VMP + '-'), r);
+  await j.click('[data-lj-comprar-principal]');
+  await j.waitForSelector('dialog[data-lj-gaveta][open]', { timeout: 5000 }).catch(() => {});
+  await sleep(600);
+  r = await j.evaluate(() => ({ aberta: document.querySelector('dialog[data-lj-gaveta]').open, texto: document.querySelector('[data-lj-gaveta-itens]').innerText }));
+  check('J8 adicionar a variação: a sacola abre com o tamanho e a cor no nome', r.aberta && /Vestido Midi Floral - M \/ Preto/.test(r.texto), r);
+  await j.evaluate(() => document.querySelector('dialog[data-lj-gaveta]').close());
+  await nav(j, () => j.evaluate(() => [...document.querySelectorAll('.lj-variacao__opcao')].find(a => a.textContent.replace(/\s*\(esgotado\)/, '').trim() === 'Vinho').click()));
+  r = await j.evaluate(() => ({ esgotado: document.body.innerText.includes('Esgotado no momento'), avise: !!document.querySelector('[data-lj-avise]'), comprar: !!document.querySelector('[data-lj-comprar-principal]') }));
+  check('J9 variação sem saldo: "Esgotado", sem botão de comprar e com o "Avise-me"', r.esgotado && r.avise && !r.comprar, r);
+
+  // avise-me
+  await j.type('#lj-avise-email', 'avise@navegador.test');
+  await j.click('[data-lj-avise] button[type=submit]');
+  await sleep(900);
+  r = await j.evaluate(() => ({ t: document.querySelector('[data-lj-avise-saida]').textContent, erro: document.querySelector('[data-lj-avise-saida]').hasAttribute('data-erro') }));
+  check('J10 avise-me sem marcar o aceite: explica e não grava', r.erro && /aceita/i.test(r.t) && sql("SELECT COUNT(*) FROM loja_avise_me") === '0', r);
+  await j.click('[data-lj-avise] input[name=aceite]');
+  await j.click('[data-lj-avise] button[type=submit]');
+  await sleep(900);
+  r = await j.evaluate(() => ({ t: document.querySelector('[data-lj-avise-saida]').textContent, campoSumiu: document.querySelector('.lj-avise__linha').hidden }));
+  check('J11 avise-me com o aceite: confirma na tela e grava o pedido de aviso', /Avisamos por e-mail/.test(r.t) && r.campoSumiu && sql("SELECT email FROM loja_avise_me") === 'avise@navegador.test', r);
+  await print(j, 'r4-avise-me', false);
+
+  // conta do comprador
+  await j.goto(BASE + '/loja/demo/entrar', { waitUntil: 'networkidle2' });
+  check('J12 tela Entrar sem rolagem lateral no computador', await sobraLateral(j) <= 1);
+  await print(j, 'r4-entrar', false);
+  await j.type('#c-nome', 'Nina Navegador');
+  await j.type('#c-email', 'nina@navegador.test');
+  await j.type('#c-tel', '86911110006');
+  await j.type('#c-senha', 'senha-forte-1');
+  await j.click('[data-lj-criar] input[name=aceite]');
+  await nav(j, () => j.click('[data-lj-criar] button[type=submit]'));
+  r = await j.evaluate(() => ({ url: location.pathname, h1: document.querySelector('h1').textContent.trim(), icone: document.querySelector('.lj-acao--conta')?.getAttribute('aria-label'), nome: document.querySelector('.lj-acao--conta span')?.textContent.trim() }));
+  check('J13 criar conta: cai em Minha conta, com o nome no cabeçalho', r.url.endsWith('/conta') && r.h1 === 'Olá, Nina' && r.icone === 'Minha conta' && r.nome === 'Nina', r);
+  await print(j, 'r4-conta', false);
+  await j.goto(BASE + '/loja/demo/finalizar', { waitUntil: 'networkidle2' });
+  r = await j.evaluate(() => ({ nome: document.querySelector('#f-nome').value, email: document.querySelector('#f-email').value, tel: document.querySelector('#f-tel').value, dica: document.querySelector('[data-lj-conta-dica]')?.innerText }));
+  check('J14 fechamento logado: nome, e-mail e telefone já preenchidos', r.nome === 'Nina Navegador' && r.email === 'nina@navegador.test' && r.tel === '86911110006' && /Comprando como/.test(r.dica || ''), r);
+  await sleep(2200);
+  check('J15 carrinho salvo sozinho quando há contato no fechamento', sql("SELECT CONCAT(email,'|',total > 0) FROM loja_carrinhos") === 'nina@navegador.test|1', sql("SELECT COUNT(*) FROM loja_carrinhos"));
+  await j.type('#f-doc', '39053344705');
+  await j.evaluate(() => { const r = document.querySelector('input[name=entrega][value=retirada]'); r.checked = true; r.dispatchEvent(new Event('change', { bubbles: true })); const p = document.querySelector('input[name=pagamento][value=combinar]'); p.checked = true; p.dispatchEvent(new Event('change', { bubbles: true })); });
+  await nav(j, () => j.evaluate(() => document.querySelector('[data-lj-fechar]').requestSubmit()));
+  const urlPedido = j.url();
+  const tokenJ = urlPedido.split('/pedido/')[1];
+  check('J16 compra fechada pela conta: vai para a página do pedido e o pedido fica ligado à conta', /\/pedido\/[a-z0-9]{32}$/.test(urlPedido) && sql(`SELECT loja_conta_id IS NOT NULL FROM pedidos WHERE loja_token='${tokenJ}'`) === '1', urlPedido);
+  check('J17 carrinho salvo deixa de ser abandonado depois da compra', sql("SELECT pedido_id IS NOT NULL FROM loja_carrinhos") === '1');
+  await j.goto(BASE + '/loja/demo/conta', { waitUntil: 'networkidle2' });
+  r = await j.evaluate(() => ({ linhas: document.querySelectorAll('.lj-pedido-linha').length, href: document.querySelector('.lj-pedido-linha')?.getAttribute('href') }));
+  check('J18 Minha conta lista o pedido, com link para acompanhar', r.linhas === 1 && (r.href || '').endsWith(tokenJ), r);
+
+  // rastreio e avaliação na página do pedido
+  sql(`UPDATE pedidos SET status='faturado', metodo_entrega='entrega', frete_valor=0, loja_enviado_em=NOW(), loja_transportadora='Correios', loja_rastreio_codigo='BR987654321BR', loja_rastreio_url='https://rastreamento.correios.com.br/app/index.php?objetos=BR987654321BR' WHERE loja_token='${tokenJ}'`);
+  await j.goto(urlPedido, { waitUntil: 'networkidle2' });
+  r = await j.evaluate(() => { const x = document.querySelector('[data-lj-rastreio]'); const a = x?.querySelector('a'); return { codigo: x?.querySelector('.lj-rastreio__codigo')?.textContent.trim(), href: a?.href, alvo: a?.target, rel: a?.rel, rotulo: document.querySelector('[data-lj-rotulo]').textContent.trim(), etapa: document.querySelector('.lj-etapas li[data-agora]')?.textContent.trim() }; });
+  check('J19 pedido enviado: código de rastreio, botão Rastrear em outra aba e etapa "A caminho"', r.codigo === 'BR987654321BR' && /correios/.test(r.href || '') && r.alvo === '_blank' && /noopener/.test(r.rel || '') && r.rotulo === 'Pedido enviado' && r.etapa === 'A caminho', r);
+  await j.evaluate(() => document.querySelector('#avaliar').scrollIntoView());
+  await j.click('.lj-avaliar__item label[title="4 estrelas"]');
+  await sleep(400);
+  r = await j.evaluate(() => ({ marcado: document.querySelector('.lj-avaliar__item input[name=nota]:checked')?.value,
+    acesas: [...document.querySelectorAll('.lj-avaliar__item .lj-estrelas-campo label')].filter(l => getComputedStyle(l).color === 'rgb(224, 161, 0)').length }));
+  check('J20 avaliar: clicar na 4ª estrela marca nota 4 e acende 4 estrelas', r.marcado === '4' && r.acesas === 4, r);
+  await print(j, 'r4-pedido-rastreio-avaliar');
+  await j.type('.lj-avaliar__item textarea', 'Veio certinho, tecido ótimo.');
+  await nav(j, () => j.click('.lj-avaliar__item button[type=submit]'));
+  r = await j.evaluate(() => ({ ok: document.querySelector('.lj-aviso--ok')?.innerText, botao: document.querySelector('.lj-avaliar__item button[type=submit]').textContent.trim() }));
+  check('J21 avaliação enviada: agradece e o botão vira "Atualizar avaliação"', /Obrigado/.test(r.ok || '') && r.botao === 'Atualizar avaliação' && sql("SELECT CONCAT(nota,'|',status) FROM loja_avaliacoes") === '4|pendente', r);
+  sql("UPDATE loja_avaliacoes SET status='aprovada', resposta='Obrigada pelo carinho!'");
+  await j.goto(BASE + '/loja/demo/p/' + GID, { waitUntil: 'networkidle2' });
+  r = await j.evaluate(() => ({ nota: document.querySelector('.lj-avaliacoes__resumo b')?.textContent.trim(), itens: document.querySelectorAll('.lj-avaliacoes__lista li').length, resposta: document.querySelector('.lj-avaliacoes__resposta')?.innerText, topo: document.querySelector('.lj-produto__ref .lj-nota')?.innerText.replace(/\s+/g, ' ').trim() }));
+  check('J22 avaliação publicada aparece na página de qualquer tamanho da grade, com nota e resposta da loja', r.nota === '4,0' && r.itens === 1 && /Obrigada pelo carinho/.test(r.resposta || '') && /4,0 \(1 avaliação\)/.test(r.topo || ''), r);
+  await j.evaluate(() => document.querySelector('#avaliacoes').scrollIntoView());
+  await print(j, 'r4-produto-avaliacoes', false);
+
+  // sair e entrar de novo
+  await j.goto(BASE + '/loja/demo/conta', { waitUntil: 'networkidle2' });
+  await nav(j, () => j.click('form[action$="/sair"] button'));
+  await j.goto(BASE + '/loja/demo/entrar', { waitUntil: 'networkidle2' });
+  await j.type('#e-email', 'nina@navegador.test');
+  await j.type('#e-senha', 'senha-errada');
+  await nav(j, () => j.click('[data-lj-entrar] button[type=submit]'));
+  check('J23 senha errada: mensagem de erro na tela, sem entrar', (await j.evaluate(() => document.querySelector('.lj-aviso--erro')?.innerText || '')).includes('não conferem') && j.url().endsWith('/entrar'));
+  await j.evaluate(() => { document.querySelector('#e-email').value = ''; }); // a tela devolve o e-mail digitado
+  await j.type('#e-email', 'nina@navegador.test');
+  await j.type('#e-senha', 'senha-forte-1');
+  await nav(j, () => j.click('[data-lj-entrar] button[type=submit]'));
+  check('J24 senha certa: entra na conta', j.url().endsWith('/conta'), j.url());
+
+  // celular
+  const m = await ctxJ.newPage();
+  await m.setViewport({ width: 390, height: 844, isMobile: true, hasTouch: true });
+  m.on('pageerror', e => erros.push(e.message));
+  for (const [nome, caminho] of [['conta', '/loja/demo/conta'], ['favoritos', '/loja/demo/favoritos'], ['pedido', urlPedido.replace(BASE, '')], ['produto-grade', '/loja/demo/p/' + VMP]]) {
+    await m.goto(BASE + caminho, { waitUntil: 'networkidle2' });
+    check(`J25 celular (390 px): ${nome} sem rolagem lateral`, await sobraLateral(m) <= 1, await sobraLateral(m));
+    await print(m, 'r4-celular-' + nome);
+  }
+  r = await m.evaluate(() => ({ alvo: Math.min(...[...document.querySelectorAll('.lj-variacao__opcao')].map(a => Math.min(a.getBoundingClientRect().height, a.getBoundingClientRect().width))) }));
+  check('J26 celular: opções de tamanho e cor com alvo de toque de 44 px ou mais', r.alvo >= 44, r);
+  await m.evaluate(() => document.querySelector('form[action$="/sair"]')?.remove());
+  await m.goto(BASE + '/loja/demo', { waitUntil: 'networkidle2' });
+  await m.click('[data-lj-menu-abrir]');
+  await sleep(500);
+  r = await m.evaluate(() => document.querySelector('dialog[data-lj-menu]').innerText);
+  check('J27 celular: Minha conta e Favoritos estão no menu lateral', /Minha conta/.test(r) && /Favoritos/.test(r), r.slice(0, 200));
+  await m.close();
+  await ctxJ.close();
+
+  // painel do lojista (sessão do dono, aberta no bloco E)
+  await erp.goto(BASE + '/app/loja-online/pedidos', { waitUntil: 'networkidle2' });
+  const pidJ = sql(`SELECT id FROM pedidos WHERE loja_token='${tokenJ}'`);
+  sql(`UPDATE pedidos SET metodo_entrega='entrega', loja_enviado_em=NULL, loja_rastreio_codigo=NULL, loja_rastreio_url=NULL, loja_transportadora=NULL WHERE id=${pidJ}`);
+  await erp.reload({ waitUntil: 'networkidle2' });
+  r = await erp.evaluate(id => { const c = document.querySelector(`[data-pedido="${id}"]`); return { tem: !!c, botao: c?.querySelector('[data-bs-target^="#envio-"]')?.textContent.trim(), fechado: !c?.querySelector('.collapse.show') }; }, pidJ);
+  check('J28 painel Pedidos: o pedido pago aparece em "para separar/enviar" com o botão de informar o envio', r.tem && /Informar o envio/.test(r.botao || '') && r.fechado, r);
+  await erp.click(`[data-pedido="${pidJ}"] [data-bs-target^="#envio-"]`);
+  await erp.waitForSelector(`#envio-${pidJ}.show`);
+  await erp.type(`#cod-${pidJ}`, 'QB111222333BR');
+  await print(erp, 'r4-painel-pedidos');
+  await nav(erp, () => erp.click(`#envio-${pidJ} button`));
+  r = sql(`SELECT CONCAT(loja_rastreio_codigo,'|',loja_enviado_em IS NOT NULL) FROM pedidos WHERE id=${pidJ}`);
+  check('J29 informar o envio pelo painel grava o rastreio e mostra a confirmação', r === 'QB111222333BR|1' && (await erp.evaluate(() => document.body.innerText)).includes('Envio informado'), r);
+  await erp.goto(BASE + '/app/loja-online/grade', { waitUntil: 'networkidle2' });
+  r = await erp.evaluate(() => ({ titulo: document.body.innerText.includes('Vestido Midi Floral'), linhas: document.querySelectorAll('table tbody tr').length, principal: document.body.innerText.includes('principal') }));
+  check('J30 painel Grade: lista as 6 variações com o principal marcado', r.titulo && r.linhas === 6 && r.principal, r);
+  await print(erp, 'r4-painel-grade');
+  await erp.goto(BASE + '/app/loja-online/resultados', { waitUntil: 'networkidle2' });
+  r = await erp.evaluate(() => ({ cartoes: document.querySelectorAll('[data-indicador]').length, sobra: document.documentElement.scrollWidth - window.innerWidth }));
+  check('J31 painel Resultados: 6 indicadores, sem rolagem lateral', r.cartoes === 6 && r.sobra <= 1, r);
+  await print(erp, 'r4-painel-resultados');
+  await erp.goto(BASE + '/app/loja-online/avaliacoes?ver=aprovada', { waitUntil: 'networkidle2' });
+  check('J32 painel Avaliações: a publicada aparece com a resposta da loja', (await erp.evaluate(() => document.querySelector('input[name=resposta]')?.value || '')) === 'Obrigada pelo carinho!');
+  await print(erp, 'r4-painel-avaliacoes');
+  arrumarGrade();
+  sql("UPDATE pedidos SET status='cancelado' WHERE loja_token IS NOT NULL AND status IN ('rascunho','confirmado')");
+}
 
 // ───────────────────── G. admin ─────────────────────
 console.log('\n== G. Admin: card da loja online ==');

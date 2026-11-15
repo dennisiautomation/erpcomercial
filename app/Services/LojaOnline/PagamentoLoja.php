@@ -63,6 +63,103 @@ class PagamentoLoja
         return $meios;
     }
 
+    /** Boleto disponível? Só pelo Asaas, e só se a loja ligou. */
+    public static function temBoleto(LojaOnline $loja): bool
+    {
+        return (bool) $loja->opcao('boleto') && AsaasService::ativoPara((int) $loja->empresa_id) !== null;
+    }
+
+    /**
+     * Boleto do pedido (Asaas). Reaproveita o boleto já emitido para o mesmo valor.
+     *
+     * @return array{ok: bool, tipo?: string, link?: string, linha?: string, vence_em?: ?string, erro?: string}
+     */
+    public function boleto(LojaOnline $loja, Pedido $pedido): array
+    {
+        if (! self::temBoleto($loja)) {
+            return ['ok' => false, 'erro' => 'Boleto não está disponível nesta loja.'];
+        }
+        if (blank(preg_replace('/\D/', '', (string) $pedido->cliente?->cpf_cnpj))) {
+            return ['ok' => false, 'erro' => 'Para pagar com boleto é preciso informar o CPF ou CNPJ no pedido. Fale com a loja.'];
+        }
+        try {
+            $existente = PedidoCobranca::where('empresa_id', $pedido->empresa_id)->where('pedido_id', $pedido->id)
+                ->where('provedor', EmpresaGateway::PROVEDOR_ASAAS)->where('valor', round((float) $pedido->total, 2))
+                ->where('status', 'ATIVA')->whereNull('pago_em')->orderByDesc('id')->get()
+                ->first(fn (PedidoCobranca $c) => ($c->payload['tipo'] ?? '') === 'boleto' && $c->expira_em && $c->expira_em->isFuture());
+            if (! $existente) {
+                $res = AsaasService::ativoPara((int) $pedido->empresa_id)->boletoParaPedido($pedido->fresh(['cliente']));
+                $existente = PedidoCobranca::create([
+                    'empresa_id' => $pedido->empresa_id, 'pedido_id' => $pedido->id, 'provedor' => EmpresaGateway::PROVEDOR_ASAAS,
+                    'txid' => $res['id'], 'valor' => $pedido->total, 'status' => 'ATIVA', 'copia_cola' => $res['linha'],
+                    'expira_em' => \Illuminate\Support\Carbon::parse($res['vence_em'])->endOfDay(),
+                    'payload' => ['tipo' => 'boleto', 'link' => $res['link']],
+                ]);
+            }
+
+            return ['ok' => true, 'tipo' => 'boleto', 'link' => $existente->payload['link'] ?? '', 'linha' => (string) $existente->copia_cola,
+                'vence_em' => $existente->expira_em?->format('d/m/Y')];
+        } catch (\Throwable $e) {
+            Log::channel('integracao')->error('Loja online: falha ao gerar boleto', ['pedido_id' => $pedido->id, 'erro' => $e->getMessage()]);
+
+            return ['ok' => false, 'erro' => 'Não foi possível gerar o boleto agora.'];
+        }
+    }
+
+    /**
+     * Devolve o dinheiro do pedido. Automático só quando o pagamento foi pelo
+     * Asaas (PIX, boleto ou cartão); nos outros provedores a devolução é feita no
+     * banco/provedor e aqui fica só o REGISTRO de que foi devolvido.
+     *
+     * @return array{ok: bool, automatico: bool, mensagem: string}
+     */
+    public function estornar(Pedido $pedido, string $motivo, bool $jaDevolvi = false): array
+    {
+        if ($pedido->loja_estornado_em) {
+            return ['ok' => false, 'automatico' => false, 'mensagem' => 'Este pedido já está marcado como devolvido.'];
+        }
+        $cobranca = PedidoCobranca::where('empresa_id', $pedido->empresa_id)->where('pedido_id', $pedido->id)->whereNotNull('pago_em')->orderByDesc('id')->first();
+        $link = PedidoLinkCartao::where('empresa_id', $pedido->empresa_id)->where('pedido_id', $pedido->id)->where('status', PedidoLinkCartao::STATUS_PAGO)->orderByDesc('id')->first();
+        if (! $cobranca && ! $link) {
+            return ['ok' => false, 'automatico' => false, 'mensagem' => 'Não há pagamento confirmado neste pedido para devolver.'];
+        }
+
+        $paymentId = null;
+        if ($cobranca && $cobranca->provedor === EmpresaGateway::PROVEDOR_ASAAS) {
+            $paymentId = (string) $cobranca->txid;
+        } elseif ($link && ($link->provedor ?? '') === EmpresaGateway::PROVEDOR_ASAAS && filled($link->referencia ?? null)) {
+            $paymentId = (string) $link->referencia;
+        }
+
+        $automatico = false;
+        if ($paymentId && ! $jaDevolvi) {
+            $asaas = AsaasService::ativoPara((int) $pedido->empresa_id);
+            if (! $asaas) {
+                return ['ok' => false, 'automatico' => false, 'mensagem' => 'O Asaas não está mais ligado nesta empresa. Devolva pelo painel do Asaas e marque "já devolvi".'];
+            }
+            try {
+                $asaas->estornar($paymentId, (float) $pedido->total, 'Pedido #' . $pedido->numero . ' — ' . $motivo);
+                $automatico = true;
+            } catch (\Throwable $e) {
+                Log::channel('integracao')->error('Loja online: estorno recusado', ['pedido_id' => $pedido->id, 'erro' => $e->getMessage()]);
+
+                return ['ok' => false, 'automatico' => false, 'mensagem' => 'O Asaas recusou a devolução. Confira no painel do Asaas; se devolver por lá, marque "já devolvi".'];
+            }
+        } elseif (! $jaDevolvi) {
+            return ['ok' => false, 'automatico' => false, 'mensagem' => 'Este pagamento não foi pelo Asaas: a devolução é feita no seu banco ou provedor. Depois de devolver, marque "já devolvi".'];
+        }
+
+        $quem = auth()->user()?->name ?? 'sistema';
+        $pedido->forceFill([
+            'loja_estornado_em' => now(),
+            'loja_estorno_obs' => mb_substr(($automatico ? 'Devolvido pelo Asaas' : 'Devolução registrada à mão') . ' por ' . $quem . ': ' . $motivo, 0, 255),
+            'observacoes_internas' => trim(($pedido->observacoes_internas ?? '') . "\nDINHEIRO DEVOLVIDO em " . now()->format('d/m/Y H:i') . ' — R$ ' . number_format((float) $pedido->total, 2, ',', '.')
+                . ($automatico ? ' (automático, Asaas)' : ' (registrado à mão)') . " por {$quem}. Motivo: {$motivo}"),
+        ])->save();
+
+        return ['ok' => true, 'automatico' => $automatico, 'mensagem' => $automatico ? 'Devolução pedida ao Asaas. O dinheiro volta para o cliente pelo mesmo meio do pagamento.' : 'Devolução registrada.'];
+    }
+
     /**
      * PIX do pedido.
      *
@@ -118,7 +215,7 @@ class PagamentoLoja
             ->where('provedor', EmpresaGateway::PROVEDOR_ASAAS)
             ->where('valor', round((float) $pedido->total, 2))
             ->orderByDesc('id')
-            ->first();
+            ->get()->first(fn (PedidoCobranca $c) => ($c->payload['tipo'] ?? 'pix') !== 'boleto');
         if ($existente && ($existente->paga() || $existente->reutilizavel())) {
             return $existente;
         }
@@ -158,6 +255,8 @@ class PagamentoLoja
 
         return match (true) {
             $status === StatusPedido::Cancelado => ['situacao' => 'cancelado', 'rotulo' => 'Pedido cancelado', 'pago' => $pago],
+            // 15/11/2026: a loja informou o envio (com ou sem código de rastreio) e o ERP ainda não marcou entregue
+            $status !== StatusPedido::Entregue && $pedido->loja_enviado_em !== null => ['situacao' => 'enviado', 'rotulo' => 'Pedido enviado', 'pago' => $pago],
             $status === StatusPedido::Entregue => ['situacao' => 'entregue', 'rotulo' => 'Pedido entregue', 'pago' => true],
             $status === StatusPedido::Faturado => ['situacao' => 'faturado', 'rotulo' => 'Pedido separado e faturado', 'pago' => true],
             $pago => ['situacao' => 'pago', 'rotulo' => 'Pagamento confirmado', 'pago' => true],
@@ -220,12 +319,13 @@ class PagamentoLoja
         if ($pedido->status === StatusPedido::Rascunho) {
             $pedido->status = StatusPedido::Confirmado;
         }
+        $ehBoleto = ($cobranca->payload['tipo'] ?? '') === 'boleto';
         if (! $pedido->condicao_pagamento) {
-            $pedido->condicao_pagamento = 'pix';
+            $pedido->condicao_pagamento = $ehBoleto ? 'boleto' : 'pix';
         }
         if (! str_contains((string) $pedido->observacoes_internas, $cobranca->txid)) {
             $pedido->observacoes_internas = trim(($pedido->observacoes_internas ?? '') . sprintf(
-                "\nPIX PAGO via Asaas em %s — R$ %s (payment %s).",
+                "\n" . ($ehBoleto ? 'BOLETO' : 'PIX') . " PAGO via Asaas em %s — R$ %s (payment %s).",
                 now()->format('d/m/Y H:i'), number_format((float) $cobranca->valor, 2, ',', '.'), $cobranca->txid
             ));
         }

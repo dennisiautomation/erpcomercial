@@ -13,27 +13,33 @@
     <form class="lj-duas" method="post" action="{{ $ctx->url('finalizar') }}" data-lj-fechar novalidate>
         @csrf
         <div>
+            @if($loja->opcao('conta_cliente'))
+                <p class="lj-conta-dica" data-lj-conta-dica>
+                    @if($conta ?? null)<i class="bi bi-person-check" aria-hidden="true"></i> Comprando como <strong>{{ $conta->nome }}</strong>. O pedido fica em <a href="{{ $ctx->url('conta') }}">Minha conta</a>.
+                    @else<i class="bi bi-person" aria-hidden="true"></i> Já tem conta? <a href="{{ $ctx->url('entrar?volta=finalizar') }}">Entre</a> para preencher mais rápido. Sem conta também dá para comprar.@endif
+                </p>
+            @endif
             <fieldset class="lj-passo">
                 <legend><span>1</span> Seus dados</legend>
                 <div class="lj-form">
                     <div>
                         <label for="f-nome">Nome completo</label>
-                        <input class="lj-campo" id="f-nome" name="nome" value="{{ old('nome') }}" autocomplete="name" required @error('nome') aria-invalid="true" @enderror>
+                        <input class="lj-campo" id="f-nome" name="nome" value="{{ old('nome', $preenchido['nome'] ?? null) }}" autocomplete="name" required @error('nome') aria-invalid="true" @enderror>
                         @error('nome')<p class="lj-erro">{{ $message }}</p>@enderror
                     </div>
                     <div class="c3">
                         <label for="f-tel">WhatsApp ou telefone <small>com DDD</small></label>
-                        <input class="lj-campo" id="f-tel" name="telefone" value="{{ old('telefone') }}" inputmode="tel" autocomplete="tel" placeholder="(00) 00000-0000" required @error('telefone') aria-invalid="true" @enderror>
+                        <input class="lj-campo" id="f-tel" name="telefone" value="{{ old('telefone', $preenchido['telefone'] ?? null) }}" inputmode="tel" autocomplete="tel" placeholder="(00) 00000-0000" required @error('telefone') aria-invalid="true" @enderror>
                         @error('telefone')<p class="lj-erro">{{ $message }}</p>@enderror
                     </div>
                     <div class="c3">
                         <label for="f-doc">CPF ou CNPJ @unless($exigeDocumento)<small>(opcional)</small>@endunless</label>
-                        <input class="lj-campo" id="f-doc" name="cpf_cnpj" value="{{ old('cpf_cnpj') }}" inputmode="numeric" @if($exigeDocumento) required @endif @error('cpf_cnpj') aria-invalid="true" @enderror>
+                        <input class="lj-campo" id="f-doc" name="cpf_cnpj" value="{{ old('cpf_cnpj', $preenchido['cpf_cnpj'] ?? null) }}" inputmode="numeric" @if($exigeDocumento) required @endif @error('cpf_cnpj') aria-invalid="true" @enderror>
                         @error('cpf_cnpj')<p class="lj-erro">{{ $message }}</p>@enderror
                     </div>
                     <div>
                         <label for="f-email">E-mail <small>(opcional)</small></label>
-                        <input class="lj-campo" id="f-email" type="email" name="email" value="{{ old('email') }}" autocomplete="email" @error('email') aria-invalid="true" @enderror>
+                        <input class="lj-campo" id="f-email" type="email" name="email" value="{{ old('email', $preenchido['email'] ?? null) }}" autocomplete="email" @error('email') aria-invalid="true" @enderror>
                         @error('email')<p class="lj-erro">{{ $message }}</p>@enderror
                     </div>
                 </div>
@@ -63,32 +69,32 @@
                     <div class="lj-form">
                         <div class="c2">
                             <label for="f-cep">CEP</label>
-                            <input class="lj-campo" id="f-cep" name="cep" value="{{ old('cep') }}" inputmode="numeric" maxlength="9" placeholder="00000-000" autocomplete="postal-code" @error('cep') aria-invalid="true" @enderror>
+                            <input class="lj-campo" id="f-cep" name="cep" value="{{ old('cep', $preenchido['cep'] ?? null) }}" inputmode="numeric" maxlength="9" placeholder="00000-000" autocomplete="postal-code" @error('cep') aria-invalid="true" @enderror>
                             @error('cep')<p class="lj-erro">{{ $message }}</p>@enderror
                         </div>
                         <div class="c4">
                             <label for="f-rua">Rua</label>
-                            <input class="lj-campo" id="f-rua" name="logradouro" value="{{ old('logradouro') }}" autocomplete="address-line1" @error('logradouro') aria-invalid="true" @enderror>
+                            <input class="lj-campo" id="f-rua" name="logradouro" value="{{ old('logradouro', $preenchido['logradouro'] ?? null) }}" autocomplete="address-line1" @error('logradouro') aria-invalid="true" @enderror>
                             @error('logradouro')<p class="lj-erro">{{ $message }}</p>@enderror
                         </div>
                         <div class="c2">
                             <label for="f-num">Número</label>
-                            <input class="lj-campo" id="f-num" name="numero" value="{{ old('numero') }}" @error('numero') aria-invalid="true" @enderror>
+                            <input class="lj-campo" id="f-num" name="numero" value="{{ old('numero', $preenchido['numero'] ?? null) }}" @error('numero') aria-invalid="true" @enderror>
                             @error('numero')<p class="lj-erro">{{ $message }}</p>@enderror
                         </div>
                         <div class="c4">
                             <label for="f-comp">Complemento <small>(opcional)</small></label>
-                            <input class="lj-campo" id="f-comp" name="complemento" value="{{ old('complemento') }}" placeholder="Apto, bloco, referência">
+                            <input class="lj-campo" id="f-comp" name="complemento" value="{{ old('complemento', $preenchido['complemento'] ?? null) }}" placeholder="Apto, bloco, referência">
                         </div>
                         <div class="c3">
                             <label for="f-bairro">Bairro</label>
-                            <input class="lj-campo" id="f-bairro" name="bairro" value="{{ old('bairro') }}" @error('bairro') aria-invalid="true" @enderror>
+                            <input class="lj-campo" id="f-bairro" name="bairro" value="{{ old('bairro', $preenchido['bairro'] ?? null) }}" @error('bairro') aria-invalid="true" @enderror>
                             @error('bairro')<p class="lj-erro">{{ $message }}</p>@enderror
                         </div>
                         <div class="c3">
                             <label for="f-cidade">Cidade / UF</label>
-                            <input class="lj-campo" id="f-cidade" value="{{ old('cidade') ? old('cidade') . '/' . old('uf') : '' }}" readonly tabindex="-1" placeholder="Preenchido pelo CEP" data-lj-cidade>
-                            <input type="hidden" name="cidade" value="{{ old('cidade') }}"><input type="hidden" name="uf" value="{{ old('uf') }}">
+                            <input class="lj-campo" id="f-cidade" value="{{ old('cidade', $preenchido['cidade'] ?? null) ? old('cidade', $preenchido['cidade'] ?? null) . '/' . old('uf', $preenchido['uf'] ?? null) : '' }}" readonly tabindex="-1" placeholder="Preenchido pelo CEP" data-lj-cidade>
+                            <input type="hidden" name="cidade" value="{{ old('cidade', $preenchido['cidade'] ?? null) }}"><input type="hidden" name="uf" value="{{ old('uf', $preenchido['uf'] ?? null) }}">
                         </div>
                     </div>
                     <div style="margin-top:1rem" data-lj-fretes aria-live="polite"></div>
@@ -109,6 +115,12 @@
                     <label class="lj-opcao">
                         <input type="radio" name="pagamento" value="cartao" @checked($pagPadrao === 'cartao')>
                         <span><strong><i class="bi bi-credit-card"></i> Cartão de crédito</strong><small>Você paga em uma página segura do nosso parceiro de pagamento.</small></span>
+                    </label>
+                    @endif
+                    @if($temBoleto ?? false)
+                    <label class="lj-opcao">
+                        <input type="radio" name="pagamento" value="boleto" @checked($pagPadrao === 'boleto')>
+                        <span><strong><i class="bi bi-upc-scan"></i> Boleto</strong><small>Precisa do CPF ou CNPJ. O banco confirma em até 3 dias úteis; o pedido é separado depois disso.</small></span>
                     </label>
                     @endif
                     @if($meios['combinar'])
@@ -157,6 +169,17 @@
 <script>
 (function () {
     var f = document.querySelector('[data-lj-fechar]');
+    // Carrinho salvo: assim que há e-mail ou telefone, a loja consegue devolver o carrinho se a compra parar aqui.
+    var lembrou = '';
+    function lembrar() {
+        var d = {nome: f.elements.nome.value, email: f.elements.email.value, telefone: f.elements.telefone.value};
+        var chave = d.email + '|' + d.telefone;
+        if ((d.email.indexOf('@') < 1 && d.telefone.replace(/\D/g, '').length < 10) || chave === lembrou) return;
+        lembrou = chave;
+        LJ.post(@json($ctx->caminho('carrinho/lembrar')), d).catch(function () {});
+    }
+    ['email', 'telefone'].forEach(function (n) { f.elements[n].addEventListener('blur', lembrar); });
+    if (f.elements.email.value || f.elements.telefone.value) setTimeout(lembrar, 1500);
     var bloco = f.querySelector('[data-lj-endereco]');
     var fretes = f.querySelector('[data-lj-fretes]');
     var valorEl = f.querySelector('[data-lj-frete-valor]');

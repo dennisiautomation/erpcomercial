@@ -9129,3 +9129,78 @@ errado, dava erro e o frete parava de calcular. Os botões agora usam `data-lj-x
 - **107. Campo dentro de aba escondida do editor não recebe foco** (o teste digita e nada entra): abrir a aba "Página inicial" antes.
 
 **Para subir (igual à 2ª rodada):** as mesmas **2** migrations; esta rodada não tem migration nem variável nova de `.env`.
+
+### Loja online — 4ª rodada (15/11/2026): o que faltava para vender de verdade
+
+**Pedido do Dennis (15/11):** depois da análise "o que falta para as lojas ficarem completas", mandou fazer os dois grupos (o que trava
+a venda + o que toda loja pronta tem) e subir em homologação. **Continua NÃO em produção.** Mesma branch `ecommerce-14nov`.
+**1 migration nova:** `2026_11_15_100000_loja_online_completa` (aditiva: 2 colunas em `produtos`, 7 em `pedidos`, 6 tabelas `loja_*`).
+
+**Onde cada coisa vive: nada saiu do ERP — produto, estoque, pedido, cliente e pagamento continuam sendo os do ERP. A grade é só uma
+amarração entre PRODUTOS comuns; a reserva é uma CONTA (não grava estoque); a conta do comprador é só o LOGIN (`loja_contas`); e o que é
+próprio da venda online (envio, devolução, avaliação, carrinho salvo, visitas) mora em colunas `pedidos.loja_*` e tabelas `loja_*`.**
+
+**Correção da análise:** o frete por peso/medidas JÁ existia (o Melhor Envio cota pelas medidas do cadastro do produto). Nada foi feito aí.
+
+**O que entrou**
+- **Grade (tamanho, cor…)** — `GradeLoja`, tela Loja online → Grade. Cada variação é um **produto comum do ERP** (código, código de
+  barras, preço e estoque próprios): PDV, nota e estoque não mudam. `produtos.grade_id` = id do produto principal (ele aponta para si);
+  `grade_opcoes` = `{"Tamanho":"M","Cor":"Azul"}`; o principal guarda `_nome` (nome comum) e `_ordem` (ordem dos atributos).
+  "Criar grade" transforma o produto na 1ª combinação e cadastra as outras como cópias (mesmo preço/fiscal/fotos, **estoque zero**);
+  dá para juntar produto que já existe, tirar um e desfazer. Na vitrine a grade vira **um cartão** ("Ver opções", "a partir de" quando os
+  preços diferem, disponível se qualquer variação tiver saldo) e a página do produto ganha os seletores (cada opção é um link para a
+  variação). Listas usam `CatalogoLoja::vitrine()`; carrinho e página usam `base()` (enxergam cada variação).
+- **Reserva de estoque** — `ReservaLoja`. O estoque continua baixando só no faturamento; a vitrine desconta do saldo o que os pedidos
+  online já prometeram: pedido **confirmado/pago** até faturar ou cancelar, e pedido **aguardando pagamento** por `reservar_minutos`
+  (padrão 30; 0 desliga). **O PDV da loja física NÃO enxerga a reserva** — a tela Pedidos lista "Estoque reservado" para a equipe separar.
+- **Envio com rastreio** — Loja online → Pedidos → "Informar o envio" (transportadora, código, link; código dos Correios ganha o link
+  sozinho). Grava `pedidos.loja_enviado_em/…`, a situação do comprador vira **"enviado"**, a página do pedido mostra o rastreio e sai o
+  e-mail "pedido enviado". Entrega do Uber Direct mostra o link de acompanhamento que já existia em `pedido_entregas`.
+- **Cancelar e devolver** — cancelar pedido não faturado (motivo obrigatório; libera reserva e devolve o uso do cupom; faturado se cancela
+  pela venda no ERP). **Devolver o dinheiro é só do DONO (e admin)**, exige pedido cancelado + confirmação marcada: pagamento pelo Asaas
+  (PIX, boleto, cartão) é estornado pela API; Sicredi/InfinitePay **não têm estorno automático** — devolve-se no banco e marca-se "já
+  devolvi" (fica só o registro, com quem e o motivo). Recusa do Asaas não marca nada.
+- **Boleto** — só pelo Asaas e só se a loja ligar (`boleto`). Exige CPF/CNPJ. Cobrança em `pedido_cobrancas` com `payload.tipo=boleto`
+  (não se confunde com o PIX do mesmo pedido). Confirma pelo webhook do Asaas (agora reconhece `BOLETO`) e pela rotina.
+- **Conta do comprador** — `/entrar`, `/conta`, `/redefinir/{token}` (`ContaController`). E-mail + senha (hash), sessão `loja_conta.{id}`.
+  "Meus pedidos" mostra só os pedidos fechados COM a conta logada (`pedidos.loja_conta_id`) — e-mail digitado sem login não liga pedido
+  a ninguém. Fechamento vem preenchido. "Esqueci a senha" responde igual exista a conta ou não; o token vai embaralhado para o banco.
+- **Favoritos** — coração no cartão e no produto; ficam no navegador e, com conta, também em `loja_contas.favoritos`.
+- **Avise-me** — produto esgotado pede e-mail + aceite (`loja_avise_me`); a rotina manda UM e-mail quando o saldo volta.
+- **Avaliações** — o comprador avalia pela página do pedido (pago/faturado/enviado/entregue) → `loja_avaliacoes`; por padrão passa por
+  conferência (Loja online → Avaliações, com resposta da loja). A grade inteira divide as avaliações (grava no principal).
+- **Carrinho abandonado** — quando o comprador digita e-mail ou telefone no fechamento, uma foto do carrinho vai para `loja_carrinhos`.
+  Loja online → Carrinhos lista os parados há +30 min com link de recuperação e botão que ABRE o WhatsApp (quem envia é o lojista).
+  Lembrete automático por e-mail existe mas vem **desligado** (`carrinho_lembrete`).
+- **Resultados** — `MetricasLoja`: visitas, carrinhos e chegadas ao fechamento contados por dia (uma vez por sessão; sem equipe logada
+  nem robô), mais pedidos/faturamento/ticket/mais vendidos (dos pedidos do ERP) e mais vistos. Começa a contar em 15/11/2026.
+- **Rotina** `loja:rotinas` (a cada 15 min, em `routes/console.php`): avise-me, lembrete de carrinho e conferência de boleto/PIX do Asaas
+  em aberto. `--seco` só mostra o que faria.
+- **Painel:** 13 abas (compactas); as regras de venda (reserva, boleto, conta, avise-me, avaliações, lembrete) ficam no fim de Pedidos.
+
+**Validação (15/11) — ambiente descartável `ec-*`:** `validar-loja-online-14nov.py` **485 ✅ / 0 ❌** (bloco U novo, 140 testes),
+`…-pagamentos-14nov.php` **91 ✅ / 0 ❌** (seção 10: boleto, estorno e rotina com o Asaas simulado), `…browser.mjs` **216 ✅ / 0 ❌**
+(bloco J novo, 35 testes), suíte phpunit 340 testes com os 2 ❌ antigos de sempre. **Não validado:** provedores reais (boleto e estorno
+do Asaas só simulados; nenhum e-mail saiu por SMTP), aparelho de verdade e cliente real. `LojaOnlineTest` não ganhou teste novo nesta rodada.
+
+**Defeitos reais que a bateria pegou (já corrigidos):** código interno repetido ao criar a grade em base com código de letras (o `MAX`
+de texto devolvia sempre o mesmo); ordem dos atributos trocada (o MySQL reordena as chaves do JSON → `_ordem`); nota "4" em vez de "4,0".
+
+**Limites conhecidos (decisão, não esquecimento)**
+- A reserva não trava o PDV: venda no balcão de peça reservada ainda é possível (a tela Pedidos avisa o que separar).
+- Dois compradores fechando a última peça no mesmo segundo: os dois pedidos entram (a conferência é logo antes de gravar, sem trava).
+- Cobrança antiga do mesmo pedido (ex.: PIX gerado antes do boleto) continua pagável no provedor — pagamento em dobro é devolvido à mão.
+- Estorno é sempre do valor TOTAL do pedido. Estorno parcial não existe.
+- Variações criadas copiam as fotos uma vez; trocar a foto depois é produto a produto.
+
+**Armadilhas da 4ª rodada**
+- **108. Coluna JSON do MySQL reordena as chaves** (por tamanho e alfabeto): nunca confiar na ordem de `grade_opcoes` — usar `GradeLoja::nomes()`.
+- **109. `MAX(codigo_interno)` é comparação de TEXTO:** base com código "T00030" devolve sempre ele. Filtrar os numéricos e `CAST`.
+- **110. Pedido online pago RESERVA estoque:** roteiro de teste que deixa pedido confirmado esgota o produto para o roteiro seguinte
+  (o navegador começa cancelando os pedidos que sobraram).
+- **111. `.lj-form` é grade de 6 colunas:** formulário novo dentro de quadro estreito precisa redefinir as colunas (foi assim que o aceite
+  e o botão de "Criar conta" ficaram lado a lado).
+- **112. Todo comprador de teste com o mesmo CPF vira o MESMO cliente** (o fechamento casa pelo documento): usar um CPF por compra.
+
+**Para subir:** rodar a migration `2026_11_15_100000` (+ as 2 das rodadas anteriores, se ainda não rodaram), `route:cache`, `view:cache`
+e conferir que o agendador (`schedule:run`) está de pé — a rotina `loja:rotinas` depende dele. Nenhuma variável nova de `.env`.

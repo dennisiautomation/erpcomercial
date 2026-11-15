@@ -49,7 +49,14 @@ class LojaOnlineMiddleware
             'temaEstilo' => TemaCss::estilo($tema),
             'temaFontes' => TemaCss::fontesUrl($tema),
             'temaAtributos' => TemaCss::atributos($tema),
+            // 15/11/2026: conta do comprador logada nesta loja (ou null)
+            'contaLoja' => $loja->opcao('conta_cliente') ? \App\Models\LojaConta::atual($loja) : null,
         ]);
+
+        // Visita do dia (uma por sessão): só gente de fora, em página — não conta a equipe nem robô.
+        if ($request->isMethod('GET') && ! $daCasa && ! $request->expectsJson() && \App\Services\LojaOnline\MetricasLoja::humano($request)) {
+            \App\Services\LojaOnline\MetricasLoja::contar($loja, 'visitas');
+        }
 
         $request->route()->forgetParameter('loja');
 

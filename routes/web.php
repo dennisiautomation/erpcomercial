@@ -66,6 +66,23 @@ Route::prefix('loja/{loja}')->where(['loja' => '[a-z0-9\-]+'])->name('loja.')
         Route::post('/finalizar', [\App\Http\Controllers\Loja\CarrinhoController::class, 'fechar'])
             ->middleware('throttle:10,1,lj-fechar')->name('fechar');
 
+        // 4ª rodada (15/11/2026): conta do comprador, favoritos, avise-me, avaliações e carrinho salvo
+        Route::get('/entrar', [\App\Http\Controllers\Loja\ContaController::class, 'entrar'])->name('entrar');
+        Route::post('/entrar', [\App\Http\Controllers\Loja\ContaController::class, 'autenticar'])->middleware('throttle:8,1,lj-entrar')->name('autenticar');
+        Route::post('/conta/criar', [\App\Http\Controllers\Loja\ContaController::class, 'criar'])->middleware('throttle:6,1,lj-criar')->name('conta.criar');
+        Route::post('/sair', [\App\Http\Controllers\Loja\ContaController::class, 'sair'])->name('sair');
+        Route::get('/conta', [\App\Http\Controllers\Loja\ContaController::class, 'conta'])->name('conta');
+        Route::post('/conta', [\App\Http\Controllers\Loja\ContaController::class, 'atualizar'])->middleware('throttle:10,1,lj-conta')->name('conta.atualizar');
+        Route::post('/esqueci', [\App\Http\Controllers\Loja\ContaController::class, 'esqueci'])->middleware('throttle:4,1,lj-esqueci')->name('esqueci');
+        Route::get('/redefinir/{token}', [\App\Http\Controllers\Loja\ContaController::class, 'redefinir'])->name('redefinir');
+        Route::post('/redefinir/{token}', [\App\Http\Controllers\Loja\ContaController::class, 'redefinirSalvar'])->middleware('throttle:6,1,lj-redefinir')->name('redefinir.salvar');
+        Route::get('/favoritos', [\App\Http\Controllers\Loja\ContaController::class, 'favoritos'])->name('favoritos');
+        Route::post('/favoritos', [\App\Http\Controllers\Loja\ContaController::class, 'favoritosSincronizar'])->middleware('throttle:40,1,lj-fav')->name('favoritos.sincronizar');
+        Route::post('/avise-me', [\App\Http\Controllers\Loja\ExtrasController::class, 'aviseMe'])->middleware('throttle:8,1,lj-avise')->name('avise-me');
+        Route::post('/carrinho/lembrar', [\App\Http\Controllers\Loja\ExtrasController::class, 'lembrar'])->middleware('throttle:30,1,lj-lembrar')->name('carrinho.lembrar');
+        Route::get('/carrinho/recuperar/{token}', [\App\Http\Controllers\Loja\ExtrasController::class, 'recuperar'])->name('carrinho.recuperar');
+        Route::post('/pedido/{token}/avaliar', [\App\Http\Controllers\Loja\ExtrasController::class, 'avaliar'])->middleware('throttle:12,1,lj-avaliar')->name('pedido.avaliar');
+
         Route::get('/pedido/{token}', [\App\Http\Controllers\Loja\CarrinhoController::class, 'pedidoVer'])->name('pedido');
         Route::post('/pedido/{token}/pagar', [\App\Http\Controllers\Loja\CarrinhoController::class, 'pagar'])
             ->middleware('throttle:12,1,lj-pagar')->name('pedido.pagar');
@@ -676,13 +693,28 @@ Route::middleware(['auth', 'suspensao', 'unidade', \App\Http\Middleware\Restring
             Route::get('/' . $secaoLoja, [App\LojaOnlineController::class, $secaoLoja])->name($secaoLoja);
         }
         Route::middleware('permission:loja_online,editar')->group(function () {
-            Route::put('/secao/{secao}', [App\LojaOnlineController::class, 'salvarSecao'])->where('secao', 'promocoes|avisos|politicas|rastreamento')->name('secao.salvar');
+            Route::put('/secao/{secao}', [App\LojaOnlineController::class, 'salvarSecao'])->where('secao', 'promocoes|avisos|politicas|rastreamento|vendas')->name('secao.salvar');
             Route::post('/cupons', [App\LojaOnlineController::class, 'criarCupom'])->name('cupons.criar');
             Route::patch('/cupons/{cupom}', [App\LojaOnlineController::class, 'alternarCupom'])->whereNumber('cupom')->name('cupons.alternar');
             Route::delete('/cupons/{cupom}', [App\LojaOnlineController::class, 'excluirCupom'])->whereNumber('cupom')->name('cupons.excluir');
             Route::post('/avisos/testar', [App\LojaOnlineController::class, 'testarAviso'])->middleware('throttle:6,1,lj-teste-email')->name('avisos.testar');
         });
         Route::get('/contatos/exportar', [App\LojaOnlineController::class, 'exportarContatos'])->name('contatos.exportar');
+        // 4ª rodada (15/11/2026): pedidos (envio, cancelar, devolver), grade, avaliações, carrinhos e resultados
+        Route::get('/pedidos', [App\LojaOnlineGestaoController::class, 'pedidos'])->name('pedidos');
+        Route::get('/grade', [App\LojaOnlineGestaoController::class, 'grade'])->name('grade');
+        Route::get('/avaliacoes', [App\LojaOnlineGestaoController::class, 'avaliacoes'])->name('avaliacoes');
+        Route::get('/carrinhos', [App\LojaOnlineGestaoController::class, 'carrinhos'])->name('carrinhos');
+        Route::get('/resultados', [App\LojaOnlineGestaoController::class, 'resultados'])->name('resultados');
+        Route::middleware('permission:loja_online,editar')->group(function () {
+            Route::post('/pedidos/{pedido}/envio', [App\LojaOnlineGestaoController::class, 'informarEnvio'])->whereNumber('pedido')->name('pedidos.envio');
+            Route::post('/pedidos/{pedido}/cancelar', [App\LojaOnlineGestaoController::class, 'cancelarPedido'])->whereNumber('pedido')->name('pedidos.cancelar');
+            Route::post('/pedidos/{pedido}/devolver', [App\LojaOnlineGestaoController::class, 'devolverPedido'])->whereNumber('pedido')->name('pedidos.devolver');
+            Route::post('/grade/gerar', [App\LojaOnlineGestaoController::class, 'gerarGrade'])->name('grade.gerar');
+            Route::post('/grade/juntar', [App\LojaOnlineGestaoController::class, 'juntarGrade'])->name('grade.juntar');
+            Route::post('/grade/tirar', [App\LojaOnlineGestaoController::class, 'tirarGrade'])->name('grade.tirar');
+            Route::post('/avaliacoes/{avaliacao}', [App\LojaOnlineGestaoController::class, 'moderarAvaliacao'])->whereNumber('avaliacao')->name('avaliacoes.moderar');
+        });
         Route::get('/editor', [App\LojaOnlineController::class, 'editor'])->name('editor');
         Route::middleware('permission:loja_online,editar')->group(function () {
             Route::post('/editor/rascunho', [App\LojaOnlineController::class, 'salvarRascunho'])->name('editor.rascunho');
