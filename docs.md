@@ -9518,6 +9518,11 @@ sem duplicar o texto); avaliações com barras por nota e cartões que deslizam;
 (J26b–d novos), py 485 ✅. **Armadilha 113:** botão com `white-space:nowrap` dentro de grade estoura a página no modelo de letra mais
 larga (Ateliê, 6 px) — deixar quebrar e reduzir a fonte com `clamp`.
 
+**Ajuste de 15/11 (tarde) — nomes das abas** (Dennis não achava o editor nem onde subir o logo): a aba **Aparência** do painel
+passou a se chamar **Editor visual** e, dentro dela, **Cores e letras** virou **Logo, cores e letras**. Só rótulo — rota
+(`app.loja-online.editor`, `/app/loja-online/editor`), ids e comportamento iguais. Onde este documento diz "Aparência", é essa aba.
+Navegador 219 ✅ / 0 ❌ depois da troca; abas medidas em 1366 e 390 px sem quebra nem rolagem lateral.
+
 **Para subir:** rodar a migration `2026_11_15_100000` (+ as 2 das rodadas anteriores, se ainda não rodaram), `route:cache`, `view:cache`
 e conferir que o agendador (`schedule:run`) está de pé — a rotina `loja:rotinas` depende dele. Nenhuma variável nova de `.env`.
 
