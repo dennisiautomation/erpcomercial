@@ -9511,3 +9511,27 @@ de texto devolvia sempre o mesmo); ordem dos atributos trocada (o MySQL reordena
 
 **Para subir:** rodar a migration `2026_11_15_100000` (+ as 2 das rodadas anteriores, se ainda não rodaram), `route:cache`, `view:cache`
 e conferir que o agendador (`schedule:run`) está de pé — a rotina `loja:rotinas` depende dele. Nenhuma variável nova de `.env`.
+
+### 15/11/2026 — loja online (4 rodadas) juntada e NO AR na homologação
+
+Merge `--no-ff` de `ecommerce-14nov` (`96ad6e5`) nesta branch = commit `e47b7dd`. Conflitos: `AppServiceProvider.php` (ficaram os dois
+blocos: limitadores do POS e o middleware da loja por host) e este `docs.md` (as duas pontas). **Não é produção.**
+
+**No ar em 15/11/2026 11:27 BRT** (`https://homolog-erp.ia365.com.br/loja/demo`): `/home/ubuntu/erp-cafeteria-homolog/src` = `git archive e47b7dd`,
+imagem `erp-caf-app:e47b7dd`; a anterior ficou em `src-f2818bc` e `erp-caf-app:f2818bc`. Cópia do banco antes:
+`backups/pre-loja-online-20261115.sql.gz`. As 3 migrations da loja online rodaram na subida do container (lote 3).
+Rollback = `docker tag erp-caf-app:f2818bc erp-caf-app:latest` + `docker compose up -d app` (as tabelas `loja_*` e as colunas novas podem
+ficar: o código antigo não lê nada delas).
+
+**Dados de demonstração postos na Empresa Demo (id 1), só na homologação:** catálogo de `scripts/loja-online-demo.php` (fotos de banco
+aberto em `storage/app/public/produtos/demo/`), ramo de moda ligado (26 produtos), loja `demo` liberada e no ar, e duas grades de exemplo
+(Camisa Xadrez Azul P/M/G/GG; Vestido Longo Preto P/M/G × Preto/Vinho). O script desmarcou `loja_online` dos produtos antigos da empresa 1
+e pôs `exige_documento_cadastro=0` nela. A empresa da cafeteria (id 2) não foi tocada.
+
+**Conferido depois da subida:** `/login`, `/redes`, `/loja/demo` e as páginas da loja 200; 35 linhas de rota de pos/ficha/cafeteria antes
+e depois; `loja:rotinas` no agendador; roteiro de navegador contra a homologação **23 ✅ / 0 ❌** (início, grade, sacola, entrar, 4 páginas no
+celular sem rolagem lateral, 9 abas do painel, dashboard/PDV/pedidos/produtos do ERP, nenhum erro de JavaScript). **Não conferido:** o roteiro
+de cliques da cafeteria e do app da maquininha não foi rodado de novo; nenhuma compra real foi fechada na homologação; PIX/cartão/boleto não
+estão ligados lá (o fechamento só oferece "combinar com a loja"); o endereço público não responde de dentro do próprio servidor (testado pelo
+nginx local com o nome do site).
+
