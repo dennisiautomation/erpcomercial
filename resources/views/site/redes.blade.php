@@ -601,15 +601,15 @@ html.js .rv.in{opacity:1;transform:none}
 <section class="sec vid" id="video">
   <div class="wrap">
     <div class="sec__head">
-      <span class="kicker">Em 1 minuto e meio</span>
-      <h2 class="d2">Veja uma venda acontecer nas suas lojas.</h2>
+      <span class="kicker">Em 1 minuto</span>
+      <h2 class="d2">Veja o sistema sendo usado nas suas lojas.</h2>
     </div>
     <div class="vid__box">
       <video id="vd" preload="none" playsinline controls poster="{{ asset('site/redes/video-capa.jpg') }}" width="1280" height="720">
         <source src="{{ asset('site/redes/erp-redes.mp4') }}" type="video/mp4">
       </video>
-      <button class="vid__play" id="vdPlay" type="button" aria-label="Assistir ao vídeo de 1 minuto e 29 segundos">
-        <span class="vid__tri" aria-hidden="true"></span><span>Assistir · 1 min 29 s</span>
+      <button class="vid__play" id="vdPlay" type="button" aria-label="Assistir ao vídeo de 58 segundos">
+        <span class="vid__tri" aria-hidden="true"></span><span>Assistir · 58 s</span>
       </button>
     </div>
     <p class="vid__nota">Com narração e legenda. Dá para assistir sem som.</p>
