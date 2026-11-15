@@ -293,6 +293,9 @@
                         </div>
                     </div>
 
+                    {{-- Loja online (14/11/2026): mais fotos + aparece na loja --}}
+                    @include('app.produtos._loja-online', ['produto' => $produto ?? null])
+
                     {{-- Estoque Minimo --}}
                     <div class="col-md-6">
                         <label for="estoque_minimo" class="form-label">

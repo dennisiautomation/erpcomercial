@@ -1043,15 +1043,15 @@
                         @endphp
                         <li class="sidebar-heading">Gestão</li>
                         <li class="nav-item">
-                            <a class="nav-link nav-toggle {{ request()->routeIs('app.multilojas.*', 'app.plano-contas.*', 'app.centros-custo.*', 'app.configuracoes.*', 'app.integracao.*', 'app.lojas.*', 'app.empresa.*') ? '' : 'collapsed' }}"
+                            <a class="nav-link nav-toggle {{ request()->routeIs('app.multilojas.*', 'app.plano-contas.*', 'app.centros-custo.*', 'app.configuracoes.*', 'app.integracao.*', 'app.lojas.*', 'app.empresa.*', 'app.loja-online.*') ? '' : 'collapsed' }}"
                                data-bs-toggle="collapse" href="#menuGestao" role="button"
-                               aria-expanded="{{ request()->routeIs('app.multilojas.*', 'app.plano-contas.*', 'app.centros-custo.*', 'app.configuracoes.*', 'app.integracao.*', 'app.lojas.*', 'app.empresa.*') ? 'true' : 'false' }}"
+                               aria-expanded="{{ request()->routeIs('app.multilojas.*', 'app.plano-contas.*', 'app.centros-custo.*', 'app.configuracoes.*', 'app.integracao.*', 'app.lojas.*', 'app.empresa.*', 'app.loja-online.*') ? 'true' : 'false' }}"
                                aria-controls="menuGestao">
                                 <i class="bi bi-gear nav-icon"></i>
                                 <span class="nav-text">Gestão</span>
                                 <i class="bi bi-chevron-right toggle-icon"></i>
                             </a>
-                            <div class="collapse {{ request()->routeIs('app.multilojas.*', 'app.plano-contas.*', 'app.centros-custo.*', 'app.configuracoes.*', 'app.integracao.*', 'app.lojas.*', 'app.empresa.*') ? 'show' : '' }}" id="menuGestao">
+                            <div class="collapse {{ request()->routeIs('app.multilojas.*', 'app.plano-contas.*', 'app.centros-custo.*', 'app.configuracoes.*', 'app.integracao.*', 'app.lojas.*', 'app.empresa.*', 'app.loja-online.*') ? 'show' : '' }}" id="menuGestao">
                                 <ul class="nav flex-column submenu">
                                     @if(auth()->user()->isDono())
                                         <li class="nav-item">
@@ -1085,6 +1085,15 @@
                                     <li class="nav-item">
                                         <a class="nav-link {{ request()->routeIs('app.centros-custo.*') ? 'active' : '' }}"
                                            href="{{ route('app.centros-custo.index') }}">Centros de Custo</a>
+                                    </li>
+                                    @endif
+                                    {{-- Loja online (14/11/2026): só aparece com o módulo liberado pela plataforma --}}
+                                    @if($podeVer('loja_online') && \App\Models\LojaOnline::ativaPara(auth()->user()->empresa_id ?? session('empresa_id')))
+                                    <li class="nav-item">
+                                        <a class="nav-link {{ request()->routeIs('app.loja-online.*') ? 'active' : '' }}"
+                                           href="{{ route('app.loja-online.index') }}">
+                                            <i class="bi bi-globe2 me-1"></i> Loja online
+                                        </a>
                                     </li>
                                     @endif
                                     @if($podeVer('configuracoes'))

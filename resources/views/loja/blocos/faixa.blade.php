@@ -1,0 +1,1 @@
+@if(filled($bloco['texto'] ?? ''))<div class="lj-faixa"><span class="lj-faixa__trilho"><span>{{ $bloco['texto'] }}</span><span aria-hidden="true">{{ $bloco['texto'] }}</span><span aria-hidden="true">{{ $bloco['texto'] }}</span><span aria-hidden="true">{{ $bloco['texto'] }}</span></span></div>@endif

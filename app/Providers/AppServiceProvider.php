@@ -26,6 +26,9 @@ class AppServiceProvider extends ServiceProvider
 
         // Cache das promoções da loja/dia vive uma requisição (ou um job da fila)
         $this->app->scoped(\App\Services\PromocaoService::class);
+
+        // Loja online (14/11/2026): a loja que responde a requisição atual
+        $this->app->scoped(\App\Services\LojaOnline\LojaContexto::class);
     }
 
     public function boot(): void
@@ -44,6 +47,14 @@ class AppServiceProvider extends ServiceProvider
             Limit::perMinute(60)->by('pos-login-ip:' . $r->ip()),
         ]);
 
+        // Loja online por subdomínio/domínio próprio (14/11/2026): global e registrado
+        // AQUI, não em bootstrap/app.php (que só chega em produção com rebuild — armadilha 46).
+        // pushMiddleware = depois do TrustProxies, então o host já é o que o visitante digitou.
+        if (! $this->app->runningInConsole() || $this->app->runningUnitTests()) {
+            $this->app->make(\Illuminate\Contracts\Http\Kernel::class)
+                ->pushMiddleware(\App\Http\Middleware\ResolverLojaPorHost::class);
+        }
+
         // Snapshot fiscal automático: copia NCM/CFOP/CST/alíquotas do produto
         // para o venda_item na criação. Imuniza histórico contra edições do produto.
         VendaItem::observe(VendaItemObserver::class);
@@ -51,6 +62,9 @@ class AppServiceProvider extends ServiceProvider
         // Agente IA: produto alterado → re-indexa no banco vetorial (só
         // dispara job para empresas com o módulo ativo — ver o Observer)
         Produto::observe(ProdutoObserver::class);
+
+        // Loja online: pedido da loja mudou de situação → e-mail ao comprador (14/11/2026)
+        \App\Models\Pedido::observe(\App\Observers\PedidoLojaObserver::class);
 
         // Integração ligada/desligada (Uber, Melhor Envio, PIX, Asaas) ou Agente
         // IA ativado/desativado → aviso assinado ao app.ia365, que re-lê

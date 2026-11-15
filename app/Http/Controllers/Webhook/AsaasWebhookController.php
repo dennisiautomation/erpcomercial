@@ -50,8 +50,14 @@ class AsaasWebhookController extends Controller
         $paymentId = (string) $request->input('payment.id', '');
         $valor = (float) $request->input('payment.value', 0);
 
+        // 14/11/2026: o Asaas também cobra PIX (QR Code na tela da loja online).
+        $ehPix = (string) $request->input('payment.billingType', '') === 'PIX';
+        // 15/11/2026: e boleto (loja online) — a cobrança guardada é marcada paga do mesmo jeito.
+        $ehBoleto = (string) $request->input('payment.billingType', '') === 'BOLETO';
+
         $nota = sprintf(
-            "\nCARTÃO PAGO via Asaas em %s — R$ %s (payment %s).",
+            "\n%s PAGO via Asaas em %s — R$ %s (payment %s).",
+            $ehPix ? 'PIX' : ($ehBoleto ? 'BOLETO' : 'CARTÃO'),
             now()->format('d/m/Y H:i'),
             number_format($valor, 2, ',', '.'),
             $paymentId
@@ -63,7 +69,23 @@ class AsaasWebhookController extends Controller
         if ($paymentId !== '' && ! str_contains((string) $pedido->observacoes_internas, $paymentId)) {
             $pedido->observacoes_internas = trim(($pedido->observacoes_internas ?? '') . $nota);
         }
+        if ($ehPix && ! $pedido->condicao_pagamento) {
+            $pedido->condicao_pagamento = 'pix';
+        }
         $pedido->save();
+
+        if ($ehBoleto && ! $pedido->condicao_pagamento) {
+            $pedido->condicao_pagamento = 'boleto';
+            $pedido->save();
+        }
+
+        if (($ehPix || $ehBoleto) && $paymentId !== '') {
+            \App\Models\PedidoCobranca::where('empresa_id', $pedido->empresa_id)
+                ->where('provedor', EmpresaGateway::PROVEDOR_ASAAS)
+                ->where('txid', $paymentId)
+                ->whereNull('pago_em')
+                ->update(['status' => 'CONCLUIDA', 'pago_em' => now(), 'updated_at' => now()]);
+        }
 
         // 25/09/2026: o link guardado em pedido_links_cartao também fica pago.
         app(\App\Services\Pagamento\CartaoPedidoService::class)

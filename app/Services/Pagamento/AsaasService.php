@@ -104,4 +104,87 @@ class AsaasService
             'link' => (string) ($res['invoiceUrl'] ?? ''),
         ];
     }
+
+    /**
+     * Cobrança PIX do pedido com QR Code para mostrar NA TELA (loja online,
+     * 14/11/2026). Mesmo `externalReference` do cartão: o webhook que já existe
+     * confirma o pedido.
+     *
+     * @return array{id: string, copia_cola: string, qr_base64: string, expira_em: ?string}
+     */
+    public function pixParaPedido(Pedido $pedido): array
+    {
+        $pedido->loadMissing('cliente');
+
+        $res = $this->http()->post('/payments', [
+            'customer' => $this->customerId($pedido),
+            'billingType' => 'PIX',
+            'value' => (float) $pedido->total,
+            'dueDate' => now()->addDay()->toDateString(),
+            'description' => "Pedido #{$pedido->numero}",
+            'externalReference' => "pedido:{$pedido->id}",
+        ])->throw()->json();
+
+        $id = (string) ($res['id'] ?? '');
+        if ($id === '') {
+            throw new \RuntimeException('O Asaas não devolveu a cobrança PIX.');
+        }
+
+        $qr = $this->http()->get("/payments/{$id}/pixQrCode")->throw()->json();
+
+        Log::channel('integracao')->info('Asaas: PIX criado', ['pedido_id' => $pedido->id, 'payment_id' => $id]);
+
+        return [
+            'id' => $id,
+            'copia_cola' => (string) ($qr['payload'] ?? ''),
+            'qr_base64' => (string) ($qr['encodedImage'] ?? ''),
+            'expira_em' => $qr['expirationDate'] ?? null,
+        ];
+    }
+
+    /**
+     * Boleto do pedido (loja online, 15/11/2026). Mesmo `externalReference`: o
+     * webhook que já existe confirma o pedido quando o banco compensa.
+     *
+     * @return array{id: string, link: string, linha: string, vence_em: string}
+     */
+    public function boletoParaPedido(Pedido $pedido, int $diasParaVencer = 3): array
+    {
+        $pedido->loadMissing('cliente');
+        $vence = now()->addDays(max(1, $diasParaVencer))->toDateString();
+
+        $res = $this->http()->post('/payments', [
+            'customer' => $this->customerId($pedido),
+            'billingType' => 'BOLETO',
+            'value' => (float) $pedido->total,
+            'dueDate' => $vence,
+            'description' => "Pedido #{$pedido->numero}",
+            'externalReference' => "pedido:{$pedido->id}",
+        ])->throw()->json();
+
+        $id = (string) ($res['id'] ?? '');
+        if ($id === '' || blank($res['bankSlipUrl'] ?? null)) {
+            throw new \RuntimeException('O Asaas não devolveu o boleto.');
+        }
+        $linha = $this->http()->get("/payments/{$id}/identificationField")->json();
+
+        Log::channel('integracao')->info('Asaas: boleto criado', ['pedido_id' => $pedido->id, 'payment_id' => $id]);
+
+        return ['id' => $id, 'link' => (string) $res['bankSlipUrl'], 'linha' => (string) ($linha['identificationField'] ?? ''), 'vence_em' => $vence];
+    }
+
+    /** Devolve o dinheiro de uma cobrança paga (estorno total). Lança se o Asaas recusar. */
+    public function estornar(string $paymentId, float $valor, string $motivo): void
+    {
+        $this->http()->post("/payments/{$paymentId}/refund", ['value' => round($valor, 2), 'description' => mb_substr($motivo, 0, 200)])->throw();
+        Log::channel('integracao')->info('Asaas: estorno pedido', ['payment_id' => $paymentId, 'valor' => $valor]);
+    }
+
+    /** Situação de uma cobrança (rede de segurança do webhook). */
+    public function pagamentoRecebido(string $paymentId): bool
+    {
+        $res = $this->http()->get("/payments/{$paymentId}")->throw()->json();
+
+        return in_array($res['status'] ?? '', ['RECEIVED', 'CONFIRMED', 'RECEIVED_IN_CASH'], true);
+    }
 }

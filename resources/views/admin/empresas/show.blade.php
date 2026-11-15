@@ -520,6 +520,75 @@
                 </div>
             </div>
         </div>
+        {{-- Loja online (e-commerce) — 14/11/2026 --}}
+        @php($lojaOnline = \App\Models\LojaOnline::daEmpresa($empresa->id))
+        <div class="row g-4 mb-1">
+            <div class="col-12">
+                <div class="card detail-card shadow-sm" id="cardLojaOnline">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0"><i class="bi bi-globe2 me-1"></i> Loja online (e-commerce)</h6>
+                        @if($lojaOnline?->ativo && $lojaOnline->noAr())
+                            <span class="badge bg-success bg-opacity-10 text-success">Liberada · no ar</span>
+                        @elseif($lojaOnline?->ativo)
+                            <span class="badge bg-warning bg-opacity-10 text-warning">Liberada · fora do ar</span>
+                        @else
+                            <span class="badge bg-secondary bg-opacity-10 text-secondary">Não liberada</span>
+                        @endif
+                    </div>
+                    <div class="card-body">
+                        <div class="d-flex flex-wrap align-items-start gap-3">
+                            <div class="flex-grow-1">
+                                <p class="text-muted small mb-2">
+                                    Vitrine pública com carrinho e checkout, vendendo o estoque do ERP. Usa o PIX, o cartão e o frete
+                                    já ligados nos cards abaixo. Liberada, o lojista ganha o menu <strong>Gestão → Loja online</strong>
+                                    (produtos, aparência e pôr no ar).
+                                </p>
+                                @if($lojaOnline?->ativo)
+                                    <p class="small mb-0">
+                                        <i class="bi bi-link-45deg me-1"></i>
+                                        <a href="{{ $lojaOnline->enderecoInterno() }}" target="_blank" rel="noopener">{{ $lojaOnline->enderecoPublico() }}</a>
+                                        · {{ \App\Models\Produto::withoutGlobalScopes()->where('empresa_id', $empresa->id)->whereNull('deleted_at')->where('loja_online', true)->count() }} produtos na vitrine
+                                    </p>
+                                @endif
+                            </div>
+                            <form method="POST" action="{{ route('admin.empresas.loja-online.toggle', $empresa) }}"
+                                  @if($lojaOnline?->ativo) onsubmit="return confirm('Desligar a loja online desta empresa? A vitrine sai do ar e o menu some para o lojista. Nada é apagado.')" @endif>
+                                @csrf
+                                <button type="submit" class="btn btn-sm {{ $lojaOnline?->ativo ? 'btn-outline-danger' : 'btn-primary' }}">
+                                    {{ $lojaOnline?->ativo ? 'Desligar' : 'Liberar loja online' }}
+                                </button>
+                            </form>
+                        </div>
+                        @if($lojaOnline?->ativo)
+                            <hr>
+                            <form method="POST" action="{{ route('admin.empresas.loja-online.salvar', $empresa) }}" class="row g-3 align-items-end">
+                                @csrf
+                                <div class="col-md-4">
+                                    <label for="lojaSlug" class="form-label small fw-semibold">Endereço (nome da loja)</label>
+                                    <div class="input-group input-group-sm">
+                                        <span class="input-group-text">/loja/</span>
+                                        <input type="text" name="slug" id="lojaSlug" class="form-control @error('slug') is-invalid @enderror" value="{{ old('slug', $lojaOnline->slug) }}" required maxlength="60">
+                                        @error('slug') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                    </div>
+                                    @if(\App\Models\LojaOnline::dominioBase() !== '')
+                                        <div class="form-text">Também responde em <code>{{ $lojaOnline->slug }}.{{ \App\Models\LojaOnline::dominioBase() }}</code>.</div>
+                                    @endif
+                                </div>
+                                <div class="col-md-5">
+                                    <label for="lojaDominio" class="form-label small fw-semibold">Domínio do cliente <span class="text-muted fw-normal">(opcional)</span></label>
+                                    <input type="text" name="dominio" id="lojaDominio" class="form-control form-control-sm @error('dominio') is-invalid @enderror" value="{{ old('dominio', $lojaOnline->dominio) }}" placeholder="loja.cliente.com.br">
+                                    @error('dominio') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                    <div class="form-text">O domínio precisa apontar para este servidor e ter certificado emitido (ver docs.md, “Domínio próprio”).</div>
+                                </div>
+                                <div class="col-md-3">
+                                    <button type="submit" class="btn btn-sm btn-outline-primary"><i class="bi bi-check-lg me-1"></i> Salvar endereço</button>
+                                </div>
+                            </form>
+                        @endif
+                    </div>
+                </div>
+            </div>
+        </div>
         @php($gatewayPix = \App\Models\EmpresaGateway::where('empresa_id', $empresa->id)->where('provedor', \App\Models\EmpresaGateway::PROVEDOR_SICREDI_PIX)->first())
         <div class="row g-4 mb-1">
             <div class="col-12">

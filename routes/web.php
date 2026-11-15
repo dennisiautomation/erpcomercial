@@ -31,6 +31,68 @@ Route::get('/offline', [\App\Http\Controllers\PwaController::class, 'offline'])
     ->name('pwa.offline');
 
 /* ------------------------------------------------------------------ */
+/*  Loja online (e-commerce) — vitrine pública, 14/11/2026             */
+/* ------------------------------------------------------------------ */
+// As rotas existem UMA vez, em /loja/{slug}/...; subdomínio e domínio próprio
+// chegam aqui pelo ResolverLojaPorHost (reescreve o caminho antes do roteador).
+// Por isso as views montam link com $ctx->url(), nunca com route().
+Route::prefix('loja/{loja}')->where(['loja' => '[a-z0-9\-]+'])->name('loja.')
+    ->middleware(\App\Http\Middleware\LojaOnlineMiddleware::class)
+    ->group(function () {
+        Route::get('/', [\App\Http\Controllers\Loja\VitrineController::class, 'home'])->name('home');
+        Route::get('/produtos', [\App\Http\Controllers\Loja\VitrineController::class, 'produtos'])->name('produtos');
+        Route::get('/p/{produto}', [\App\Http\Controllers\Loja\VitrineController::class, 'produto'])
+            ->where('produto', '[0-9]+(-[a-z0-9\-]*)?')->name('produto');
+        Route::get('/informacoes', [\App\Http\Controllers\Loja\VitrineController::class, 'informacoes'])->name('informacoes');
+        Route::get('/buscar', [\App\Http\Controllers\Loja\VitrineController::class, 'buscar'])->middleware('throttle:60,1,lj-buscar')->name('buscar');
+        Route::get('/vistos', [\App\Http\Controllers\Loja\VitrineController::class, 'vistos'])->middleware('throttle:30,1,lj-vistos')->name('vistos');
+        Route::get('/carrinho/resumo', [\App\Http\Controllers\Loja\CarrinhoController::class, 'resumo'])->name('carrinho.resumo');
+        Route::get('/sitemap.xml', [\App\Http\Controllers\Loja\VitrineController::class, 'sitemap'])->name('sitemap');
+        Route::get('/politica/{tipo}', [\App\Http\Controllers\Loja\VitrineController::class, 'politica'])
+            ->where('tipo', 'privacidade|trocas|entrega|termos')->name('politica');
+        Route::get('/ofertas', [\App\Http\Controllers\Loja\VitrineController::class, 'ofertas'])->name('ofertas');
+        Route::post('/contato', [\App\Http\Controllers\Loja\VitrineController::class, 'contato'])
+            ->middleware('throttle:8,1,lj-contato')->name('contato');
+        Route::post('/carrinho/cupom', [\App\Http\Controllers\Loja\CarrinhoController::class, 'cupom'])
+            ->middleware('throttle:15,1,lj-cupom')->name('carrinho.cupom');
+
+        Route::get('/carrinho', [\App\Http\Controllers\Loja\CarrinhoController::class, 'ver'])->name('carrinho');
+        Route::post('/carrinho/adicionar', [\App\Http\Controllers\Loja\CarrinhoController::class, 'adicionar'])
+            ->middleware('throttle:60,1,lj-carrinho')->name('carrinho.adicionar');
+        Route::post('/carrinho/atualizar', [\App\Http\Controllers\Loja\CarrinhoController::class, 'atualizar'])
+            ->middleware('throttle:60,1,lj-carrinho')->name('carrinho.atualizar');
+        Route::post('/frete', [\App\Http\Controllers\Loja\CarrinhoController::class, 'frete'])
+            ->middleware('throttle:20,1,lj-frete')->name('frete');
+        Route::get('/finalizar', [\App\Http\Controllers\Loja\CarrinhoController::class, 'finalizar'])->name('finalizar');
+        Route::post('/finalizar', [\App\Http\Controllers\Loja\CarrinhoController::class, 'fechar'])
+            ->middleware('throttle:10,1,lj-fechar')->name('fechar');
+
+        // 4ª rodada (15/11/2026): conta do comprador, favoritos, avise-me, avaliações e carrinho salvo
+        Route::get('/entrar', [\App\Http\Controllers\Loja\ContaController::class, 'entrar'])->name('entrar');
+        Route::post('/entrar', [\App\Http\Controllers\Loja\ContaController::class, 'autenticar'])->middleware('throttle:8,1,lj-entrar')->name('autenticar');
+        Route::post('/conta/criar', [\App\Http\Controllers\Loja\ContaController::class, 'criar'])->middleware('throttle:6,1,lj-criar')->name('conta.criar');
+        Route::post('/sair', [\App\Http\Controllers\Loja\ContaController::class, 'sair'])->name('sair');
+        Route::get('/conta', [\App\Http\Controllers\Loja\ContaController::class, 'conta'])->name('conta');
+        Route::post('/conta', [\App\Http\Controllers\Loja\ContaController::class, 'atualizar'])->middleware('throttle:10,1,lj-conta')->name('conta.atualizar');
+        Route::post('/esqueci', [\App\Http\Controllers\Loja\ContaController::class, 'esqueci'])->middleware('throttle:4,1,lj-esqueci')->name('esqueci');
+        Route::get('/redefinir/{token}', [\App\Http\Controllers\Loja\ContaController::class, 'redefinir'])->name('redefinir');
+        Route::post('/redefinir/{token}', [\App\Http\Controllers\Loja\ContaController::class, 'redefinirSalvar'])->middleware('throttle:6,1,lj-redefinir')->name('redefinir.salvar');
+        Route::get('/favoritos', [\App\Http\Controllers\Loja\ContaController::class, 'favoritos'])->name('favoritos');
+        Route::post('/favoritos', [\App\Http\Controllers\Loja\ContaController::class, 'favoritosSincronizar'])->middleware('throttle:40,1,lj-fav')->name('favoritos.sincronizar');
+        Route::post('/avise-me', [\App\Http\Controllers\Loja\ExtrasController::class, 'aviseMe'])->middleware('throttle:8,1,lj-avise')->name('avise-me');
+        Route::post('/carrinho/lembrar', [\App\Http\Controllers\Loja\ExtrasController::class, 'lembrar'])->middleware('throttle:30,1,lj-lembrar')->name('carrinho.lembrar');
+        Route::get('/carrinho/recuperar/{token}', [\App\Http\Controllers\Loja\ExtrasController::class, 'recuperar'])->name('carrinho.recuperar');
+        Route::post('/pedido/{token}/avaliar', [\App\Http\Controllers\Loja\ExtrasController::class, 'avaliar'])->middleware('throttle:12,1,lj-avaliar')->name('pedido.avaliar');
+
+        Route::get('/pedido/{token}', [\App\Http\Controllers\Loja\CarrinhoController::class, 'pedidoVer'])->name('pedido');
+        Route::post('/pedido/{token}/pagar', [\App\Http\Controllers\Loja\CarrinhoController::class, 'pagar'])
+            ->middleware('throttle:12,1,lj-pagar')->name('pedido.pagar');
+        Route::get('/pedido/{token}/situacao', [\App\Http\Controllers\Loja\CarrinhoController::class, 'situacao'])
+            ->middleware('throttle:40,1,lj-situacao')->name('pedido.situacao');
+    });
+
+
+/* ------------------------------------------------------------------ */
 /*  Auth                                                               */
 /* ------------------------------------------------------------------ */
 
@@ -126,6 +188,11 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
         ->name('empresas.gateway-infinitepay.store');
     Route::post('/empresas/{empresa}/gateway-infinitepay/testar', [Admin\EmpresaInfinitePayController::class, 'testar'])
         ->name('empresas.gateway-infinitepay.testar');
+    // Loja online (e-commerce) por empresa (14/11/2026) — aba Integração
+    Route::post('/empresas/{empresa}/loja-online/toggle', [Admin\LojaOnlineController::class, 'toggle'])
+        ->name('empresas.loja-online.toggle');
+    Route::post('/empresas/{empresa}/loja-online', [Admin\LojaOnlineController::class, 'salvar'])
+        ->name('empresas.loja-online.salvar');
     // Qual cartão o agente usa quando a empresa tem mais de um ligado (25/09/2026)
     Route::post('/empresas/{empresa}/agente-ia/cartao', [Admin\AgenteIaController::class, 'cartao'])
         ->name('empresas.agente-ia.cartao');
@@ -632,6 +699,52 @@ Route::middleware(['auth', 'suspensao', 'unidade', \App\Http\Middleware\Restring
 
     // Formas de pagamento (14/11/2026): botões do PDV + selects de faturar e balcão.
     // Da empresa inteira; mora dentro de Configurações, como os estoques.
+    /* ------ Loja online (e-commerce) — 14/11/2026 ------
+       O controller devolve 404 para empresa sem lojas_online.ativo (chave da plataforma). */
+    Route::prefix('loja-online')->name('loja-online.')->middleware('permission:loja_online')->group(function () {
+        Route::get('/', [App\LojaOnlineController::class, 'index'])->name('index');
+        Route::get('/configuracoes', [App\LojaOnlineController::class, 'configuracoes'])->name('configuracoes');
+        Route::put('/configuracoes', [App\LojaOnlineController::class, 'salvarConfiguracoes'])->middleware('permission:loja_online,editar')->name('configuracoes.salvar');
+        Route::post('/publicar', [App\LojaOnlineController::class, 'publicar'])->middleware('permission:loja_online,editar')->name('publicar');
+        Route::get('/produtos', [App\LojaOnlineController::class, 'produtos'])->name('produtos');
+        Route::post('/produtos', [App\LojaOnlineController::class, 'marcarProdutos'])->middleware('permission:loja_online,editar')->name('produtos.marcar');
+        // 2ª rodada: promoções (cupons, frete grátis, popup, contatos), avisos por e-mail, políticas e rastreamento
+        foreach (['promocoes', 'avisos', 'politicas', 'rastreamento'] as $secaoLoja) {
+            Route::get('/' . $secaoLoja, [App\LojaOnlineController::class, $secaoLoja])->name($secaoLoja);
+        }
+        Route::middleware('permission:loja_online,editar')->group(function () {
+            Route::put('/secao/{secao}', [App\LojaOnlineController::class, 'salvarSecao'])->where('secao', 'promocoes|avisos|politicas|rastreamento|vendas')->name('secao.salvar');
+            Route::post('/cupons', [App\LojaOnlineController::class, 'criarCupom'])->name('cupons.criar');
+            Route::patch('/cupons/{cupom}', [App\LojaOnlineController::class, 'alternarCupom'])->whereNumber('cupom')->name('cupons.alternar');
+            Route::delete('/cupons/{cupom}', [App\LojaOnlineController::class, 'excluirCupom'])->whereNumber('cupom')->name('cupons.excluir');
+            Route::post('/avisos/testar', [App\LojaOnlineController::class, 'testarAviso'])->middleware('throttle:6,1,lj-teste-email')->name('avisos.testar');
+        });
+        Route::get('/contatos/exportar', [App\LojaOnlineController::class, 'exportarContatos'])->name('contatos.exportar');
+        // 4ª rodada (15/11/2026): pedidos (envio, cancelar, devolver), grade, avaliações, carrinhos e resultados
+        Route::get('/pedidos', [App\LojaOnlineGestaoController::class, 'pedidos'])->name('pedidos');
+        Route::get('/grade', [App\LojaOnlineGestaoController::class, 'grade'])->name('grade');
+        Route::get('/avaliacoes', [App\LojaOnlineGestaoController::class, 'avaliacoes'])->name('avaliacoes');
+        Route::get('/carrinhos', [App\LojaOnlineGestaoController::class, 'carrinhos'])->name('carrinhos');
+        Route::get('/resultados', [App\LojaOnlineGestaoController::class, 'resultados'])->name('resultados');
+        Route::middleware('permission:loja_online,editar')->group(function () {
+            Route::post('/pedidos/{pedido}/envio', [App\LojaOnlineGestaoController::class, 'informarEnvio'])->whereNumber('pedido')->name('pedidos.envio');
+            Route::post('/pedidos/{pedido}/cancelar', [App\LojaOnlineGestaoController::class, 'cancelarPedido'])->whereNumber('pedido')->name('pedidos.cancelar');
+            Route::post('/pedidos/{pedido}/devolver', [App\LojaOnlineGestaoController::class, 'devolverPedido'])->whereNumber('pedido')->name('pedidos.devolver');
+            Route::post('/grade/gerar', [App\LojaOnlineGestaoController::class, 'gerarGrade'])->name('grade.gerar');
+            Route::post('/grade/juntar', [App\LojaOnlineGestaoController::class, 'juntarGrade'])->name('grade.juntar');
+            Route::post('/grade/tirar', [App\LojaOnlineGestaoController::class, 'tirarGrade'])->name('grade.tirar');
+            Route::post('/avaliacoes/{avaliacao}', [App\LojaOnlineGestaoController::class, 'moderarAvaliacao'])->whereNumber('avaliacao')->name('avaliacoes.moderar');
+        });
+        Route::get('/editor', [App\LojaOnlineController::class, 'editor'])->name('editor');
+        Route::middleware('permission:loja_online,editar')->group(function () {
+            Route::post('/editor/rascunho', [App\LojaOnlineController::class, 'salvarRascunho'])->name('editor.rascunho');
+            Route::post('/editor/modelo', [App\LojaOnlineController::class, 'aplicarModelo'])->name('editor.modelo');
+            Route::post('/editor/publicar', [App\LojaOnlineController::class, 'publicarRascunho'])->name('editor.publicar');
+            Route::post('/editor/descartar', [App\LojaOnlineController::class, 'descartarRascunho'])->name('editor.descartar');
+            Route::post('/editor/imagem', [App\LojaOnlineController::class, 'enviarImagem'])->name('editor.imagem');
+        });
+    });
+
     Route::prefix('configuracoes/formas-pagamento')->name('formas-pagamento.')->middleware('permission:configuracoes')->group(function () {
         Route::get('/', [App\FormaPagamentoController::class, 'index'])->name('index');
         Route::put('/', [App\FormaPagamentoController::class, 'update'])->middleware('permission:configuracoes,editar')->name('update');
