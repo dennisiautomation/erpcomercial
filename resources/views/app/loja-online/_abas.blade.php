@@ -8,7 +8,7 @@
         ['app.loja-online.resultados', 'bar-chart', 'Resultados', 'Visitas, pedidos e o que mais vende'],
         ['app.loja-online.produtos', 'box-seam', 'Produtos', 'Quais produtos aparecem'],
         ['app.loja-online.grade', 'grid-3x3', 'Grade', 'Tamanho e cor'],
-        ['app.loja-online.editor', 'palette', 'Aparência', null],
+        ['app.loja-online.editor', 'palette', 'Editor visual', 'Logo, cores, modelo e página inicial'],
         ['app.loja-online.promocoes', 'tags', 'Promoções', null],
         ['app.loja-online.avisos', 'envelope', 'E-mails', 'Avisos por e-mail'],
         ['app.loja-online.politicas', 'shield-check', 'Políticas', 'Políticas e cookies'],

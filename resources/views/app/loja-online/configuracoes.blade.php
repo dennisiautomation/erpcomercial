@@ -149,7 +149,7 @@
             <div class="col-md-6">
                 <label for="aviso_topo" class="form-label">Aviso no topo <span class="text-muted fw-normal">(opcional)</span></label>
                 <input type="text" name="aviso_topo" id="aviso_topo" class="form-control" maxlength="120" value="{{ old('aviso_topo', $loja->opcao('aviso_topo')) }}" placeholder="Ex.: Frete grátis acima de R$ 200 nesta semana">
-                <div class="form-text">Faixa fina acima do cabeçalho, em todas as páginas. Para ela correr como letreiro: Aparência → Cores e letras → Faixa de aviso.</div>
+                <div class="form-text">Faixa fina acima do cabeçalho, em todas as páginas. Para ela correr como letreiro: Editor visual → Logo, cores e letras → Faixa de aviso.</div>
             </div>
             <div class="col-md-6">
                 <label for="texto_rodape" class="form-label">Frase do rodapé <span class="text-muted fw-normal">(opcional)</span></label>

@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Loja online — Aparência')
+@section('title', 'Loja online — Editor visual')
 
 @push('styles')
 <style>
@@ -70,7 +70,7 @@
 @endpush
 
 @section('content')
-<x-erp.page-header title="Loja online" icon="globe2" subtitle="Aparência — modelo, cores e página inicial">
+<x-erp.page-header title="Loja online" icon="globe2" subtitle="Editor visual — logo, modelo, cores e página inicial">
     <span class="ed-estado" id="edEstado" role="status">{{ $temRascunho ? 'Há mudanças não publicadas' : 'Igual ao que está publicado' }}</span>
     <button type="button" class="btn btn-outline-secondary" id="edDescartar" @disabled(!$temRascunho)><i class="bi bi-arrow-counterclockwise me-1"></i> Descartar mudanças</button>
     <button type="button" class="btn btn-primary" id="edPublicar" @disabled(!$temRascunho)><i class="bi bi-cloud-upload me-1"></i> Publicar</button>
@@ -82,7 +82,7 @@
     <div class="ed-painel">
         <ul class="nav nav-fill border-bottom" role="tablist">
             <li class="nav-item"><button class="nav-link active w-100" data-bs-toggle="tab" data-bs-target="#edModelos" type="button" role="tab">Modelo</button></li>
-            <li class="nav-item"><button class="nav-link w-100" data-bs-toggle="tab" data-bs-target="#edTema" type="button" role="tab">Cores e letras</button></li>
+            <li class="nav-item"><button class="nav-link w-100" data-bs-toggle="tab" data-bs-target="#edTema" type="button" role="tab">Logo, cores e letras</button></li>
             <li class="nav-item"><button class="nav-link w-100" data-bs-toggle="tab" data-bs-target="#edPagina" type="button" role="tab">Página inicial</button></li>
         </ul>
         <div class="tab-content">
@@ -486,7 +486,7 @@
                 .then(function () { return chamar(DADOS.rotas.publicar); })
                 .then(function () {
                     marcar('Publicado agora'); $('edPublicar').disabled = true; $('edDescartar').disabled = true;
-                    ERP.toast('Aparência publicada. A loja já está com o novo visual.', 'success');
+                    ERP.toast('Visual publicado. A loja já está com o novo visual.', 'success');
                 }).catch(function (e) { ERP.toast(e.message, 'danger'); });
         });
     });
