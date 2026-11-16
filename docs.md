@@ -9995,3 +9995,21 @@ receber pelo caixa; o "Dar baixa" antigo volta a funcionar). A migration só des
 - **O caixa.ia365 ainda NÃO foi alterado.** Roteiro pronto: `sudo bash /home/ubuntu/deploy-caixa-vinculo-erp-homolog.sh` — sobe §18.73 + §18.74 no caixa apontando para o ERP de HOMOLOGAÇÃO, com backup, rollback etiquetado e 13 verificações. Precisa de root (o caixa roda em `/root/caixa`).
 - **Armadilha de rede:** o container do caixa NÃO alcança os endereços públicos do próprio servidor (`homolog-erp…` e `erp.ia365.com.br` dão timeout de dentro dele). O roteiro resolve com `extra_hosts: <domínio>:host-gateway` no `docker-compose.override.yml` do caixa; testado com a imagem do caixa: 200 e a lista de empresas. Vale igual quando for apontar para a produção.
 - **No ar:** `erp-caf-app:20f4121` (imagem `077b56c1fba0`); anterior `erp-caf-app:d90a7f2` (`src-d90a7f2`). Conferido no site em 1366 e 390 px: os três planos com os valores certos, sem rolagem lateral, sem erro de JavaScript; `ExampleTest` 4 testes ok.
+
+### Vídeo de venda "o uso" (58 s) — voz aprovada e tudo no GitHub (16/11/2026)
+
+**Pedido do Dennis (16/11):** "Voz ficou boa"; depois "suba este site com vídeos e demais para o git que vou pegar junto com o projeto do ERP" e "alimente o docs.md e suba para o git".
+
+- **Voz aprovada:** ElevenLabs, voz "Gabriel Reels" (`k3f7zOv6LF88v78QHCNh`), velocidade 1.05. Reserva: "Marcos" (`xHUwLsLfyqiYOIVTzLRW`). A chave fica em `~/.elevenlabs-key` no servidor, fora do repositório.
+- **Onde está o vídeo no projeto:** `public/site/redes/erp-redes.mp4` (720p, 4,5 MB, 57,9 s) e a capa `public/site/redes/video-capa.jpg`. A view `resources/views/site/redes.blade.php` só carrega o vídeo quando a pessoa clica em "Assistir · 58 s".
+- **Fonte do vídeo (fora do repositório, no servidor sp1):** `/home/ubuntu/video-tutorial/redes2/` — cenas em `index.html` (1920×1080, linha do tempo GSAP), roteiro em `narracao.json` (7 falas, c01 a c07), efeitos sonoros em `deixas.json`, áudios em `audio/`. Original 1080p (28 MB): `saida/erp-redes-uso.mp4`.
+- **Como refazer:**
+  1. Mudar o texto em `narracao.json` (no texto falado, "ERP" vai escrito "ê-érre-pê" em `narracao_tts.json`).
+  2. Gravar a voz: `python3 /home/ubuntu/video-tutorial/scripts/el.py tts narracao_tts.json audio`.
+  3. Gerar tempos e legendas: `python3 dados.py` (escreve `dados.js` e as tags de áudio no `index.html`).
+  4. Conferir quadros: `scripts/hf.sh redes2 snapshot . -o snap --no-end --at 5,20,40`.
+  5. Renderizar: `scripts/hf.sh redes2 render . -o saida/erp-redes-uso.mp4 -f 30 -q high --quiet`, reduzir para 720p e copiar para `public/site/redes/erp-redes.mp4`.
+- **Regras de texto do vídeo e da página (ordem do Dennis):** a loja online e o atendente de IA "já vêm prontos, o cliente só escolhe e configura"; o app da maquininha "é instalado pela loja de aplicativos da Stone". As telas do vídeo são desenhadas, não capturas do sistema real.
+- **GitHub em 16/11:** `pagina-redes-14nov` (`a14f795`, só a página `/redes` com vídeo e imagens) e esta `homolog-cafeteria-14nov` (tudo junto) estão em `dennisiautomation/erpcomercial`. Para pegar o site com o projeto: `git fetch origin` e `git checkout homolog-cafeteria-14nov`.
+- **Produção:** o site novo e o vídeo NÃO estão em produção nem na `main`; lá a inicial continua a V2. Subir é outra ordem.
+- **Não verificado:** o envio do formulário de `/redes` contra banco; a pronúncia foi conferida só pelo Dennis (de ouvido).
