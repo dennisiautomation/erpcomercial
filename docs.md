@@ -9526,6 +9526,75 @@ Navegador 219 ✅ / 0 ❌ depois da troca; abas medidas em 1366 e 390 px sem que
 **Para subir:** rodar a migration `2026_11_15_100000` (+ as 2 das rodadas anteriores, se ainda não rodaram), `route:cache`, `view:cache`
 e conferir que o agendador (`schedule:run`) está de pé — a rotina `loja:rotinas` depende dele. Nenhuma variável nova de `.env`.
 
+### Loja online — 5ª rodada (16/11/2026): rastreio completo, domínio em 3 passos e dicas no editor
+
+**Pedido do Dennis (15–16/11):** "inclua para rastrear quem deixou coisas no carrinho, quantidade de visitantes etc.", "deixar a
+configuração do domínio simples" e "o layout já bem preenchido com dicas do que colocar". **Continua NÃO em produção** — branch
+`ecommerce-14nov`. **Uma migration nova:** `2026_11_16_100000_loja_online_rastreio_dominio`.
+
+**Onde cada coisa vive: o rastreio é SOMA por visita em `loja_sessoes` / `loja_buscas` (sem nome e sem IP); pedido, valor e cidade
+continuam vindo do pedido e do cliente do ERP. O domínio mora em `lojas_online.dominio` + `dominio_status`; o certificado é do
+SERVIDOR (nginx/certbot), nunca do app. As dicas são texto fixo em `ModelosLoja::DICAS`.**
+
+**1. Rastreio (aba Resultados)** — `MetricasLoja`
+- `loja_sessoes`: uma linha por visitante por dia (sessão do navegador). Guarda **origem** (primeira página do dia), se veio de
+  **anúncio pago**, **campanha**, **aparelho** e até onde chegou: `viu_produto`, `carrinho`, `fechamento`, `pedido_id`,
+  `ultima_em`. Quem cria é o `LojaOnlineMiddleware` (mesma regra da visita: só gente de fora, só página, sem robô).
+- **Origem**, nesta ordem: `utm_source` do link → clique de anúncio (`gclid`/`gbraid`/`wbraid` = Google, `ttclid` = TikTok) → site
+  de onde veio (Referer) → `fbclid` = Facebook → **direto**. `utm_source` desconhecido fica como veio (ex.: `panfleto-centro`).
+  Pago = `gclid`/`ttclid` ou `utm_medium` em cpc/ppc/paid/ads/anuncio. `fbclid` sozinho NÃO é pago (vem em clique comum também).
+- **Funil** de 6 etapas (entrou → viu produto → carrinho → começou a fechar → pediu → pagou), com a perda entre etapas e uma dica
+  pronta para a maior perda. **Venda por origem** = pedido pago ligado à visita em que foi fechado (quem viu o anúncio hoje e
+  comprou amanhã entra como "Direto" — está escrito na tela).
+- **Mais abandonados**: `loja_produto_vistas.carrinhos` (1× por visitante por dia; variação conta no principal da grade) menos os
+  pedidos pagos do produto. **Buscas**: `loja_buscas` (só a busca ENVIADA, não as sugestões; 1× por visitante por termo), com o
+  quadro "procuraram e não acharam". **Celular × computador × tablet**, **cidade/UF** (cadastro do cliente do pedido pago),
+  **clientes novos × que voltaram** (voltou = já tinha pedido pago online antes do período, ou 2+ no período).
+- **Na loja agora**: visitas com `ultima_em` nos últimos 5 min; a tela pergunta a `GET /app/loja-online/resultados/agora` a cada 30 s.
+- **Gerador de link rastreado** na própria tela (origem + campanha + "é anúncio pago") — é só montar a URL com `utm_*`.
+- `loja:rotinas` apaga rastreio com mais de 400 dias. Os 6 indicadores antigos (`loja_visitas`) continuam como eram.
+
+**2. Domínio próprio em 3 passos (aba nova "Domínio")** — `DominioLoja`, `dominio.blade.php`
+- O LOJISTA digita o domínio (pode colar com https e caminho: `normalizar()` limpa), a tela mostra o registro pronto para copiar
+  (domínio principal → **A @ → IP**; com `www`/`loja` na frente → **CNAME → host do ERP**, ou A se o ERP estiver em IP), ajuda por
+  site (Registro.br, GoDaddy, Hostinger, Cloudflare) e o botão **Conferir agora**.
+- Situações (`dominio_status`): `aguardando` (não aponta, ou aponta para outro IP — a mensagem diz qual) → `dns_ok` (aponta certo,
+  falta o cadeado) → `ativo`. **Enquanto não está `ativo`, `enderecoPublico()` NÃO usa o domínio** (e-mails, QR Code e "copiar
+  endereço" continuam no endereço que funciona). Domínio posto pela equipe no admin entra sem situação e vale na hora, como antes.
+- **O certificado continua sendo do servidor.** Ponte: `php artisan loja:dominios` (lista) · `--pendentes` (os `dns_ok`, um por
+  linha) · `--ativar=dominio`. `scripts/loja-dominios-host.sh` (cron do host, root) cria o bloco do nginx, roda o certbot e chama
+  `--ativar` — **NÃO está instalado em lugar nenhum; instalar é decisão do Dennis** (mexe no nginx que serve a produção). Sem ele: a
+  equipe emite à mão (passos da 1ª rodada) e clica "marcar como no ar" no card do admin. Com ele instalado, ligar
+  `LOJA_ONLINE_CERTIFICADO_AUTOMATICO=true` (muda o texto para "sai sozinho").
+- Chaves novas e OPCIONAIS do `.env`: `LOJA_ONLINE_IP` (vazio = IP para onde o host do `APP_URL` resolve), `LOJA_ONLINE_CNAME`
+  (vazio = host do `APP_URL`), `LOJA_ONLINE_CERTIFICADO_AUTOMATICO`.
+- `ResolverLojaPorHost`: `sualoja.com.br` agora também acha a loja cadastrada como `www.sualoja.com.br`.
+
+**3. Editor visual com dicas** — `ModelosLoja::DICAS`, `textosDeExemplo()`, `editor.blade.php`
+- Cada bloco aberto mostra uma **dica do que colocar** (texto + tamanho de imagem), os 16 tipos cobertos.
+- Guia no topo da aba Página inicial: **"Para a loja ficar com a sua cara (n de 3)"** — logo, banners sem imagem própria, banners
+  ainda com o texto do modelo; clicar leva ao lugar. Selo "falta imagem" / "texto de exemplo" no bloco.
+- O cabeçalho da página do editor (Publicar / Descartar) ficou **preso abaixo da barra do ERP**: com 14 abas o painel passou a
+  rolar e os botões sumiam debaixo da barra (pego pelo teste H40).
+
+**Validação (16/11) — ambiente descartável `ec-*`:** py **539 ✅ / 0 ❌** (bloco V novo, 53 testes), pagamentos simulados
+**91 ✅ / 0 ❌**, navegador **228 ✅ / 0 ❌** (bloco K novo, computador e celular), suíte geral 340 com os 2 ❌ antigos de sempre.
+**Não validado:** domínio real apontado de verdade (o teste usa resolvedor simulado e um `.invalid`); a rotina do servidor
+(`loja-dominios-host.sh`) nunca rodou; origem com tráfego real de Instagram/Google (o teste manda os mesmos parâmetros e Referer que
+eles mandam); nada visto em aparelho de verdade.
+
+**Armadilhas da 5ª rodada**
+- **114. Diretiva Blade colada numa letra não compila** (`etapa@endif`): o Blade só reconhece `@` depois de espaço ou símbolo. O erro
+  aparece longe ("unexpected endforeach"). Sempre espaço antes de `@endif`/`@else` em texto corrido.
+- **115. A 103 de novo, em arquivo dos outros:** `admin/empresas/show.blade.php` tem `@php(...)` em linha; um `@php … @endphp` novo
+  lá embaixo fez o card "Loja online" SUMIR sem erro nenhum no log. Em arquivo que já usa a forma em linha, usar só ela.
+- **116. O `sql()` dos roteiros corta coluna vazia no fim da linha** (`strip()`): `IFNULL(x,'')` na última coluna some. Usar `'-'`.
+- **117. De dentro do servidor o endereço público não responde**, então o teste do cadeado (`DominioLoja::comCadeado`) pode falhar
+  com o domínio perfeito. Por isso `conferir()` nunca rebaixa um domínio que já está `ativo`, e existe o `--ativar`.
+
+**Para subir (5ª rodada):** a migration `2026_11_16_100000` (+ as anteriores, se faltarem), `route:cache`, `view:cache`. Nenhuma
+variável obrigatória nova.
+
 ### 15/11/2026 — loja online (4 rodadas) juntada e NO AR na homologação
 
 Merge `--no-ff` de `ecommerce-14nov` (`96ad6e5`) nesta branch = commit `e47b7dd`. Conflitos: `AppServiceProvider.php` (ficaram os dois

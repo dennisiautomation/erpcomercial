@@ -121,6 +121,7 @@ class CarrinhoController extends Controller
         }
         if (! $erro) {
             \App\Services\LojaOnline\MetricasLoja::contar($this->ctx->loja, 'carrinhos');
+            \App\Services\LojaOnline\MetricasLoja::produtoNoCarrinho($this->ctx->loja, (int) ($produto->grade_id ?: $produto->id));
         }
 
         // Confere contra o saldo (pode ter reduzido a quantidade)
@@ -328,6 +329,7 @@ class CarrinhoController extends Controller
         $carrinho->limpar();
         CupomLoja::guardar($loja, null);
         \App\Services\LojaOnline\CarrinhoSalvo::fechou($loja, (int) $pedido->id);
+        \App\Services\LojaOnline\MetricasLoja::pedido($loja, (int) $pedido->id);
 
         // Aceitou receber novidades: entra nos contatos da loja, com a data do aceite.
         if (! empty($dados['novidades']) && (filled($dados['email'] ?? null) || filled($dados['telefone']))) {

@@ -38,7 +38,7 @@
                 <div class="form-text">Também abre por <a href="{{ $loja->enderecoInterno() }}" target="_blank" rel="noopener">{{ rtrim(config('app.url'), '/') . $loja->enderecoInterno() }}</a>.</div>
             @endif
             @unless($loja->dominio)
-                <div class="form-text">Quer usar um domínio seu (ex.: loja.suaempresa.com.br)? Fale com o suporte da IA365.</div>
+                <div class="form-text">Quer usar um domínio seu (ex.: www.sualoja.com.br)? <a href="{{ route('app.loja-online.dominio') }}">Configure em três passos</a>.</div>
             @endunless
         </x-erp.card>
     </div>

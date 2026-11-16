@@ -11,6 +11,7 @@ use App\Models\Produto;
 use App\Scopes\EmpresaScope;
 use App\Scopes\UnidadeScope;
 use App\Services\LojaOnline\AvisosLoja;
+use App\Services\LojaOnline\DominioLoja;
 use App\Services\LojaOnline\GradeLoja;
 use App\Services\LojaOnline\MetricasLoja;
 use App\Services\LojaOnline\PagamentoLoja;
@@ -325,5 +326,55 @@ class LojaOnlineGestaoController extends Controller
         $dias = in_array((int) $request->query('dias'), [7, 30, 90], true) ? (int) $request->query('dias') : 30;
 
         return view('app.loja-online.resultados', ['loja' => $loja, 'r' => MetricasLoja::resumo($loja, $dias)]);
+    }
+
+    /** Quantos estão com a loja aberta agora (a tela Resultados pergunta a cada 30 s). */
+    public function resultadosAgora()
+    {
+        return response()->json(['agora' => MetricasLoja::agora($this->loja())]);
+    }
+
+    /* ----- domínio próprio (16/11/2026) ----- */
+
+    public function dominio()
+    {
+        $loja = $this->loja();
+
+        return view('app.loja-online.dominio', [
+            'loja' => $loja,
+            'registros' => $loja->dominio ? DominioLoja::registros($loja->dominio) : [],
+            'situacao' => DominioLoja::SITUACOES[$loja->dominio_status] ?? null,
+        ]);
+    }
+
+    public function salvarDominio(Request $request)
+    {
+        $loja = $this->loja();
+        $dominio = DominioLoja::normalizar($request->input('dominio'));
+        if ($erro = DominioLoja::erro($dominio, $loja)) {
+            return back()->withInput()->withErrors(['dominio' => $erro]);
+        }
+        if ($dominio !== (string) $loja->dominio) {
+            $loja->update(['dominio' => $dominio, 'dominio_status' => 'aguardando', 'dominio_obs' => null, 'dominio_conferido_em' => null]);
+        }
+
+        return redirect()->route('app.loja-online.dominio')->with('success', 'Domínio guardado. Agora crie o registro do passo 2 e depois clique em Conferir.');
+    }
+
+    public function conferirDominio()
+    {
+        $loja = $this->loja();
+        abort_unless($loja->dominio, 404);
+        $r = DominioLoja::conferir($loja);
+
+        return redirect()->route('app.loja-online.dominio')->with($r['status'] === 'aguardando' ? 'warning' : 'success', $r['mensagem']);
+    }
+
+    public function tirarDominio()
+    {
+        $loja = $this->loja();
+        $loja->update(['dominio' => null, 'dominio_status' => null, 'dominio_obs' => null, 'dominio_conferido_em' => null]);
+
+        return redirect()->route('app.loja-online.dominio')->with('success', 'Domínio removido. A loja continua abrindo pelo endereço de sempre.');
     }
 }

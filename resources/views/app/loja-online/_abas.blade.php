@@ -1,4 +1,4 @@
-{{-- Navegação do painel da loja online. 4ª rodada (15/11/2026): 13 abas em dois grupos, compactas (cabem em até duas linhas). --}}
+{{-- Navegação do painel da loja online. 4ª rodada (15/11/2026): 14 abas (16/11: Domínio), compactas (cabem em até duas linhas). --}}
 <ul class="nav nav-pills mb-4 gap-1 flex-wrap small" id="abasLojaOnline">
     @foreach([
         ['app.loja-online.index', 'speedometer2', 'Visão geral', null],
@@ -13,6 +13,7 @@
         ['app.loja-online.avisos', 'envelope', 'E-mails', 'Avisos por e-mail'],
         ['app.loja-online.politicas', 'shield-check', 'Políticas', 'Políticas e cookies'],
         ['app.loja-online.rastreamento', 'graph-up-arrow', 'Anúncios', 'Anúncios e busca'],
+        ['app.loja-online.dominio', 'globe', 'Domínio', 'Usar o seu domínio (www.sualoja.com.br)'],
         ['app.loja-online.configuracoes', 'sliders', 'Configurações', null],
     ] as [$rota, $icone, $rotulo, $dica])
         <li class="nav-item">

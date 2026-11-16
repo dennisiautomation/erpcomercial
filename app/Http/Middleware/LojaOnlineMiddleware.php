@@ -56,6 +56,7 @@ class LojaOnlineMiddleware
         // Visita do dia (uma por sessão): só gente de fora, em página — não conta a equipe nem robô.
         if ($request->isMethod('GET') && ! $daCasa && ! $request->expectsJson() && \App\Services\LojaOnline\MetricasLoja::humano($request)) {
             \App\Services\LojaOnline\MetricasLoja::contar($loja, 'visitas');
+            \App\Services\LojaOnline\MetricasLoja::sessao($loja, $request);
         }
 
         $request->route()->forgetParameter('loja');

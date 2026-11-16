@@ -23,7 +23,7 @@ class LojaOnline extends Model
     protected $table = 'lojas_online';
 
     protected $fillable = [
-        'empresa_id', 'ativo', 'publicada', 'slug', 'dominio', 'nome',
+        'empresa_id', 'ativo', 'publicada', 'slug', 'dominio', 'dominio_status', 'dominio_obs', 'dominio_conferido_em', 'nome',
         'unidade_id', 'estoque_id', 'vendedor_id',
         'modelo', 'tema', 'blocos', 'rascunho', 'config', 'publicada_em',
     ];
@@ -91,6 +91,7 @@ class LojaOnline extends Model
             'blocos' => 'array',
             'rascunho' => 'array',
             'config' => 'array',
+            'dominio_conferido_em' => 'datetime',
             'publicada_em' => 'datetime',
         ];
     }
@@ -172,7 +173,9 @@ class LojaOnline extends Model
     /** Endereço público preferido: domínio próprio, subdomínio ou /loja/{slug}. */
     public function enderecoPublico(): string
     {
-        if ($this->dominio) {
+        // Domínio que o lojista ainda está apontando (aguardando / falta o cadeado) não é divulgado:
+        // e-mails, QR Code e "copiar endereço" continuam com o endereço que já funciona.
+        if ($this->dominio && ! in_array($this->dominio_status, ['aguardando', 'dns_ok'], true)) {
             return 'https://' . $this->dominio;
         }
         if (self::dominioBase() !== '') {

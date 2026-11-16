@@ -82,10 +82,33 @@ class LojaOnlineController extends Controller
             return back()->withErrors(['dominio' => 'Este é um endereço do próprio ERP.'])->with('abrir_integracao', true);
         }
 
+        if ((string) $dados['dominio'] !== (string) $loja->dominio) {
+            // Domínio posto pela equipe entra como "não conferido" (vale na hora, como sempre foi): quem cadastra aqui já cuidou do servidor.
+            $dados += ['dominio_status' => null, 'dominio_obs' => null, 'dominio_conferido_em' => null];
+        }
         $loja->update($dados);
 
         return redirect()->route('admin.empresas.show', $empresa)
             ->with('success', 'Endereço da loja online salvo.' . ($dados['dominio'] ? ' Lembre de apontar o DNS do domínio e emitir o certificado no servidor.' : ''))
             ->with('abrir_integracao', true);
+    }
+
+    /** A equipe emitiu o certificado do domínio do cliente: marca "no ar" (ou desfaz). */
+    public function dominioNoAr(Request $request, Empresa $empresa): RedirectResponse
+    {
+        abort_unless($request->user()->is_admin, 403);
+
+        $loja = LojaOnline::daEmpresa($empresa->id);
+        abort_unless($loja && $loja->dominio, 404);
+
+        $noAr = $loja->dominio_status !== 'ativo';
+        $loja->update([
+            'dominio_status' => $noAr ? 'ativo' : 'dns_ok',
+            'dominio_obs' => $noAr ? 'Tudo certo: a loja já abre por este domínio.' : 'Apontamento certo. Falta o cadeado de segurança.',
+            'dominio_conferido_em' => now(),
+        ]);
+
+        return redirect()->route('admin.empresas.show', $empresa)
+            ->with('success', $noAr ? 'Domínio marcado como no ar.' : 'Domínio voltou para "falta o cadeado".')->with('abrir_integracao', true);
     }
 }

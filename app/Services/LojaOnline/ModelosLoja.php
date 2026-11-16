@@ -42,6 +42,29 @@ class ModelosLoja
         'faixa' => ['parada' => 'Parada', 'correndo' => 'Correndo (letreiro)'],
     ];
 
+    /**
+     * Dicas do editor (16/11/2026): o que pôr em cada bloco, em linguagem de lojista.
+     * tipo => [para que serve / o que escrever, tamanho de imagem ou null].
+     */
+    public const DICAS = [
+        'banner' => ['É a primeira coisa que o cliente vê. Diga em poucas palavras o que a loja vende ou a oferta do momento ("Coleção de verão", "Tudo com 20% no PIX"). O botão deve levar direto aos produtos.', 'Imagem deitada, 1600 × 700 px ou maior. Deixe o assunto da foto para o lado oposto ao texto.'],
+        'carrossel' => ['Use de 2 a 3 banners: um para a novidade, um para a oferta, um para um benefício (frete grátis, retirada na loja). Mais que isso quase ninguém vê.', 'Imagens deitadas, todas do mesmo tamanho: 1600 × 700 px ou maior.'],
+        'banners' => ['Bons para levar a uma categoria ou a uma seleção ("Para presentear", "Até R$ 99"). Título curto, de 2 a 4 palavras.', 'Imagens deitadas, 800 × 600 px ou maior, todas no mesmo formato.'],
+        'vitrine' => ['Uma fileira de produtos. Comece pelas ofertas e pelos destaques; para escolher quais são destaque, marque a estrela em Loja online → Produtos.', null],
+        'categorias' => ['Atalhos para o cliente achar o que procura. Só aparecem as categorias que têm produto na loja; a foto vem de um produto da categoria.', null],
+        'beneficios' => ['Três ou quatro motivos para comprar de você: prazo de entrega, retirada na loja, troca fácil, parcelamento. Frases curtas e verdadeiras.', null],
+        'imagem_texto' => ['Conte a história da loja ou explique um diferencial: quem faz, de onde vem, há quanto tempo existe. Gente compra de quem conhece.', 'Foto real da loja, da equipe ou do produto em uso: 1000 × 800 px ou maior.'],
+        'texto' => ['Um recado em destaque: horário de atendimento, prazo de produção, aviso de feriado. Até três linhas.', null],
+        'galeria' => ['Fotos de clientes usando, da loja física ou dos bastidores. Funciona como prova de que a loja é de verdade.', 'De 4 a 8 fotos quadradas, 800 × 800 px ou maior.'],
+        'oferta' => ['Uma promoção com data para acabar. O relógio dá urgência — use só quando a data for de verdade.', 'Imagem deitada, 1200 × 600 px ou maior (opcional).'],
+        'depoimentos' => ['Copie elogios reais de clientes (WhatsApp, Instagram, Google), com o primeiro nome e a cidade. Nunca invente.', null],
+        'faq' => ['Responda o que mais perguntam: prazo de entrega, como trocar, formas de pagamento, se tem loja física. Cada resposta evita uma mensagem no WhatsApp.', null],
+        'newsletter' => ['Convide a deixar o e-mail em troca de algo: "Receba 10% na primeira compra" converte muito mais que "Assine a newsletter". Os contatos ficam em Loja online → Promoções.', null],
+        'video' => ['Um vídeo curto do YouTube mostrando o produto ou a loja. Até 1 minuto funciona melhor.', null],
+        'redes' => ['Mostra os botões das redes sociais cadastradas em Loja online → Configurações.', null],
+        'faixa' => ['Uma linha de aviso no meio da página: "Frete grátis acima de R$ 199", "Parcele em até 6x".', null],
+    ];
+
     /** @return array<string, array{nome: string, ramo: string, descricao: string, tema: array, blocos: array}> */
     public static function todos(): array
     {
@@ -193,6 +216,33 @@ class ModelosLoja
                 ],
             ],
         ];
+    }
+
+    /**
+     * Títulos e textos que vêm prontos nos banners dos modelos — o editor usa para
+     * avisar "ainda com o texto do modelo".
+     *
+     * @return string[]
+     */
+    public static function textosDeExemplo(): array
+    {
+        $textos = ['Título do banner'];
+        foreach (self::todos() as $m) {
+            foreach ($m['blocos'] as $b) {
+                if (! in_array($b['tipo'], ['banner', 'carrossel', 'banners'], true)) {
+                    continue;
+                }
+                foreach (array_merge([$b], $b['lista'] ?? []) as $item) {
+                    foreach (['titulo', 'subtitulo', 'texto'] as $k) {
+                        if (filled($item[$k] ?? null)) {
+                            $textos[] = $item[$k];
+                        }
+                    }
+                }
+            }
+        }
+
+        return array_values(array_unique($textos));
     }
 
     public static function existe(?string $modelo): bool

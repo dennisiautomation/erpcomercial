@@ -35,6 +35,12 @@ class RotinasLojaOnlineCommand extends Command
         $seco = (bool) $this->option('seco');
         $n = ['avise' => 0, 'carrinho' => 0, 'cobrancas' => 0];
 
+        // Rastreio por visitante: guarda 13 meses (dá para comparar com o mesmo mês do ano anterior) e apaga o resto.
+        if (! $seco) {
+            DB::table('loja_sessoes')->where('dia', '<', now()->subDays(400)->toDateString())->limit(5000)->delete();
+            DB::table('loja_buscas')->where('dia', '<', now()->subDays(400)->toDateString())->limit(5000)->delete();
+        }
+
         foreach (LojaOnline::where('ativo', true)->get() as $loja) {
             if (! $loja->noAr()) {
                 continue;

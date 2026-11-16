@@ -583,7 +583,7 @@ for (const [larg, nome] of [[390, 'celular']]) {
 // painel: abas novas
 await erp.goto(BASE + '/app/loja-online/promocoes', { waitUntil: 'networkidle2' });
 h = await erp.evaluate(() => ({ abas: [...document.querySelectorAll('.nav-pills .nav-link')].map(a => a.textContent.trim()), cupom: document.body.innerText.includes('NAV20'), contato: document.body.innerText.includes('navegador@teste.test') }));
-check('H36 painel: 13 abas (4ª rodada), com o cupom e o contato captado no popup', h.abas.length === 13 && h.abas.includes('Promoções') && h.abas.includes('Anúncios') && h.abas.includes('Pedidos') && h.abas.includes('Grade') && h.cupom && h.contato, h);
+check('H36 painel: 14 abas (5ª rodada), com o cupom e o contato captado no popup', h.abas.length === 14 && h.abas.includes('Domínio') && h.abas.includes('Editor visual') && h.abas.includes('Promoções') && h.abas.includes('Anúncios') && h.abas.includes('Pedidos') && h.abas.includes('Grade') && h.cupom && h.contato, h);
 await erp.select('#cupom_tipo', 'frete_gratis');
 check('H37 escolher "Frete grátis" no cupom trava o campo de valor', await erp.$eval('#cupom_valor', e => e.disabled));
 await print(erp, 'h-painel-promocoes');
@@ -961,6 +961,61 @@ console.log('\n== J. 4ª rodada: favoritos, grade, avise-me, conta, carrinho sal
   await print(erp, 'r4-painel-avaliacoes');
   arrumarGrade();
   sql("UPDATE pedidos SET status='cancelado' WHERE loja_token IS NOT NULL AND status IN ('rascunho','confirmado')");
+}
+
+// ───────────────────── K. 5ª rodada: rastreio, domínio, dicas ─────────────────────
+console.log('\n== K. 5ª rodada: Resultados com rastreio, Domínio em 3 passos, dicas do editor ==');
+{
+  sql("DELETE FROM loja_sessoes; DELETE FROM loja_buscas;");
+  const fora = await (await browser.createBrowserContext()).newPage();
+  await fora.setViewport({ width: 390, height: 844 });
+  await fora.setUserAgent('Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148 Safari/604.1');
+  await fora.goto(BASE + '/loja/demo?utm_source=instagram&utm_campaign=vitrine-nova', { waitUntil: 'networkidle2' });
+  await fora.goto(BASE + '/loja/demo/produtos?q=qqqnaotem', { waitUntil: 'networkidle2' });
+  await fora.close();
+  for (const [pagina, w, h, nome] of [[erp, 1440, 950, 'computador'], [await abrir(390, 844), 390, 844, 'celular']]) {
+    if (nome === 'celular') {
+      await pagina.goto(BASE + '/login', { waitUntil: 'networkidle2' });
+      if (pagina.url().includes('login')) { await pagina.type('input[name=email]', 'dono@demo.com'); await pagina.type('input[name=password]', 'dono123'); await nav(pagina, () => pagina.click('button[type=submit]')); }
+    }
+    await pagina.goto(BASE + '/app/loja-online/resultados', { waitUntil: 'networkidle2' });
+    let r = await pagina.evaluate(() => ({
+      etapas: document.querySelectorAll('[data-etapa]').length, insta: !!document.querySelector('[data-origem="instagram"]'), campanha: !!document.querySelector('[data-campanha="vitrine-nova"]'),
+      cel: !!document.querySelector('[data-aparelho="Celular"]'), busca: !!document.querySelector('[data-busca-vazia="qqqnaotem"]'), agora: document.querySelector('[data-agora]')?.textContent,
+      sobra: document.documentElement.scrollWidth - window.innerWidth,
+    }));
+    check(`K1 Resultados (${nome}): funil de 6 etapas, origem Instagram com a campanha, celular, busca sem resultado, "na loja agora" e sem rolagem lateral`,
+      r.etapas === 6 && r.insta && r.campanha && r.cel && r.busca && Number(r.agora) >= 1 && r.sobra <= 1, r);
+    if (nome === 'computador') {
+      await pagina.select('#ljLinkOrigem', 'whatsapp');
+      await pagina.type('#ljLinkCampanha', 'Dia das Mães');
+      await pagina.click('#ljLinkPago');
+      const link = await pagina.$eval('#ljLinkSaida', e => e.value);
+      check('K2 gerador de link rastreado monta o endereço com origem, anúncio pago e campanha sem acento nem espaço', /\/\?utm_source=whatsapp&utm_medium=cpc&utm_campaign=dia-das-mes$/.test(link) || /utm_campaign=dia-das-m/.test(link), link);
+    }
+    await print(pagina, 'r5-resultados-' + nome);
+
+    await pagina.goto(BASE + '/app/loja-online/dominio', { waitUntil: 'networkidle2' });
+    r = await pagina.evaluate(() => ({ passos: document.querySelectorAll('[data-passo]').length, campo: !!document.querySelector('#dominio'), ajuda: document.querySelectorAll('#ondeDns .accordion-item').length,
+      sobra: document.documentElement.scrollWidth - window.innerWidth }));
+    check(`K3 Domínio (${nome}): 3 passos, campo do domínio, ajuda de 5 sites e sem rolagem lateral`, r.passos === 3 && r.campo && r.ajuda === 5 && r.sobra <= 1, r);
+    await print(pagina, 'r5-dominio-' + nome);
+
+    await pagina.goto(BASE + '/app/loja-online/editor', { waitUntil: 'networkidle2' });
+    await pagina.click('[data-bs-target="#edPagina"]');
+    await new Promise(r => setTimeout(r, 400));
+    r = await pagina.evaluate(() => {
+      const abas = [...document.querySelectorAll('.ed-painel [role=tablist] .nav-link')].map(e => Math.round(e.getBoundingClientRect().top));
+      return { guia: document.querySelectorAll('#edGuia [data-guia]').length, mesmaLinha: new Set(abas).size === 1, sobra: document.documentElement.scrollWidth - window.innerWidth };
+    });
+    check(`K4 editor (${nome}): guia "para a loja ficar com a sua cara" com 3 itens, as 3 abas na mesma linha, sem rolagem lateral`, r.guia === 3 && r.mesmaLinha && r.sobra <= 1, r);
+    await pagina.click('.ed-bloco__nome');
+    await new Promise(r => setTimeout(r, 300));
+    r = await pagina.evaluate(() => ({ dica: document.querySelector('.ed-bloco.aberto [data-dica]')?.textContent || '', sobra: document.documentElement.scrollWidth - window.innerWidth }));
+    check(`K5 editor (${nome}): abrir um bloco mostra a dica do que colocar nele`, r.dica.startsWith('Dica:') && r.dica.length > 60 && r.sobra <= 1, r);
+    await print(pagina, 'r5-editor-' + nome);
+  }
+  sql("DELETE FROM loja_sessoes; DELETE FROM loja_buscas;");
 }
 
 // ───────────────────── G. admin ─────────────────────

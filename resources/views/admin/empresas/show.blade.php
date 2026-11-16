@@ -578,12 +578,19 @@
                                     <label for="lojaDominio" class="form-label small fw-semibold">Domínio do cliente <span class="text-muted fw-normal">(opcional)</span></label>
                                     <input type="text" name="dominio" id="lojaDominio" class="form-control form-control-sm @error('dominio') is-invalid @enderror" value="{{ old('dominio', $lojaOnline->dominio) }}" placeholder="loja.cliente.com.br">
                                     @error('dominio') <div class="invalid-feedback">{{ $message }}</div> @enderror
-                                    <div class="form-text">O domínio precisa apontar para este servidor e ter certificado emitido (ver docs.md, “Domínio próprio”).</div>
+                                    <div class="form-text">O lojista também configura sozinho em Loja online → Domínio.
+                                        @if($lojaOnline->dominio)
+                                            @php($sitDom = \App\Services\LojaOnline\DominioLoja::SITUACOES[$lojaOnline->dominio_status] ?? ['Não conferido', 'secondary'])
+                                            Situação: <span class="badge text-bg-{{ $sitDom[1] }}" data-dominio-situacao>{{ $sitDom[0] }}</span>
+                                            <button type="submit" form="lojaDominioNoAr" class="btn btn-link btn-sm p-0 align-baseline">{{ $lojaOnline->dominio_status === 'ativo' ? 'desfazer' : 'marcar como no ar (certificado emitido)' }}</button>
+                                        @endif
+                                    </div>
                                 </div>
                                 <div class="col-md-3">
                                     <button type="submit" class="btn btn-sm btn-outline-primary"><i class="bi bi-check-lg me-1"></i> Salvar endereço</button>
                                 </div>
                             </form>
+                            <form method="POST" action="{{ route('admin.empresas.loja-online.dominio-no-ar', $empresa) }}" id="lojaDominioNoAr">@csrf</form>
                         @endif
                     </div>
                 </div>
