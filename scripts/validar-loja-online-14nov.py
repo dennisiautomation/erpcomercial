@@ -1728,9 +1728,192 @@ for x in (GP, GJ, GD, RP, AP, VP, CP):
     dar_saldo(x, 10)
 limites()
 
+
+# ───────────────────────────── V. 5ª rodada: rastreio, domínio simples, dicas do editor ─────────────────────────────
+print("\n== V. 5ª rodada: rastreio completo (origem, funil, aparelho, buscas, abandonados), domínio em 3 passos, dicas do editor ==")
+sql("DELETE FROM loja_sessoes; DELETE FROM loja_buscas; UPDATE loja_produto_vistas SET carrinhos=0; UPDATE empresas SET exige_documento_cadastro=0 WHERE id=1;")
+IPHONE = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148 Safari/604.1"
+PC = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/130.0 Safari/537.36"
+
+
+def visitante(ua=PC, referer=None):
+    n = Nav()
+    n.op.addheaders = [("User-Agent", ua)] + ([("Referer", referer)] if referer else [])
+    return n
+
+
+def sessoes(onde="1=1"):
+    return sql(f"SELECT origem, pago, IFNULL(campanha,''), aparelho, viu_produto, carrinho, fechamento, IFNULL(pedido_id,'-') FROM loja_sessoes WHERE empresa_id=1 AND {onde} ORDER BY id")
+
+
+v1 = visitante(IPHONE)
+v1.get("/loja/demo?utm_source=Instagram&utm_medium=cpc&utm_campaign=natal")
+check("V1 link com utm_source=instagram + cpc + campanha, no iPhone → origem instagram, anúncio, campanha natal, celular", sessoes() == [["instagram", "1", "natal", "celular", "0", "0", "0", "-"]], sessoes())
+v1.get("/loja/demo/produtos")
+v1.get("/loja/demo?utm_source=google")
+check("V2 a mesma pessoa navegando (e até voltando por outro link) continua sendo UMA visita, com a primeira origem", len(sessoes()) == 1 and sessoes()[0][0] == "instagram", sessoes())
+v2 = visitante(PC, "https://www.google.com/search?q=loja")
+v2.get("/loja/demo")
+check("V3 veio da busca do Google (Referer), no computador → origem google, não é anúncio", sessoes("origem='google'") == [["google", "0", "", "computador", "0", "0", "0", "-"]], sessoes())
+v3 = visitante(PC)
+v3.get("/loja/demo")
+check("V4 sem link de campanha e sem site de origem → direto", len(sessoes("origem='direto'")) == 1, sessoes())
+visitante(PC).get("/loja/demo?gclid=abc123")
+check("V5 clique de anúncio do Google (gclid) → google, anúncio pago", ["google", "1", "", "computador", "0", "0", "0", "-"] in sessoes(), sessoes())
+visitante(PC, "https://l.instagram.com/").get("/loja/demo?fbclid=xyz")
+visitante(PC, "https://blogdaju.com.br/post").get("/loja/demo")
+visitante(PC).get("/loja/demo?utm_source=Panfleto%20Centro")
+visitante("Mozilla/5.0 (iPad; CPU OS 17_0 like Mac OS X) AppleWebKit/605.1.15", None).get("/loja/demo?utm_source=whatsapp")
+orig = sorted(x[0] for x in sql("SELECT origem FROM loja_sessoes WHERE empresa_id=1"))
+check("V6 Instagram pelo Referer, site desconhecido = outros, utm livre vira 'panfleto-centro', WhatsApp no iPad = tablet",
+      orig == sorted(["instagram", "google", "direto", "google", "instagram", "outros", "panfleto-centro", "whatsapp"]) and um("SELECT aparelho FROM loja_sessoes WHERE origem='whatsapp'") == "tablet", orig)
+antes = int(um("SELECT COUNT(*) FROM loja_sessoes"))
+dono.get("/loja/demo?utm_source=tiktok")
+visitante("Googlebot/2.1 (+http://www.google.com/bot.html)").get("/loja/demo?utm_source=tiktok")
+check("V7 a equipe logada no ERP e os robôs de busca não entram no rastreio", int(um("SELECT COUNT(*) FROM loja_sessoes")) == antes and vazio("SELECT id FROM loja_sessoes WHERE origem='tiktok'"))
+
+# — funil —
+VPROD = P[4]
+dar_saldo(VPROD, 20)
+cam_v = (new_cam := php(f"$l=App\\Models\\LojaOnline::where('empresa_id',1)->first(); $c=new App\\Services\\LojaOnline\\CatalogoLoja($l); echo $c->paraVitrine(collect([$c->produto({VPROD})]))->first()['caminho'];"))
+v1.get("/loja/demo/" + cam_v)
+check("V8 funil: abriu a página de um produto → 'viu produto'", sessoes("origem='instagram' AND campanha='natal'")[0][4:7] == ["1", "0", "0"], (cam_v, sessoes()))
+v1.post_json("/loja/demo/carrinho/adicionar", {"produto_id": VPROD, "quantidade": 1})
+check("V9 funil: pôs no carrinho → 'carrinho', e o produto ganha 1 em 'posto no carrinho'", sessoes("campanha='natal'")[0][5] == "1"
+      and um(f"SELECT SUM(carrinhos) FROM loja_produto_vistas WHERE produto_id={VPROD}") == "1", sessoes())
+v1.post_json("/loja/demo/carrinho/adicionar", {"produto_id": VPROD, "quantidade": 1})
+check("V10 pôr o mesmo produto de novo não conta duas vezes", um(f"SELECT SUM(carrinhos) FROM loja_produto_vistas WHERE produto_id={VPROD}") == "1")
+v1.get("/loja/demo/finalizar")
+check("V11 funil: abriu o fechamento → 'começou a fechar'", sessoes("campanha='natal'")[0][6] == "1", sessoes())
+v2.post_json("/loja/demo/carrinho/adicionar", {"produto_id": VPROD, "quantidade": 1})
+v2.get("/loja/demo/finalizar")
+st, hd, _ = v2.post("/loja/demo/finalizar", {"nome": "Cliente Rastreado", "telefone": "(86) 96666-7001", "cpf_cnpj": next(CPFS), "entrega": "retirada", "pagamento": "combinar"})
+tok_v = hd.get("Location", "").rsplit("/", 1)[-1]
+ped_v = um(f"SELECT id FROM pedidos WHERE loja_token='{tok_v}'")
+check("V12 funil: fechou o pedido → a visita do Google fica ligada ao pedido", st == 302 and ped_v is not None and um("SELECT pedido_id FROM loja_sessoes WHERE origem='google' AND pago=0") == ped_v, (st, tok_v, sessoes()))
+sql(f"UPDATE pedidos SET status='confirmado' WHERE id={ped_v}")
+total_v = um(f"SELECT total FROM pedidos WHERE id={ped_v}")
+
+# — buscas —
+v3.get("/loja/demo/produtos?q=Fone")
+v3.get("/loja/demo/produtos?q=fone")
+v3.get("/loja/demo/produtos?q=xyzabacate")
+visitante(PC).get("/loja/demo/produtos?q=xyzabacate")
+dono.get("/loja/demo/produtos?q=segredodaequipe")
+check("V13 buscas: 'fone' 1× (mesma pessoa não repete), 'xyzabacate' 2× e 2× sem resultado; a busca da equipe não entra",
+      sorted(sql("SELECT termo, vezes, sem_resultado FROM loja_buscas WHERE empresa_id=1")) == [["fone", "1", "0"], ["xyzabacate", "2", "2"]], sql("SELECT termo, vezes, sem_resultado FROM loja_buscas"))
+v3.get("/loja/demo/buscar?q=cam")
+check("V14 as sugestões enquanto digita não viram 'busca' (só a busca enviada conta)", vazio("SELECT id FROM loja_buscas WHERE termo='cam'"))
+
+# — a tela —
+st, _, b = dono.get("/app/loja-online/resultados")
+etapas = dict(re.findall(r'data-etapa="([^"]+)">.*?data-etapa-n>(\d+)<', b, re.S))
+n_sess = um("SELECT COUNT(*) FROM loja_sessoes WHERE empresa_id=1")
+check("V15 Resultados: funil com as 6 etapas e os números certos", st == 200 and list(etapas) == ["Entraram na loja", "Viram um produto", "Puseram no carrinho", "Começaram a fechar", "Fizeram o pedido", "Pagaram"]
+      and etapas["Entraram na loja"] == n_sess and etapas["Viram um produto"] == "1" and etapas["Puseram no carrinho"] == "2" and etapas["Começaram a fechar"] == "2"
+      and etapas["Fizeram o pedido"] == "1" and etapas["Pagaram"] == "1", etapas)
+check("V16 Resultados: aponta a maior perda e dá a dica do que fazer", "Maior perda: antes de" in b and "bi-lightbulb" in b)
+lin_g = re.search(r'data-origem="google">(.*?)</tr>', b, re.S)
+valor_br = f"{float(total_v):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+check("V17 Resultados: origem Google com 2 visitas, 1 de anúncio, 1 pedido pago e o valor vendido", lin_g is not None and "1 de anúncio" in lin_g.group(1)
+      and re.findall(r'<td class="text-end[^"]*">\s*([^<]+?)\s*</td>', lin_g.group(1))[:3] == ["2", "1", "R$ " + valor_br], lin_g and lin_g.group(1)[:400])
+check("V18 Resultados: Instagram, Direto, Outros sites, WhatsApp e a origem livre 'Panfleto centro' aparecem com nome de gente",
+      all(t in b for t in ["Instagram", "Direto (digitou ou link salvo)", "Outros sites", "WhatsApp", "Panfleto centro"]))
+check("V19 Resultados: campanha 'natal' listada", 'data-campanha="natal"' in b)
+check("V20 Resultados: celular, computador e tablet separados", all(f'data-aparelho="{a}"' in b for a in ["Celular", "Computador", "Tablet"]))
+check("V21 Resultados: busca sem resultado em destaque e as mais procuradas", 'data-busca-vazia="xyzabacate"' in b and 'data-busca="fone"' in b and 'data-busca-vazia="fone"' not in b)
+ab = re.search(r"data-abandonado><span>([^<]+)</span>.*?<strong>(\d+)</strong>.*?de (\d+) carrinho", b, re.S)
+check("V22 Resultados: produto mais abandonado = 2 carrinhos, 1 compra → 1 abandono", ab is not None and ab.group(2) == "1" and ab.group(3) == "2", ab and ab.groups())
+check("V23 Resultados: clientes novos × que voltaram", re.search(r'data-clientes="novos">(\d+)<', b) is not None and re.search(r'data-clientes="voltaram">(\d+)<', b) is not None)
+check("V24 Resultados: gerador de link rastreado e 'na loja agora'", 'id="ljLinkSaida"' in b and 'id="ljAgora"' in b and "utm_source=" in b)
+st, _, j = dono.get("/app/loja-online/resultados/agora", json_=True)
+j = json.loads(j) if st == 200 else {}
+check("V25 'na loja agora' responde em JSON com quem passou nos últimos 5 minutos", st == 200 and isinstance(j.get("agora"), int) and j["agora"] >= 3, (st, j))
+sql("UPDATE loja_sessoes SET ultima_em = NOW() - INTERVAL 10 MINUTE")
+check("V26 quem saiu há mais de 5 minutos não conta como 'agora'", json.loads(dono.get("/app/loja-online/resultados/agora", json_=True)[2]).get("agora") == 0)
+check("V27 a outra empresa não enxerga nada disso", php("$l=App\\Models\\LojaOnline::where('empresa_id','!=',1)->first(); $r=App\\Services\\LojaOnline\\MetricasLoja::resumo($l,30); echo $r['funil'][0]['n'].'|'.count($r['origens']).'|'.count($r['buscas']);") == "0|0|0")
+check("V28 caixa (sem o módulo) não abre Resultados nem o 'agora'", caixa.get("/app/loja-online/resultados")[0] == 403 and caixa.get("/app/loja-online/resultados/agora")[0] == 403)
+sql("UPDATE loja_sessoes SET dia = CURDATE() - INTERVAL 401 DAY WHERE origem='outros'")
+app_cmd("php", "artisan", "loja:rotinas")
+check("V29 a rotina apaga o rastreio com mais de 400 dias e deixa o resto", vazio("SELECT id FROM loja_sessoes WHERE origem='outros'") and int(um("SELECT COUNT(*) FROM loja_sessoes")) == int(n_sess) - 1)
+sql(f"UPDATE pedidos SET status='cancelado' WHERE id={ped_v}")
+
+# — domínio em 3 passos —
+DOM_ANTES = um("SELECT dominio FROM lojas_online WHERE empresa_id=1")
+st, _, b = dono.get("/app/loja-online/dominio")
+check("V30 aba Domínio abre com os 3 passos e a ajuda por site (Registro.br, GoDaddy, Hostinger, Cloudflare)", st == 200 and all(f'data-passo="{i}"' in b for i in "123")
+      and all(t in b for t in ["Registro.br", "GoDaddy", "Hostinger", "Cloudflare", "Dúvidas comuns"]), st)
+check("V31 painel agora tem 14 abas, com Domínio e Editor visual", len(re.findall(r'<a class="nav-link py-1 px-2', b)) == 14 and "Domínio</a>" in b and "Editor visual</a>" in b)
+sql("UPDATE lojas_online SET dominio=NULL, dominio_status=NULL WHERE empresa_id=1")
+dono.get("/app/loja-online/dominio")
+st, hd, _ = dono.post("/app/loja-online/dominio", {"dominio": "  HTTPS://WWW.SuaLoja-Teste.invalid/produtos?x=1 "})
+check("V32 colou o endereço inteiro, com https, maiúsculas e caminho → guarda só www.sualoja-teste.invalid, aguardando",
+      sql("SELECT dominio, dominio_status FROM lojas_online WHERE empresa_id=1") == [["www.sualoja-teste.invalid", "aguardando"]], sql("SELECT dominio, dominio_status FROM lojas_online WHERE empresa_id=1"))
+st, _, b = dono.get("/app/loja-online/dominio")
+reg = (re.search(r"data-reg-tipo>([^<]+)<", b), re.search(r"data-reg-nome>([^<]+)<", b), re.search(r"data-reg-valor>([^<]+)<", b))
+check("V33 passo 2 mostra o registro pronto para copiar: tipo, nome 'www' e o endereço do servidor", all(reg) and reg[0].group(1) in ("A", "CNAME") and reg[1].group(1) == "www" and reg[2].group(1) == "10.213.80.4",
+      [r and r.group(1) for r in reg])
+check("V34 enquanto o domínio não está no ar, o endereço divulgado continua sendo o que já funciona", "sualoja-teste.invalid" not in dono.get("/app/loja-online")[2].split('id="enderecoLoja"')[0][-300:]
+      and php("echo App\\Models\\LojaOnline::where('empresa_id',1)->first()->enderecoPublico();") == "https://demo.lojas.teste")
+erros_d = []
+for ruim, trecho in [("minha loja", "Digite só o domínio"), ("sualoja", "Digite só o domínio"), ("10.213.80.4", "Digite só o domínio"), ("demo.lojas.teste", "própria plataforma"), ("lojas.teste", "própria plataforma")]:
+    dono.get("/app/loja-online/dominio")
+    dono.post("/app/loja-online/dominio", {"dominio": ruim})
+    if trecho not in dono.get("/app/loja-online/dominio")[2]:
+        erros_d.append(ruim)
+check("V35 recusa com explicação: texto com espaço, sem ponto, número de IP, endereço da plataforma", erros_d == [] and um("SELECT dominio FROM lojas_online WHERE empresa_id=1") == "www.sualoja-teste.invalid", erros_d)
+check("V36 outra empresa não consegue pegar um domínio que já é de uma loja",
+      "já está em uso por outra loja" in php("$l=App\\Models\\LojaOnline::where('empresa_id','!=',1)->first(); echo App\\Services\\LojaOnline\\DominioLoja::erro('www.sualoja-teste.invalid', $l);")
+      and php("$l=App\\Models\\LojaOnline::where('empresa_id',1)->first(); echo App\\Services\\LojaOnline\\DominioLoja::erro('www.sualoja-teste.invalid', $l) ?? 'livre';") == "livre")
+dono.get("/app/loja-online/dominio")
+dono.post("/app/loja-online/dominio/conferir")
+st, _, b = dono.get("/app/loja-online/dominio")
+check("V37 Conferir com o domínio ainda sem apontar → 'Aguardando o apontamento' e a explicação", 'data-dominio-situacao="aguardando"' in b and "Ainda não achamos o apontamento" in b)
+PHP_DOM = "use App\\Services\\LojaOnline\\DominioLoja as D; $l=App\\Models\\LojaOnline::where('empresa_id',1)->first(); "
+check("V38 aponta para outro servidor → continua aguardando e diz para onde está apontando",
+      php(PHP_DOM + "D::$resolver=fn()=>['203.0.113.9']; $r=D::conferir($l); echo $r['status'].'|'.(str_contains($r['mensagem'],'203.0.113.9')?'ip':'-');") == "aguardando|ip")
+check("V39 aponta certo, ainda sem cadeado → 'Apontado — falta o cadeado', e o endereço divulgado ainda não muda",
+      php(PHP_DOM + "D::$resolver=fn()=>['10.213.80.4']; D::$https=fn()=>false; $r=D::conferir($l); echo $r['status'].'|'.$l->fresh()->enderecoPublico();") == "dns_ok|https://demo.lojas.teste")
+check("V40 `loja:dominios` lista o domínio e a situação", "www.sualoja-teste.invalid" in (t := app_cmd("php", "artisan", "loja:dominios")) and "falta o cadeado" in t, t)
+check("V41 aponta certo e abre com cadeado → 'No ar', e aí sim o endereço divulgado passa a ser o domínio",
+      php(PHP_DOM + "D::$resolver=fn()=>['10.213.80.4']; D::$https=fn()=>true; $r=D::conferir($l); echo $r['status'].'|'.$l->fresh()->enderecoPublico();") == "ativo|https://www.sualoja-teste.invalid")
+check("V42 já no ar, o teste do cadeado falhar de dentro do servidor não rebaixa a situação",
+      php(PHP_DOM + "D::$resolver=fn()=>['10.213.80.4']; D::$https=fn()=>false; echo D::conferir($l)['status'];") == "ativo")
+st, _, b = Nav("www.sualoja-teste.invalid").get("/")
+st2, _, b2 = Nav("sualoja-teste.invalid").get("/")
+check("V43 a loja abre pelo domínio com www e também sem o www", st == 200 and "Loja Demo Online" in b and st2 == 200 and "Loja Demo Online" in b2, (st, st2))
+sql("UPDATE lojas_online SET dominio_status='dns_ok' WHERE empresa_id=1")
+t = app_cmd("php", "artisan", "loja:dominios", "--ativar=www.sualoja-teste.invalid")
+check("V44 a rotina do servidor avisa que emitiu o certificado (`--ativar`) → No ar; domínio desconhecido dá erro", um("SELECT dominio_status FROM lojas_online WHERE empresa_id=1") == "ativo"
+      and "Nenhuma loja" in app_cmd("php", "artisan", "loja:dominios", "--ativar=naoexiste.invalid"), t)
+st, _, b = admin.get("/admin/empresas/1")
+check("V45 admin vê a situação do domínio no card da loja", "data-dominio-situacao>No ar<" in b)
+admin.post("/admin/empresas/1/loja-online/dominio-no-ar")
+check("V46 admin desfaz / marca 'no ar' à mão (para onde a rotina do servidor não está instalada)", um("SELECT dominio_status FROM lojas_online WHERE empresa_id=1") == "dns_ok")
+admin.get("/admin/empresas/1")
+admin.post("/admin/empresas/1/loja-online/dominio-no-ar")
+check("V46b …e marca de novo", um("SELECT dominio_status FROM lojas_online WHERE empresa_id=1") == "ativo")
+check("V47 dono não usa a rota do admin; vendedor (só leitura? sem o módulo) não mexe no domínio", dono.post("/admin/empresas/1/loja-online/dominio-no-ar")[0] in (302, 403)
+      and um("SELECT dominio_status FROM lojas_online WHERE empresa_id=1") == "ativo" and caixa.post("/app/loja-online/dominio", {"dominio": "www.invasor.invalid"})[0] == 403
+      and um("SELECT dominio FROM lojas_online WHERE empresa_id=1") == "www.sualoja-teste.invalid")
+dono.get("/app/loja-online/dominio")
+dono.post("/app/loja-online/dominio/tirar")
+check("V48 Tirar o domínio limpa tudo e a loja segue no endereço de sempre", sql("SELECT IFNULL(dominio,'-'), IFNULL(dominio_status,'-') FROM lojas_online WHERE empresa_id=1") == [["-", "-"]]
+      and Nav("www.sualoja-teste.invalid").get("/")[2].find("Loja Demo Online") < 0 and pub.get("/loja/demo")[0] == 200)
+sql(f"UPDATE lojas_online SET dominio='{DOM_ANTES}', dominio_status=NULL, dominio_obs=NULL, dominio_conferido_em=NULL WHERE empresa_id=1")
+check("V49 domínio cadastrado pela equipe (sem situação) continua valendo na hora, como antes", php("echo App\\Models\\LojaOnline::where('empresa_id',1)->first()->enderecoPublico();") == "https://" + DOM_ANTES)
+
+# — dicas do editor —
+st, _, b = dono.get("/app/loja-online/editor")
+check("V50 editor: abas 'Logo, cores e letras', guia 'para a loja ficar com a sua cara' e a dica de tamanho do logo", st == 200 and "Logo, cores e letras</button>" in b and 'id="edGuia"' in b and "PNG com fundo transparente" in b)
+check("V51 editor recebe as dicas de cada bloco e os textos de exemplo dos modelos", "primeira coisa que o cliente v" in b and "Tudo da loja, agora online" in b.split("exemplos:")[1][:6000])
+check("V52 todo tipo de bloco tem dica (nenhum ficou de fora)", php("echo implode(',', array_diff(array_keys(App\\Services\\LojaOnline\\ModelosLoja::tiposDeBloco()), array_keys(App\\Services\\LojaOnline\\ModelosLoja::DICAS))) ?: 'ok';") == "ok")
+sql("DELETE FROM loja_sessoes; DELETE FROM loja_buscas; UPDATE loja_produto_vistas SET carrinhos=0;")
+limites()
+
 sql("UPDATE empresas SET exige_documento_cadastro=1 WHERE id=1")
 print("\n== O. O resto do ERP continua igual ==")
-for rota in ["/app/dashboard", "/app/produtos", "/app/loja-online/pedidos", "/app/loja-online/grade", "/app/loja-online/resultados", f"/app/produtos/{PF}", "/app/pedidos", "/app/promocoes", "/app/vendas", "/app/estoque/movimentacoes", "/app/configuracoes",
+for rota in ["/app/dashboard", "/app/produtos", "/app/loja-online/pedidos", "/app/loja-online/grade", "/app/loja-online/resultados", "/app/loja-online/dominio", f"/app/produtos/{PF}", "/app/pedidos", "/app/promocoes", "/app/vendas", "/app/estoque/movimentacoes", "/app/configuracoes",
              "/app/configuracoes/formas-pagamento", "/app/relatorios/vendas", "/app/clientes"]:
     st, _, b = dono.get(rota)
     check(f"O1 {rota} abre (200)", st == 200, st)

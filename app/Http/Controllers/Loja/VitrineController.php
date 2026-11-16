@@ -98,8 +98,13 @@ class VitrineController extends Controller
             $categoriaAtual = Categoria::withoutGlobalScopes()->where('empresa_id', $this->ctx->loja->empresa_id)->whereKey($id)->first(['id', 'nome']);
         }
 
+        $produtos = $catalogo->listar($filtros)->withPath($this->ctx->caminho('produtos'));
+        if (filled($filtros['q']) && (int) $request->query('page', 1) === 1) {
+            \App\Services\LojaOnline\MetricasLoja::buscou($this->ctx->loja, (string) $filtros['q'], $produtos->total() > 0);
+        }
+
         return view('loja.produtos', $this->comum($catalogo) + [
-            'produtos' => $catalogo->listar($filtros)->withPath($this->ctx->caminho('produtos')),
+            'produtos' => $produtos,
             'filtros' => $filtros,
             'categoriaAtual' => $categoriaAtual,
             'faixa' => $catalogo->faixaDePreco(),

@@ -4,10 +4,13 @@
 
 @push('styles')
 <style>
+    /* Publicar / Descartar sempre à mão: o cabeçalho da página acompanha a rolagem, logo abaixo da barra do ERP (16/11/2026). */
+    .page-header{position:sticky;top:var(--topbar-height,56px);z-index:20;background:var(--body-bg,#f1f5f9);padding-block:.5rem;margin-top:-.5rem}
     .ed{display:grid;grid-template-columns:380px minmax(0,1fr);gap:1rem;align-items:start}
     @media (max-width:1100px){.ed{grid-template-columns:1fr}}
     .ed-painel{background:var(--bg-card,#fff);border:1px solid var(--border,#e2e8f0);border-radius:.75rem;overflow:hidden}
-    .ed-painel .nav-link{border-radius:0;font-weight:600;font-size:.9rem;color:var(--text-secondary,#475569)}
+    .ed-painel .nav{flex-wrap:nowrap}
+    .ed-painel .nav-link{border-radius:0;font-weight:600;font-size:.82rem;white-space:nowrap;padding:.6rem .3rem;color:var(--text-secondary,#475569)}
     .ed-painel .nav-link.active{background:transparent;color:var(--primary,#4f46e5);box-shadow:inset 0 -2px 0 var(--primary,#4f46e5)}
     .ed-corpo{padding:1rem;max-height:calc(100vh - 250px);overflow:auto}
     @media (max-width:1100px){.ed-corpo{max-height:none}}
@@ -59,6 +62,14 @@
     .ed-bloco__form .form-label{font-size:.8rem;font-weight:600;margin:.6rem 0 .2rem}
     .ed-fantasma{opacity:.4}
     .ed-img{display:flex;align-items:center;gap:.6rem}
+    .ed-dica{background:var(--bg-body,#f8fafc);border:1px solid var(--border,#e2e8f0);border-left:3px solid var(--primary,#4f46e5);border-radius:.4rem;padding:.5rem .65rem;margin-top:.6rem;font-size:.8rem;line-height:1.45;color:var(--text-secondary,#475569)}
+    .ed-dica strong{color:var(--text-primary,#0f172a)}
+    .ed-dica__img{display:block;margin-top:.3rem}
+    .ed-falta{display:inline-block;margin-top:.15rem;font-size:.68rem;font-weight:600;border-radius:99px;padding:.05rem .45rem;white-space:nowrap;background:#fef3c7;color:#92400e}
+    .ed-guia{border:1px solid var(--border,#e2e8f0);border-radius:.6rem;padding:.6rem .75rem;margin-bottom:.75rem;font-size:.82rem}
+    .ed-guia__item{display:flex;align-items:center;gap:.45rem;width:100%;text-align:left;background:none;border:0;padding:.2rem 0;color:inherit}
+    .ed-guia__item:hover{color:var(--primary,#4f46e5)}
+    .ed-guia__item .bi-check-circle-fill{color:#16a34a}.ed-guia__item .bi-circle{color:#94a3b8}
     .ed-img img{width:72px;height:48px;object-fit:cover;border-radius:.35rem;border:1px solid var(--border,#e2e8f0)}
     .ed-palco{background:var(--bg-table-head,#f8fafc);border:1px solid var(--border,#e2e8f0);border-radius:.75rem;padding:.75rem}
     .ed-palco__barra{display:flex;align-items:center;justify-content:space-between;gap:.75rem;margin-bottom:.6rem;flex-wrap:wrap}
@@ -92,7 +103,8 @@
             </div>
             <div class="tab-pane fade ed-corpo" id="edTema" role="tabpanel">
                 <div class="fw-semibold mb-2">Logo</div>
-                <div class="ed-img mb-3" id="edLogo"></div>
+                <div class="ed-img mb-1" id="edLogo"></div>
+                <div class="form-text mb-3">Melhor: PNG com fundo transparente, deitado, com 400 px de largura ou mais. Logo quadrado também funciona, mas fica menor no cabeçalho.</div>
                 <div class="fw-semibold mb-1">Cores</div>
                 <div id="edCores"></div>
                 <button type="button" class="btn btn-sm btn-link px-0 mb-3" id="edCoresModelo">Voltar às cores do modelo</button>
@@ -103,6 +115,7 @@
             </div>
             <div class="tab-pane fade ed-corpo" id="edPagina" role="tabpanel">
                 <p class="text-muted small">Arraste pela alça para mudar a ordem. Clique no nome para editar. Você também pode clicar num trecho da prévia.</p>
+                <div class="ed-guia" id="edGuia"></div>
                 <div id="edBlocos"></div>
                 <div class="dropdown mt-2">
                     <button class="btn btn-outline-primary w-100 dropdown-toggle" type="button" data-bs-toggle="dropdown"><i class="bi bi-plus-lg me-1"></i> Adicionar bloco</button>
@@ -132,7 +145,7 @@
 <script>
 (function () {
     var DADOS = {
-        rascunho: @json($rascunho), modelos: @json($modelos), tipos: @json($tipos), fontes: @json($fontes),
+        rascunho: @json($rascunho), modelos: @json($modelos), tipos: @json($tipos), dicas: @json($dicas), exemplos: @json($exemplos), fontes: @json($fontes),
         opcoesTema: @json($opcoesTema), cores: @json($cores), icones: @json($icones), categorias: @json($categorias),
         rotas: {
             rascunho: @json(route('app.loja-online.editor.rascunho')), modelo: @json(route('app.loja-online.editor.modelo')),
@@ -178,6 +191,7 @@
     /* ── salvar rascunho (com espera) e recarregar a prévia ── */
     function marcar(texto) { $('edEstado').textContent = texto; }
     function mudou() {
+        desenharGuia();
         marcar('Salvando…');
         clearTimeout(relogio);
         relogio = setTimeout(salvar, 600);
@@ -429,7 +443,53 @@
         var alvo = document.querySelector('[data-resumo="' + b.id + '"]');
         if (alvo) alvo.textContent = resumo(b);
     }
+    /* ── dicas (16/11/2026): o que falta em cada bloco e o guia do topo ── */
+    function pendencias(b) {
+        var p = {imagens: 0, exemplos: 0};
+        if (['banner', 'carrossel', 'banners', 'imagem_texto'].indexOf(b.tipo) < 0) return p;
+        var itens = Array.isArray(b.lista) ? b.lista : [b];
+        itens.forEach(function (i) {
+            if (!i.imagem) p.imagens++;
+            if (b.tipo !== 'imagem_texto' && ['titulo', 'subtitulo', 'texto'].some(function (k) { return i[k] && DADOS.exemplos.indexOf(i[k]) >= 0; })) p.exemplos++;
+        });
+        return p;
+    }
+    function abrirBloco(id) {
+        aberto = id; desenharBlocos();
+        var alvo = document.querySelector('.ed-bloco[data-id="' + id + '"]');
+        if (alvo) alvo.scrollIntoView({block: 'nearest', behavior: 'smooth'});
+    }
+    function desenharGuia() {
+        var guia = $('edGuia'); if (!guia) return;
+        guia.innerHTML = '';
+        var semImagem = null, comExemplo = null, nImg = 0, nEx = 0;
+        estado.blocos.forEach(function (b) {
+            var p = pendencias(b);
+            if (p.imagens) { nImg += p.imagens; semImagem = semImagem || b.id; }
+            if (p.exemplos) { nEx += p.exemplos; comExemplo = comExemplo || b.id; }
+        });
+        var passos = [
+            [!!estado.tema.logo, 'Enviar o logo da loja', function () { bootstrap.Tab.getOrCreateInstance(document.querySelector('[data-bs-target="#edTema"]')).show(); }],
+            [nImg === 0, nImg === 0 ? 'Banners com imagem própria' : 'Pôr imagem própria em ' + nImg + (nImg === 1 ? ' banner' : ' banners'), function () { if (semImagem) abrirBloco(semImagem); }],
+            [nEx === 0, nEx === 0 ? 'Textos dos banners com a cara da loja' : 'Trocar o texto de exemplo de ' + nEx + (nEx === 1 ? ' banner' : ' banners'), function () { if (comExemplo) abrirBloco(comExemplo); }]
+        ];
+        var feitos = passos.filter(function (x) { return x[0]; }).length;
+        guia.appendChild(el('div', {class: 'fw-semibold mb-1', text: feitos === passos.length ? 'A página inicial já está com a cara da sua loja.' : 'Para a loja ficar com a sua cara (' + feitos + ' de ' + passos.length + ')'}));
+        passos.forEach(function (x) {
+            guia.appendChild(el('button', {type: 'button', class: 'ed-guia__item', 'data-guia': x[0] ? 'feito' : 'falta', onclick: x[2]}, [
+                el('i', {class: 'bi ' + (x[0] ? 'bi-check-circle-fill' : 'bi-circle')}), document.createTextNode(x[1])
+            ]));
+        });
+        if (feitos < passos.length) guia.appendChild(el('div', {class: 'text-muted mt-1', text: 'Sem imagem, a loja usa fotos dos seus produtos — já fica apresentável, mas com imagem própria fica muito melhor.'}));
+    }
+    function caixaDeDica(tipo) {
+        var d = DADOS.dicas[tipo]; if (!d) return null;
+        var caixa = el('div', {class: 'ed-dica', 'data-dica': tipo}, [el('strong', {text: 'Dica: '}), document.createTextNode(d[0])]);
+        if (d[1]) caixa.appendChild(el('span', {class: 'ed-dica__img'}, [el('i', {class: 'bi bi-image me-1'}), document.createTextNode(d[1])]));
+        return caixa;
+    }
     function desenharBlocos() {
+        desenharGuia();
         var lista = $('edBlocos'); lista.innerHTML = '';
         if (!estado.blocos.length) lista.appendChild(el('div', {class: 'text-muted small border rounded p-3 text-center', text: 'A página inicial está vazia. Adicione um bloco abaixo.'}));
         estado.blocos.forEach(function (b, n) {
@@ -439,7 +499,8 @@
                 el('span', {class: 'ed-pega', title: 'Arraste para mudar a ordem', html: '<i class="bi bi-grip-vertical"></i>'}),
                 el('i', {class: 'bi bi-' + def.icone + ' text-muted'}),
                 el('button', {type: 'button', class: 'ed-bloco__nome', 'aria-expanded': aberto === b.id ? 'true' : 'false', onclick: function () { aberto = aberto === b.id ? null : b.id; desenharBlocos(); }}, [
-                    document.createTextNode(def.nome), el('small', {'data-resumo': b.id, text: resumo(b)})
+                    document.createTextNode(def.nome), el('small', {'data-resumo': b.id, text: resumo(b)}),
+                    (function () { var p = pendencias(b); var t = p.imagens ? 'falta imagem' : (p.exemplos ? 'texto de exemplo' : ''); return t ? el('span', {class: 'ed-falta', 'data-falta': b.id, text: t}) : null; })()
                 ]),
                 el('button', {type: 'button', class: 'btn btn-sm btn-link text-muted p-1', title: 'Subir', 'aria-label': 'Subir ' + def.nome, disabled: n === 0, onclick: function () { mover(n, -1); }, html: '<i class="bi bi-arrow-up"></i>'}),
                 el('button', {type: 'button', class: 'btn btn-sm btn-link text-muted p-1', title: 'Descer', 'aria-label': 'Descer ' + def.nome, disabled: n === estado.blocos.length - 1, onclick: function () { mover(n, 1); }, html: '<i class="bi bi-arrow-down"></i>'}),
@@ -447,6 +508,7 @@
             ]));
             if (aberto === b.id) {
                 var form = el('div', {class: 'ed-bloco__form'});
+                var dica = caixaDeDica(b.tipo); if (dica) form.appendChild(dica);
                 def.campos.forEach(function (campo) { var c = campoDoBloco(b, campo); if (c) form.appendChild(c); });
                 linha.appendChild(form);
             }

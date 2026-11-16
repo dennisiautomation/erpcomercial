@@ -64,7 +64,7 @@ class ResolverLojaPorHost
     {
         $semWww = preg_replace('/^www\./', '', $host);
 
-        $loja = LojaOnline::whereIn('dominio', array_unique([$host, $semWww]))->where('ativo', true)->first();
+        $loja = LojaOnline::whereIn('dominio', array_unique([$host, $semWww, 'www.' . $semWww]))->where('ativo', true)->first();
         if ($loja) {
             return $loja;
         }

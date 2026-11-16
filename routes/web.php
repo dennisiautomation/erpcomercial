@@ -190,6 +190,8 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
     // Loja online (e-commerce) por empresa (14/11/2026) — aba Integração
     Route::post('/empresas/{empresa}/loja-online/toggle', [Admin\LojaOnlineController::class, 'toggle'])
         ->name('empresas.loja-online.toggle');
+    Route::post('/empresas/{empresa}/loja-online/dominio-no-ar', [Admin\LojaOnlineController::class, 'dominioNoAr'])
+        ->name('empresas.loja-online.dominio-no-ar');
     Route::post('/empresas/{empresa}/loja-online', [Admin\LojaOnlineController::class, 'salvar'])
         ->name('empresas.loja-online.salvar');
     // Qual cartão o agente usa quando a empresa tem mais de um ligado (25/09/2026)
@@ -706,7 +708,12 @@ Route::middleware(['auth', 'suspensao', 'unidade', \App\Http\Middleware\Restring
         Route::get('/avaliacoes', [App\LojaOnlineGestaoController::class, 'avaliacoes'])->name('avaliacoes');
         Route::get('/carrinhos', [App\LojaOnlineGestaoController::class, 'carrinhos'])->name('carrinhos');
         Route::get('/resultados', [App\LojaOnlineGestaoController::class, 'resultados'])->name('resultados');
+        Route::get('/resultados/agora', [App\LojaOnlineGestaoController::class, 'resultadosAgora'])->name('resultados.agora');
+        Route::get('/dominio', [App\LojaOnlineGestaoController::class, 'dominio'])->name('dominio');
         Route::middleware('permission:loja_online,editar')->group(function () {
+            Route::post('/dominio', [App\LojaOnlineGestaoController::class, 'salvarDominio'])->name('dominio.salvar');
+            Route::post('/dominio/conferir', [App\LojaOnlineGestaoController::class, 'conferirDominio'])->middleware('throttle:12,1,lj-dominio')->name('dominio.conferir');
+            Route::post('/dominio/tirar', [App\LojaOnlineGestaoController::class, 'tirarDominio'])->name('dominio.tirar');
             Route::post('/pedidos/{pedido}/envio', [App\LojaOnlineGestaoController::class, 'informarEnvio'])->whereNumber('pedido')->name('pedidos.envio');
             Route::post('/pedidos/{pedido}/cancelar', [App\LojaOnlineGestaoController::class, 'cancelarPedido'])->whereNumber('pedido')->name('pedidos.cancelar');
             Route::post('/pedidos/{pedido}/devolver', [App\LojaOnlineGestaoController::class, 'devolverPedido'])->whereNumber('pedido')->name('pedidos.devolver');

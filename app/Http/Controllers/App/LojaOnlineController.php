@@ -274,6 +274,8 @@ class LojaOnlineController extends Controller
                     ?? collect($m['blocos'])->firstWhere('tipo', 'carrossel')['lista'][0]['titulo'] ?? $m['nome'],
             ])->values(),
             'tipos' => ModelosLoja::tiposDeBloco(),
+            'dicas' => ModelosLoja::DICAS,
+            'exemplos' => ModelosLoja::textosDeExemplo(),
             'fontes' => collect(ModelosLoja::FONTES)->map(fn ($f) => $f[0]),
             'opcoesTema' => ModelosLoja::OPCOES_TEMA,
             'cores' => ModelosLoja::CORES,
