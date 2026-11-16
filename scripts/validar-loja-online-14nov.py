@@ -1911,9 +1911,143 @@ check("V52 todo tipo de bloco tem dica (nenhum ficou de fora)", php("echo implod
 sql("DELETE FROM loja_sessoes; DELETE FROM loja_buscas; UPDATE loja_produto_vistas SET carrinhos=0;")
 limites()
 
+
+print("\n== W. Grade no dia a dia do ERP: cadastro, lista de produtos e PDV (16/11/2026) ==")
+def cfg_grade(liga):
+    php(f"$c=App\\Models\\ConfiguracaoLoja::daUnidade(1,1); $c->agrupar_grade={'true' if liga else 'false'}; $c->save();")
+
+def grade_de(pid):
+    return sql(f"SELECT id, descricao, codigo_barras, preco_venda FROM produtos WHERE grade_id={pid} ORDER BY id")
+
+def pdv_busca(nav, termo, grade=True):
+    st, _, b = nav.get("/app/pdv/produto/" + urllib.parse.quote(termo) + ("?grade=1" if grade else ""))
+    try:
+        return st, json.loads(b)
+    except Exception:
+        return st, []
+
+GN = int(php(f"$p=App\\Models\\Produto::withoutGlobalScopes()->find({PF}); $n=$p->replicate(['grade_id','grade_opcoes']); "
+             "$n->forceFill(['descricao'=>'Blusa Teste Grade','codigo_interno'=>'990001','codigo_barras'=>'7890000990001','sku'=>'SKU-990001','foto'=>null,'grade_id'=>null,'grade_opcoes'=>null,'preco_venda'=>50,'status'=>'ativo'])->save(); "
+             "App\\Models\\ProdutoPreco::withoutGlobalScopes()->create(['empresa_id'=>$n->empresa_id,'produto_id'=>$n->id,'modalidade'=>'credito','valor'=>55]); echo $n->id;"))
+cfg_grade(False)
+st, _, b = dono.get(f"/app/produtos/{GN}/edit")
+check("W1 cadastro do produto traz o quadro 'tamanhos ou cores' com o formulário de criar", st == 200 and "data-grade-quadro" in b and "data-grade-criar" in b and "Este produto tem tamanhos ou cores?" in b, st)
+st, hd, _ = caixa.post(f"/app/produtos/{GN}/grade/gerar", {"atributo[0]": "Tamanho", "valores[0]": "P, M"})
+check("W2 quem não edita produtos não cria grade (403) e nada muda", st == 403 and vazio(f"SELECT IFNULL(grade_id,'') FROM produtos WHERE id={GN}"), st)
+st, _, _ = outro.post(f"/app/produtos/{GN}/grade/gerar", {"atributo[0]": "Tamanho", "valores[0]": "P, M"})
+check("W3 outra empresa não alcança o produto (404)", st == 404 and vazio(f"SELECT IFNULL(grade_id,'') FROM produtos WHERE id={GN}"), st)
+dono.get(f"/app/produtos/{GN}/edit")
+st, hd, _ = dono.post(f"/app/produtos/{GN}/grade/gerar", {"atributo[0]": "Tamanho", "valores[0]": "P"})
+check("W4 uma opção só não vira grade (volta com o aviso)", vazio(f"SELECT IFNULL(grade_id,'') FROM produtos WHERE id={GN}"))
+st, hd, _ = dono.post(f"/app/produtos/{GN}/grade/gerar", {"atributo[0]": "tamanho", "valores[0]": "P, M, G", "atributo[1]": "Cor", "valores[1]": "Preto, Branco", "atributo[2]": "", "valores[2]": ""})
+g = grade_de(GN)
+check("W5 criar pelo cadastro: 6 produtos, o próprio vira 'P / Preto' e volta para o cadastro no quadro da grade",
+      len(g) == 6 and g[0][1] == "Blusa Teste Grade - P / Preto" and g[-1][1] == "Blusa Teste Grade - G / Branco" and hd.get("Location", "").endswith(f"/app/produtos/{GN}/edit#grade"), (len(g), hd.get("Location")))
+check("W6 cada produto novo tem código de barras próprio e leva o preço fixo do crédito (antes a cópia perdia)",
+      len({x[2] for x in g}) == 6 and um(f"SELECT COUNT(*) FROM produto_precos WHERE modalidade='credito' AND valor=55 AND produto_id IN (SELECT id FROM produtos WHERE grade_id={GN})") == "6")
+st, _, b = dono.get(f"/app/produtos/{GN}/edit")
+check("W7 quadro mostra a tabela com as 6 linhas, 'principal', 'este', total em estoque e os botões de preço e foto para todos",
+      b.count("data-grade-linha=") == 6 and ">principal<" in b and ">este<" in b and "data-grade-total" in b and "data-grade-preco" in b and "data-grade-foto" in b and "data-grade-acrescentar" in b and "data-grade-juntar" in b)
+V2 = int(g[1][0])
+st, _, b = dono.get(f"/app/produtos/{V2}/edit")
+check("W8 o quadro aparece igual no cadastro de qualquer variação, marcando 'este' na linha dela", st == 200 and b.count("data-grade-linha=") == 6 and re.search(rf'table-active[^>]*data-grade-linha="{V2}"', b) is not None)
+dono.post(f"/app/produtos/{V2}/grade/acrescentar", {"atributo": "Tamanho", "valores": "GG, M"})
+g = grade_de(GN)
+check("W9 acrescentar o tamanho GG cria só o que falta (2 produtos: GG / Preto e GG / Branco), com estoque zero",
+      len(g) == 8 and [x[1] for x in g[-2:]] == ["Blusa Teste Grade - GG / Preto", "Blusa Teste Grade - GG / Branco"] and php(f"echo App\\Services\\SaldoEstoque::naUnidade(1,{g[-1][0]});") in ("0", "0.0"), [x[1] for x in g])
+dono.get(f"/app/produtos/{GN}/edit")
+dono.post(f"/app/produtos/{GN}/grade/acrescentar", {"atributo": "Tamanho", "valores": "gg"})
+check("W10 valor que a grade já tem não duplica nada", len(grade_de(GN)) == 8)
+sql(f"UPDATE produtos SET preco_venda=77.70 WHERE id={V2}; UPDATE produto_precos SET valor=80 WHERE produto_id={V2}")
+dono.get(f"/app/produtos/{V2}/edit")
+dono.post(f"/app/produtos/{V2}/grade/preco")
+check("W11 'Mesmo preço para todos' leva o preço de venda e o fixo do crédito para os outros 7",
+      um(f"SELECT COUNT(*) FROM produtos WHERE grade_id={GN} AND preco_venda=77.70") == "8" and um(f"SELECT COUNT(*) FROM produto_precos WHERE valor=80 AND produto_id IN (SELECT id FROM produtos WHERE grade_id={GN})") == "8")
+dono.get(f"/app/produtos/{V2}/edit")
+dono.post(f"/app/produtos/{V2}/grade/foto")
+check("W12 'Mesma foto para todos' sem foto no produto não mexe em nada", um(f"SELECT COUNT(*) FROM produtos WHERE grade_id={GN} AND foto IS NOT NULL") == "0")
+php(f"Illuminate\\Support\\Facades\\Storage::disk('public')->put('produtos/teste-grade.png', base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==')); "
+    f"App\\Models\\Produto::withoutGlobalScopes()->where('id',{V2})->update(['foto'=>'produtos/teste-grade.png']);")
+dono.get(f"/app/produtos/{V2}/edit")
+dono.post(f"/app/produtos/{V2}/grade/foto")
+check("W13 com foto: os 8 ficam com foto, cada um com o SEU arquivo, e os arquivos existem",
+      um(f"SELECT COUNT(DISTINCT foto) FROM produtos WHERE grade_id={GN} AND foto IS NOT NULL") == "8"
+      and php(f"echo App\\Models\\Produto::withoutGlobalScopes()->where('grade_id',{GN})->get()->every(fn($p)=>Illuminate\\Support\\Facades\\Storage::disk('public')->exists($p->foto)) ? 'ok' : 'falta';") == "ok")
+GS = int(php(f"$p=App\\Models\\Produto::withoutGlobalScopes()->find({GN}); $n=$p->replicate(['grade_id','grade_opcoes']); "
+             "$n->forceFill(['descricao'=>'Blusa Solta','codigo_interno'=>'990050','codigo_barras'=>'7890000990050','sku'=>'SKU-990050','foto'=>null,'grade_id'=>null,'grade_opcoes'=>null])->save(); echo $n->id;"))
+dono.get(f"/app/produtos/{GN}/edit")
+dono.post(f"/app/produtos/{GN}/grade/juntar", {"codigo": "990050", "opcoes[Tamanho]": "XG", "opcoes[Cor]": "Preto"})
+check("W14 juntar um produto que já existe, pelo código", um(f"SELECT grade_id FROM produtos WHERE id={GS}") == str(GN))
+dono.post(f"/app/produtos/{GN}/grade/tirar", {"variacao_id": GS})
+check("W15 tirar uma variação pelo quadro: ela sai e continua cadastrada; as outras 8 ficam", vazio(f"SELECT IFNULL(grade_id,'') FROM produtos WHERE id={GS}") and len(grade_de(GN)) == 8)
+dono.post(f"/app/produtos/{GN}/grade/tirar", {"variacao_id": PF})
+check("W16 não dá para tirar pelo quadro um produto que não é desta grade", len(grade_de(GN)) == 8)
+sql(f"UPDATE produtos SET status='inativo' WHERE id={GS}")
+
+# — grade SEM loja online: a outra empresa (loja online desligada) usa pelo cadastro —
+PO = int(um(f"SELECT id FROM produtos WHERE empresa_id={cen['empresa2']} AND grade_id IS NULL AND deleted_at IS NULL ORDER BY id LIMIT 1"))
+nome_po = um(f"SELECT descricao FROM produtos WHERE id={PO}")
+check("W17 (preparo) a outra empresa não tem a loja online ligada", php(f"echo App\\Models\\LojaOnline::ativaPara({cen['empresa2']}) ? 'sim' : 'nao';") == "nao")
+st, _, b = outro.get(f"/app/produtos/{PO}/edit")
+outro.post(f"/app/produtos/{PO}/grade/gerar", {"atributo[0]": "Voltagem", "valores[0]": "110V, 220V"})
+check("W18 empresa SEM loja online cria a grade pelo cadastro do produto", st == 200 and "data-grade-criar" in b and um(f"SELECT COUNT(*) FROM produtos WHERE grade_id={PO}") == "2")
+outro.get(f"/app/produtos/{PO}/edit")
+outro.post(f"/app/produtos/{PO}/grade/tirar", {"variacao_id": PO})
+sql(f"UPDATE produtos SET descricao='{nome_po}' WHERE id={PO}; UPDATE produtos SET status='inativo' WHERE empresa_id={cen['empresa2']} AND descricao LIKE '% - 220V'")
+check("W19 …e desfaz (os produtos continuam, cada um por si)", um(f"SELECT COUNT(*) FROM produtos WHERE grade_id={PO}") == "0")
+
+# — lista de produtos —
+V1, V3 = int(g[0][0]), int(g[2][0])
+dar_saldo(V1, 3); dar_saldo(V2, 2)
+st, _, b = dono.get("/app/produtos?busca=Blusa+Teste+Grade")
+check("W20 chave DESLIGADA (padrão): a lista continua com uma linha por tamanho/cor, sem agrupar", st == 200 and "data-grade-grupo" not in b and b.count("Blusa Teste Grade - ") == 8, b.count("Blusa Teste Grade - "))
+st, _, b = dono.get("/app/configuracoes")
+check("W21 Configurações da loja têm a chave 'tamanhos e cores como uma linha só', desligada", st == 200 and 'id="agrupar_grade"' in b and re.search(r'id="agrupar_grade"[^>]*checked', b) is None)
+cfg_grade(True)
+st, _, b = dono.get("/app/produtos?busca=Blusa+Teste+Grade")
+linha = b.split(f'data-grade-grupo="{GN}"')[1].split("</tr>")[0] if f'data-grade-grupo="{GN}"' in b else ""
+check("W22 chave LIGADA: a lista mostra UMA linha 'Blusa Teste Grade' com '8 opções de tamanho e cor' e o saldo somado (5)",
+      b.count("data-grade-grupo=") == 1 and ">Blusa Teste Grade</strong>" in linha and "8 opções de tamanho e cor" in texto(linha) and re.search(r'fw-bold\s*">5</span>', linha) is not None, texto(linha)[:300])
+check("W23 as 8 variações vêm embaixo, fechadas, com o rótulo curto (GG / Branco), saldo e o preço editável de cada uma",
+      b.count(f'data-grade-de="{GN}"') == 8 and b.count('table-light d-none') == 8 and ">GG / Branco</span>" in b and b.count("preco-inline") >= 8 and "data-grade-abrir" in b)
+st, _, b = dono.get("/app/produtos?busca=" + g[5][2])
+check("W24 bipar/digitar o código de barras de um tamanho acha a linha do produto", b.count("data-grade-grupo=") == 1 and g[5][2] in b)
+st, _, b = dono.get("/app/produtos?busca=Blusa+Solta&status=inativo")
+check("W25 produto fora de grade continua igual na lista, mesmo com a chave ligada", "Blusa Solta" in b and "data-grade-grupo" not in b)
+st, _, b = dono.get("/app/produtos")
+check("W26 lista inteira abre e nenhuma variação aparece solta fora do seu grupo", st == 200 and re.search(r"<strong>Blusa Teste Grade - ", b) is None)
+
+# — PDV —
+st, r = pdv_busca(dono, "Blusa Teste")
+gr = r[0] if r and isinstance(r, list) else {}
+check("W27 PDV, busca por nome: UMA linha com as 8 variações, nomes das opções na ordem e o saldo de cada uma",
+      st == 200 and len(r) == 1 and gr.get("grade") == GN and gr.get("descricao") == "Blusa Teste Grade" and gr.get("nomes") == ["Tamanho", "Cor"] and len(gr.get("variacoes", [])) == 8
+      and gr["variacoes"][0]["opcoes"] == ["P", "Preto"] and gr["variacoes"][0]["estoque"] == 3 and gr["variacoes"][1]["estoque"] == 2 and gr["variacoes"][2]["estoque"] == 0, str(r)[:300])
+check("W28 cada variação vem como produto completo (id, código de barras, preço e preços por forma) para entrar na venda",
+      all(v.get("id") and v.get("codigo_barras") and v.get("preco_venda") and isinstance(v.get("precos"), dict) for v in gr.get("variacoes", [])) and gr.get("preco_varia") is False)
+st, r = pdv_busca(dono, g[3][2])
+check("W29 PDV, código de barras bipado: entra a peça certa direto, sem janela", len(r) == 1 and r[0].get("id") == int(g[3][0]) and not r[0].get("grade"), str(r)[:200])
+st, r = pdv_busca(dono, "Blusa Teste Grade GG Branco")
+check("W30 PDV, nome que só casa com um tamanho/cor: entra direto", len(r) == 1 and r[0].get("id") == int(g[7][0]) and not r[0].get("grade"), str(r)[:200])
+st, r = pdv_busca(dono, "Blusa Teste", grade=False)
+check("W31 a busca da TROCA (não pede a grade) continua com as 8 linhas", len(r) == 8 and all(not x.get("grade") for x in r))
+sql(f"UPDATE produtos SET preco_venda=90, status='inativo' WHERE id={V3}; UPDATE produtos SET preco_venda=60 WHERE id={V1}; DELETE FROM produto_precos WHERE produto_id={V1}")
+st, r = pdv_busca(dono, "Blusa Teste")
+check("W32 variação inativa não aparece nos botões; preço diferente vira 'a partir de' o menor", len(r) == 1 and len(r[0]["variacoes"]) == 7 and r[0]["preco_varia"] is True and r[0]["preco_venda"] == 60, str(r)[:200])
+st, _, b = dono.get("/app/produtos?busca=Blusa+Teste+Grade")
+check("W33 lista: preço 'a partir de R$ 60,00' e '7 de 8 ativos' no grupo", "a partir de</small>" in b and "R$ 60,00" in b and "7 de 8 ativos" in b)
+cfg_grade(False)
+st, r = pdv_busca(dono, "Blusa Teste")
+check("W34 chave desligada: o PDV volta a listar cada produto, mesmo pedindo a grade", len(r) == 7 and all(not x.get("grade") for x in r))
+st, _, b = dono.get("/app/pdv")
+check("W35 a tela do PDV abre e traz o seletor de tamanho e cor", st == 200 and "escolherVariacao(grupo)" in b and "?grade=1" in b)
+st, _, b = dono.get("/app/loja-online/grade")
+check("W36 a aba Grade da loja online continua mostrando a mesma grade", st == 200 and "Blusa Teste Grade" in b)
+sql(f"UPDATE produtos SET status='ativo', preco_venda=77.70 WHERE grade_id={GN}")
+
 sql("UPDATE empresas SET exige_documento_cadastro=1 WHERE id=1")
 print("\n== O. O resto do ERP continua igual ==")
-for rota in ["/app/dashboard", "/app/produtos", "/app/loja-online/pedidos", "/app/loja-online/grade", "/app/loja-online/resultados", "/app/loja-online/dominio", f"/app/produtos/{PF}", "/app/pedidos", "/app/promocoes", "/app/vendas", "/app/estoque/movimentacoes", "/app/configuracoes",
+for rota in ["/app/dashboard", "/app/produtos", "/app/loja-online/pedidos", "/app/loja-online/grade", "/app/loja-online/resultados", "/app/loja-online/dominio", f"/app/produtos/{PF}", f"/app/produtos/{PF}/edit", "/app/pdv", "/app/pedidos", "/app/promocoes", "/app/vendas", "/app/estoque/movimentacoes", "/app/configuracoes",
              "/app/configuracoes/formas-pagamento", "/app/relatorios/vendas", "/app/clientes"]:
     st, _, b = dono.get(rota)
     check(f"O1 {rota} abre (200)", st == 200, st)

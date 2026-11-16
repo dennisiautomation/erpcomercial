@@ -343,6 +343,15 @@ Route::middleware(['auth', 'suspensao', 'unidade', \App\Http\Middleware\Restring
     Route::patch('produtos/{produto}/preco', [App\ProdutoController::class, 'atualizarPreco'])
         ->name('produtos.preco')
         ->middleware('permission:produtos,editar');
+    // Grade (tamanhos e cores) no cadastro do produto — qualquer empresa, com ou sem loja online (16/11/2026)
+    Route::prefix('produtos/{produto}/grade')->name('produtos.grade.')->middleware('permission:produtos,editar')->group(function () {
+        Route::post('/gerar', [App\ProdutoGradeController::class, 'gerar'])->name('gerar');
+        Route::post('/acrescentar', [App\ProdutoGradeController::class, 'acrescentar'])->name('acrescentar');
+        Route::post('/juntar', [App\ProdutoGradeController::class, 'juntar'])->name('juntar');
+        Route::post('/tirar', [App\ProdutoGradeController::class, 'tirar'])->name('tirar');
+        Route::post('/preco', [App\ProdutoGradeController::class, 'preco'])->name('preco');
+        Route::post('/foto', [App\ProdutoGradeController::class, 'foto'])->name('foto');
+    });
     Route::resource('produtos', App\ProdutoController::class)->except(['update'])->middleware('permission:produtos');
     // Promoções por período (05/11/2026) — quem edita preço de produto
     Route::middleware('permission:produtos,editar')->prefix('promocoes')->name('promocoes.')->group(function () {

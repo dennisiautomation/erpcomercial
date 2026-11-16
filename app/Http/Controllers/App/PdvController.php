@@ -210,7 +210,7 @@ class PdvController extends Controller
 
         // Tabelas de preço por forma de pagamento (dinheiro_pix/debito/credito)
         $configLoja = ConfiguracaoLoja::daUnidade();
-        $produtos = $produtos->map(function ($p) use ($tabelaPrecos, $configLoja) {
+        $dadosDe = function ($p) use ($tabelaPrecos, $configLoja) {
             $dados = $p->only(['id', 'codigo_interno', 'codigo_barras', 'descricao', 'preco_venda', 'unidade_medida']);
             $dados['precos'] = $tabelaPrecos->precosDoProduto($p, $configLoja);
             // O preço da busca e da peça sem cupom no F6 é o "preço cadastrado" da
@@ -219,9 +219,61 @@ class PdvController extends Controller
             // Promoção do dia nesta loja (05/11/2026) — só para o aviso na lista; o preço já vem nela
             $dados['promocao'] = $tabelaPrecos->promocaoDoProduto($p, $configLoja)?->promocao?->nome;
             return $dados;
-        });
+        };
 
-        return response()->json($produtos);
+        // Grade como UMA linha (chave "Tamanhos e cores" da loja, 16/11/2026). Só quando a tela
+        // pede (?grade=1 — a busca da venda; a da troca não pede) e a busca foi por NOME: código
+        // bipado/digitado inteiro continua devolvendo a peça certa, direto.
+        $termo = trim(preg_replace('/\s+/u', ' ', (string) $codigo));
+        $porCodigo = $produtos->contains(fn ($p) => in_array($termo, [$p->codigo_barras, $p->codigo_interno, $p->sku], true));
+        $grupos = $request->boolean('grade') && $configLoja->agrupar_grade && ! $porCodigo
+            // um tamanho só casou com o que foi digitado ("vestido longo m preto"): entra direto, sem janela
+            ? $produtos->whereNotNull('grade_id')->groupBy('grade_id')->filter(fn ($g) => $g->count() > 1)
+            : collect();
+        if ($grupos->isEmpty()) {
+            return response()->json($produtos->map($dadosDe)->values());
+        }
+
+        $todas = \App\Services\LojaOnline\GradeLoja::porGrade((int) session('empresa_id'), $grupos->keys()->all());
+        $saldos = SaldoEstoque::porProdutoDaUnidade((int) session('unidade_id'), $todas->flatten(1)->pluck('id')->all());
+        $saida = [];
+        $feitos = [];
+        foreach ($produtos as $p) {
+            $gid = (int) $p->grade_id;
+            if (! $gid || ! $grupos->has($gid)) {
+                $saida[] = $dadosDe($p);
+                continue;
+            }
+            if (isset($feitos[$gid])) {
+                continue;
+            }
+            $feitos[$gid] = true;
+            $daGrade = $todas[$gid] ?? collect();
+            $principal = $daGrade->firstWhere('id', $gid) ?? $p;
+            $nomes = \App\Services\LojaOnline\GradeLoja::nomes($principal);
+            $variacoes = $daGrade->where('status', 'ativo')->map(function ($v) use ($dadosDe, $nomes, $saldos) {
+                $op = \App\Services\LojaOnline\GradeLoja::opcoes($v);
+                return $dadosDe($v) + [
+                    'opcoes' => array_map(fn ($n) => (string) ($op[$n] ?? ''), $nomes),
+                    'estoque' => (float) ($saldos[$v->id] ?? 0),
+                ];
+            })->values();
+            $precos = $variacoes->pluck('preco_venda');
+            $saida[] = [
+                'id' => null,
+                'grade' => $gid,
+                'descricao' => \App\Services\LojaOnline\GradeLoja::nomeComum($principal),
+                'codigo_interno' => '',
+                'codigo_barras' => '',
+                'preco_venda' => (float) $precos->min(),
+                'preco_varia' => $precos->min() != $precos->max(),
+                'promocao' => $variacoes->pluck('promocao')->filter()->first(),
+                'nomes' => $nomes,
+                'variacoes' => $variacoes,
+            ];
+        }
+
+        return response()->json($saida);
     }
 
     /**
@@ -245,7 +297,7 @@ class PdvController extends Controller
 
         $base = fn () => Produto::where('empresa_id', $empresaId)
             ->where('status', 'ativo')
-            ->select('id', 'codigo_interno', 'codigo_barras', 'sku', 'descricao', 'preco_venda', 'unidade_medida')
+            ->select('id', 'codigo_interno', 'codigo_barras', 'sku', 'descricao', 'preco_venda', 'unidade_medida', 'grade_id', 'grade_opcoes')
             ->with('precos:id,produto_id,modalidade,valor');
 
         if ($termo === '') {

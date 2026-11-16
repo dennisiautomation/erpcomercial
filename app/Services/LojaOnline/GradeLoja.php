@@ -4,6 +4,7 @@ namespace App\Services\LojaOnline;
 
 use App\Models\Produto;
 use App\Models\ProdutoFoto;
+use App\Models\ProdutoPreco;
 use App\Scopes\EmpresaScope;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -142,26 +143,201 @@ class GradeLoja
             ])->save();
 
             foreach ($combos as $combo) {
-                $codigo = self::proximoCodigo((int) $produto->empresa_id);
-                $novo = $produto->replicate(['codigo_interno', 'codigo_barras', 'sku', 'foto', 'grade_opcoes', 'descricao']);
-                $novo->forceFill([
-                    'codigo_interno' => $codigo,
-                    'sku' => 'SKU-' . $codigo,
-                    'codigo_barras' => self::ean((int) $produto->empresa_id, $codigo),
-                    'descricao' => $rotulo($combo),
-                    'grade_id' => $produto->id,
-                    'grade_opcoes' => $combo,
-                    'foto' => self::copiarArquivo($produto->foto),
-                ])->save();
-                foreach ($fotos as $f) {
-                    if ($c = self::copiarArquivo($f->caminho)) {
-                        ProdutoFoto::create(['empresa_id' => $produto->empresa_id, 'produto_id' => $novo->id, 'caminho' => $c, 'ordem' => $f->ordem]);
-                    }
-                }
+                self::clonar($produto, (int) $produto->id, $combo, $rotulo($combo), $fotos);
             }
 
             return count($combos);
         });
+    }
+
+    /**
+     * Cadastra UMA variação nova como cópia de $origem (mesmo preço — inclusive os
+     * preços fixos por forma —, fiscal, categoria e fotos; estoque zero).
+     */
+    private static function clonar(Produto $origem, int $principalId, array $combo, string $descricao, $fotos): Produto
+    {
+        $codigo = self::proximoCodigo((int) $origem->empresa_id);
+        $novo = $origem->replicate(['codigo_interno', 'codigo_barras', 'sku', 'foto', 'grade_opcoes', 'descricao']);
+        $novo->forceFill([
+            'codigo_interno' => $codigo,
+            'sku' => 'SKU-' . $codigo,
+            'codigo_barras' => self::ean((int) $origem->empresa_id, $codigo),
+            'descricao' => $descricao,
+            'grade_id' => $principalId,
+            'grade_opcoes' => $combo,
+            'foto' => self::copiarArquivo($origem->foto),
+        ])->save();
+        foreach ($fotos as $f) {
+            if ($c = self::copiarArquivo($f->caminho)) {
+                ProdutoFoto::create(['empresa_id' => $origem->empresa_id, 'produto_id' => $novo->id, 'caminho' => $c, 'ordem' => $f->ordem]);
+            }
+        }
+        foreach (ProdutoPreco::withoutGlobalScopes()->where('produto_id', $origem->id)->get() as $pr) {
+            ProdutoPreco::withoutGlobalScopes()->create(['empresa_id' => $origem->empresa_id, 'produto_id' => $novo->id, 'modalidade' => $pr->modalidade, 'valor' => $pr->valor]);
+        }
+
+        return $novo;
+    }
+
+    /**
+     * Lê "Tamanho" + "P, M, G" (campos da tela) e devolve {Tamanho: [P, M, G]}.
+     *
+     * @param  array<int, string|null>  $nomes
+     * @param  array<int, string|null>  $valores
+     * @return array<string, array<int, string>>
+     */
+    public static function atributosDaTela(array $nomes, array $valores): array
+    {
+        $atributos = [];
+        foreach ($nomes as $i => $nome) {
+            $nome = trim((string) $nome);
+            $lista = self::valores((string) ($valores[$i] ?? ''));
+            if ($nome !== '' && ! str_starts_with($nome, '_') && $lista !== []) {
+                $atributos[mb_convert_case($nome, MB_CASE_TITLE)] = $lista;
+            }
+        }
+
+        return $atributos;
+    }
+
+    /** O produto principal da grade de $produto (ou null se ele não está em grade). */
+    public static function principalDe(Produto $produto): ?Produto
+    {
+        if (! $produto->grade_id) {
+            return null;
+        }
+
+        return (int) $produto->grade_id === (int) $produto->id ? $produto : self::base((int) $produto->empresa_id)->find($produto->grade_id);
+    }
+
+    /**
+     * Valores que cada atributo já tem na grade, na ordem em que apareceram.
+     *
+     * @return array<string, array<int, string>>
+     */
+    public static function valoresEmUso(Produto $principal): array
+    {
+        $out = array_fill_keys(self::nomes($principal), []);
+        foreach (self::variacoes($principal) as $v) {
+            foreach (self::opcoes($v) as $n => $valor) {
+                if (isset($out[$n]) && ! in_array($valor, $out[$n], true)) {
+                    $out[$n][] = $valor;
+                }
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * Acrescenta valores a um atributo que a grade já tem (chegou o tamanho GG):
+     * cria as combinações que faltam, copiando do principal, com estoque zero.
+     *
+     * @param  array<int, string>  $novos
+     * @return int quantas variações foram criadas
+     */
+    public static function acrescentar(Produto $principal, string $atributo, array $novos): int
+    {
+        if ((int) $principal->grade_id !== (int) $principal->id) {
+            throw new \InvalidArgumentException('Este produto não é o principal de uma grade.');
+        }
+        $emUso = self::valoresEmUso($principal);
+        if (! isset($emUso[$atributo])) {
+            throw new \InvalidArgumentException('A grade não tem a opção "' . $atributo . '".');
+        }
+        $jaTem = array_map('mb_strtolower', $emUso[$atributo]);
+        $novos = array_values(array_filter($novos, fn ($v) => ! in_array(mb_strtolower($v), $jaTem, true)));
+        if ($novos === []) {
+            throw new \InvalidArgumentException('Informe pelo menos um valor que a grade ainda não tem.');
+        }
+        $combos = self::combinacoes([$atributo => $novos] + $emUso);
+        $variacoes = self::variacoes($principal);
+        if ($variacoes->count() + count($combos) > self::MAXIMO_VARIACOES) {
+            throw new \InvalidArgumentException('Passaria de ' . self::MAXIMO_VARIACOES . ' variações. Reduza as opções.');
+        }
+        $nomes = self::nomes($principal);
+        $nome = trim(self::nomeComum($principal));
+
+        return DB::transaction(function () use ($principal, $combos, $nomes, $nome) {
+            $fotos = ProdutoFoto::where('produto_id', $principal->id)->orderBy('ordem')->get();
+            foreach ($combos as $combo) {
+                $ordenado = [];
+                foreach ($nomes as $n) {
+                    $ordenado[$n] = $combo[$n];
+                }
+                $sufixo = ' - ' . implode(' / ', $ordenado);
+                self::clonar($principal, (int) $principal->id, $ordenado, mb_substr($nome, 0, 255 - mb_strlen($sufixo)) . $sufixo, $fotos);
+            }
+
+            return count($combos);
+        });
+    }
+
+    /**
+     * Leva o preço de $origem (o de venda e os fixos por forma) para todas as
+     * outras variações da grade. @return int quantas mudaram
+     */
+    public static function precoParaTodas(Produto $origem): int
+    {
+        $outras = self::variacoes($origem)->where('id', '!=', $origem->id);
+        $precos = ProdutoPreco::withoutGlobalScopes()->where('produto_id', $origem->id)->get();
+
+        return DB::transaction(function () use ($origem, $outras, $precos) {
+            foreach ($outras as $v) {
+                $custo = (float) $v->preco_custo;
+                $v->forceFill([
+                    'preco_venda' => $origem->preco_venda,
+                    'markup' => $custo > 0 ? round(((float) $origem->preco_venda - $custo) / $custo * 100, 2) : $v->markup,
+                ])->save();
+                ProdutoPreco::withoutGlobalScopes()->where('produto_id', $v->id)->delete();
+                foreach ($precos as $pr) {
+                    ProdutoPreco::withoutGlobalScopes()->create(['empresa_id' => $v->empresa_id, 'produto_id' => $v->id, 'modalidade' => $pr->modalidade, 'valor' => $pr->valor]);
+                }
+            }
+
+            return $outras->count();
+        });
+    }
+
+    /** Leva a foto principal de $origem para todas as outras variações. @return int quantas mudaram */
+    public static function fotoParaTodas(Produto $origem): int
+    {
+        if (! $origem->foto || ! Storage::disk('public')->exists($origem->foto)) {
+            throw new \InvalidArgumentException('Este produto não tem foto para copiar.');
+        }
+        $outras = self::variacoes($origem)->where('id', '!=', $origem->id);
+        foreach ($outras as $v) {
+            $antiga = $v->foto;
+            $v->forceFill(['foto' => self::copiarArquivo($origem->foto)])->save();
+            if ($antiga && $antiga !== $origem->foto && Storage::disk('public')->exists($antiga)) {
+                Storage::disk('public')->delete($antiga);
+            }
+        }
+
+        return $outras->count();
+    }
+
+    /**
+     * Para listas agrupadas (lista de produtos, PDV): todas as variações das grades
+     * pedidas, por grade. @return Collection<int, Collection<int, Produto>>
+     */
+    public static function porGrade(int $empresaId, array $gradeIds, bool $soAtivas = false): Collection
+    {
+        if ($gradeIds === []) {
+            return collect();
+        }
+
+        return self::base($empresaId)->whereIn('grade_id', $gradeIds)
+            ->when($soAtivas, fn ($q) => $q->where('status', 'ativo'))
+            ->with('precos:id,produto_id,modalidade,valor')->orderBy('id')->get()->groupBy('grade_id');
+    }
+
+    /** "M / Preto" — as opções de uma variação na ordem da grade. */
+    public static function rotulo(Produto $variacao, array $nomes): string
+    {
+        $op = self::opcoes($variacao);
+
+        return implode(' / ', array_filter(array_map(fn ($n) => $op[$n] ?? null, $nomes), fn ($v) => $v !== null && $v !== ''));
     }
 
     /** Cada variação tem o SEU arquivo de foto (apagar a de uma não quebra a das outras). */

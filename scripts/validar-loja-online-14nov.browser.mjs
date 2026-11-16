@@ -1018,6 +1018,95 @@ console.log('\n== K. 5ª rodada: Resultados com rastreio, Domínio em 3 passos, 
   sql("DELETE FROM loja_sessoes; DELETE FROM loja_buscas;");
 }
 
+// ───────────────────── L. grade no dia a dia do ERP (16/11/2026) ─────────────────────
+console.log('\n== L. Grade no ERP: cadastro, lista de produtos e PDV ==');
+{
+  // Os 8 produtos "Blusa Teste Grade - …" (P/Preto com 3 e P/Branco com 2 em estoque) ficam do roteiro .py (bloco W);
+  // o bloco J deste roteiro desfaz todas as grades da empresa, então a amarração é refeita aqui.
+  const GN = Number(sql("SELECT id FROM produtos WHERE descricao='Blusa Teste Grade - P / Preto'"));
+  sql(`UPDATE produtos SET status='ativo', grade_id=${GN}, grade_opcoes=JSON_OBJECT('Tamanho', SUBSTRING_INDEX(SUBSTRING_INDEX(descricao,' - ',-1),' / ',1), 'Cor', SUBSTRING_INDEX(descricao,' / ',-1)) WHERE empresa_id=1 AND descricao LIKE 'Blusa Teste Grade - %';
+    UPDATE produtos SET grade_opcoes=JSON_SET(grade_opcoes,'$._nome','Blusa Teste Grade','$._ordem',JSON_ARRAY('Tamanho','Cor')) WHERE id=${GN};`);
+  sql("UPDATE configuracoes_loja SET agrupar_grade=1 WHERE unidade_id=1");
+  artisan('cache:clear');
+  const cel = await abrir(390, 844);
+  await cel.goto(BASE + '/login', { waitUntil: 'networkidle2' });
+  if (cel.url().includes('login')) { await cel.type('input[name=email]', 'dono@demo.com'); await cel.type('input[name=password]', 'dono123'); await nav(cel, () => cel.click('button[type=submit]')); }
+  for (const [pagina, nome] of [[erp, 'computador'], [cel, 'celular']]) {
+    await pagina.goto(BASE + `/app/produtos/${GN}/edit`, { waitUntil: 'networkidle2' });
+    let r = await pagina.evaluate(() => ({ linhas: document.querySelectorAll('[data-grade-linha]').length, total: document.querySelector('[data-grade-total]')?.textContent.trim(),
+      botoes: !!document.querySelector('[data-grade-preco]') && !!document.querySelector('[data-grade-acrescentar]'), sobra: document.documentElement.scrollWidth - window.innerWidth }));
+    check(`L1 cadastro (${nome}): quadro "Tamanhos e cores" com as 8 linhas, total 5 em estoque, ações e sem rolagem lateral`, r.linhas === 8 && r.total === '5' && r.botoes && r.sobra <= 1, r);
+    await print(pagina, 'r6-cadastro-grade-' + nome);
+
+    await pagina.goto(BASE + '/app/produtos?busca=Blusa+Teste+Grade', { waitUntil: 'networkidle2' });
+    const antes = await pagina.evaluate(() => [...document.querySelectorAll('[data-grade-de]')].filter(tr => tr.offsetParent !== null).length);
+    await pagina.click('[data-grade-abrir]');
+    r = await pagina.evaluate(() => ({ grupos: document.querySelectorAll('[data-grade-grupo]').length, abertas: [...document.querySelectorAll('[data-grade-de]')].filter(tr => tr.offsetParent !== null).length,
+      aria: document.querySelector('[data-grade-abrir]').getAttribute('aria-expanded') }));
+    check(`L2 lista de produtos (${nome}): uma linha do produto; o botão abre as 8 variações`, antes === 0 && r.grupos === 1 && r.abertas === 8 && r.aria === 'true', { antes, ...r });
+    await print(pagina, 'r6-lista-grade-' + nome);
+  }
+
+  // O PDV só libera a busca com caixa aberto: quem tem o caixa aberto no cenário é o caixa@demo.com
+  const ctxCaixa = await browser.createBrowserContext();
+  const pdvs = [];
+  for (const [w, h, nome] of [[1440, 950, 'computador'], [390, 844, 'celular']]) {
+    const pg = await ctxCaixa.newPage();
+    await pg.setViewport({ width: w, height: h });
+    pg.on('pageerror', e => erros.push(e.message));
+    pg.on('dialog', d => d.accept());
+    await pg.goto(BASE + '/login', { waitUntil: 'networkidle2' });
+    if (pg.url().includes('login')) { await pg.type('input[name=email]', 'caixa@demo.com'); await pg.type('input[name=password]', 'caixa123'); await nav(pg, () => pg.click('button[type=submit]')); }
+    pdvs.push([pg, nome]);
+  }
+  for (const [pagina, nome] of pdvs) {
+    await pagina.goto(BASE + '/app/caixa/abrir', { waitUntil: 'networkidle2' }); // a sessão adota o caixa que a pessoa já tem aberto
+    await pagina.goto(BASE + '/app/pdv', { waitUntil: 'networkidle2' });
+    if (!(await pagina.$('#searchInput:not([disabled])'))) { check(`L3 PDV (${nome}) abriu com o campo de busca`, false, pagina.url()); continue; }
+    await pagina.type('#searchInput', 'Blusa Teste');
+    await pagina.waitForSelector('#searchDropdown.show .search-result-item', { timeout: 5000 }).catch(() => {});
+    let r = await pagina.evaluate(() => ({ itens: document.querySelectorAll('#searchDropdown .search-result-item').length, grade: !!document.querySelector('#searchDropdown [data-grade]'),
+      texto: document.querySelector('#searchDropdown .search-result-item')?.innerText.replace(/\s+/g, ' ') }));
+    check(`L3 PDV (${nome}): buscar "Blusa Teste" mostra UMA linha, "8 opções de tamanho e cor — toque para escolher"`, r.itens === 1 && r.grade && /Blusa Teste Grade 8 opções de tamanho e cor/.test(r.texto), r);
+    await pagina.click('#searchDropdown [data-grade]');
+    await pagina.waitForSelector('#gradeEscolha button[data-variacao]', { timeout: 3000 }).catch(() => {});
+    r = await pagina.evaluate(() => {
+      const m = document.querySelector('#gradeEscolha'); if (!m) return {};
+      const bs = [...m.querySelectorAll('button[data-variacao]')]; const cx = m.querySelector('.modal-content').getBoundingClientRect();
+      return { botoes: bs.length, linhas: m.querySelectorAll('.modal-body > div').length, primeiro: bs[0].innerText.replace(/\s+/g, ' '), terceiro: bs[2].innerText.replace(/\s+/g, ' '),
+        foco: document.activeElement === bs[0], cabe: cx.left >= 0 && cx.right <= window.innerWidth + 1, menor: Math.min(...bs.map(b => b.getBoundingClientRect().height)) };
+    });
+    check(`L4 PDV (${nome}): a janela traz 4 linhas (P, M, G, GG) e 8 botões com o saldo ("Preto 3 em estoque", "sem saldo"), foco no primeiro, cabe na tela e botão alto o bastante para o dedo`,
+      r.botoes === 8 && r.linhas === 4 && /Preto 3 em estoque/.test(r.primeiro) && /sem saldo/.test(r.terceiro) && r.foco && r.cabe && r.menor >= 44, r);
+    await print(pagina, 'r6-pdv-grade-' + nome, false);
+    await pagina.keyboard.press('Escape');
+    r = await pagina.evaluate(() => ({ fechou: !document.querySelector('#gradeEscolha'), foco: document.activeElement?.id, itens: PDV.itens.length }));
+    check(`L5 PDV (${nome}): Esc fecha a janela, o foco volta para a busca e nada entra na venda`, r.fechou && r.foco === 'searchInput' && r.itens === 0, r);
+
+    await pagina.evaluate(() => { document.getElementById('searchInput').value = ''; });
+    await pagina.type('#searchInput', 'Blusa Teste');
+    await pagina.keyboard.press('Enter');
+    await pagina.waitForSelector('#gradeEscolha button[data-variacao]', { timeout: 5000 }).catch(() => {});
+    const alvo = await pagina.evaluate(() => { const b = document.querySelectorAll('#gradeEscolha button[data-variacao]')[1]; return b ? Number(b.dataset.variacao) : 0; });
+    if (alvo) await pagina.click(`#gradeEscolha button[data-variacao="${alvo}"]`);
+    await pagina.waitForFunction(() => window.PDV && PDV.itens.length === 1, { timeout: 5000 }).catch(() => {});
+    r = await pagina.evaluate(() => ({ fechou: !document.querySelector('#gradeEscolha'), itens: PDV.itens.map(i => [i.produto_id ?? i.id, i.descricao]), campo: document.getElementById('searchInput').value }));
+    check(`L6 PDV (${nome}): Enter no nome abre a janela; tocar em "P / Branco" põe ESSA peça na venda e limpa a busca`,
+      r.fechou && r.itens.length === 1 && r.itens[0][0] === alvo && r.itens[0][1] === 'Blusa Teste Grade - P / Branco' && r.campo === '', r);
+
+    const barras = sql(`SELECT codigo_barras FROM produtos WHERE grade_id=${GN} ORDER BY id LIMIT 1`);
+    await pagina.type('#searchInput', barras);
+    await pagina.keyboard.press('Enter');
+    await pagina.waitForFunction(() => PDV.itens.length === 2, { timeout: 5000 }).catch(() => {});
+    r = await pagina.evaluate(() => ({ janela: !!document.querySelector('#gradeEscolha'), itens: PDV.itens.map(i => i.descricao) }));
+    check(`L7 PDV (${nome}): bipar o código de barras entra direto na venda, sem janela`, !r.janela && r.itens.length === 2 && r.itens[1] === 'Blusa Teste Grade - P / Preto', r);
+  }
+  await cel.close();
+  await ctxCaixa.close();
+  sql("UPDATE configuracoes_loja SET agrupar_grade=0 WHERE unidade_id=1");
+  artisan('cache:clear');
+}
+
 // ───────────────────── G. admin ─────────────────────
 console.log('\n== G. Admin: card da loja online ==');
 const outroContexto = await browser.createBrowserContext(); // sessão separada da do dono

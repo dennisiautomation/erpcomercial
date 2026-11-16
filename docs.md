@@ -9287,3 +9287,46 @@ eles mandam); nada visto em aparelho de verdade.
 
 **Para subir (5ª rodada):** a migration `2026_11_16_100000` (+ as anteriores, se faltarem), `route:cache`, `view:cache`. Nenhuma
 variável obrigatória nova.
+
+### Grade (tamanhos e cores) no dia a dia do ERP — 16/11/2026: cadastro, lista de produtos e PDV
+
+**Onde cada coisa vive: a grade continua sendo só uma amarração entre PRODUTOS comuns (`produtos.grade_id` + `grade_opcoes`); quem cria
+e mexe nela agora é o CADASTRO do produto (quadro "Tamanhos e cores"), para qualquer empresa, com ou sem loja online; e a chave
+`configuracoes_loja.agrupar_grade` (por loja, desligada por padrão) só muda como ela APARECE no PDV e na lista de produtos.**
+
+**O que entrou**
+- **Cadastro do produto** — `produtos/_grade.blade.php`, incluído no `edit` FORA do formulário do produto, e `ProdutoGradeController`
+  (rotas `app.produtos.grade.*`, permissão `produtos,editar`): criar a grade, ver todas as variações com preço e saldo da loja da sessão,
+  **acrescentar** valor novo a uma opção (chegou o GG → cria só o que falta), **mesmo preço para todos** (preço de venda + preços fixos
+  por forma), **mesma foto para todos** (cada um com o seu arquivo), juntar produto que já existe, tirar e desfazer. A aba Loja online →
+  Grade continua e usa o mesmo `GradeLoja`.
+- **Lista de produtos** — com a chave ligada, `ProdutoController::index` troca a consulta pelos REPRESENTANTES
+  (`COALESCE(grade_id, id)` de tudo que casou com a busca/filtros): uma linha por produto, saldo somado, "a partir de" quando os preços
+  diferem, "7 de 8 ativos" quando há inativo, e um botão que abre as variações (preço editável em cada uma). Buscar o código de barras
+  de um tamanho acha a linha do produto.
+- **PDV** — `PdvController::buscarProduto` com `?grade=1` (só a busca da VENDA manda; a da troca não) devolve a grade como UM item
+  `{grade, descricao, nomes, preco_venda, preco_varia, variacoes[]}`; o JS (`PDV.escolherVariacao`) abre a janela com uma linha por valor
+  da 1ª opção e um botão por combinação, com o saldo da loja. Depois do toque a venda segue igual: entra um produto comum.
+  **Não agrupa** quando: a chave está desligada; o termo é um código exato (bipe); ou só UMA variação casou com o que foi digitado.
+- **Chave** — Configurações da loja → aba Estoque → "Tamanhos e cores (grade)". Migration `2026_11_16_150000`.
+
+**Defeito antigo corrigido de passagem:** a variação criada pela grade perdia os preços fixos por forma de pagamento
+(`produto_precos` não vem no `replicate`). `GradeLoja::clonar` copia.
+
+**App da maquininha Stone:** não precisou mudar. O catálogo dele (`PosCatalogoController`) lista cada variação como produto comum, com
+nome completo ("… - M / Preto") e saldo, e o bipe acha a peça. Agrupar lá exigiria tela nova no app (APK) — não foi feito.
+
+**Armadilhas**
+- **118. O bloco J do roteiro de navegador desfaz TODAS as grades da empresa 1** (`arrumarGrade`). Bloco que venha depois e precise de
+  grade tem de refazer a amarração (o bloco L refaz por SQL).
+- **119. Rodar o roteiro de navegador duas vezes sem recriar o banco falha nos testes do carrinho (B/H/I)** — não é defeito do código:
+  uma rodada que aborta no meio deixa estado. Sempre a sequência inteira: `migrate:fresh --seed` → cenário → py → pagamentos → navegador.
+- **120. `mysql -N` imprime `NULL` como texto:** no roteiro py, `vazio()` só funciona com `IFNULL(coluna,'')`.
+
+**Para subir:** a migration `2026_11_16_150000`, `route:cache`, `view:cache`. Nada muda para loja que não ligar a chave nem criar grade.
+
+**Validação (16/11/2026, ambiente `ec-*`, banco recriado):** py **577 ✅** (bloco W novo, 38 testes: cadastro, permissão, outra
+empresa, sem loja online, lista, PDV), pagamentos simulados **91 ✅**, navegador **242 ✅** (bloco L novo, 14: cadastro, lista e a janela
+do PDV em 1440 e 390 px, com venda entrando pelo toque e pelo bipe), phpunit 340 com as 2 falhas antigas. **Não testado:** venda de
+variação FINALIZADA no PDV até o cupom (o teste vai até a peça entrar na venda; dali em diante é o fluxo de produto comum, sem mudança);
+aparelho real; app da Stone com produtos de grade.
