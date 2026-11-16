@@ -780,6 +780,17 @@ Route::middleware(['auth', 'suspensao', 'unidade', \App\Http\Middleware\Restring
         Route::post('/restaurar', [App\FormaPagamentoController::class, 'restaurar'])->middleware('permission:configuracoes,editar')->name('restaurar');
     });
 
+    /* ------ Pagamento e entrega (16/11/2026): o lojista liga as próprias contas ------
+       PIX Sicredi, Asaas, InfinitePay, Melhor Envio e Uber Direct. Mesmo recorte dos
+       tokens (dono/admin): são credenciais da empresa inteira. A gravação é a dos
+       controllers de Admin — ver App\PagamentoEntregaController. */
+    Route::prefix('configuracoes/pagamento-entrega')->name('pagamento-entrega.')->middleware('permission:integracoes')->group(function () {
+        Route::get('/', [App\PagamentoEntregaController::class, 'index'])->name('index');
+        Route::post('/{provedor}/{acao}', [App\PagamentoEntregaController::class, 'acao'])
+            ->where(['provedor' => '[a-z-]+', 'acao' => '[a-z]+'])
+            ->middleware('permission:integracoes,editar')->name('acao');
+    });
+
     /* ------ Integrações (tokens da API — Gersen) ------ */
     // {token} casa com $token do controller (armadilha do route model binding)
     // Módulo 'integracoes' (não 'configuracoes'): o token lê a empresa inteira,

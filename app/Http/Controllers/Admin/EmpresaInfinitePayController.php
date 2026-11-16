@@ -20,9 +20,11 @@ use Illuminate\Support\Str;
  */
 class EmpresaInfinitePayController extends Controller
 {
+    use \App\Http\Controllers\Concerns\ContextoIntegracao;
+
     public function store(Request $request, Empresa $empresa): RedirectResponse
     {
-        abort_unless($request->user()->is_admin, 403);
+        $this->autorizarIntegracao($request, $empresa);
 
         // Limpa o que o copiar/colar traz (invisíveis, traço tipográfico) ANTES de validar.
         if ($request->filled('handle')) {
@@ -68,22 +70,21 @@ class EmpresaInfinitePayController extends Controller
             }
         }
 
-        return redirect()
-            ->route('admin.empresas.show', $empresa)
+        return $this->destino($empresa)
             ->with('success', 'InfinitePay salva.' . $aviso)
             ->with('abrir_integracao', true);
     }
 
     public function testar(Request $request, Empresa $empresa): RedirectResponse
     {
-        abort_unless($request->user()->is_admin, 403);
+        $this->autorizarIntegracao($request, $empresa);
 
         $gateway = EmpresaGateway::where('empresa_id', $empresa->id)
             ->where('provedor', EmpresaGateway::PROVEDOR_INFINITEPAY)
             ->first();
 
         if (! $gateway || blank($gateway->config['handle'] ?? null)) {
-            return redirect()->route('admin.empresas.show', $empresa)
+            return $this->destino($empresa)
                 ->with('error', 'Salve a InfiniteTag da empresa antes de testar.')
                 ->with('abrir_integracao', true);
         }
@@ -92,13 +93,13 @@ class EmpresaInfinitePayController extends Controller
             $link = (new InfinitePayService($gateway))->testar();
             $gateway->forceFill(['ultima_falha' => null])->saveQuietly();
 
-            return redirect()->route('admin.empresas.show', $empresa)
+            return $this->destino($empresa)
                 ->with('success', 'InfinitePay OK — link de teste de R$ 1,00 gerado (não precisa pagar): ' . $link)
                 ->with('abrir_integracao', true);
         } catch (\Throwable $e) {
             $gateway->forceFill(['ultima_falha' => mb_substr($e->getMessage(), 0, 500)])->saveQuietly();
 
-            return redirect()->route('admin.empresas.show', $empresa)
+            return $this->destino($empresa)
                 ->with('error', 'Falha na InfinitePay: ' . $e->getMessage())
                 ->with('abrir_integracao', true);
         }

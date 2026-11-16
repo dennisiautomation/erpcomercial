@@ -18,9 +18,11 @@ use Illuminate\Support\Str;
  */
 class EmpresaAsaasController extends Controller
 {
+    use \App\Http\Controllers\Concerns\ContextoIntegracao;
+
     public function store(Request $request, Empresa $empresa): RedirectResponse
     {
-        abort_unless($request->user()->is_admin, 403);
+        $this->autorizarIntegracao($request, $empresa);
 
         $validated = $request->validate([
             'api_key' => ['nullable', 'string', 'max:500'],
@@ -51,22 +53,21 @@ class EmpresaAsaasController extends Controller
         $gateway->save();
         CartaoPedidoService::fixarEscolhaSeVazia($empresa->id, $emUsoAntes);
 
-        return redirect()
-            ->route('admin.empresas.show', $empresa)
+        return $this->destino($empresa)
             ->with('success', 'Gateway Asaas salvo.' . ($gateway->ativo && blank($gateway->client_secret) ? ' Atenção: falta a api_key.' : ''))
             ->withFragment('integracao');
     }
 
     public function testar(Request $request, Empresa $empresa): RedirectResponse
     {
-        abort_unless($request->user()->is_admin, 403);
+        $this->autorizarIntegracao($request, $empresa);
 
         $gateway = EmpresaGateway::where('empresa_id', $empresa->id)
             ->where('provedor', EmpresaGateway::PROVEDOR_ASAAS)
             ->first();
 
         if (! $gateway || blank($gateway->client_secret)) {
-            return redirect()->route('admin.empresas.show', $empresa)
+            return $this->destino($empresa)
                 ->with('error', 'Cole a api_key do Asaas antes de testar.')
                 ->withFragment('integracao');
         }
@@ -75,12 +76,12 @@ class EmpresaAsaasController extends Controller
             (new AsaasService($gateway))->testarConexao();
             $gateway->update(['ultima_falha' => null]);
 
-            return redirect()->route('admin.empresas.show', $empresa)
+            return $this->destino($empresa)
                 ->with('success', 'Conexão com o Asaas OK.')->withFragment('integracao');
         } catch (\Throwable $e) {
             $gateway->update(['ultima_falha' => mb_substr($e->getMessage(), 0, 500)]);
 
-            return redirect()->route('admin.empresas.show', $empresa)
+            return $this->destino($empresa)
                 ->with('error', 'Falha na conexão com o Asaas: ' . $e->getMessage())
                 ->withFragment('integracao');
         }

@@ -80,23 +80,28 @@
                 </div>
                 <div class="form-check form-switch">
                     <input class="form-check-input" type="checkbox" role="switch" name="entrega" id="entrega" value="1" @checked(old('entrega', $loja->opcao('entrega')))>
-                    <label class="form-check-label" for="entrega">Entrega no endereço <span class="text-muted">(frete pelo que estiver ligado em Integrações)</span></label>
+                    <label class="form-check-label" for="entrega">Entrega no endereço <span class="text-muted">(frete pelo que estiver ligado em Pagamento e entrega)</span></label>
                 </div>
             </div>
             <div class="col-md-6">
                 <div class="fw-semibold mb-2">Pagamento</div>
                 <div class="form-check form-switch">
                     <input class="form-check-input" type="checkbox" role="switch" name="pix" id="pix" value="1" @checked(old('pix', $loja->opcao('pix')))>
-                    <label class="form-check-label" for="pix">PIX <span class="text-muted">{{ $meios['pix'] ? '(ligado em Integrações)' : '(nenhum provedor ligado em Integrações)' }}</span></label>
+                    <label class="form-check-label" for="pix">PIX <span class="text-muted">{{ $meios['pix'] ? '(ligado em Pagamento e entrega)' : '(nada ligado ainda em Pagamento e entrega)' }}</span></label>
                 </div>
                 <div class="form-check form-switch">
                     <input class="form-check-input" type="checkbox" role="switch" name="cartao" id="cartao" value="1" @checked(old('cartao', $loja->opcao('cartao')))>
-                    <label class="form-check-label" for="cartao">Cartão por link <span class="text-muted">{{ \App\Services\Pagamento\CartaoPedidoService::provedorEmUso($loja->empresa_id) ? '(ligado em Integrações)' : '(nenhum provedor ligado em Integrações)' }}</span></label>
+                    <label class="form-check-label" for="cartao">Cartão por link <span class="text-muted">{{ \App\Services\Pagamento\CartaoPedidoService::provedorEmUso($loja->empresa_id) ? '(ligado em Pagamento e entrega)' : '(nada ligado ainda em Pagamento e entrega)' }}</span></label>
                 </div>
                 <div class="form-check form-switch">
                     <input class="form-check-input" type="checkbox" role="switch" name="combinar" id="combinar" value="1" @checked(old('combinar', $loja->opcao('combinar')))>
                     <label class="form-check-label" for="combinar">Combinar com a loja <span class="text-muted">(pedido fica aguardando a equipe)</span></label>
                 </div>
+                @if(\App\Http\Middleware\CheckPermission::canUser(auth()->user(), 'integracoes', 'ver') && auth()->user()->empresa_id)
+                    <div class="form-text mb-1"><a href="{{ route('app.pagamento-entrega.index') }}" data-link-pagamento-entrega><i class="bi bi-plug me-1"></i>Ligar minhas contas de PIX, cartão e entrega</a></div>
+                @else
+                    <div class="form-text mb-1">Quem liga as contas de PIX, cartão e entrega é o dono da empresa, em Gestão → Pagamento e entrega.</div>
+                @endif
                 <div class="form-text">Sem PIX nem cartão ligados, “combinar com a loja” vale sempre — a loja nunca fica sem forma de fechar o pedido.</div>
             </div>
         </div>

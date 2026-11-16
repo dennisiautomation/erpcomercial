@@ -1052,15 +1052,15 @@
                         @endphp
                         <li class="sidebar-heading">Gestão</li>
                         <li class="nav-item">
-                            <a class="nav-link nav-toggle {{ request()->routeIs('app.multilojas.*', 'app.plano-contas.*', 'app.centros-custo.*', 'app.configuracoes.*', 'app.integracao.*', 'app.lojas.*', 'app.empresa.*', 'app.loja-online.*') ? '' : 'collapsed' }}"
+                            <a class="nav-link nav-toggle {{ request()->routeIs('app.multilojas.*', 'app.plano-contas.*', 'app.centros-custo.*', 'app.configuracoes.*', 'app.integracao.*', 'app.pagamento-entrega.*', 'app.lojas.*', 'app.empresa.*', 'app.loja-online.*') ? '' : 'collapsed' }}"
                                data-bs-toggle="collapse" href="#menuGestao" role="button"
-                               aria-expanded="{{ request()->routeIs('app.multilojas.*', 'app.plano-contas.*', 'app.centros-custo.*', 'app.configuracoes.*', 'app.integracao.*', 'app.lojas.*', 'app.empresa.*', 'app.loja-online.*') ? 'true' : 'false' }}"
+                               aria-expanded="{{ request()->routeIs('app.multilojas.*', 'app.plano-contas.*', 'app.centros-custo.*', 'app.configuracoes.*', 'app.integracao.*', 'app.pagamento-entrega.*', 'app.lojas.*', 'app.empresa.*', 'app.loja-online.*') ? 'true' : 'false' }}"
                                aria-controls="menuGestao">
                                 <i class="bi bi-gear nav-icon"></i>
                                 <span class="nav-text">Gestão</span>
                                 <i class="bi bi-chevron-right toggle-icon"></i>
                             </a>
-                            <div class="collapse {{ request()->routeIs('app.multilojas.*', 'app.plano-contas.*', 'app.centros-custo.*', 'app.configuracoes.*', 'app.integracao.*', 'app.lojas.*', 'app.empresa.*', 'app.loja-online.*') ? 'show' : '' }}" id="menuGestao">
+                            <div class="collapse {{ request()->routeIs('app.multilojas.*', 'app.plano-contas.*', 'app.centros-custo.*', 'app.configuracoes.*', 'app.integracao.*', 'app.pagamento-entrega.*', 'app.lojas.*', 'app.empresa.*', 'app.loja-online.*') ? 'show' : '' }}" id="menuGestao">
                                 <ul class="nav flex-column submenu">
                                     @if(auth()->user()->isDono())
                                         <li class="nav-item">
@@ -1110,6 +1110,15 @@
                                         <a class="nav-link {{ request()->routeIs('app.configuracoes.*') ? 'active' : '' }}"
                                            href="{{ route('app.configuracoes.edit') }}">
                                             <i class="bi bi-sliders me-1"></i> Configurações da Loja
+                                        </a>
+                                    </li>
+                                    @endif
+                                    @if($podeVer('integracoes') && auth()->user()->empresa_id)
+                                    {{-- 16/11/2026: o lojista liga as próprias contas de pagamento e entrega --}}
+                                    <li class="nav-item">
+                                        <a class="nav-link {{ request()->routeIs('app.pagamento-entrega.*') ? 'active' : '' }}"
+                                           href="{{ route('app.pagamento-entrega.index') }}" data-menu-pagamento-entrega>
+                                            <i class="bi bi-credit-card me-1"></i> Pagamento e entrega
                                         </a>
                                     </li>
                                     @endif

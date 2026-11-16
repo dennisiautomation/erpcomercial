@@ -19,11 +19,18 @@ use Illuminate\Http\Request;
  */
 class EmpresaMelhorEnvioController extends Controller
 {
+    use \App\Http\Controllers\Concerns\ContextoIntegracao;
+
     public function conectar(Request $request, Empresa $empresa): RedirectResponse
     {
-        abort_unless($request->user()->is_admin, 403);
+        $this->autorizarIntegracao($request, $empresa);
 
         if (! MelhorEnvioService::appConfigurado()) {
+            if ($this->doLojista($request)) {
+                return $this->destino($empresa)
+                    ->with('error', 'O Melhor Envio ainda não está liberado na plataforma. Fale com o suporte da IA365 para liberar.');
+            }
+
             return redirect()->route('admin.integracoes.index')
                 ->with('error', 'Antes de conectar uma empresa, cadastre o Client ID e o Secret do aplicativo IA365 no Melhor Envio.');
         }
@@ -39,7 +46,7 @@ class EmpresaMelhorEnvioController extends Controller
 
     public function store(Request $request, Empresa $empresa): RedirectResponse
     {
-        abort_unless($request->user()->is_admin, 403);
+        $this->autorizarIntegracao($request, $empresa);
 
         $validated = $request->validate([
             'pacote_altura' => ['nullable', 'numeric', 'min:1', 'max:200'],
@@ -72,21 +79,21 @@ class EmpresaMelhorEnvioController extends Controller
             ? ' Atenção: a conta ainda não foi autorizada — clique em "Conectar Melhor Envio".'
             : '';
 
-        return redirect()->route('admin.empresas.show', $empresa)
+        return $this->destino($empresa)
             ->with('success', 'Melhor Envio salvo.' . $aviso)
             ->withFragment('integracao');
     }
 
     public function testar(Request $request, Empresa $empresa): RedirectResponse
     {
-        abort_unless($request->user()->is_admin, 403);
+        $this->autorizarIntegracao($request, $empresa);
 
         $gateway = EmpresaGateway::where('empresa_id', $empresa->id)
             ->where('provedor', EmpresaGateway::PROVEDOR_MELHOR_ENVIO)
             ->first();
 
         if (! $gateway || blank($gateway->access_token)) {
-            return redirect()->route('admin.empresas.show', $empresa)
+            return $this->destino($empresa)
                 ->with('error', 'Melhor Envio ainda não conectado nesta empresa.')
                 ->withFragment('integracao');
         }
@@ -96,11 +103,11 @@ class EmpresaMelhorEnvioController extends Controller
             $msg = 'Melhor Envio conectado: ' . ($me['nome'] ?: $me['email'])
                 . ' — token válido até ' . optional($gateway->fresh()->token_expira_em)->format('d/m/Y') . '.';
 
-            return redirect()->route('admin.empresas.show', $empresa)->with('success', $msg)->withFragment('integracao');
+            return $this->destino($empresa)->with('success', $msg)->withFragment('integracao');
         } catch (\Throwable $e) {
             $gateway->update(['ultima_falha' => mb_substr($e->getMessage(), 0, 1000)]);
 
-            return redirect()->route('admin.empresas.show', $empresa)
+            return $this->destino($empresa)
                 ->with('error', 'Melhor Envio recusou: ' . $e->getMessage())
                 ->withFragment('integracao');
         }
@@ -108,7 +115,7 @@ class EmpresaMelhorEnvioController extends Controller
 
     public function desconectar(Request $request, Empresa $empresa): RedirectResponse
     {
-        abort_unless($request->user()->is_admin, 403);
+        $this->autorizarIntegracao($request, $empresa);
 
         // Pelo MODEL (não query builder): o EmpresaGatewayObserver precisa ver
         // `ativo` mudar para avisar o app.ia365 que a entrega por transportadora
@@ -120,7 +127,7 @@ class EmpresaMelhorEnvioController extends Controller
             $gateway->forceFill(['access_token' => null, 'refresh_token' => null, 'token_expira_em' => null, 'ativo' => false])->save();
         }
 
-        return redirect()->route('admin.empresas.show', $empresa)
+        return $this->destino($empresa)
             ->with('success', 'Melhor Envio desconectado desta empresa. Para voltar, clique em Conectar de novo.')
             ->withFragment('integracao');
     }

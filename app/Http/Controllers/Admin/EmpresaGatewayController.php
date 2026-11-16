@@ -20,9 +20,11 @@ use Illuminate\Http\Request;
  */
 class EmpresaGatewayController extends Controller
 {
+    use \App\Http\Controllers\Concerns\ContextoIntegracao;
+
     public function store(Request $request, Empresa $empresa): RedirectResponse
     {
-        abort_unless($request->user()->is_admin, 403);
+        $this->autorizarIntegracao($request, $empresa);
 
         $validated = $request->validate([
             'client_id' => ['nullable', 'string', 'max:255'],
@@ -65,15 +67,14 @@ class EmpresaGatewayController extends Controller
             ? ' Atenção: ainda faltam campos (credenciais, chave PIX ou certificado) — o PIX não vai funcionar até completar.'
             : '';
 
-        return redirect()
-            ->route('admin.empresas.show', $empresa)
+        return $this->destino($empresa)
             ->with('success', 'Gateway PIX salvo.' . $aviso)
             ->with('abrir_integracao', true);
     }
 
     public function testar(Request $request, Empresa $empresa): RedirectResponse
     {
-        abort_unless($request->user()->is_admin, 403);
+        $this->autorizarIntegracao($request, $empresa);
 
         $gateway = EmpresaGateway::where('empresa_id', $empresa->id)
             ->where('provedor', EmpresaGateway::PROVEDOR_SICREDI_PIX)
@@ -100,7 +101,7 @@ class EmpresaGatewayController extends Controller
 
     public function registrarWebhook(Request $request, Empresa $empresa): RedirectResponse
     {
-        abort_unless($request->user()->is_admin, 403);
+        $this->autorizarIntegracao($request, $empresa);
 
         $gateway = EmpresaGateway::where('empresa_id', $empresa->id)
             ->where('provedor', EmpresaGateway::PROVEDOR_SICREDI_PIX)
@@ -122,8 +123,7 @@ class EmpresaGatewayController extends Controller
 
     private function voltar(Empresa $empresa, string $tipo, string $mensagem): RedirectResponse
     {
-        return redirect()
-            ->route('admin.empresas.show', $empresa)
+        return $this->destino($empresa)
             ->with($tipo, $mensagem)
             ->with('abrir_integracao', true);
     }

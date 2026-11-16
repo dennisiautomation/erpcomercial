@@ -17,9 +17,11 @@ use Illuminate\Http\Request;
  */
 class EmpresaEntregaController extends Controller
 {
+    use \App\Http\Controllers\Concerns\ContextoIntegracao;
+
     public function store(Request $request, Empresa $empresa): RedirectResponse
     {
-        abort_unless($request->user()->is_admin, 403);
+        $this->autorizarIntegracao($request, $empresa);
 
         $validated = $request->validate([
             'client_id' => ['nullable', 'string', 'max:255'],
@@ -49,8 +51,7 @@ class EmpresaEntregaController extends Controller
                     ? 'O valor colado no Client ID parece ser o "ID do usuário" (Customer ID — código com traços). O Client ID é o "ID de cliente do desenvolvedor" do painel do Uber: 32 letras/números, sem traços.'
                     : 'O valor colado no Customer ID parece ser o "ID de cliente do desenvolvedor" (Client ID). O Customer ID é o "ID do usuário" do painel do Uber: código com traços, o mesmo que aparece na URL /v1/customers/….');
 
-            return redirect()
-                ->route('admin.empresas.show', $empresa)
+            return $this->destino($empresa)
                 ->with('error', $msg)
                 ->withFragment('integracao');
         }
@@ -83,22 +84,21 @@ class EmpresaEntregaController extends Controller
 
         $incompleto = $gateway->ativo && (blank($gateway->client_id) || blank($gateway->client_secret) || blank($config['customer_id'] ?? null));
 
-        return redirect()
-            ->route('admin.empresas.show', $empresa)
+        return $this->destino($empresa)
             ->with('success', 'Entrega Uber Direct salva.' . ($incompleto ? ' Atenção: faltam credenciais/customer_id — o despacho não vai funcionar até completar.' : ''))
             ->withFragment('integracao');
     }
 
     public function testar(Request $request, Empresa $empresa): RedirectResponse
     {
-        abort_unless($request->user()->is_admin, 403);
+        $this->autorizarIntegracao($request, $empresa);
 
         $gateway = EmpresaGateway::where('empresa_id', $empresa->id)
             ->where('provedor', EmpresaGateway::PROVEDOR_UBER_DIRECT)
             ->first();
 
         if (! $gateway || blank($gateway->client_id) || blank($gateway->client_secret)) {
-            return redirect()->route('admin.empresas.show', $empresa)
+            return $this->destino($empresa)
                 ->with('error', 'Preencha client_id e client_secret antes de testar.')
                 ->withFragment('integracao');
         }
@@ -108,12 +108,12 @@ class EmpresaEntregaController extends Controller
             $gateway->update(['ultima_falha' => null]);
             $msg = 'Conexão com o Uber Direct OK (token emitido).';
 
-            return redirect()->route('admin.empresas.show', $empresa)
+            return $this->destino($empresa)
                 ->with('success', $msg)->withFragment('integracao');
         } catch (\Throwable $e) {
             $gateway->update(['ultima_falha' => mb_substr($e->getMessage(), 0, 500)]);
 
-            return redirect()->route('admin.empresas.show', $empresa)
+            return $this->destino($empresa)
                 ->with('error', 'Falha na conexão com o Uber: ' . $e->getMessage())
                 ->withFragment('integracao');
         }

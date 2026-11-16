@@ -10039,7 +10039,7 @@ O caixa NÃO muda de alvo sozinho: o endereço e o segredo do ERP estão fixos e
 
 **Decisões pendentes do Dennis**
 - O vencimento do teste grátis/licença NÃO bloqueia o sistema inteiro (só as rotas `plano:`). Bloqueio total hoje é só por fatura em atraso. EB GESTÃO, PROLOG e DG SOFTWARES têm teste vencido e seguem usando PDV/vendas.
-- Tela para o próprio lojista pôr as chaves de pagamento da loja online (hoje só o admin, em empresa → Integração).
+- ~~Tela para o próprio lojista pôr as chaves de pagamento da loja online~~ — FEITA em 16/11 (seção "Pagamento e entrega", abaixo).
 - Texto do topo do site: "A partir de R$ 590 por mês para a rede toda" × Básico = 1 loja.
 - Página inicial de PRODUÇÃO continua a V2; o site novo na inicial está só na homologação.
 
@@ -10052,3 +10052,33 @@ O caixa NÃO muda de alvo sozinho: o endereço e o segredo do ERP estão fixos e
 - **Regra para todo material de venda:** preço sempre "a partir de R$ 590 por mês", nunca "para a rede toda".
 - **Vídeos de rede social (16/11):** cinco verticais 1080×1920 em `/home/ubuntu/video-tutorial/social/` (3 anúncios com voz Gabriel Reels, 2 postagens com voz Roberta Casual), todos com a cena "ERP Comercial: tudo num sistema só" (caixa, estoque, nota fiscal, maquininha, loja virtual e atendente de IA). Textos das publicações em `social/textos-das-postagens.md`. Ficam fora do repositório. O Dennis pediu "loja virtual" no lugar de "loja online" nesses vídeos.
 - **Stone Partner Program (termo de adesão lido em 16/11):** a parceria é gratuita dos dois lados (cláusula 4) e a indicação de lojista é "a título gratuito"; a receita da IA365 é a mensalidade do ERP, cobrada do lojista. Condições comerciais da "Loja Stone" não constam do termo.
+
+## "Pagamento e entrega": o lojista liga as próprias contas (16/11/2026) — branch `integracoes-lojista-16nov`, SÓ NA HOMOLOGAÇÃO
+
+**Pedido do Dennis (16/11):** "cria a tela para o lojista colocar as chaves, as credenciais de entrega do Melhor Envio e de todos os outros que já temos configuração, fica mais fácil". Até aqui só o admin da plataforma ligava (empresa → aba Integração).
+
+**Onde cada coisa vive (uma frase):** a credencial mora em `empresa_gateways` (uma linha por empresa e provedor); quem GRAVA são os controllers de `Admin\` de cada provedor; a tela do lojista e a aba do admin são duas portas para a mesma gravação.
+
+- **Tela:** Gestão → **Pagamento e entrega** (`/app/configuracoes/pagamento-entrega`, rotas `app.pagamento-entrega.index` e `.acao`). Também há botão em Configurações da Loja e link em Loja online → Configurações → Pagamento.
+- **Quem entra:** `permission:integracoes` (dono e perfil admin da empresa); gravar exige `integracoes,editar`. Gerente, vendedor e caixa: 403 e sem item no menu. Admin da plataforma (sem empresa) é mandado para `/admin/empresas`.
+- **Provedores (os cinco que já existiam):**
+  | Cartão | Provedor (`empresa_gateways.provedor`) | O que o lojista informa | Ações |
+  |---|---|---|---|
+  | PIX na hora — Sicredi | `sicredi_pix` | Client ID, Client Secret, chave PIX, certificado, chave privada sem senha, validade | salvar, testar, ligar aviso de pagamento (webhook) |
+  | Cartão por link — Asaas | `asaas` | chave da API, conta de testes | salvar, testar; mostra endereço e código do webhook para cadastrar no Asaas |
+  | Cartão ou PIX por link — InfinitePay | `infinitepay` | InfiniteTag | salvar, testar (link de R$ 1,00) |
+  | Qual link de cartão usar | `agente_ia_configs.provedor_cartao` | só aparece com Asaas E InfinitePay ligados | escolher |
+  | Envio para outras cidades — Melhor Envio | `melhor_envio` | nada a copiar: conecta a própria conta (OAuth); pacote padrão, serviços, seguro | conectar, testar, desconectar, salvar |
+  | Entrega na cidade — Uber Direct | `uber_direct` | ID de cliente do desenvolvedor, Client Secret, ID do usuário, CEPs, horários | salvar, testar |
+- **Como foi feito (sem duplicar regra):**
+  - `App\Http\Controllers\Concerns\ContextoIntegracao` (trait): `autorizarIntegracao()` e `destino()`. Usado por `Admin\EmpresaGatewayController`, `EmpresaAsaasController`, `EmpresaInfinitePayController`, `EmpresaEntregaController`, `EmpresaMelhorEnvioController` e por `AgenteIaController::cartao`. Sem a marca, vale o de sempre (só `is_admin`, volta para `/admin/empresas/{id}`).
+  - `App\PagamentoEntregaController::acao($provedor, $acao)`: tabela fixa `ACOES` (provedor → ação → controller/método de Admin); fixa a empresa em `auth()->user()->empresa_id`, põe o atributo `integracao_lojista` no Request e chama o método. O atributo é posto pelo servidor (não vem de formulário), e o trait confere que é a MESMA empresa — o lojista não alcança outra empresa nem a rota do admin.
+  - `Integracao\MelhorEnvioCallbackController`: quem volta da autorização logado como usuário da empresa cai na tela do lojista; o admin continua indo para a aba Integração.
+  - Melhor Envio sem o aplicativo IA365 cadastrado em `/admin/integracoes`: o botão do lojista fica desligado com "Fale com o suporte da IA365" (ele não tem como resolver sozinho).
+- **Segredos:** continuam cifrados (`encrypted`), nunca voltam na tela (campo mostra "•••• salvo — preencha só para trocar"); salvar em branco não apaga. O certificado do Sicredi vai para `storage/app/private/gateways/{empresa}/`.
+- **Aviso ao app.ia365:** nada novo — o `EmpresaGatewayObserver` já avisa quando uma integração liga/desliga, e só para empresa com agente registrado na plataforma.
+- **Arquivos:** `app/Http/Controllers/Concerns/ContextoIntegracao.php`, `app/Http/Controllers/App/PagamentoEntregaController.php`, `resources/views/app/pagamento-entrega/index.blade.php`, `routes/web.php`, os 6 controllers de Admin acima, `Integracao/MelhorEnvioCallbackController.php`, `layouts/app.blade.php` (item de menu `data-menu-pagamento-entrega`), `app/configuracoes/edit.blade.php`, `app/loja-online/configuracoes.blade.php` (texto passou de "Integrações" para "Pagamento e entrega").
+- **Validação:** `scripts/validar-pagamento-entrega-16nov.py` — 65 ✅ (2 rodadas) em ambiente descartável (`hm-app`, banco `erp_homolog_teste`); navegador (computador e celular 390 px): salva pela tela, volta no cartão certo, sem erro de console e sem rolagem lateral.
+- **NÃO provado:** conexão real com Sicredi, Asaas, InfinitePay e Uber (o roteiro não chama provedor), e a ida e volta da autorização do Melhor Envio (o ambiente de teste não tem o aplicativo IA365 cadastrado).
+- **Pendências:** as mensagens de sucesso ainda são as do admin ("Gateway Asaas salvo."); produção só com ordem do Dennis (não tem migration).
+

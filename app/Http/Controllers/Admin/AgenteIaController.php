@@ -19,6 +19,8 @@ use Illuminate\Http\Request;
  */
 class AgenteIaController extends Controller
 {
+    use \App\Http\Controllers\Concerns\ContextoIntegracao;
+
     public function toggle(Request $request, Empresa $empresa): RedirectResponse
     {
         abort_unless($request->user()->is_admin, 403);
@@ -48,7 +50,7 @@ class AgenteIaController extends Controller
      */
     public function cartao(Request $request, Empresa $empresa): RedirectResponse
     {
-        abort_unless($request->user()->is_admin, 403);
+        $this->autorizarIntegracao($request, $empresa);
 
         $validated = $request->validate([
             'provedor_cartao' => ['required', 'string', 'in:' . implode(',', EmpresaGateway::PROVEDORES_CARTAO)],
@@ -58,7 +60,7 @@ class AgenteIaController extends Controller
             ->where('provedor', $validated['provedor_cartao'])
             ->first();
         if (! $gateway?->capacidadeAtiva()) {
-            return redirect()->route('admin.empresas.show', $empresa)
+            return $this->destino($empresa)
                 ->with('error', CartaoPedidoService::rotulo($validated['provedor_cartao']) . ' não está ativo e configurado — ligue o card antes de escolher.')
                 ->with('abrir_integracao', true);
         }
@@ -66,8 +68,7 @@ class AgenteIaController extends Controller
         $config = AgenteIaConfig::firstOrCreate(['empresa_id' => $empresa->id]);
         $config->update(['provedor_cartao' => $validated['provedor_cartao']]);
 
-        return redirect()
-            ->route('admin.empresas.show', $empresa)
+        return $this->destino($empresa)
             ->with('success', 'O agente passa a mandar o link de cartão da ' . CartaoPedidoService::rotulo($validated['provedor_cartao']) . '.')
             ->with('abrir_integracao', true);
     }

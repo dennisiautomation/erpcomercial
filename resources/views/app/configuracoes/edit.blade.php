@@ -46,6 +46,11 @@
     <a href="{{ route('app.formas-pagamento.index') }}" class="btn btn-erp-outline">
         <i class="bi bi-wallet2 me-1"></i> Formas de pagamento
     </a>
+    @if(\App\Http\Middleware\CheckPermission::canUser(auth()->user(), 'integracoes', 'ver') && auth()->user()->empresa_id)
+    <a href="{{ route('app.pagamento-entrega.index') }}" class="btn btn-erp-outline">
+        <i class="bi bi-credit-card me-1"></i> Pagamento e entrega
+    </a>
+    @endif
     <a href="{{ route('app.estoques.index') }}" class="btn btn-erp-outline">
         <i class="bi bi-boxes me-1"></i> Estoques da Loja
     </a>

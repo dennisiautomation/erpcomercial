@@ -24,22 +24,33 @@ class MelhorEnvioCallbackController extends Controller
 {
     public function callback(Request $request): RedirectResponse
     {
+        // Sem empresa identificada: o lojista logado volta para a tela dele; o admin, para a lista.
+        $semEmpresa = fn (string $msg) => redirect()
+            ->route(($request->user() && ! $request->user()->is_admin && $request->user()->empresa_id) ? 'app.pagamento-entrega.index' : 'admin.empresas.index')
+            ->with('error', $msg);
+
         $state = (string) $request->query('state', '');
         try {
             $empresaId = MelhorEnvioService::lerState($state);
         } catch (\InvalidArgumentException $e) {
-            return redirect()->route('admin.empresas.index')->with('error', 'Melhor Envio: ' . $e->getMessage());
+            return $semEmpresa('Melhor Envio: ' . $e->getMessage());
         }
 
         $empresa = Empresa::find($empresaId);
         if (! $empresa) {
-            return redirect()->route('admin.empresas.index')->with('error', 'Melhor Envio: empresa da autorização não encontrada.');
+            return $semEmpresa('Melhor Envio: empresa da autorização não encontrada.');
         }
 
-        $voltar = fn (string $tipo, string $msg) => redirect()
-            ->route('admin.empresas.show', $empresa)
+        // 16/11/2026: o lojista também conecta, pela tela "Pagamento e entrega".
+        // Quem está logado como usuário DESTA empresa volta para a tela dele;
+        // o admin da plataforma (ou ninguém logado) volta para a aba Integração.
+        $usuario = $request->user();
+        $doLojista = $usuario && ! $usuario->is_admin && (int) $usuario->empresa_id === (int) $empresa->id;
+        $voltar = fn (string $tipo, string $msg) => ($doLojista
+                ? redirect()->route('app.pagamento-entrega.index')
+                : redirect()->route('admin.empresas.show', $empresa))
             ->with($tipo, $msg)
-            ->withFragment('integracao');
+            ->withFragment($doLojista ? 'melhor-envio' : 'integracao');
 
         if ($request->filled('error')) {
             return $voltar('error', 'O Melhor Envio não autorizou: ' . $request->query('error_description', $request->query('error')));
