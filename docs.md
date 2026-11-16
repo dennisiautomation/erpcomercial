@@ -8850,9 +8850,11 @@ imagem de produção `78e310290ca6` com o código da branch, banco novo com o se
   teste, view nova só aparece depois de USR2 no php-fpm (armadilha 80).
 
 ### Manual de uso (pedido do Dennis, para o vídeo)
-Área 13 em `/home/ubuntu/manual-erp-comercial/`: `13-fiado-direto-com-a-loja.html`, `pdf/13-fiado-direto-com-a-loja.pdf`
-(24 págs), 23 prints em `prints/fiado/` (ambiente `fi-*`, dados fictícios; fonte `build/prints-13-fiado.mjs`), roteiro de 14 cenas.
-O Manual Completo foi regerado com a área nova.
+Área 13 **genérica** (pedido do Dennis: o vídeo é para toda loja com pagamento parcelado direto com a loja, não só "fiado"):
+`/home/ubuntu/manual-erp-comercial/13-pagamento-parcelado-direto-com-a-loja.html`, `pdf/13-pagamento-parcelado-direto-com-a-loja.pdf`
+(27 págs), 26 prints em `prints/parcelado-loja/` com o botão no nome de fábrica "Crediário" (ambiente `fi-*`, dados fictícios;
+fonte `build/prints-13-parcelado.mjs`), seção "Como fica o caixa" (fechamento, tela do caixa, comprovante) e roteiro de 15 cenas.
+O Manual Completo foi regerado.
 
 ### Para subir (quando o Dennis mandar)
 `docker tag`/`docker commit` da imagem no ar como `pre-fiado-<data>` + mysqldump; conferir md5 dos arquivos alterados no
