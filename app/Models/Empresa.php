@@ -57,6 +57,9 @@ class Empresa extends Model
         'cobranca_bloqueio_automatico',
         'cobranca_tolerancia_dias',
         'cobranca_suspensa_em',
+        'caixa_cliente_id',
+        'caixa_cliente_nome',
+        'caixa_vinculado_em',
         'em_trial',
         'status',
         'observacoes',
@@ -79,6 +82,7 @@ class Empresa extends Model
             'cobranca_proxima_renovacao'    => 'date',
             'cobranca_bloqueio_automatico'  => 'boolean',
             'cobranca_suspensa_em'          => 'datetime',
+            'caixa_vinculado_em'            => 'datetime',
             'exige_documento_cadastro'      => 'boolean',
             'vendedor_apenas_pdv'           => 'boolean',
             'pdv_vendedores_da_loja'        => 'boolean',
@@ -247,6 +251,12 @@ class Empresa extends Model
     public function temCobrancaDireta(): bool
     {
         return $this->cobranca_periodicidade !== null && $this->cobranca_valor !== null;
+    }
+
+    /** A cobrança desta empresa nasce no caixa.ia365 (cliente vinculado lá)? */
+    public function vinculadaAoCaixa(): bool
+    {
+        return $this->caixa_cliente_id !== null;
     }
 
     /** Acesso suspenso por pendência financeira da plataforma? */

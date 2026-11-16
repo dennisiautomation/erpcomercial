@@ -204,14 +204,19 @@ class EmpresaController extends Controller
 
             // Sem periodicidade = cobrança direta desligada (limpa tudo, inclusive suspensão)
             if (empty($cobranca['cobranca_periodicidade'])) {
+                // Vinculada ao caixa.ia365: a fatura vem de lá, então a tolerância e o
+                // bloqueio automático continuam valendo mesmo sem periodicidade aqui.
+                $vinculada = $empresa->vinculadaAoCaixa();
                 $cobranca = [
                     'cobranca_periodicidade'       => null,
                     'cobranca_valor'               => null,
                     'cobranca_dia_vencimento'      => null,
                     'cobranca_proxima_renovacao'   => null,
-                    'cobranca_bloqueio_automatico' => false,
+                    'cobranca_bloqueio_automatico' => $vinculada && $request->boolean('cobranca_bloqueio_automatico'),
                 ];
-                if ($empresa->estaSuspensa()) {
+                if ($vinculada) {
+                    $cobranca['cobranca_tolerancia_dias'] = (int) $request->input('cobranca_tolerancia_dias', $empresa->cobranca_tolerancia_dias ?? 5);
+                } elseif ($empresa->estaSuspensa()) {
                     $empresa->cobranca_suspensa_em = null;
                 }
             } else {

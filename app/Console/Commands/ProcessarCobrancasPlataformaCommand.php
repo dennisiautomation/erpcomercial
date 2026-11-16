@@ -2,27 +2,26 @@
 
 namespace App\Console\Commands;
 
-use App\Enums\Perfil;
 use App\Models\Empresa;
-use App\Models\Notificacao;
 use App\Models\PlataformaFatura;
-use App\Models\User;
-use App\Services\NotificacaoService;
+use App\Services\Plataforma\FaturasPlataforma;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
 
 /**
- * Cobrança direta da plataforma (IA365 → empresa-cliente, sem gateway).
+ * Cobrança da plataforma (IA365 → empresa-cliente).
  *
  * Roda diariamente:
  *  1. Gera fatura do ciclo para empresas com geração AUTOMÁTICA
  *     (mensal: todo dia 1º para o mês corrente; anual: 30 dias antes da renovação).
- *  2. Avisa o dono no sino quando a fatura vence em ≤3 dias ou está em atraso.
+ *     Empresa VINCULADA ao caixa.ia365 não gera aqui: a fatura dela vem de lá.
+ *  2. Avisa dono, gerente, admin e financeiro (sino + e-mail, uma vez por fatura
+ *     e por tipo) quando a fatura vence em ≤3 dias e quando entra em atraso.
  *  3. SUSPENDE a empresa (bloqueio total) quando fatura pendente passa de
  *     vencimento + tolerância e a empresa tem bloqueio automático ligado.
  *
- * Reativação: automática ao marcar a fatura como paga no admin.
+ * Reativação: automática quando a fatura é paga (admin ou caixa.ia365).
  */
 class ProcessarCobrancasPlataformaCommand extends Command
 {
@@ -35,12 +34,16 @@ class ProcessarCobrancasPlataformaCommand extends Command
         $dry = (bool) $this->option('dry-run');
         $hoje = Carbon::today();
 
+        // Cobrança direta configurada, vinculada ao caixa.ia365 ou com fatura em aberto.
         $empresas = Empresa::withoutGlobalScopes()
-            ->whereNotNull('cobranca_periodicidade')
-            ->whereNotNull('cobranca_valor')
+            ->where(function ($q) {
+                $q->where(fn ($d) => $d->whereNotNull('cobranca_periodicidade')->whereNotNull('cobranca_valor'))
+                    ->orWhereNotNull('caixa_cliente_id')
+                    ->orWhereIn('id', PlataformaFatura::pendentes()->select('empresa_id'));
+            })
             ->get();
 
-        $this->info("Processando {$empresas->count()} empresa(s) com cobrança direta — {$hoje->format('d/m/Y')}");
+        $this->info("Processando {$empresas->count()} empresa(s) com cobrança — {$hoje->format('d/m/Y')}");
 
         foreach ($empresas as $empresa) {
             $this->gerarFaturaDoCiclo($empresa, $hoje, $dry);
@@ -56,8 +59,11 @@ class ProcessarCobrancasPlataformaCommand extends Command
 
     private function gerarFaturaDoCiclo(Empresa $empresa, Carbon $hoje, bool $dry): void
     {
-        if ($empresa->cobranca_geracao !== 'automatica') {
+        if (! $empresa->temCobrancaDireta() || $empresa->cobranca_geracao !== 'automatica') {
             return; // geração manual: Dennis gera pelo botão quando quiser
+        }
+        if ($empresa->vinculadaAoCaixa()) {
+            return; // a fatura desta empresa nasce no caixa.ia365 — gerar aqui duplicaria
         }
 
         if ($empresa->cobranca_periodicidade === 'mensal') {
@@ -103,12 +109,7 @@ class ProcessarCobrancasPlataformaCommand extends Command
         $this->info("  ✓ fatura {$competencia} gerada p/ {$empresa->razao_social} (vence {$vencimento->format('d/m/Y')})");
         Log::info('[CobrancaPlataforma] fatura gerada', ['fatura_id' => $fatura->id, 'empresa_id' => $empresa->id]);
 
-        $this->notificarDono(
-            $empresa,
-            "Fatura {$competencia} disponível",
-            "Valor R$ " . number_format((float) $fatura->valor, 2, ',', '.') . " — vencimento {$vencimento->format('d/m/Y')}.",
-            'warning'
-        );
+        FaturasPlataforma::avisar($fatura, 'emitida');
     }
 
     /* ------------------------------------------------------------------ */
@@ -127,27 +128,16 @@ class ProcessarCobrancasPlataformaCommand extends Command
         }
 
         foreach ($pendentes as $fatura) {
+            $fatura->setRelation('empresa', $empresa);
             $diasParaVencer = (int) $hoje->diffInDays($fatura->vencimento, false);
+            $tipo = $diasParaVencer < 0 ? 'atraso' : ($diasParaVencer <= 3 ? 'vence' : null);
 
-            if ($diasParaVencer >= 0 && $diasParaVencer <= 3) {
-                $this->notificarDono(
-                    $empresa,
-                    'Fatura vence em breve',
-                    ($fatura->descricao ?: "Fatura {$fatura->competencia}")
-                        . ' vence em ' . $fatura->vencimento->format('d/m/Y')
-                        . ' — R$ ' . number_format((float) $fatura->valor, 2, ',', '.') . '.',
-                    'warning'
-                );
-            } elseif ($diasParaVencer < 0) {
-                $this->notificarDono(
-                    $empresa,
-                    'Fatura em atraso',
-                    ($fatura->descricao ?: "Fatura {$fatura->competencia}")
-                        . ' venceu em ' . $fatura->vencimento->format('d/m/Y')
-                        . ' — R$ ' . number_format((float) $fatura->valor, 2, ',', '.')
-                        . '. Regularize para evitar a suspensão do acesso.',
-                    'danger'
-                );
+            if ($tipo && ! isset(((array) $fatura->avisos)[$tipo])) {
+                if ($dry) {
+                    $this->line("  [dry] avisaria '{$tipo}' da fatura {$fatura->competencia} p/ {$empresa->razao_social}");
+                } else {
+                    FaturasPlataforma::avisar($fatura, $tipo);
+                }
             }
         }
 
@@ -170,50 +160,8 @@ class ProcessarCobrancasPlataformaCommand extends Command
                     'fatura_id'  => $estourada->id,
                 ]);
 
-                $this->notificarDono(
-                    $empresa,
-                    'Acesso suspenso por pendência financeira',
-                    'O acesso ao sistema foi suspenso. Regularize o pagamento com a IA365 para reativar.',
-                    'danger'
-                );
+                FaturasPlataforma::avisar($estourada, 'suspensa');
             }
-        }
-    }
-
-    /**
-     * Sino do(s) dono(s) da empresa, com dedup: não repete enquanto houver
-     * notificação NÃO LIDA com o mesmo título para o mesmo usuário.
-     */
-    private function notificarDono(Empresa $empresa, string $titulo, string $mensagem, string $cor): void
-    {
-        $donos = User::withoutGlobalScopes()
-            ->where('empresa_id', $empresa->id)
-            ->where('perfil', Perfil::Dono->value)
-            ->where('status', 'ativo')
-            ->get();
-
-        foreach ($donos as $dono) {
-            $jaAvisado = Notificacao::withoutGlobalScopes()
-                ->where('user_id', $dono->id)
-                ->where('tipo', 'fatura_plataforma')
-                ->where('titulo', $titulo)
-                ->where('lida', false)
-                ->exists();
-
-            if ($jaAvisado) {
-                continue;
-            }
-
-            NotificacaoService::criar(
-                $dono->id,
-                $empresa->id,
-                'fatura_plataforma',
-                $titulo,
-                $mensagem,
-                null,
-                'cash-coin',
-                $cor
-            );
         }
     }
 }

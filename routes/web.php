@@ -207,6 +207,9 @@ Route::middleware(['auth', 'suspensao', 'unidade', \App\Http\Middleware\Restring
             ->middleware('permission:unidades,editar');
     });
 
+    /* ------ Faturas do sistema (IA365 → esta loja); o filtro é por perfil, no controller ------ */
+    Route::get('/faturas', [App\FaturaPlataformaController::class, 'index'])->name('faturas.index');
+
     /* ------ Plano / Assinatura ------ */
     Route::get('/plano', [App\PlanoController::class, 'index'])->name('plano.index');
     Route::get('/plano/expirado', [App\PlanoController::class, 'expirado'])->name('plano-expirado');
@@ -856,6 +859,16 @@ Route::prefix('api/integracao/v1')->name('api.integracao.')
 // (é a URL do app IA365 cadastrada no painel do Melhor Envio); o `state` cifrado diz a empresa.
 Route::get('/integracao/melhor-envio/callback', [\App\Http\Controllers\Integracao\MelhorEnvioCallbackController::class, 'callback'])
     ->name('integracao.melhor-envio.callback');
+
+// caixa.ia365 → ERP (16/11/2026): a cobrança da plataforma nasce e é baixada lá;
+// aqui chega o espelho. Segredo próprio (CAIXA_IA365_TOKEN), sob api/integracao/*
+// para ficar fora do CSRF sem mexer em bootstrap/.
+Route::prefix('api/integracao/v1/plataforma/caixa')->middleware([\App\Http\Middleware\ForceJsonForIntegracaoApi::class, 'throttle:240,1'])->group(function () {
+    Route::get('/empresas', [\App\Http\Controllers\Integracao\CaixaIa365Controller::class, 'empresas']);
+    Route::post('/vinculo', [\App\Http\Controllers\Integracao\CaixaIa365Controller::class, 'vinculo']);
+    Route::post('/fatura', [\App\Http\Controllers\Integracao\CaixaIa365Controller::class, 'fatura']);
+    Route::post('/conferir', [\App\Http\Controllers\Integracao\CaixaIa365Controller::class, 'conferir']);
+});
 
 // Webhook PIX Sicredi — SEM Bearer (o PSP chama), mas sob api/integracao/*
 // para herdar a isenção de CSRF sem tocar no bootstrap/ (armadilha 46).

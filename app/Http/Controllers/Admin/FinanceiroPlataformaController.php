@@ -113,33 +113,15 @@ class FinanceiroPlataformaController extends Controller
             'observacao'      => ['nullable', 'string', 'max:500'],
         ]);
 
-        $fatura->update([
-            'status'          => 'paga',
+        \App\Services\Plataforma\FaturasPlataforma::baixar($fatura, [
             'pago_em'         => $validated['pago_em'] ?? Carbon::today(),
             'forma_pagamento' => $validated['forma_pagamento'] ?? null,
             'observacao'      => $validated['observacao'] ?? $fatura->observacao,
             'marcada_por'     => $request->user()->id,
         ]);
+        \App\Services\Plataforma\FaturasPlataforma::avisar($fatura, 'paga');
 
-        $empresa = $fatura->empresa;
-
-        // Anual paga → agenda a próxima renovação (+1 ano sobre o vencimento)
-        if ($empresa->cobranca_periodicidade === 'anual'
-            && $empresa->cobranca_proxima_renovacao
-            && $fatura->vencimento->isSameDay($empresa->cobranca_proxima_renovacao)) {
-            $empresa->cobranca_proxima_renovacao = $fatura->vencimento->copy()->addYear();
-        }
-
-        // Reativa se não sobrou NENHUMA pendente estourada
-        if ($empresa->estaSuspensa()) {
-            $aindaEstourada = $empresa->plataformaFaturas()->pendentes()->get()
-                ->contains(fn ($f) => $f->passouDaTolerancia());
-            if (! $aindaEstourada) {
-                $empresa->cobranca_suspensa_em = null;
-            }
-        }
-
-        $empresa->save();
+        $empresa = $fatura->empresa->fresh();
 
         return back()->with('success', 'Fatura marcada como paga.'
             . ($empresa->estaSuspensa() ? '' : ' Acesso da empresa liberado.'));
