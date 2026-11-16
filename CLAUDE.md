@@ -133,6 +133,8 @@ public/
 - PDV fullscreen dark, atalhos F1-F12, split payment, verificação estoque
 - **Lógica de emissão no PDV**: `emissao_fiscal_ativa && emite_nfce` → emite NFC-e; senão, só cupom/recibo. Cupom/recibo **sempre é impresso**. Falha na NFC-e cai silenciosamente no recibo.
 - Devoluções; Comissões (config por produto/categoria, pagamento em lote)
+- **Formas de pagamento configuráveis (14/11/2026)**: cada empresa liga/renomeia/ordena os botões (`formas_pagamento`, `FormaPagamentoService`); o código gravado continua o do sistema (`codigoGravado`). Ver docs.md 9am
+- **Pagamento direto com a loja / "fiado" (16/11/2026)**: venda na forma de código `crediario` vira conta a receber **pendente** (cliente obrigatório, limite do cadastro, vencimento + parcelas no PDV); o cliente paga depois no caixa ("Receber <nome>" no PDV ou `/app/fiado/cliente/{id}`), entra no caixa aberto de quem recebe como movimento `recebimento` e gera recibo. Regra única em `App\Services\FiadoService`. **Nenhum texto de tela diz "fiado"/"crediário" fixo**: usar `FiadoService::nome($empresaId)` (nome do botão da loja). Ver docs.md 9an e armadilhas 103-104
 
 ### Fiscal (Focus NFe — 95% cobertura)
 

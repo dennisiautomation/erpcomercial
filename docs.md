@@ -8822,6 +8822,7 @@ interno (classe, rota `app/fiado`, tabela) segue com "fiado" — o usuário não
   observação) e a observação na própria conta ("Recebido R$ x em ... (recibo de pagamento nº n)" — é por ela que o cancelamento sabe que já houve pagamento). Imprime **recibo de pagamento**
   (80 mm). Onde: botão **"Receber FIADO"** no PDV (modal: busca o cliente, mostra as contas, valor, como pagou) e a **ficha do
   cliente** (Vendas → Fiado — quem me deve → Ver e receber).
+> Nos itens abaixo, "FIADO" é o nome que a N S BORBA deu ao botão; em outra loja aparece o nome dela ("Crediário", "Conta da loja"...), sempre por `FiadoService::nome()`.
 - **Caixa:** a venda no fiado continua entrando na linha da forma (FIADO, "não entra na gaveta"); o recebimento é o tipo novo
   `recebimento` (`TipoMovimentacaoCaixa::Recebimento`, sinal +1), **fora** de "vendas": soma no **esperado em dinheiro** quando
   em dinheiro e na **conferência** da forma (PIX esperado = vendas PIX + fiado recebido em PIX). Fechamento, tela do caixa e
