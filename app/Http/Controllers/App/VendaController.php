@@ -161,6 +161,19 @@ class VendaController extends Controller
         }
         $request->merge(['forma_pagamento' => $fpBalcao->codigoGravado()]);
 
+        // Fiado / direto com a loja (16/11/2026): cliente obrigatório e dentro do limite.
+        // O valor exato só sai na transação; aqui a conta é feita com os itens enviados.
+        $fiadoSvc = app(\App\Services\FiadoService::class);
+        if (\App\Services\FiadoService::ehFiado($request->forma_pagamento)) {
+            $previa = collect($request->itens ?? [])->sum(fn ($i) => (float) ($i['preco_unitario'] ?? 0) * (float) ($i['quantidade'] ?? 0) - (float) ($i['desconto_valor'] ?? 0))
+                - (float) ($request->desconto_valor ?? 0);
+            try {
+                $fiadoSvc->validarVenda((int) session('empresa_id'), $request->cliente_id ? (int) $request->cliente_id : null, max(0.01, round($previa, 2)), $fpBalcao->nome);
+            } catch (\DomainException $e) {
+                return back()->withInput()->with('error', $e->getMessage());
+            }
+        }
+
         // Caixa (28/10/2026): a venda de balcão também entra no caixa aberto de
         // quem vende, como o PDV — antes nascia sem caixa e sumia do fechamento.
         $caixaSvc = app(LancamentoCaixaService::class);
@@ -170,7 +183,7 @@ class VendaController extends Controller
         }
 
         try {
-            $venda = DB::transaction(function () use ($fpBalcao, $request, $caixa, $caixaSvc) {
+            $venda = DB::transaction(function () use ($fpBalcao, $request, $caixa, $caixaSvc, $fiadoSvc) {
                 $empresaId = session('empresa_id');
                 $unidadeId = session('unidade_id');
 
@@ -290,6 +303,17 @@ class VendaController extends Controller
                 // Entrada no caixa, uma por forma (aqui é uma só), com venda_id
                 $caixaSvc->lancarVenda($venda, $caixa, $venda->pagamento_detalhes, (int) auth()->id());
 
+                // Fiado: conta em aberto no nome do cliente, vence em 30 dias (16/11/2026)
+                if (\App\Services\FiadoService::ehFiado($request->forma_pagamento)) {
+                    $fiadoSvc->criarContas([
+                        'empresa_id'  => $empresaId,
+                        'unidade_id'  => $unidadeId,
+                        'cliente_id'  => $request->cliente_id,
+                        'venda_id'    => $venda->id,
+                        'forma_chave' => $fpBalcao->chave,
+                        'forma_nome'  => $fpBalcao->nome,
+                    ], "Venda Balcao #{$venda->numero}", (float) $total, 1, $fiadoSvc->primeiroVencimento(null));
+                } else
                 // Create ContaReceber
                 ContaReceber::create([
                     'empresa_id'      => $empresaId,

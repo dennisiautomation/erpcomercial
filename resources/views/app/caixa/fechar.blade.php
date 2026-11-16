@@ -410,11 +410,25 @@
     </div>
     @endif
 
+    {{-- Fiado pago pelos clientes neste caixa (16/11/2026) --}}
+    @if(($resumo['recebimentos'] ?? 0) > 0)
+    <div class="formas-box">
+        <div class="formas-title"><i class="bi bi-cash-coin me-1"></i> {{ $resumo['nome_direto_loja'] ?? 'Crediário' }} recebido de clientes</div>
+        @foreach($resumo['recebimentos_por_forma'] as $forma => $valor)
+            @php $ehDinheiro = ($resumo['codigo_da_linha'][$forma] ?? $forma) === 'dinheiro'; @endphp
+            <div class="forma-row {{ $ehDinheiro ? 'destaque' : '' }}">
+                <span>{{ $resumo['rotulos_forma'][$forma] ?? ucfirst($forma) }}@if($ehDinheiro) <small class="nao-confere">entra na gaveta</small>@endif</span>
+                <span class="fw">R$ {{ number_format($valor, 2, ',', '.') }}</span>
+            </div>
+        @endforeach
+    </div>
+    @endif
+
     {{-- Valor esperado em dinheiro --}}
     <div class="valor-esperado">
         <div class="label">Valor Esperado em Dinheiro (gaveta)</div>
         <div class="amount">R$ {{ number_format($valorEsperado, 2, ',', '.') }}</div>
-        <div class="hint">Abertura + vendas em dinheiro + suprimentos − sangrias. PIX e cartão não contam aqui.</div>
+        <div class="hint">Abertura + vendas em dinheiro{{ ($resumo['recebimentos_dinheiro'] ?? 0) > 0 ? ' + ' . ($resumo['nome_direto_loja'] ?? 'Crediário') . ' recebido em dinheiro' : '' }} + suprimentos − sangrias. PIX e cartão não contam aqui.</div>
     </div>
     </div>
 
@@ -451,7 +465,7 @@
         <div class="formas-box">
             <div class="formas-title"><i class="bi bi-check2-square me-1"></i> Conferência das demais formas (opcional)</div>
             @foreach($formasConferencia as $forma)
-                @php $esperadoForma = (float) ($resumo['vendas_por_forma'][$forma] ?? 0); @endphp
+                @php $esperadoForma = round((float) ($resumo['vendas_por_forma'][$forma] ?? 0) + (float) ($resumo['recebimentos_por_forma'][$forma] ?? 0), 2); @endphp
                 <div class="forma-row" style="gap:10px;">
                     <span style="flex:1;">
                         {{ ($resumo['rotulos_forma'][$forma] ?? ($labels[$forma] ?? ucfirst($forma))) }}

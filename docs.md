@@ -59,6 +59,9 @@
 9ak. [Folha de Pagamento — Fase 2 (10/11/2026)](#folha-de-pagamento--fase-2-10112026--branch-folha-contas-pagar-10nov)
 9al. [DRE com pessoal e competência, fluxo programado e despesas por centro de custo — Fase 3 (10/11/2026)](#dre-com-pessoal-e-competência-fluxo-programado-e-despesas-por-centro-de-custo--fase-3-10112026--branch-folha-contas-pagar-10nov)
 9am. [Cafeteria Fase 1: tipo do produto, ficha técnica, adicionais e atalhos no PDV (30/10/2026)](#cafeteria-fase-1-tipo-do-produto-ficha-técnica-adicionais-e-atalhos-no-pdv-30102026--branch-featcafeteria-fase1-só-em-homologação)
+
+9am. [Formas de pagamento configuráveis (14/11/2026)](#formas-de-pagamento-configuráveis-14112026--branch-formas-pagamento-14nov)
+9an. [Fiado / pagamento parcelado direto com a loja (16/11/2026)](#fiado--pagamento-direto-com-a-loja-16112026--branch-fiado-direto-loja-16nov-em-produção-16112026-0710-brt)
 10. [Armadilhas conhecidas](#armadilhas-conhecidas)
 11. [Próximos passos](#próximos-passos)
 
@@ -6817,7 +6820,22 @@ Lote de correções na branch `fix/auditoria-bugs-mai2026`, após varredura de s
     artisan serve` NÃO desliga o opcache do servidor — o `artisan serve` abre um `php -S` filho sem os `-d`; o que funciona é
     `cd public && php -d opcache.enable=0 -S 0.0.0.0:PORTA ../vendor/laravel/framework/src/Illuminate/Foundation/resources/server.php`.
 
+103. **`User::hasPermission()` é legado quebrado** — `perfilModel()` faz `belongsTo(Perfil::class)`, mas `Perfil` é ENUM:
+     para quem não é admin/dono dá 500 ("Cannot instantiate enum App\Enums\Perfil"). Usar sempre
+     `CheckPermission::canUser($user, $modulo, $acao)` (achado no fiado, 16/11/2026).
+104. **Nome de forma de pagamento nunca fixo na tela** — o botão "crediário" é "FIADO" numa loja e "Crediário" em outra.
+     Texto visível usa `FiadoService::nome($empresaId)` (ou `forma_nome` gravado); código/rota/tabela podem dizer "fiado".
+     Regra do Dennis, 16/11/2026.
+
 ## Próximos passos
+
+### Fiado / pagamento parcelado direto com a loja (16/11/2026) — em produção, pendências
+1. **N S BORBA (empresa 6):** venda PDV #123 / conta 14798 (R$ 550, cliente DEUZA PIZARIA DIFERENCIAL) gravada `paga` pelo
+   código antigo — voltar para `pendente` só com o ok do Dennis. Três clientes com limite pequeno (id 3452 = R$ 1,00, outro
+   R$ 3,00, outro R$ 50,00) barram o FIADO até a loja ajustar o cadastro (0 = sem limite).
+2. **Desfazer recebimento** (estorno do `fiado_recebimentos` + saída no caixa) — hoje só pelo suporte.
+3. **Vencimento e parcelas na venda balcão e no faturar pedido** (hoje 1 parcela, +30 dias).
+4. Aviso no sino / WhatsApp de parcela vencida — não pedido ainda.
 
 ### Despesa de pessoal no financeiro (10/11/2026) — pedido do Dennis
 Onde cada coisa vive: **a folha gera contas no Contas a Pagar; Fluxo de Caixa, Centro de Custo e DRE só LEEM o Contas a Pagar.**
@@ -9813,3 +9831,128 @@ Migration `2026_11_16_180000_plataforma_faturas_caixa_ia365` (aditiva): `platafo
 - **Roteiro de cliques da cafeteria** (`/home/ubuntu/erp-cafeteria-homolog/roteiro-cafeteria.mjs`) na homologação: **41 ✅ / 0 ❌**. A senha de `caixa@cafe.demo` foi trocada em 14/11 (uso real do Dennis na maquininha) e não foi mexida: o roteiro rodou com `caixa-roteiro@cafe.demo`, criado para isso e deixado INATIVO.
 - **Não provado:** o app da maquininha (APK) num aparelho de verdade contra esta versão — o que foi conferido é a API que ele chama; PIX/boleto reais do Inter; e-mail saindo por SMTP (a homologação é `MAIL_MAILER=log`).
 - **GitHub:** `homolog-cafeteria-14nov` enviada em 16/11 com tudo acima.
+
+
+
+## Fiado / pagamento direto com a loja (16/11/2026) — branch `fiado-direto-loja-16nov`, **EM PRODUÇÃO 16/11/2026 07:10 BRT**
+
+**Pedido do Dennis (16/11, print da N S BORBA):** o cliente quer vender no fiado. O sistema tinha o "Crediário", que a
+N S BORBA (empresa 6) renomeou para **FIADO** em 14/11 12:17 — mas o PDV gravava a conta **já paga** na hora (venda PDV #123,
+R$ 550, 14/11, ficou `paga`): ninguém sabia quem devia. Dennis: *"pode ser pagamento direto com a loja, o nome ele coloca o que
+ele quiser no PDV, no caso dele é o fiado"*.
+
+**Onde cada coisa vive: a DÍVIDA são as contas a receber do cliente com `forma_pagamento = 'crediario'` em aberto
+(pendente/vencida); o PAGAMENTO é `fiado_recebimentos` + uma entrada `recebimento` no caixa, na forma em que o cliente pagou.**
+O código gravado continua `crediario`; o nome do botão é o que a loja escolheu (FIADO, Crediário, Conta da loja...). O editor
+de formas mostra o tipo como "Direto com a loja (cliente paga depois)".
+**Nenhum texto da tela diz "fiado" fixo (pedido do Dennis, 16/11):** menu, telas, caixa, cupom, recibo e mensagens usam
+`FiadoService::nome($empresa)` — o nome do botão ligado que "funciona como" direto com a loja (pode ser forma criada), senão o
+do sistema, senão "Crediário". O menu "<nome> — quem me deve" só aparece com o botão ligado (`FiadoService::ligado`). O código
+interno (classe, rota `app/fiado`, tabela) segue com "fiado" — o usuário não vê.
+
+### Regra (uma só: `App\Services\FiadoService`)
+- **Vender no fiado** (PDV, venda balcão, faturar pedido): **cliente obrigatório**; dentro do **limite** do cliente
+  (`clientes.limite_credito`, que já existia e ninguém usava; **0/vazio = sem limite**) — passou, recusa dizendo quanto ainda
+  pode comprar. Cada parcela vira uma conta `pendente`, `valor_pago = 0`, vencimento mensal a partir do 1º.
+  - PDV: o modal de pagamento pede **1º vencimento** (sugere hoje + 30; não aceita passado nem > 1 ano) e **parcelas (1 a 12)**,
+    mostra quanto o cliente já deve, o limite e quanto pode comprar. Sem cliente, o PDV pede o cliente (F2) e reabre o
+    pagamento sozinho. Split funciona (PIX 300 + FIADO 299,90 → só 299,90 fica em aberto).
+  - Balcão e faturar pedido: 1 parcela, vence em 30 dias (sem campos novos nessas telas).
+- **Receber** (o cliente vem pagar): sempre **entra no caixa aberto de quem recebe** (sem caixa → "Abra o caixa"). Aceita só
+  formas cujo código é dinheiro, PIX, débito, crédito ou transferência (botões ligados da empresa). Pode ser **parte**: abate
+  as contas **que vencem primeiro**; a conta paga em parte segue `pendente` com `valor_pago`; quitada vira `paga` + `pago_em`.
+  Grava `fiado_recebimentos` (nº por empresa, valor, forma, `contas` [o que cada conta recebeu], saldo antes/depois,
+  observação) e a observação na própria conta ("Recebido R$ x em ... (recibo de pagamento nº n)" — é por ela que o cancelamento sabe que já houve pagamento). Imprime **recibo de pagamento**
+  (80 mm). Onde: botão **"Receber FIADO"** no PDV (modal: busca o cliente, mostra as contas, valor, como pagou) e a **ficha do
+  cliente** (Vendas → Fiado — quem me deve → Ver e receber).
+- **Caixa:** a venda no fiado continua entrando na linha da forma (FIADO, "não entra na gaveta"); o recebimento é o tipo novo
+  `recebimento` (`TipoMovimentacaoCaixa::Recebimento`, sinal +1), **fora** de "vendas": soma no **esperado em dinheiro** quando
+  em dinheiro e na **conferência** da forma (PIX esperado = vendas PIX + fiado recebido em PIX). Fechamento, tela do caixa e
+  comprovante ganham o bloco "Fiado recebido de clientes". A conferência **não pede mais para contar o FIADO** (não há o que contar).
+- **Contas a Receber:** "Dar baixa" numa conta de fiado manda para a ficha do cliente (receber no caixa) em vez de marcar paga
+  sem dinheiro; a lista e a tela da conta mostram "Receber no caixa".
+- **Cancelar venda:** sem nada pago, cancela as contas como antes. **Com fiado já pago em parte, recusa** (o dinheiro entrou por
+  outro recibo) — use a troca/devolução, que já abatia as parcelas em aberto (`TrocaService::FORMAS_ABATIVEIS`), e agora encontra.
+- **Cupom da venda:** bloco "FIADO — a pagar na loja" com cada vencimento, o total que o cliente deve e a linha de assinatura.
+- **Cliente:** ficha mostra "Deve R$ x · ver e receber"; cadastro explica o limite.
+- **Telas novas:** `GET app/fiado` (quem me deve: total, vencido, busca por nome/CPF sem máscara, "só vencidos"),
+  `GET app/fiado/cliente/{id}` (ficha), `GET app/fiado/cliente/{id}/situacao` (JSON do PDV), `POST app/fiado/cliente/{id}/receber`
+  (JSON do PDV ou formulário), `GET app/fiado/recibo/{id}`. Permissão `vendas` (ver) e `vendas,criar` para receber. As 3 do PDV
+  entram em `RestringeVendedorAoPdv::ROTAS_LIBERADAS`. Menu: Vendas → "<nome do botão> — quem me deve" (só com o botão ligado).
+- **O que NÃO muda:** nota fiscal (crediário segue `05`), tabela de preço, relatórios por forma, contas antigas do crediário
+  (já `paga`, não viram dívida). `User::hasPermission` é legado quebrado (`perfilModel` aponta para o enum) — usar
+  `CheckPermission::canUser`.
+
+### Como a loja usa (resumo; manual completo na área 13)
+1. (Opcional) Configurações da Loja → Formas de pagamento: dar ao botão "Crediário" o nome da loja (FIADO, Carnê...).
+2. (Opcional) Cliente → Editar → Contato: **Limite de Crédito** (0 = sem limite).
+3. PDV: itens → botão do crediário → escolher o cliente (obrigatório) → 1º vencimento + parcelas → Confirmar. Entrada: pagamento
+   dividido (a entrada vai ao caixa, o resto fica em aberto). Cupom traz vencimentos e assinatura.
+4. Receber: botão "Receber <nome>" no PDV ou Vendas → "<nome> — quem me deve" → Ver e receber. Precisa do caixa aberto de quem
+   recebe; aceita parcial; recibo impresso.
+5. Caixa: a venda no crediário fica em "Vendas por forma" como "não entra na gaveta" e não é conferida; o recebido em dinheiro
+   soma no esperado da gaveta, em PIX/cartão soma no esperado da conferência daquela forma; extrato mostra "Recebimento de
+   cliente"; comprovante do fechamento tem o quadro "<nome> recebido de clientes".
+
+### Arquivos
+Novos: `FiadoService`, `FiadoController`, `FiadoRecebimento`, views `app/fiado/{index,cliente,recibo}`, migration
+`2026_11_16_200000_fiado_direto_com_a_loja` (`fiado_recebimentos` + `ALTER` do enum `movimentacoes_caixa.tipo` com
+`recebimento`; o `down` recusa se já houver recebimento). Alterados: `PdvController`, `VendaController` (balcão),
+`PedidoController` (faturar), `VendaCancelamentoService`, `CaixaController` + views do caixa (show, fechar, comprovante),
+`ContaReceberController` + views, `TipoMovimentacaoCaixa`, `FormaPagamentoService::TIPOS`, `RestringeVendedorAoPdv`, `routes/web.php`,
+`layouts/app` (menu), `pdv/index` e `pdv/cupom-nao-fiscal`, `clientes/{create,edit,show}`.
+
+### Validação (16/11/2026, ambiente descartável `fi-*`: rede `fi-net` 10.213.82.0/24, mysql 8 + pgvector (alias `vector`) +
+imagem de produção `78e310290ca6` com o código da branch, banco novo com o seed demo)
+- `scripts/validar-fiado-16nov.py`: **66 ✅ / 0 ❌** (61–63: menu acompanha o nome, some com o botão desligado, de fábrica = "Crediario") — FIADO renomeado; sem cliente recusa; conta em aberto (+30 dias); 3x com
+  vencimentos mensais; vencimento passado recusado; limite (passa/recusa com o disponível); split; crediário antigo pago não
+  conta; receber parcial (abate a que vence primeiro, caixa `recebimento`, esperado da gaveta +100, conferência do PIX soma);
+  recusas (maior que deve, forma fiado/vale/boleto, cliente sem dívida, sem caixa aberto, outra empresa 404); recibo; quem me
+  deve (filtros); ficha; quitar pela ficha; dar baixa redireciona; cupom; cancelar (sem e com pagamento); troca enxerga o
+  aberto; balcão e pedido (com e sem cliente); perfis caixa e gerente.
+- `scripts/validar-fiado-16nov.browser.mjs` (puppeteer-core + chrome-headless-shell): **28 ✅ / 0 ❌** — editor, cadastro,
+  PDV: FIADO sem cliente → busca → reabre o pagamento, situação do cliente, vencimento +30, 2x, venda; cupom; limite no PDV;
+  Receber FIADO (busca, contas, forma, parcial, recibo); quem me deve; ficha e confirmação; fechamento; 390 px sem rolagem
+  lateral; nenhum erro de JS. Os prints viraram o manual (`/home/ubuntu/manual-erp-comercial/prints/fiado/`).
+- **phpunit** (suíte inteira, vendor de dev da worktree da cafeteria — mesmo `composer.lock`): 315 testes, só os 2 ❌ de sempre
+  (`LoginTest` `Perfil::GERENTE` e `PdvTest::test_caixa_fechamento_calculates_correctly`).
+- Achados no caminho: botões do modal "Receber" usam a classe `btn-pay` e o `bindPaymentButtons` pegava todos → restrito a
+  `.payment-grid .btn-pay`; `User::hasPermission` dava 500 para o perfil caixa → `CheckPermission::canUser`. No ambiente de
+  teste, view nova só aparece depois de USR2 no php-fpm (armadilha 80).
+
+### Manual de uso (pedido do Dennis, para o vídeo)
+Área 13 **genérica** (pedido do Dennis: o vídeo é para toda loja com pagamento parcelado direto com a loja, não só "fiado"):
+`/home/ubuntu/manual-erp-comercial/13-pagamento-parcelado-direto-com-a-loja.html`, `pdf/13-pagamento-parcelado-direto-com-a-loja.pdf`
+(27 págs), 26 prints em `prints/parcelado-loja/` com o botão no nome de fábrica "Crediário" (ambiente `fi-*`, dados fictícios;
+fonte `build/prints-13-parcelado.mjs`), seção "Como fica o caixa" (fechamento, tela do caixa, comprovante) e roteiro de 15 cenas.
+O Manual Completo foi regerado.
+
+### Para subir (quando o Dennis mandar)
+`docker tag`/`docker commit` da imagem no ar como `pre-fiado-<data>` + mysqldump; conferir md5 dos arquivos alterados no
+container × `main` (o `TransferenciaEstoqueController` de 13/11 não é desta entrega); copiar os arquivos da lista acima +
+migration; `php artisan migrate --force`; `route:cache`; `view:cache`; USR2; `queue:restart`.
+**N S BORBA depois de subir:** a venda PDV #123 (conta 14798, R$ 550, cliente informado) foi gravada `paga` pelo código antigo.
+Se a loja confirmar que o cliente ainda não pagou, voltar a conta para `pendente`, `valor_pago = 0`, `pago_em = NULL` e
+vencimento combinado — **só com o ok do Dennis**.
+**Rollback:** arquivos de volta + caches + USR2. Contas abertas no fiado continuam `pendente` (o código antigo só não sabe
+receber pelo caixa; o "Dar baixa" antigo volta a funcionar). A migration só desce sem recebimento lançado.
+
+### Subida — EM PRODUÇÃO 16/11/2026 07:10 BRT (ordem do Dennis "Sim, pode subir")
+- **Antes:** md5 dos 21 arquivos já existentes no container = `main` `8140122` (nada de outra sessão por cima); 7 novos;
+  `migrate:status` sem pendência.
+- **Backup:** `/home/ubuntu/erp-backups/pre-fiado-20261116/` — `erp_comercial-20261116.sql.gz` (mysqldump `--single-transaction`,
+  85/85 tabelas, 9,6 MB, 07:09 BRT), `arquivos/` (os 21 como estavam), `lista.txt` (os 28 que subiram), `deploy.log`. Foto do
+  container: `docker commit` → `erp-com-app:pre-fiado-20261116`.
+- **Subida 07:10:11 → 07:10:15 BRT** (branch @ `8746d8a`): tar dos 28 arquivos, `chown www-data`, `php -l`, `migrate --force`
+  (`2026_11_16_200000`), `route:cache` + `view:cache` como www-data, USR2 no php-fpm, `queue:restart`.
+- **Depois:** md5 no ar = branch (0 diferença); 5 rotas `fiado`; enum com `recebimento`; `fiado_recebimentos` vazia;
+  `FiadoService::nome(6)` = "FIADO" (ligado), empresa 1 = "Crediario"; `/login` 200, `/app/fiado` e `/app/pdv` 302 (login);
+  log sem erro.
+- **Achado na N S BORBA (não mexido, decisão do Dennis):** 3 clientes com limite pequeno no cadastro (DEUZA PIZARIA DIFERENCIAL
+  id 3452 = R$ 1,00 — é a cliente da venda #123 —, um com R$ 3,00 e um com R$ 50,00). Agora o limite vale: com R$ 1,00 a
+  cliente não compra no FIADO. 11 clientes com 0,00 e 11 sem valor = sem limite.
+- Conta 14798 (venda #123, R$ 550, `paga` pelo código antigo) **não mexida** — aguarda o ok do Dennis.
+- Ambiente descartável `fi-*` apagado.
+- **Rollback:** copiar `arquivos/` de volta (e apagar os 7 novos da `lista.txt`), `route:cache`, `view:cache`, USR2. A migration
+  pode ficar (o `down` recusa se já houver recebimento lançado). Contas em aberto continuam `pendente`.
+- ✅ **`main` = GitHub = `9e5d156`** (fast-forward da branch, pushado 16/11 por ordem do Dennis "pode subir para o git para a main"); o código da `main` é o que está no ar (md5 conferido na subida).

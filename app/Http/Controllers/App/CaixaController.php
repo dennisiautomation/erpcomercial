@@ -64,10 +64,19 @@ class CaixaController extends Controller
 
         $vendasDinheiro = round((float) $porForma->filter(fn ($v, $l) => ($codigoDaLinha[$l] ?? $l) === 'dinheiro')->sum(), 2);
 
+        // Fiado pago no caixa (16/11/2026): entra na forma em que o cliente pagou.
+        // Não é venda (a venda entrou no dia, na linha do fiado): fica à parte e
+        // soma no esperado da gaveta (dinheiro) e na conferência das demais formas.
+        $recebimentosPorForma = $movs->where('tipo', TipoMovimentacaoCaixa::Recebimento)
+            ->groupBy($linha)
+            ->map(fn ($grupo) => round((float) $grupo->sum('valor'), 2))
+            ->sortDesc();
+        $recebimentosDinheiro = round((float) $recebimentosPorForma->filter(fn ($v, $l) => ($codigoDaLinha[$l] ?? $l) === 'dinheiro')->sum(), 2);
+
         // Nome de cada linha (o configurado hoje; forma excluída usa o nome gravado)
         $svc = app(\App\Services\FormaPagamentoService::class);
         $rotulos = [];
-        foreach ($porForma->keys()->merge(array_keys($caixa->conferencia ?? []))->merge(['pix', 'cartao_debito', 'cartao_credito'])->unique() as $l) {
+        foreach ($porForma->keys()->merge($recebimentosPorForma->keys())->merge(array_keys($caixa->conferencia ?? []))->merge(['pix', 'cartao_debito', 'cartao_credito'])->unique() as $l) {
             $rotulos[$l] = $svc->rotuloDaChave((int) $caixa->empresa_id, (string) $l, $nomeGravado[$l] ?? null);
         }
         $suprimentos = (float) $movs->where('tipo', TipoMovimentacaoCaixa::Suprimento)->sum('valor');
@@ -98,7 +107,11 @@ class CaixaController extends Controller
             'suprimentos'       => $suprimentos,
             'sangrias'          => $sangrias,
             'devolucoes'        => $devolucoes,
-            'esperado_dinheiro' => round($abertura + $vendasDinheiro + $suprimentos - $sangrias - $devolucoes, 2),
+            'recebimentos'           => round((float) $recebimentosPorForma->sum(), 2),
+            'nome_direto_loja'       => \App\Services\FiadoService::nome((int) $caixa->empresa_id), // FIADO, Crediário...
+            'recebimentos_por_forma' => $recebimentosPorForma,
+            'recebimentos_dinheiro'  => $recebimentosDinheiro,
+            'esperado_dinheiro' => round($abertura + $vendasDinheiro + $recebimentosDinheiro + $suprimentos - $sangrias - $devolucoes, 2),
             'qtd_vendas'        => $vendasDoCaixa->count(),
             'descontos'         => round((float) $vendasDoCaixa->sum('desconto_valor'), 2),
             // Juros de parcelamento (02/09) + acréscimo de cartão por parte (04/09).
@@ -392,8 +405,10 @@ class CaixaController extends Controller
             // Linha que é dinheiro (inclusive forma criada do tipo dinheiro) já está na gaveta
             $formasConferencia = collect(['pix', 'cartao_debito', 'cartao_credito'])
                 ->merge($resumo['vendas_por_forma']->keys())
+                ->merge($resumo['recebimentos_por_forma']->keys())
                 ->unique()
-                ->reject(fn ($f) => ($resumo['codigo_da_linha'][$f] ?? $f) === 'dinheiro')
+                // Fiado não tem o que contar: é o que o cliente ficou devendo (16/11/2026)
+                ->reject(fn ($f) => in_array($resumo['codigo_da_linha'][$f] ?? $f, ['dinheiro', \App\Services\FiadoService::FORMA], true))
                 ->values();
 
             return view('app.caixa.fechar', [
@@ -437,7 +452,7 @@ class CaixaController extends Controller
                 if ($valor === null || $valor === '') {
                     continue;
                 }
-                $esperado = (float) ($resumo['vendas_por_forma'][$forma] ?? 0);
+                $esperado = round((float) ($resumo['vendas_por_forma'][$forma] ?? 0) + (float) ($resumo['recebimentos_por_forma'][$forma] ?? 0), 2);
                 $conferencia[$forma] = [
                     'esperado'  => $esperado,
                     'contado'   => (float) $valor,

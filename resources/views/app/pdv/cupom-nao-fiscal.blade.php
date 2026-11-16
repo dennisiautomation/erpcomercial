@@ -407,6 +407,34 @@
     @endif
 </div>
 
+{{-- Fiado / direto com a loja (16/11/2026): vencimentos + assinatura do cliente --}}
+@php
+    $contasFiado = \App\Models\ContaReceber::withoutGlobalScopes()
+        ->where('venda_id', $venda->id)
+        ->where('forma_pagamento', \App\Services\FiadoService::FORMA)
+        ->whereIn('status', ['pendente', 'vencida'])
+        ->orderBy('parcela')->get();
+@endphp
+@if($contasFiado->isNotEmpty())
+<hr class="line">
+<div class="pagamento">
+    <div class="titulo">{{ $contasFiado->first()->forma_nome ?: \App\Services\FiadoService::nome((int) $venda->empresa_id) }} — a pagar na loja</div>
+    @foreach($contasFiado as $cf)
+        <div class="row">
+            <span>{{ $cf->total_parcelas > 1 ? $cf->parcela . '/' . $cf->total_parcelas . ' ' : '' }}vence {{ $cf->vencimento?->format('d/m/Y') }}</span>
+            <span>R$ {{ number_format((float) $cf->valor - (float) $cf->valor_pago, 2, ',', '.') }}</span>
+        </div>
+    @endforeach
+    @if($venda->cliente_id)
+        @php $saldoCli = app(\App\Services\FiadoService::class)->saldo((int) $venda->empresa_id, (int) $venda->cliente_id); @endphp
+        <div class="row" style="font-size:10px;"><span>Total que deve hoje:</span><span>R$ {{ number_format($saldoCli['devendo'], 2, ',', '.') }}</span></div>
+    @endif
+    <div style="margin-top:22px; border-top:1px solid #000; padding-top:2px; font-size:10px; text-align:center;">
+        {{ $venda->cliente->nome_razao_social ?? 'Assinatura do cliente' }}
+    </div>
+</div>
+@endif
+
 <hr class="line">
 
 {{-- ===== NFC-e INFO (Manual DANFE NFC-e / NT 2020.006) ===== --}}
