@@ -516,8 +516,8 @@ class PedidoController extends Controller
         'cartao_credito' => 'Cartão de crédito',
         'boleto'         => 'Boleto',
         'transferencia'  => 'Transferência',
-        // 03/11/2026: as duas que só existiam no PDV. Crediário grava como o PDV
-        // (conta já paga, sem fiado em aberto); vale exige código e baixa o saldo.
+        // 03/11/2026: as duas que só existiam no PDV. Vale exige código e baixa o saldo.
+        // Crediário = fiado / direto com a loja: desde 16/11/2026 fica EM ABERTO no cliente.
         'crediario'      => 'Crediário',
         'vale'           => 'Vale (crédito de troca)',
     ];
@@ -557,6 +557,17 @@ class PedidoController extends Controller
 
         if ($pedido->status->value !== 'confirmado') {
             return back()->with('error', 'Apenas pedidos confirmados podem ser faturados.');
+        }
+
+        // Fiado / direto com a loja (16/11/2026): pedido precisa de cliente e caber no limite
+        $fpFiado = \App\Services\FiadoService::ehFiado($request->forma_pagamento) ? $fpPrincipal
+            : (\App\Services\FiadoService::ehFiado($request->forma_complemento) ? $fpComplemento : null);
+        if ($fpFiado) {
+            try {
+                app(\App\Services\FiadoService::class)->validarVenda((int) $pedido->empresa_id, $pedido->cliente_id ? (int) $pedido->cliente_id : null, round((float) $pedido->total, 2), $fpFiado->nome);
+            } catch (\DomainException $e) {
+                return back()->with('error', $e->getMessage());
+            }
         }
 
         $documento = $request->documento;
@@ -866,6 +877,14 @@ class PedidoController extends Controller
                 'forma_chave'     => $pgto['forma_chave'] ?? null,
                 'forma_nome'      => $pgto['forma_nome'] ?? null,
             ];
+
+            // Fiado: em aberto no cliente, vence em 30 dias (16/11/2026)
+            if (\App\Services\FiadoService::ehFiado($forma)) {
+                $fiadoSvc = app(\App\Services\FiadoService::class);
+                $fiadoSvc->criarContas($base, "Pedido #{$pedido->numero}", $total, 1, $fiadoSvc->primeiroVencimento(null), $conta);
+                $conta = null;
+                continue;
+            }
 
             if ($regra) {
                 $valorParcela = round($total / $parcelas, 2);

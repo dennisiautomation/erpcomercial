@@ -412,6 +412,7 @@
         .btn-pay.pay-pix i { color: var(--accent-purple); }
         .btn-pay.pay-boleto i { color: var(--accent-orange, #fd7e14); }
         .btn-pay.pay-crediario i { color: var(--accent-red, #dc3545); }
+        .btn-pay.rf-forma.active { outline: 3px solid var(--accent-green, #22c55e); outline-offset: -3px; }
         .btn-pay.pay-credishop, .btn-pay.pay-largo { grid-column: span 2; }
         .btn-pay.pay-credishop i { color: var(--accent-purple, #6f42c1); }
         .btn-pay.pay-transferencia i { color: var(--accent-blue, #0d6efd); }
@@ -1038,6 +1039,12 @@
                 <i class="bi bi-arrow-up-circle"></i> Suprim.
                 <kbd>F8</kbd>
             </button>
+            @php $botaoFiado = $formasPagamento->first(fn ($fp) => $fp->codigoGravado() === \App\Services\FiadoService::FORMA); @endphp
+            @if($botaoFiado)
+            <button class="btn-action" id="btnReceberFiado" onclick="PDV.openReceberFiado()" title="Cliente veio pagar o que comprou no {{ $botaoFiado->nome }}">
+                <i class="bi bi-cash-coin"></i> Receber {{ \Illuminate\Support\Str::limit($botaoFiado->nome, 12, '') }}
+            </button>
+            @endif
             <button class="btn-action danger" onclick="PDV.cancelarItem()" title="Cancelar item selecionado">
                 <i class="bi bi-x-circle"></i> Cancelar
                 <kbd>F9</kbd>
@@ -1113,6 +1120,28 @@
                          border-radius:.5rem; background:rgba(255,193,7,.12);
                          border:1px solid rgba(255,193,7,.35); font-size:.9rem;"></div>
                 </div>
+                {{-- Fiado / direto com a loja (16/11/2026): cliente, vencimento e parcelas --}}
+                <div id="fiadoWrap" style="display:none;" class="mb-3">
+                    <div id="fiadoCliente" style="padding:.6rem .75rem; border-radius:.5rem; background:rgba(13,110,253,.12);
+                         border:1px solid rgba(13,110,253,.35); font-size:.9rem; margin-bottom:.75rem;"></div>
+                    <div class="row g-2">
+                        <div class="col-7">
+                            <label for="fiadoVencimento" class="form-label">1º vencimento</label>
+                            <input type="date" class="form-control" id="fiadoVencimento"
+                                   style="background:var(--bg-primary); color:var(--text-primary); border-color:var(--border-color, #3a3a48);">
+                        </div>
+                        <div class="col-5">
+                            <label for="fiadoParcelas" class="form-label">Parcelas</label>
+                            <select class="form-select" id="fiadoParcelas"
+                                    style="background:var(--bg-primary); color:var(--text-primary); border-color:var(--border-color, #3a3a48);">
+                                @for($i = 1; $i <= \App\Services\FiadoService::MAX_PARCELAS; $i++)
+                                    <option value="{{ $i }}">{{ $i }}x</option>
+                                @endfor
+                            </select>
+                        </div>
+                    </div>
+                    <div id="fiadoResumo" style="font-size:.85rem; color:var(--text-muted); margin-top:.4rem;"></div>
+                </div>
                 <div id="modalTrocoWrap" style="display:none;" class="text-center mt-3">
                     <div style="color:var(--text-muted); font-size:0.85rem;">TROCO</div>
                     <div style="font-size:2rem; font-weight:800; color:var(--accent-green);" id="modalTroco">R$ 0,00</div>
@@ -1183,6 +1212,62 @@
         </div>
     </div>
 </div>
+
+{{-- Modal: Receber fiado (16/11/2026) --}}
+@if($botaoFiado ?? null)
+<div class="modal fade" id="modalReceberFiado" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-cash-coin me-2" style="color:var(--accent-green)"></i>Receber {{ $botaoFiado->nome }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="rfBusca">
+                    <label for="rfBuscaInput" class="form-label">Cliente</label>
+                    <input type="text" class="form-control" id="rfBuscaInput" placeholder="Nome ou CPF do cliente..." autocomplete="off">
+                    <div class="client-search-results" id="rfResultados"></div>
+                </div>
+                <div id="rfConta" style="display:none;">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <div>
+                            <div class="fw-bold" id="rfNome"></div>
+                            <div style="font-size:.8rem; color:var(--text-muted);" id="rfDoc"></div>
+                        </div>
+                        <button type="button" class="modal-btn-secondary" style="padding:4px 10px; font-size:.8rem;" onclick="PDV.rfTrocarCliente()">Trocar</button>
+                    </div>
+                    <div class="text-center mb-2">
+                        <div style="font-size:.8rem; color:var(--text-muted);">DEVE</div>
+                        <div style="font-size:1.8rem; font-weight:800; color:var(--accent-red, #dc3545);" id="rfDevendo">R$ 0,00</div>
+                        <div style="font-size:.8rem;" id="rfVencido"></div>
+                    </div>
+                    <div id="rfContas" style="max-height:120px; overflow:auto; font-size:.82rem; margin-bottom:.75rem;"></div>
+                    <div class="mb-3">
+                        <label for="rfValor" class="form-label">Valor que o cliente está pagando</label>
+                        <input type="number" class="form-control modal-valor-input" id="rfValor" step="0.01" min="0.01" placeholder="0,00">
+                        <div style="font-size:.78rem; color:var(--text-muted); margin-top:.25rem;">Pode ser só uma parte — abate as contas mais antigas primeiro.</div>
+                    </div>
+                    <label class="form-label">Como pagou</label>
+                    <div class="d-flex flex-wrap gap-2 mb-3" id="rfFormas">
+                        @foreach(app(\App\Services\FiadoService::class)->formasDeRecebimento((int) (session('empresa_id') ?? auth()->user()->empresa_id)) as $fr)
+                            <button type="button" class="btn-pay rf-forma" data-chave="{{ $fr->chave }}" style="flex:1 1 30%; min-height:48px; padding:6px;">
+                                <i class="bi {{ $fr->icone }}" style="color: {{ $fr->cor ?: 'inherit' }}"></i> {{ $fr->nome }}
+                            </button>
+                        @endforeach
+                    </div>
+                    <input type="text" class="form-control" id="rfObs" maxlength="255" placeholder="Observação (opcional)">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="modal-btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="modal-btn-green" id="rfConfirmar" onclick="PDV.confirmarReceberFiado()" disabled>
+                    <i class="bi bi-check-lg"></i> Receber
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+@endif
 
 {{-- Modal: Sangria --}}
 <div class="modal fade" id="modalSangria" tabindex="-1">
@@ -2424,7 +2509,8 @@ const PDV = {
 
     // ===== PAYMENT =====
     bindPaymentButtons() {
-        document.querySelectorAll('.btn-pay').forEach(btn => {
+        // Só os botões de venda (o modal "Receber fiado" usa o mesmo visual)
+        document.querySelectorAll('.payment-grid .btn-pay').forEach(btn => {
             btn.addEventListener('click', () => {
                 const forma = btn.dataset.forma;
                 if (forma === 'vale') { this.openVale(); return; }
@@ -2469,6 +2555,16 @@ const PDV = {
             this.showAlert('Pagamento ja completo. Finalize a venda.', 'warning');
             return;
         }
+
+        // Fiado / direto com a loja (16/11/2026): sem cliente não vende.
+        // Escolhido o cliente, o modal de pagamento reabre sozinho.
+        if (forma === 'crediario' && !this.clienteId) {
+            this._fiadoPendente = { forma, chave, nome };
+            this.showAlert('Venda no ' + (nome || 'fiado') + ' precisa do cliente. Escolha o cliente.', 'warning');
+            this.openCliente();
+            return;
+        }
+        this._fiadoPendente = null;
 
         this.pagamentoAtual = forma;
         this.pagamentoChave = chave;
@@ -2523,9 +2619,11 @@ const PDV = {
         // Rótulo do campo diz em que moeda o caixa está digitando
         const labelValor = document.querySelector('#valorRecebidoWrap label');
         if (labelValor) {
-            labelValor.textContent = this.acrescimoDe(baseSugerida, forma) > 0
-                ? 'Valor que passa na maquininha'
-                : 'Valor Recebido';
+            labelValor.textContent = forma === 'crediario'
+                ? 'Valor no ' + (nome || 'fiado') + ' (fica devendo)'
+                : (this.acrescimoDe(baseSugerida, forma) > 0
+                    ? 'Valor que passa na maquininha'
+                    : 'Valor Recebido');
         }
 
         // Show/hide split checkbox
@@ -2548,6 +2646,27 @@ const PDV = {
                 this.atualizarParcelas();
             }
         };
+
+        // Fiado: cliente, situação dele, 1º vencimento (hoje + 30) e parcelas
+        const fiadoWrap = document.getElementById('fiadoWrap');
+        if (forma === 'crediario') {
+            fiadoWrap.style.display = 'block';
+            const venc = new Date(); venc.setDate(venc.getDate() + 30);
+            const hoje = new Date();
+            const iso = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+            const vencInput = document.getElementById('fiadoVencimento');
+            vencInput.value = iso(venc);
+            vencInput.min = iso(hoje);
+            document.getElementById('fiadoParcelas').value = '1';
+            const resumo = () => this.renderResumoFiado();
+            vencInput.onchange = resumo;
+            document.getElementById('fiadoParcelas').onchange = resumo;
+            if (!this._fiadoResumoBound) { valorInput.addEventListener('input', () => this.renderResumoFiado()); this._fiadoResumoBound = true; }
+            this.carregarSituacaoFiado(nome);
+            resumo();
+        } else {
+            fiadoWrap.style.display = 'none';
+        }
 
         // Parcelas: só para cartão de crédito
         const parcelasWrap = document.getElementById('parcelasWrap');
@@ -2730,14 +2849,27 @@ const PDV = {
             return;
         }
 
-        const parcelas = forma === 'cartao_credito'
+        let parcelas = forma === 'cartao_credito'
             ? parseInt(document.getElementById('parcelasSelect')?.value || '1', 10)
             : 1;
+        let extraFiado = {};
+        if (forma === 'crediario') {
+            if (!this.clienteId) { this.showAlert('Escolha o cliente antes (F2).', 'warning'); return; }
+            const venc = document.getElementById('fiadoVencimento').value;
+            if (!venc) { this.showAlert('Informe a data do 1º vencimento.', 'warning'); return; }
+            if (this._fiadoSituacao && this._fiadoSituacao.saldo.disponivel !== null && valor > this._fiadoSituacao.saldo.disponivel + 0.005) {
+                this.showAlert('Passa do limite do cliente: pode comprar até ' + this.formatMoney(this._fiadoSituacao.saldo.disponivel) + ' no ' + (this.pagamentoNome || 'fiado') + '.', 'error');
+                return;
+            }
+            parcelas = parseInt(document.getElementById('fiadoParcelas').value || '1', 10);
+            extraFiado = { vencimento: venc };
+        }
 
         const extra = forma === 'vale' && this.valeAtual ? { vale_codigo: this.valeAtual.codigo, modalidade: this.valeAtual.modalidade || null } : {};
         // Qual botão foi (14/11/2026): o servidor grava o nome na venda
         extra.chave = this.pagamentoChave || forma;
         extra.nome = this.pagamentoNome || null;
+        Object.assign(extra, extraFiado);
 
         if (isSplit) {
             // Split payment - add to list
@@ -3195,6 +3327,165 @@ const PDV = {
             }
         } else {
             this.showAlert('Cliente: ' + nome, 'success');
+        }
+
+        // Estava pagando no fiado sem cliente: volta para o pagamento
+        if (this._fiadoPendente) {
+            const p = this._fiadoPendente;
+            this._fiadoPendente = null;
+            this._aposFechar('modalCliente', () => this.openPagamento(p.forma, p.chave, p.nome));
+        }
+    },
+
+    // ===== FIADO / DIRETO COM A LOJA (16/11/2026) =====
+    async carregarSituacaoFiado(nome) {
+        const box = document.getElementById('fiadoCliente');
+        this._fiadoSituacao = null;
+        box.innerHTML = '<i class="bi bi-person"></i> ' + this.escHtml(this.clienteNome || '') + ' — consultando...';
+        try {
+            const resp = await fetch('/app/fiado/cliente/' + this.clienteId + '/situacao', { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' } });
+            if (!resp.ok) throw new Error();
+            const d = await resp.json();
+            this._fiadoSituacao = d;
+            const s = d.saldo;
+            let html = '<i class="bi bi-person"></i> <strong>' + this.escHtml(d.cliente.nome) + '</strong><br>';
+            html += 'Já deve: <strong>' + this.formatMoney(s.devendo) + '</strong>';
+            if (s.vencido > 0) html += ' · <span style="color:var(--accent-red,#dc3545)">vencido ' + this.formatMoney(s.vencido) + '</span>';
+            html += '<br>' + (s.limite !== null
+                ? 'Limite ' + this.formatMoney(s.limite) + ' · pode comprar <strong>' + this.formatMoney(s.disponivel) + '</strong>'
+                : 'Sem limite definido no cadastro');
+            box.innerHTML = html;
+        } catch (e) {
+            box.innerHTML = '<i class="bi bi-person"></i> ' + this.escHtml(this.clienteNome || '');
+        }
+    },
+
+    renderResumoFiado() {
+        const valor = parseFloat(document.getElementById('valorRecebido').value) || 0;
+        const n = parseInt(document.getElementById('fiadoParcelas').value || '1', 10);
+        const venc = document.getElementById('fiadoVencimento').value;
+        const el = document.getElementById('fiadoResumo');
+        if (!venc || valor <= 0) { el.textContent = ''; return; }
+        const [a, m, d] = venc.split('-').map(Number);
+        const fmt = (i) => {
+            const dt = new Date(a, m - 1 + i, 1);
+            const ult = new Date(dt.getFullYear(), dt.getMonth() + 1, 0).getDate();
+            return String(Math.min(d, ult)).padStart(2, '0') + '/' + String(dt.getMonth() + 1).padStart(2, '0');
+        };
+        const parc = round(valor / n, 2);
+        el.textContent = n === 1
+            ? 'Vence em ' + fmt(0) + '/' + a + ' — ' + this.formatMoney(valor)
+            : n + 'x de ' + this.formatMoney(parc) + ' — ' + Array.from({ length: n }, (_, i) => fmt(i)).join(', ');
+    },
+
+    openReceberFiado() {
+        this._rf = { cliente: null, chave: null };
+        document.getElementById('rfBusca').style.display = 'block';
+        document.getElementById('rfConta').style.display = 'none';
+        document.getElementById('rfResultados').innerHTML = '';
+        document.getElementById('rfConfirmar').disabled = true;
+        document.getElementById('rfObs').value = '';
+        document.querySelectorAll('.rf-forma').forEach(b => {
+            b.classList.remove('active');
+            b.onclick = () => {
+                document.querySelectorAll('.rf-forma').forEach(x => x.classList.remove('active'));
+                b.classList.add('active');
+                this._rf.chave = b.dataset.chave;
+                document.getElementById('rfConfirmar').disabled = !this._rf.cliente;
+            };
+        });
+        const input = document.getElementById('rfBuscaInput');
+        input.value = '';
+        input.oninput = () => {
+            const term = input.value.trim();
+            clearTimeout(this._rfTimer);
+            if (term.length < 2) { document.getElementById('rfResultados').innerHTML = ''; return; }
+            this._rfTimer = setTimeout(() => this.rfBuscar(term), 300);
+        };
+        new bootstrap.Modal(document.getElementById('modalReceberFiado')).show();
+        setTimeout(() => input.focus(), 300);
+        // Cliente já escolhido na venda: abre direto nele
+        if (this.clienteId) this.rfEscolher(this.clienteId);
+    },
+
+    async rfBuscar(term) {
+        const resp = await fetch('/app/pdv/cliente/' + encodeURIComponent(term), { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+        const lista = await resp.json();
+        const box = document.getElementById('rfResultados');
+        box.innerHTML = lista.length === 0
+            ? '<div style="padding:12px; text-align:center; color:var(--text-muted);">Nenhum cliente encontrado</div>'
+            : lista.map(c => `<div class="client-search-item" data-id="${c.id}">
+                    <div style="font-weight:500;">${this.escHtml(c.nome_razao_social || '')}</div>
+                    <div style="font-size:0.82rem; color:var(--text-muted);">${this.escHtml(c.cpf_cnpj || 'Sem documento')}</div></div>`).join('');
+        box.querySelectorAll('.client-search-item').forEach(el => el.onclick = () => this.rfEscolher(parseInt(el.dataset.id, 10)));
+    },
+
+    async rfEscolher(id) {
+        const resp = await fetch('/app/fiado/cliente/' + id + '/situacao', { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' } });
+        if (!resp.ok) { this.showAlert('Não foi possível consultar o cliente', 'error'); return; }
+        const d = await resp.json();
+        this._rf.cliente = d;
+        document.getElementById('rfBusca').style.display = 'none';
+        document.getElementById('rfConta').style.display = 'block';
+        document.getElementById('rfNome').textContent = d.cliente.nome;
+        document.getElementById('rfDoc').textContent = d.cliente.cpf_cnpj || '';
+        document.getElementById('rfDevendo').textContent = this.formatMoney(d.saldo.devendo);
+        document.getElementById('rfVencido').innerHTML = d.saldo.vencido > 0
+            ? '<span style="color:var(--accent-red,#dc3545)">Vencido: ' + this.formatMoney(d.saldo.vencido) + '</span>' : '';
+        document.getElementById('rfContas').innerHTML = d.contas.length === 0
+            ? '<div style="text-align:center; color:var(--text-muted);">Este cliente não deve nada.</div>'
+            : d.contas.map(c => `<div style="display:flex; justify-content:space-between; gap:8px; padding:3px 0; border-bottom:1px solid var(--border-color,#3a3a48);">
+                    <span>${this.escHtml(c.descricao)}<br><small style="color:${c.vencida ? 'var(--accent-red,#dc3545)' : 'var(--text-muted)'}">vence ${c.vencimento}${c.vencida ? ' — vencida' : ''}</small></span>
+                    <strong>${this.formatMoney(c.aberto)}</strong></div>`).join('');
+        const valor = document.getElementById('rfValor');
+        valor.value = d.saldo.devendo > 0 ? d.saldo.devendo.toFixed(2) : '';
+        valor.max = d.saldo.devendo;
+        document.getElementById('rfConfirmar').disabled = !(d.saldo.devendo > 0 && this._rf.chave);
+        if (d.saldo.devendo > 0) setTimeout(() => { valor.focus(); valor.select(); }, 100);
+    },
+
+    rfTrocarCliente() {
+        this._rf.cliente = null;
+        document.getElementById('rfConta').style.display = 'none';
+        document.getElementById('rfBusca').style.display = 'block';
+        document.getElementById('rfConfirmar').disabled = true;
+        document.getElementById('rfBuscaInput').focus();
+    },
+
+    async confirmarReceberFiado() {
+        const rf = this._rf || {};
+        if (!rf.cliente) { this.showAlert('Escolha o cliente', 'warning'); return; }
+        if (!rf.chave) { this.showAlert('Escolha como o cliente pagou', 'warning'); return; }
+        const valor = parseFloat(document.getElementById('rfValor').value) || 0;
+        if (valor <= 0) { this.showAlert('Informe o valor pago', 'warning'); return; }
+        if (valor > rf.cliente.saldo.devendo + 0.005) { this.showAlert('O valor é maior do que o cliente deve (' + this.formatMoney(rf.cliente.saldo.devendo) + ')', 'warning'); return; }
+        const btn = document.getElementById('rfConfirmar');
+        btn.disabled = true;
+        try {
+            const resp = await fetch('/app/fiado/cliente/' + rf.cliente.cliente.id + '/receber', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json',
+                },
+                body: JSON.stringify({ valor, chave: rf.chave, observacoes: document.getElementById('rfObs').value || null }),
+            });
+            const data = await resp.json();
+            if (!resp.ok || !data.success) {
+                this.showAlert(data.error || data.message || 'Erro ao receber', 'error');
+                btn.disabled = false;
+                return;
+            }
+            bootstrap.Modal.getInstance(document.getElementById('modalReceberFiado'))?.hide();
+            this.showAlert('Recebido ' + this.formatMoney(data.recebimento.valor) + '. Ainda deve ' + this.formatMoney(data.recebimento.saldo_depois) + '.', 'success');
+            const frame = document.getElementById('printFrame');
+            frame.srcdoc = data.recibo_html;
+            frame.onload = () => frame.contentWindow.print();
+        } catch (e) {
+            this.showAlert('Erro de conexao', 'error');
+            btn.disabled = false;
         }
     },
 

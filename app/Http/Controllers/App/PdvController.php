@@ -311,6 +311,7 @@ class PdvController extends Controller
             }],
             'pagamentos.*.valor'       => 'required|numeric|min:0.01',
             'pagamentos.*.parcelas'    => 'nullable|integer|min:1|max:24',
+            'pagamentos.*.vencimento'  => 'nullable|date_format:Y-m-d', // fiado (16/11/2026)
             'juros_parcelamento'       => 'nullable|boolean',
             'cliente_id'               => 'nullable|exists:clientes,id',
             'cpf_cnpj_nota'            => 'nullable|string|max:18',
@@ -346,8 +347,28 @@ class PdvController extends Controller
             return response()->json(['error' => $e->getMessage()], 422);
         }
 
+        // Fiado / direto com a loja (16/11/2026): cliente obrigatório, dentro do
+        // limite e vencimento válido — antes de gravar qualquer coisa.
+        $fiadoSvc = app(\App\Services\FiadoService::class);
+        $pgtosFiado = array_values(array_filter($request->pagamentos, fn ($p) => \App\Services\FiadoService::ehFiado($p['forma'] ?? null)));
+        if ($pgtosFiado) {
+            try {
+                $fiadoSvc->validarVenda(
+                    (int) (session('empresa_id') ?? auth()->user()->empresa_id),
+                    $request->cliente_id ? (int) $request->cliente_id : null,
+                    (float) array_sum(array_map(fn ($p) => (float) $p['valor'], $pgtosFiado)),
+                    (string) ($pgtosFiado[0]['forma_nome'] ?? 'fiado')
+                );
+                foreach ($pgtosFiado as $p) {
+                    $fiadoSvc->primeiroVencimento($p['vencimento'] ?? null);
+                }
+            } catch (\DomainException $e) {
+                return response()->json(['error' => $e->getMessage()], 422);
+            }
+        }
+
         try {
-            $venda = DB::transaction(function () use ($request, $caixa) {
+            $venda = DB::transaction(function () use ($request, $caixa, $fiadoSvc) {
                 $empresaId = session('empresa_id');
                 $unidadeId = session('unidade_id');
 
@@ -708,6 +729,20 @@ class PdvController extends Controller
                     $valorPgto = min($pgto['valor'], $total);
                     $forma = $pgto['forma'];
                     $parcelas = max(1, (int) ($pgto['parcelas'] ?? 1));
+
+                    // Fiado / direto com a loja (16/11/2026): fica EM ABERTO no nome do
+                    // cliente, em parcelas mensais a partir do vencimento escolhido.
+                    if (\App\Services\FiadoService::ehFiado($forma)) {
+                        $fiadoSvc->criarContas([
+                            'empresa_id'  => $empresaId,
+                            'unidade_id'  => $unidadeId,
+                            'cliente_id'  => $request->cliente_id,
+                            'venda_id'    => $venda->id,
+                            'forma_chave' => $pgto['forma_chave'] ?? null,
+                            'forma_nome'  => $pgto['forma_nome'] ?? null,
+                        ], "Venda PDV #{$venda->numero}", (float) $valorPgto, $parcelas, $fiadoSvc->primeiroVencimento($pgto['vencimento'] ?? null));
+                        continue;
+                    }
 
                     // Regra do botão (forma criada / Credishop) e depois a do tipo (14/11/2026)
                     $regra = AdquirenteTaxa::paraPagamentoDe((int) $empresaId, $pgto, $parcelas);

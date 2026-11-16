@@ -56,6 +56,19 @@ class VendaCancelamentoService
             }
         }
 
+        // Fiado já pago (todo ou em parte) pelo cliente (16/11/2026): o dinheiro
+        // entrou no caixa por outro recibo; cancelar a venda deixaria esse
+        // pagamento sem dívida. Antes, devolva o valor ao cliente e combine.
+        $fiadoPago = \App\Models\ContaReceber::withoutGlobalScopes()
+            ->where('venda_id', $venda->id)
+            ->where('forma_pagamento', \App\Services\FiadoService::FORMA)
+            ->where('valor_pago', '>', 0)
+            ->where('observacoes', 'like', '%recibo de fiado%')
+            ->exists();
+        if ($fiadoPago) {
+            throw new VendaNaoCancelavelException('O cliente já pagou parte do fiado desta venda — não dá para cancelar por inteiro. Use a troca/devolução, que abate do que ele ainda deve.');
+        }
+
         // O que a venda lançou no caixa volta pelo estorno. Caixa da venda
         // ainda aberto: sai dele. Já fechado: o dinheiro sai da gaveta de
         // hoje, então vai para o caixa aberto de quem cancela, na mesma loja.

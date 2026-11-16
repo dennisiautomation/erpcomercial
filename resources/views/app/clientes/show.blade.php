@@ -173,7 +173,17 @@
             @endif
             <div class="info-item">
                 <span class="info-label">Limite de Crédito</span>
-                <span class="info-value text-success">R$ {{ number_format($cliente->limite_credito ?? 0, 2, ',', '.') }}</span>
+                <span class="info-value text-success">{{ (float) $cliente->limite_credito > 0 ? 'R$ ' . number_format($cliente->limite_credito, 2, ',', '.') : 'Sem limite' }}</span>
+            </div>
+            @php $saldoFiado = app(\App\Services\FiadoService::class)->saldo((int) $cliente->empresa_id, (int) $cliente->id); @endphp
+            <div class="info-item">
+                <span class="info-label">Fiado / crediário</span>
+                <span class="info-value {{ $saldoFiado['devendo'] > 0 ? 'text-danger' : '' }}">
+                    {{ $saldoFiado['devendo'] > 0 ? 'Deve R$ ' . number_format($saldoFiado['devendo'], 2, ',', '.') : 'Não deve nada' }}
+                    @if(\App\Http\Middleware\CheckPermission::canUser(auth()->user(), 'vendas', 'ver'))
+                        · <a href="{{ route('app.fiado.cliente', $cliente->id) }}">ver e receber</a>
+                    @endif
+                </span>
             </div>
         </x-erp.card>
     </div>

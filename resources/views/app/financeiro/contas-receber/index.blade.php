@@ -132,7 +132,12 @@
                     <a href="{{ route('app.contas-receber.show', $conta) }}" class="btn btn-sm btn-erp-outline" title="Detalhes">
                         <i class="bi bi-eye"></i>
                     </a>
-                    @if($conta->status === 'pendente')
+                    @if($conta->status === 'pendente' && $conta->forma_pagamento === \App\Services\FiadoService::FORMA && $conta->cliente_id)
+                    {{-- Fiado (16/11/2026): recebe na ficha do cliente, entra no caixa --}}
+                    <a href="{{ route('app.fiado.cliente', $conta->cliente_id) }}" class="btn btn-sm btn-success" title="Receber no caixa">
+                        <i class="bi bi-cash-coin"></i>
+                    </a>
+                    @elseif($conta->status === 'pendente')
                     <form method="POST" action="{{ route('app.contas-receber.baixar', $conta) }}"
                         data-confirm="Confirma o recebimento de R$ {{ number_format($conta->valor, 2, ',', '.') }}?">
                         @csrf
@@ -140,6 +145,8 @@
                             <i class="bi bi-check-lg"></i>
                         </button>
                     </form>
+                    @endif
+                    @if($conta->status === 'pendente')
                     <form method="POST" action="{{ route('app.contas-receber.destroy', $conta) }}"
                         data-confirm="Confirma a exclusão desta conta?">
                         @csrf

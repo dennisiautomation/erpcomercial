@@ -375,6 +375,16 @@ Route::middleware(['auth', 'suspensao', 'unidade', \App\Http\Middleware\Restring
         ->name('pdv.vale')
         ->middleware('permission:vendas,criar');
 
+    /* ------ Fiado / pagamento direto com a loja (16/11/2026) ------ */
+    Route::prefix('fiado')->name('fiado.')->middleware('permission:vendas')->group(function () {
+        Route::get('/', [App\FiadoController::class, 'index'])->name('index');
+        Route::get('/cliente/{cliente}', [App\FiadoController::class, 'cliente'])->name('cliente')->whereNumber('cliente');
+        Route::get('/cliente/{cliente}/situacao', [App\FiadoController::class, 'situacao'])->name('situacao')->whereNumber('cliente');
+        Route::post('/cliente/{cliente}/receber', [App\FiadoController::class, 'receber'])->name('receber')
+            ->whereNumber('cliente')->middleware('permission:vendas,criar');
+        Route::get('/recibo/{recebimento}', [App\FiadoController::class, 'recibo'])->name('recibo')->whereNumber('recebimento');
+    });
+
     /* ------ Trocas, devoluções e vales (03/09/2026) ------ */
     Route::prefix('trocas')->name('trocas.')->middleware('permission:trocas')->group(function () {
         Route::get('/', [App\TrocaController::class, 'index'])->name('index');

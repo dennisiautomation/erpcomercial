@@ -82,6 +82,15 @@
                 <p class="text-muted mb-0">Nenhuma venda neste caixa.</p>
             @endforelse
 
+            @if(($resumo['recebimentos'] ?? 0) > 0)
+                <div class="pt-3 small text-muted fw-semibold">Fiado recebido de clientes</div>
+                @foreach($resumo['recebimentos_por_forma'] as $forma => $valor)
+                    <div class="d-flex justify-content-between py-1">
+                        <span>{{ $resumo['rotulos_forma'][$forma] ?? ucfirst($forma) }}</span>
+                        <span class="text-success">+ R$ {{ number_format($valor, 2, ',', '.') }}</span>
+                    </div>
+                @endforeach
+            @endif
             <div class="d-flex justify-content-between pt-3">
                 <span class="text-muted">Suprimentos</span>
                 <span class="text-info">+ R$ {{ number_format($resumo['suprimentos'], 2, ',', '.') }}</span>

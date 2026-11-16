@@ -16,6 +16,9 @@ enum TipoMovimentacaoCaixa: string
     // Venda cancelada (24/09/2026): devolve ao caixa, na mesma forma, o que a
     // venda tinha lançado — sem isso o esperado seguia somando venda cancelada.
     case Estorno = 'estorno';
+    // Cliente pagou o fiado (16/11/2026): entra na forma em que ele pagou.
+    // Não é venda — a venda já entrou no dia, na linha do fiado.
+    case Recebimento = 'recebimento';
 
     public function label(): string
     {
@@ -27,13 +30,14 @@ enum TipoMovimentacaoCaixa: string
             self::Fechamento => 'Fechamento',
             self::Devolucao => 'Devolução',
             self::Estorno => 'Estorno de venda',
+            self::Recebimento => 'Recebimento de fiado',
         };
     }
 
     public function sinal(): int
     {
         return match ($this) {
-            self::Venda, self::Suprimento, self::Abertura => 1,
+            self::Venda, self::Suprimento, self::Abertura, self::Recebimento => 1,
             self::Sangria, self::Devolucao, self::Estorno => -1,
             self::Fechamento => 0,
         };

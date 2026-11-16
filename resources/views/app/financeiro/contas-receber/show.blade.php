@@ -100,7 +100,13 @@
         </x-erp.card>
         @endif
 
-        @if($contaReceber->status === 'pendente')
+        @if($contaReceber->status === 'pendente' && $contaReceber->forma_pagamento === \App\Services\FiadoService::FORMA && $contaReceber->cliente_id)
+        <div class="d-flex gap-2 mt-4">
+            <a href="{{ route('app.fiado.cliente', $contaReceber->cliente_id) }}" class="btn btn-success">
+                <i class="bi bi-cash-coin me-1"></i> Receber no caixa
+            </a>
+        </div>
+        @elseif($contaReceber->status === 'pendente')
         <div class="d-flex gap-2 mt-4">
             <form method="POST" action="{{ route('app.contas-receber.baixar', $contaReceber) }}"
                 data-confirm="Confirma o recebimento desta conta?">

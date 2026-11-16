@@ -44,6 +44,10 @@ class RestringeVendedorAoPdv
         'app.caixa.comprovante',
         'app.caixa.sangria',
         'app.caixa.suprimento',
+        // Fiado (16/11/2026): o PDV consulta a dívida e recebe o pagamento
+        'app.fiado.situacao',
+        'app.fiado.receber',
+        'app.fiado.recibo',
         'app.treinamento.*',
     ];
 

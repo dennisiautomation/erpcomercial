@@ -501,6 +501,7 @@
                                class="form-control @error('limite_credito') is-invalid @enderror"
                                value="{{ old('limite_credito', $cliente->limite_credito) }}" step="0.01" min="0">
                     </div>
+                    <small class="text-muted">Quanto o cliente pode ficar devendo no fiado / crediário. Deixe 0 para não ter limite.</small>
                     @error('limite_credito')
                         <div class="text-danger small mt-1">{{ $message }}</div>
                     @enderror
