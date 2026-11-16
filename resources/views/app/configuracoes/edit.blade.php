@@ -764,6 +764,32 @@
         </details>
     </x-erp.form-section>
 
+    {{-- ============ TAMANHOS E CORES — GRADE (16/11/2026) ============ --}}
+    <x-erp.form-section title="Tamanhos e cores (grade)" icon="grid-3x3"
+        description="Como os produtos com tamanho e cor aparecem no PDV e na lista de produtos">
+        <div class="form-check form-switch mb-1">
+            <input class="form-check-input" type="checkbox" role="switch" value="1"
+                   id="agrupar_grade" name="agrupar_grade"
+                   @checked(old('agrupar_grade', $config->agrupar_grade))>
+            <label class="form-check-label" for="agrupar_grade">
+                <strong>Mostrar o produto com tamanhos e cores como uma linha só</strong>
+            </label>
+        </div>
+        <details class="cfg-entenda">
+            <summary>Entenda esta opção</summary>
+            <div class="text-muted small">
+            <div class="mb-1"><i class="bi bi-toggle-on me-1"></i><strong>Ligado:</strong> ao buscar pelo nome no PDV,
+                "Vestido Longo" aparece <strong>uma vez</strong>; ao escolher, o caixa toca no tamanho e na cor, já vendo
+                o saldo de cada um. A lista de produtos também mostra uma linha por produto, com o saldo somado, e abre
+                os tamanhos e cores com um clique. Bipar o código de barras continua indo direto na peça certa.</div>
+            <div class="mb-1"><i class="bi bi-toggle-off me-1"></i><strong>Desligado (padrão):</strong> cada tamanho e cor
+                aparece como um produto separado, como sempre.</div>
+            <div><i class="bi bi-info-circle me-1"></i>Os tamanhos e cores são criados no cadastro do produto, no quadro
+                <strong>"Tamanhos e cores"</strong>. Loja sem nenhum produto assim não percebe diferença.</div>
+            </div>
+        </details>
+    </x-erp.form-section>
+
     {{-- ============ CAFETERIA / ALIMENTAÇÃO (30/10/2026) ============ --}}
     <x-erp.form-section title="Cafeteria e alimentação" icon="cup-hot"
         description="Produto feito na casa, receita que baixa insumos e adicionais no PDV">
