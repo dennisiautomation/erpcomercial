@@ -367,6 +367,14 @@
                     @endif
                 </div>
                 <div class="card-body">
+                    @if($empresa->vinculadaAoCaixa())
+                        <div class="alert alert-info py-2 small" data-vinculo-caixa>
+                            <i class="bi bi-link-45deg me-1"></i>
+                            <strong>Vinculada ao caixa.ia365</strong> — cliente "{{ $empresa->caixa_cliente_nome ?: '#' . $empresa->caixa_cliente_id }}".
+                            As faturas desta empresa nascem e são baixadas lá; aqui o sistema não gera fatura para ela.
+                            A tolerância e o bloqueio automático abaixo continuam valendo.
+                        </div>
+                    @endif
                     @php $periodicidade = old('cobranca_periodicidade', $empresa->cobranca_periodicidade); @endphp
                     <div class="row g-3">
                         <div class="col-md-3">
@@ -400,7 +408,7 @@
                         </div>
                     </div>
 
-                    <div class="row g-3 mt-1 cobranca-campo" data-quando="mensal anual">
+                    <div class="row g-3 mt-1 cobranca-campo" data-quando="mensal anual" @if($empresa->vinculadaAoCaixa()) data-sempre @endif>
                         <div class="col-md-4">
                             <label for="campo-cobranca_geracao" class="form-label">Geração da fatura</label>
                             @php $geracao = old('cobranca_geracao', $empresa->cobranca_geracao ?? 'automatica'); @endphp
@@ -446,7 +454,7 @@
                     const campos = document.querySelectorAll('.cobranca-campo');
                     function atualiza() {
                         campos.forEach(c => {
-                            c.style.display = (sel.value && c.dataset.quando.includes(sel.value)) ? '' : 'none';
+                            c.style.display = (c.hasAttribute('data-sempre') || (sel.value && c.dataset.quando.includes(sel.value))) ? '' : 'none';
                         });
                     }
                     sel.addEventListener('change', atualiza);

@@ -207,6 +207,7 @@ public/
 - Acesso restrito a dono/admin (permission `auditoria:ver`)
 
 ### Planos e Assinatura
+- **Cobrança da plataforma vinda do caixa.ia365 (16/11/2026, branch `cobranca-caixa-16nov`)**: a cobrança nasce e é baixada no caixa.ia365; o ERP espelha em `plataforma_faturas` (`origem='caixa'`) pelas rotas `api/integracao/v1/plataforma/caixa/*` (segredo `CAIXA_IA365_TOKEN`; vazio = 503) e com isso mostra a faixa (`components/fatura-banner`), a tela `/app/faturas`, manda sino + e-mail a dono/gerente/admin/financeiro e bloqueia. Regra toda em `App\Services\Plataforma\FaturasPlataforma`. Empresa vinculada não gera fatura pelo ERP. O vencimento do teste grátis NÃO bloqueia o sistema inteiro (`CheckPlano` só nas rotas `plano:`); bloqueio total é só por fatura em atraso. Ver docs.md, seção própria
 - 3 planos (Básico R$97, Profissional R$197, Enterprise R$397)
 - Trial com dias restantes
 - Feature gating por plano (middleware `plano:feature`)

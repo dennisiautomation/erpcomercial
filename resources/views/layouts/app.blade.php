@@ -1134,6 +1134,17 @@
                         </a>
                     </li>
 
+                    {{-- Faturas do sistema (IA365 → loja): dono, gerente, admin e financeiro --}}
+                    @if(\App\Services\Plataforma\FaturasPlataforma::podeVer(auth()->user()))
+                        <li class="nav-item" style="margin-top: 0.25rem;">
+                            <a class="nav-link {{ request()->routeIs('app.faturas.*') ? 'active' : '' }}"
+                               href="{{ route('app.faturas.index') }}" data-menu-faturas>
+                                <i class="bi bi-receipt nav-icon"></i>
+                                <span class="nav-text">Faturas</span>
+                            </a>
+                        </li>
+                    @endif
+
                     {{-- Meu Plano — assunto do dono; funcionários não veem --}}
                     @if(auth()->user()->isDono())
                         <li class="nav-item" style="margin-top: 0.25rem;">
@@ -1332,6 +1343,7 @@
         <main class="main-content">
             {{-- Trial Banner --}}
             @include('components.trial-banner')
+            @include('components.fatura-banner')
 
             {{-- Flash Messages --}}
             @include('components.alert')

@@ -55,7 +55,7 @@
                 ao ERP Comercial está suspenso por pendência financeira junto à IA365.
             </p>
 
-            @if(auth()->user()->perfil === \App\Enums\Perfil::Dono && $faturas->isNotEmpty())
+            @if(\App\Services\Plataforma\FaturasPlataforma::podeVer(auth()->user()) && $faturas->isNotEmpty())
                 <div class="faturas">
                     <div style="color:#94a3b8;font-size:0.8rem;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.5rem;">
                         Pendências em aberto
@@ -65,15 +65,23 @@
                             <span>{{ $fatura->descricao ?: 'Mensalidade ' . $fatura->competencia }}</span>
                             <span>
                                 <strong>R$ {{ number_format($fatura->valor, 2, ',', '.') }}</strong>
-                                <small style="color:#f87171;"> · venceu {{ $fatura->vencimento->format('d/m/Y') }}</small>
+                                <small style="color:#f87171;"> · {{ $fatura->isVencida() ? 'venceu' : 'vence' }} {{ $fatura->vencimento->format('d/m/Y') }}</small>
                             </span>
                         </div>
+                        @if($fatura->link)
+                            <div style="padding:0 0 0.6rem;">
+                                <a href="{{ $fatura->link }}" target="_blank" rel="noopener" data-pagar-fatura
+                                   style="display:block;text-align:center;background:#2563eb;color:#fff;font-weight:600;font-size:0.9rem;padding:0.55rem;border-radius:0.5rem;text-decoration:none;">
+                                    Pagar agora (PIX ou boleto)
+                                </a>
+                            </div>
+                        @endif
                     @endforeach
                 </div>
             @endif
 
             <p class="contato">
-                Para regularizar e reativar o acesso imediatamente, fale com a IA365:<br>
+                O acesso volta sozinho assim que o banco confirma o pagamento. Dúvidas, fale com a IA365:<br>
                 <a href="mailto:dcanteli@ia365.com.br">dcanteli@ia365.com.br</a>
             </p>
 

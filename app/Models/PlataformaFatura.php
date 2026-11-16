@@ -15,6 +15,8 @@ class PlataformaFatura extends Model
 
     protected $fillable = [
         'empresa_id',
+        'origem',
+        'caixa_ref',
         'competencia',
         'descricao',
         'valor',
@@ -23,6 +25,11 @@ class PlataformaFatura extends Model
         'pago_em',
         'forma_pagamento',
         'observacao',
+        'link',
+        'pix_copia_cola',
+        'linha_digitavel',
+        'tem_nota',
+        'avisos',
         'gerada_automaticamente',
         'marcada_por',
     ];
@@ -34,6 +41,8 @@ class PlataformaFatura extends Model
             'vencimento'             => 'date',
             'pago_em'                => 'date',
             'gerada_automaticamente' => 'boolean',
+            'tem_nota'               => 'boolean',
+            'avisos'                 => 'array',
         ];
     }
 
@@ -77,6 +86,23 @@ class PlataformaFatura extends Model
 
         return $this->isPendente()
             && $this->vencimento->copy()->addDays($tolerancia)->lt(now()->startOfDay());
+    }
+
+    /** Veio do caixa.ia365 (lá nasce a cobrança e lá se dá a baixa). */
+    public function doCaixa(): bool
+    {
+        return $this->origem === 'caixa';
+    }
+
+    public function titulo(): string
+    {
+        return $this->descricao ?: 'Fatura ' . $this->competencia;
+    }
+
+    /** Dias até o vencimento (negativo = em atraso). */
+    public function diasParaVencer(): int
+    {
+        return (int) now()->startOfDay()->diffInDays($this->vencimento, false);
     }
 
     public function statusBadge(): array

@@ -182,7 +182,11 @@
                                 @endif
                             </td>
                             <td class="text-end text-nowrap">
-                                @if($fatura->isPendente())
+                                @if($fatura->isPendente() && $fatura->doCaixa())
+                                    <span class="badge text-bg-light border" title="A baixa desta fatura vem do banco, pelo caixa.ia365" data-fatura-do-caixa>
+                                        <i class="bi bi-link-45deg"></i> caixa.ia365
+                                    </span>
+                                @elseif($fatura->isPendente())
                                     <button class="btn btn-sm btn-success btn-marcar-paga"
                                             data-fatura="{{ $fatura->id }}"
                                             data-label="{{ $fatura->empresa->razao_social }} — {{ $fatura->competencia }} (R$ {{ number_format($fatura->valor, 2, ',', '.') }})"
