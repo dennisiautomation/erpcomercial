@@ -9745,3 +9745,64 @@ Migration `2026_11_16_180000_plataforma_faturas_caixa_ia365` (aditiva): `platafo
 3. Dennis: em cada cliente do caixa, escolher a "Empresa no ERP"; no admin do ERP, ligar "Bloquear automaticamente" e a tolerância de cada empresa.
 
 **Homologação (16/11/2026 ~06:15 BRT):** junção `1a6000d` no ar em `erp-caf-app:1a6000d` (imagem `770ea0921359`); anterior `erp-caf-app:a151766` (`src-a151766`), backup `backups/pre-cobranca-caixa-20261116.sql.gz`. Migration aplicada. `CAIXA_IA365_TOKEN` NÃO configurado na homologação (as rotas do caixa respondem 503). Para ver as telas, a Empresa Demo recebeu 2 faturas FICTÍCIAS (`caixa_ref` 900000 paga e 900001 em aberto, link de demonstração que não abre); o e-mail da homologação é `MAIL_MAILER=log`. Conferido no navegador em 1366 e 390 px: faixa, menu, tela Faturas, telas vizinhas, sem erro de JS.
+
+---
+
+## Maquininha Stone × formas de pagamento configuráveis (16/11/2026) — na branch unificada `homolog-cafeteria-14nov`
+
+**O que faltava (STATUS-POS-STONE.md de 14/11):** a API da maquininha (`api/integracao/pos/v1`) nasceu antes das formas de pagamento configuráveis (14/11) e seguia com as quatro formas fixas, sem conferir se a loja tinha desligado alguma; o roteiro e o PHPUnit não tinham sido rodados depois da junção.
+
+**Onde cada coisa vive (uma frase):** quem decide quais formas existem é a tela Configurações da loja → Formas de pagamento (`FormaPagamentoService`); a maquininha só pergunta e obedece.
+
+- `GET /me` → `regras.formas_pagamento`: das quatro formas que a maquininha conhece (`dinheiro`, `pix`, `cartao_debito`, `cartao_credito`), **só as ligadas**, com o **nome que a loja deu** (`[{forma, nome}]`). Forma criada pelo lojista (chave `fp_…`) não vai: a maquininha só cobra pelas quatro.
+- `POST vendas/cotar` → forma desligada devolve 422 `{erro: 'A forma de pagamento "PIX" está desligada nesta loja.', forma_desligada: true}`. A cotação acontece ANTES de cobrar na Stone, então ninguém paga para depois estornar. (`PosVendaController::formaDesligada`.)
+- A venda continua passando pelo `PdvController::registrarVenda`, que já normaliza e grava `forma_nome`/`forma_chave` — relatórios, caixa e fechamento enxergam a venda da maquininha com o nome da loja.
+- **Falta no app (APK, repositório `APP-IA365-STONE`, fora deste servidor):** ler `regras.formas_pagamento` para esconder o botão da forma desligada e mostrar o nome. Sem isso o botão aparece e a recusa vem na cotação, com a mensagem acima.
+
+**Roteiro `scripts/validar-pos-stone-28out.sh`** (agora com `DB_NAME` e `APP_CT`): 3 verificações estavam desatualizadas por decisões posteriores — caixa emite pedido como na web (03/11) e, sem NFC-e, sai "RECIBO" (29/10) — e foram corrigidas; bloco 7 novo (formas). **38 ✅ / 0 ❌, 2× com banco recriado.**
+
+---
+
+## BRANCH UNIFICADA DE HOMOLOGAÇÃO — tudo o que está nela em 16/11/2026 (`homolog-cafeteria-14nov`)
+
+**Pedido do Dennis (16/11):** "alinhe tudo… unifica as branches de homologação numa só e suba para o git… alimente bem o docs.md com tudo que mudamos."
+
+**Uma branch só.** `homolog-cafeteria-14nov` é a branch de homologação: tudo o que não está em produção e está pronto para o Dennis ver mora nela, no ar em https://homolog-erp.ia365.com.br (`erp-caf-app`, compose em `/home/ubuntu/erp-cafeteria-homolog`). As branches de origem continuam existindo só como histórico de cada entrega.
+
+### O que tem dentro (além da `main` 8140122 = produção)
+
+| Entrega | Branch de origem | Seção deste docs.md | Em produção? |
+|---|---|---|---|
+| Cafeteria Fase 1 — tipo do produto, ficha técnica, adicionais, atalhos no PDV | `feat/cafeteria-fase1` | "Cafeteria Fase 1" | Não |
+| Maquininha Stone — API do app de vendas (`api/integracao/pos/v1`), venda identificada no financeiro, CPF/CNPJ ao receber, pedido de balcão | `feature/pos-stone-app` | "App POS Stone" + `STATUS-POS-STONE.md` | Não |
+| Maquininha × formas de pagamento configuráveis | (direto na unificada, `1659bb9`) | seção acima | Não |
+| Página de venda `/redes` com o vídeo | `pagina-redes-14nov` | "Página de venda para redes de lojas" | Não |
+| Loja online (e-commerce) — 5 rodadas: vitrine, carrinho, fechamento, PIX/cartão/boleto, editor visual, cupons, grade, reserva, envio, conta do comprador, avaliações, rastreio de visitas, domínio próprio | `ecommerce-14nov` | "Loja online (e-commerce) por empresa" e rodadas | Não |
+| Grade (tamanhos e cores) no cadastro, na lista e no PDV | `ecommerce-14nov` (`d468879`) | "Grade (tamanhos e cores) no dia a dia do ERP" | Não |
+| Cobrança da plataforma pelo caixa.ia365 — faixa, tela Faturas, e-mail/sino, baixa pelo banco, bloqueio | `cobranca-caixa-16nov` (`8e7cc32`) | "Cobrança da plataforma vinda do caixa.ia365" | Não |
+
+**Fora da unificada, de propósito:** `fiado-direto-loja-16nov` (pagamento direto com a loja / fiado, 3 commits de 16/11, de outra sessão) — está em andamento em outra frente e mexe no PDV; entra quando o Dennis mandar juntar.
+
+### Validação da branch unificada (16/11, ambiente descartável `hm-app` com a imagem da homologação + banco `erp_homolog_teste`)
+
+| Bateria | Resultado |
+|---|---|
+| PHPUnit (suíte inteira) | 383 testes, só as 2 falhas antigas (`LoginTest::test_oito_senhas_erradas_travam_o_email`, `PdvTest::test_caixa_fechamento_calculates_correctly`) |
+| Maquininha (`validar-pos-stone-28out.sh`) | 38 ✅ / 0 ❌, 2× |
+| Cobrança do caixa (`validar-cobranca-caixa-16nov.py`) | 86 ✅ / 0 ❌ |
+| Loja online, servidor (`validar-loja-online-14nov.py`) | 572 ✅ / 5 ❌ — as 5 (V33, V39–V42, aba Domínio) têm o IP do ambiente antigo (`10.213.80.4`) escrito no roteiro; no ambiente `ec-app` o mesmo roteiro dá 577 ✅ / 0 ❌ |
+| Loja online, pagamentos simulados | 91 ✅ / 0 ❌ |
+| Loja online + grade, navegador (computador e celular) | 239 ✅ / 0 ❌ |
+
+**Armadilhas de montar ambiente de teste para a unificada**
+- Usar a imagem `erp-caf-app:latest` (tem o `vendor` da branch), não a de produção; o container roda `migrate` sozinho ao subir — esperar terminar antes de `migrate:fresh` (rodar junto quebra com tabela inexistente).
+- A loja online precisa de `LOJA_ONLINE_DOMINIO_BASE=lojas.teste` e `LOJA_ONLINE_HOSTS_ERP=<ip do container>,localhost` no ambiente; sem elas os testes de subdomínio (bloco M) falham todos.
+- Os roteiros da loja têm o banco `erp_teste` e o IP `10.213.80.4` escritos no texto: para outro ambiente, copiar com `sed` trocando o banco; o roteiro de navegador lê os `.php` irmãos (copiar a família `validar-loja-online-*` inteira).
+- A cobrança precisa de `CAIXA_IA365_TOKEN` no ambiente do container de teste.
+
+### Para levar à produção (só com ordem do Dennis — nada disto foi feito)
+1. Decidir o que vai: a unificada inteira ou uma entrega por vez (a página `/redes` e a cobrança do caixa saem sozinhas das suas branches, direto sobre a `main`).
+2. Guardar a imagem no ar (`docker tag`), build com `-f docker-compose.prod.yml`, `migrate --force`.
+3. `.env` de produção: `CAIXA_IA365_TOKEN` (cobrança), `LOJA_ONLINE_*` (loja online), e as chaves que cada seção lista.
+4. caixa.ia365: branch `feat/vinculo-erp-16nov` (§18.74 do docs.md de lá), junto com a §18.73.
+5. App da maquininha: release só funciona com a API em produção (ver `STATUS-POS-STONE.md`).
