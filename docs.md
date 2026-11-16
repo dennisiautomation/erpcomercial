@@ -56,6 +56,8 @@
 9aj. [Contas a Pagar para despesa de pessoal — Fase 1 (10/11/2026)](#contas-a-pagar-para-despesa-de-pessoal--fase-1-10112026--branch-folha-contas-pagar-10nov)
 9ak. [Folha de Pagamento — Fase 2 (10/11/2026)](#folha-de-pagamento--fase-2-10112026--branch-folha-contas-pagar-10nov)
 9al. [DRE com pessoal e competência, fluxo programado e despesas por centro de custo — Fase 3 (10/11/2026)](#dre-com-pessoal-e-competência-fluxo-programado-e-despesas-por-centro-de-custo--fase-3-10112026--branch-folha-contas-pagar-10nov)
+9am. [Formas de pagamento configuráveis (14/11/2026)](#formas-de-pagamento-configuráveis-14112026--branch-formas-pagamento-14nov)
+9an. [Fiado / pagamento parcelado direto com a loja (16/11/2026)](#fiado--pagamento-direto-com-a-loja-16112026--branch-fiado-direto-loja-16nov-em-produção-16112026-0710-brt)
 10. [Armadilhas conhecidas](#armadilhas-conhecidas)
 11. [Próximos passos](#próximos-passos)
 
@@ -6665,7 +6667,22 @@ Lote de correções na branch `fix/auditoria-bugs-mai2026`, após varredura de s
     artisan serve` NÃO desliga o opcache do servidor — o `artisan serve` abre um `php -S` filho sem os `-d`; o que funciona é
     `cd public && php -d opcache.enable=0 -S 0.0.0.0:PORTA ../vendor/laravel/framework/src/Illuminate/Foundation/resources/server.php`.
 
+103. **`User::hasPermission()` é legado quebrado** — `perfilModel()` faz `belongsTo(Perfil::class)`, mas `Perfil` é ENUM:
+     para quem não é admin/dono dá 500 ("Cannot instantiate enum App\Enums\Perfil"). Usar sempre
+     `CheckPermission::canUser($user, $modulo, $acao)` (achado no fiado, 16/11/2026).
+104. **Nome de forma de pagamento nunca fixo na tela** — o botão "crediário" é "FIADO" numa loja e "Crediário" em outra.
+     Texto visível usa `FiadoService::nome($empresaId)` (ou `forma_nome` gravado); código/rota/tabela podem dizer "fiado".
+     Regra do Dennis, 16/11/2026.
+
 ## Próximos passos
+
+### Fiado / pagamento parcelado direto com a loja (16/11/2026) — em produção, pendências
+1. **N S BORBA (empresa 6):** venda PDV #123 / conta 14798 (R$ 550, cliente DEUZA PIZARIA DIFERENCIAL) gravada `paga` pelo
+   código antigo — voltar para `pendente` só com o ok do Dennis. Três clientes com limite pequeno (id 3452 = R$ 1,00, outro
+   R$ 3,00, outro R$ 50,00) barram o FIADO até a loja ajustar o cadastro (0 = sem limite).
+2. **Desfazer recebimento** (estorno do `fiado_recebimentos` + saída no caixa) — hoje só pelo suporte.
+3. **Vencimento e parcelas na venda balcão e no faturar pedido** (hoje 1 parcela, +30 dias).
+4. Aviso no sino / WhatsApp de parcela vencida — não pedido ainda.
 
 ### Despesa de pessoal no financeiro (10/11/2026) — pedido do Dennis
 Onde cada coisa vive: **a folha gera contas no Contas a Pagar; Fluxo de Caixa, Centro de Custo e DRE só LEEM o Contas a Pagar.**
@@ -8822,6 +8839,17 @@ interno (classe, rota `app/fiado`, tabela) segue com "fiado" — o usuário não
 - **O que NÃO muda:** nota fiscal (crediário segue `05`), tabela de preço, relatórios por forma, contas antigas do crediário
   (já `paga`, não viram dívida). `User::hasPermission` é legado quebrado (`perfilModel` aponta para o enum) — usar
   `CheckPermission::canUser`.
+
+### Como a loja usa (resumo; manual completo na área 13)
+1. (Opcional) Configurações da Loja → Formas de pagamento: dar ao botão "Crediário" o nome da loja (FIADO, Carnê...).
+2. (Opcional) Cliente → Editar → Contato: **Limite de Crédito** (0 = sem limite).
+3. PDV: itens → botão do crediário → escolher o cliente (obrigatório) → 1º vencimento + parcelas → Confirmar. Entrada: pagamento
+   dividido (a entrada vai ao caixa, o resto fica em aberto). Cupom traz vencimentos e assinatura.
+4. Receber: botão "Receber <nome>" no PDV ou Vendas → "<nome> — quem me deve" → Ver e receber. Precisa do caixa aberto de quem
+   recebe; aceita parcial; recibo impresso.
+5. Caixa: a venda no crediário fica em "Vendas por forma" como "não entra na gaveta" e não é conferida; o recebido em dinheiro
+   soma no esperado da gaveta, em PIX/cartão soma no esperado da conferência daquela forma; extrato mostra "Recebimento de
+   cliente"; comprovante do fechamento tem o quadro "<nome> recebido de clientes".
 
 ### Arquivos
 Novos: `FiadoService`, `FiadoController`, `FiadoRecebimento`, views `app/fiado/{index,cliente,recibo}`, migration
