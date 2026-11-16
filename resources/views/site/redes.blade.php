@@ -518,7 +518,7 @@ html.js .rv.in{opacity:1;transform:none}
         <a class="pill pill--wa" href="{{ $wa }}" target="_blank" rel="noopener">{!! $zap !!} Chamar no WhatsApp</a>
         <a class="pill pill--onDark" href="#demo">Agendar demonstração</a>
       </div>
-      <p class="h3__preco">A partir de <b>R$ 590 por mês</b> para a rede toda. Resposta no mesmo dia.</p>
+      <p class="h3__preco">A partir de <b>R$ 590 por mês</b>. Resposta no mesmo dia.</p>
       <ul class="h3__canais">
         <li><b>Maquininha Stone</b>venda no corredor da loja</li>
         <li><b>Loja online</b>com o estoque das lojas</li>
@@ -625,8 +625,8 @@ html.js .rv.in{opacity:1;transform:none}
       <video id="vd" preload="none" playsinline controls poster="{{ asset('site/redes/video-capa.jpg') }}" width="1280" height="720">
         <source src="{{ asset('site/redes/erp-redes.mp4') }}" type="video/mp4">
       </video>
-      <button class="vid__play" id="vdPlay" type="button" aria-label="Assistir ao vídeo de 58 segundos">
-        <span class="vid__tri" aria-hidden="true"></span><span>Assistir · 58 s</span>
+      <button class="vid__play" id="vdPlay" type="button" aria-label="Assistir ao vídeo de 57 segundos">
+        <span class="vid__tri" aria-hidden="true"></span><span>Assistir · 57 s</span>
       </button>
     </div>
     <p class="vid__nota">Com narração e legenda. Dá para assistir sem som.</p>

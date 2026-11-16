@@ -10042,3 +10042,13 @@ O caixa NÃO muda de alvo sozinho: o endereço e o segredo do ERP estão fixos e
 - Tela para o próprio lojista pôr as chaves de pagamento da loja online (hoje só o admin, em empresa → Integração).
 - Texto do topo do site: "A partir de R$ 590 por mês para a rede toda" × Básico = 1 loja.
 - Página inicial de PRODUÇÃO continua a V2; o site novo na inicial está só na homologação.
+
+### Preço "a partir de", sem "para a rede toda" (16/11/2026)
+
+**Decisão do Dennis (16/11):** "os 590 para toda a rede é complicado… tenho outros planos, então é a partir". O plano de R$ 590 (Básico) permite 1 loja; rede de até 3 lojas é o Profissional (R$ 920).
+
+- **Página (`site/redes.blade.php`, topo):** "A partir de R$ 590 por mês. Resposta no mesmo dia." (antes: "…para a rede toda").
+- **Vídeo do site (`public/site/redes/erp-redes.mp4`):** última fala regravada com a mesma voz (Gabriel Reels) sem "para a rede toda"; a tela mostra "plano pelo nº de lojas". O vídeo passou de 58 s para 57 s; o botão diz "Assistir · 57 s". Fonte em `/home/ubuntu/video-tutorial/redes2/` (áudio anterior guardado em `audio-antes-16nov/`, cenas anteriores em `index-antes-16nov.html`).
+- **Regra para todo material de venda:** preço sempre "a partir de R$ 590 por mês", nunca "para a rede toda".
+- **Vídeos de rede social (16/11):** cinco verticais 1080×1920 em `/home/ubuntu/video-tutorial/social/` (3 anúncios com voz Gabriel Reels, 2 postagens com voz Roberta Casual), todos com a cena "ERP Comercial: tudo num sistema só" (caixa, estoque, nota fiscal, maquininha, loja virtual e atendente de IA). Textos das publicações em `social/textos-das-postagens.md`. Ficam fora do repositório. O Dennis pediu "loja virtual" no lugar de "loja online" nesses vídeos.
+- **Stone Partner Program (termo de adesão lido em 16/11):** a parceria é gratuita dos dois lados (cláusula 4) e a indicação de lojista é "a título gratuito"; a receita da IA365 é a mensalidade do ERP, cobrada do lojista. Condições comerciais da "Loja Stone" não constam do termo.
