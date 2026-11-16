@@ -4,10 +4,10 @@
 #   BASE=http://127.0.0.1:8097 DB_CT=erp-val-...-mysql ./scripts/validar-pos-stone-28out.sh
 # Nada sai para a Stone: o "retorno da Stone" é montado aqui (ATK/valor), como o app manda.
 set -u
-BASE=${BASE:-http://127.0.0.1:8097}; DB_CT=${DB_CT:-posval-mysql}
+BASE=${BASE:-http://127.0.0.1:8097}; DB_CT=${DB_CT:-posval-mysql}; DB_NAME=${DB_NAME:-erp_teste}; APP_CT=${APP_CT:-}
 U=$BASE/api/integracao/pos/v1; OK=0; FAIL=0
 check() { if [ "$2" = "1" ]; then OK=$((OK+1)); echo "✅ $1"; else FAIL=$((FAIL+1)); echo "❌ $1  (obtido: ${3:-})"; fi; }
-sql() { docker exec "$DB_CT" mysql -uerp -perp erp_teste -N -B -e "$1" 2>/dev/null; }
+sql() { docker exec "$DB_CT" mysql -uerp -perp "$DB_NAME" -N -B -e "$1" 2>/dev/null; }
 j() { python3 -c "import sys,json
 try: d=json.load(sys.stdin)
 except Exception: print(''); sys.exit()
@@ -30,7 +30,7 @@ check "senha errada → 422" "$([ "$(postc /auth/login '{"email":"caixa@demo.com
 check "sem token → 401" "$([ "$(curl -s -o /dev/null -w '%{http_code}' "$U/me")" = 401 ] && echo 1)"
 check "token só guardado como sha256" "$([ "$(sql "select count(*) from pos_tokens where token_hash='$TC'")" = 0 ] && [ "$(sql "select count(*) from pos_tokens where dispositivo_serial='VAL-POS-1'")" -ge 1 ] && echo 1)"
 ME=$(get /me "$TC")
-check "/me: caixa vende e NÃO emite pedido (matriz do ERP)" "$([ "$(echo "$ME" | j permissoes.vender)" = true ] && [ "$(echo "$ME" | j permissoes.emitir_pedido)" = false ] && echo 1)" "$ME"
+check "/me: caixa vende e emite pedido, como na web (03/11)" "$([ "$(echo "$ME" | j permissoes.vender)" = true ] && [ "$(echo "$ME" | j permissoes.emitir_pedido)" = true ] && echo 1)" "$ME"
 
 echo "== 2. Catálogo e caixa"
 P=$(get '/produtos' "$TC"); PID=$(echo "$P" | j produtos.0.id); PRECO=$(echo "$P" | j produtos.0.precos.dinheiro_pix)
@@ -58,7 +58,7 @@ check "reenvio com a mesma chave devolve a MESMA venda (repetida)" "$([ "$(echo 
 check "uma venda só no banco" "$([ "$(sql "select count(*) from vendas")" = "$((ANT+1))" ] && echo 1)"
 PG=$(sql "select json_unquote(json_extract(pagamento_detalhes,'\$[0].bandeira')), json_unquote(json_extract(pagamento_detalhes,'\$[0].cnpj_credenciadora')), json_unquote(json_extract(pagamento_detalhes,'\$[0].stone_atk')) from vendas where id=$VID")
 check "venda guarda bandeira NFC-e (02), CNPJ da Stone e ATK" "$([ "$PG" = "$(printf '02\t16501555000157\tVALATK1')" ] && echo 1)" "$PG"
-check "cupom em linhas para a térmica" "$(echo "$R1" | j cupom | grep -q 'CUPOM N' && echo 1)"
+check "recibo em linhas para a térmica (sem NFC-e sai RECIBO, 29/10)" "$(echo "$R1" | j cupom | grep -q 'RECIBO' && echo 1)"
 DIV="{\"chave\":\"$(uuid)\",\"itens\":[{\"produto_id\":$PID,\"quantidade\":2}],\"pagamento\":{\"forma\":\"cartao_debito\",\"valor_base\":$BASEV,\"stone\":{\"atk\":\"VALATK2\",\"valor_centavos\":1}}}"
 RD=$(post /vendas "$DIV" "$TC")
 check "Stone ≠ total → 409 com estornar=true e nada gravado" "$([ "$(echo "$RD" | j estornar)" = true ] && [ "$(sql "select count(*) from vendas")" = "$((ANT+1))" ] && echo 1)" "$RD"
@@ -73,7 +73,7 @@ check "estorno lançado no caixa" "$([ "$(sql "select count(*) from movimentacoe
 echo "== 5. Pedido: perfil, emissão, recebimento"
 CLI=$(sql "select id from clientes where empresa_id=1 order by id limit 1" | head -1 | tr -d "[:space:]")
 C403=$(postc /pedidos "{\"chave\":\"$(uuid)\",\"cliente_id\":$CLI,\"itens\":[{\"produto_id\":$PID,\"quantidade\":1}]}" "$TC")
-check "perfil caixa não emite pedido (403)" "$([ "$C403" = 403 ] && echo 1)" "$C403"
+check "perfil caixa emite pedido, como na web (03/11) — não é mais 403" "$([ "$C403" = 200 ] || [ "$C403" = 201 ] && echo 1)" "$C403"
 postc /caixa/abrir '{"valor_abertura":50}' "$TG" >/dev/null
 RP=$(post /pedidos "{\"chave\":\"$(uuid)\",\"cliente_id\":$CLI,\"confirmar\":true,\"itens\":[{\"produto_id\":$PID,\"quantidade\":3}]}" "$TG")
 PEDID=$(echo "$RP" | j pedido.id); PT=$(echo "$RP" | j pedido.total_centavos)
@@ -95,5 +95,34 @@ echo "== 6. Log de atividade (contrato Stone, 180 dias)"
 RE=$(post /eventos '{"eventos":[{"tipo":"stone_pagamento_recusado","mensagem":"Senha invalida"}]}' "$TC")
 check "eventos do app gravados" "$([ "$(echo "$RE" | j gravados)" = 1 ] && [ "$(sql "select count(*) from pos_eventos where tipo='app_stone_pagamento_recusado'")" -ge 1 ] && echo 1)" "$RE"
 check "login e venda registrados no log" "$([ "$(sql "select count(*) from pos_eventos where tipo in ('login','venda_registrada','venda_cancelada')")" -ge 3 ] && echo 1)"
+
+echo "== 7. Formas de pagamento configuráveis (16/11) — precisa de APP_CT (container do app)"
+if [ -n "$APP_CT" ]; then
+  php_app() { { echo "<?php require '/var/www/vendor/autoload.php'; \$app = require '/var/www/bootstrap/app.php'; \$app->make(Illuminate\\Contracts\\Console\\Kernel::class)->bootstrap();"; cat; } | docker exec -i "$APP_CT" php; }
+  F=$(get /me "$TC" | j regras.formas_pagamento)
+  check "/me lista as 4 formas quando a loja não mexeu em nada" "$([ "$(echo "$F" | python3 -c 'import sys,json;print(sorted(x["forma"] for x in json.load(sys.stdin)))')" = "['cartao_credito', 'cartao_debito', 'dinheiro', 'pix']" ] && echo 1)" "$F"
+  php_app <<'PHP' >/dev/null
+$s = app(App\Services\FormaPagamentoService::class);
+$s->salvar(1, $s->todas(1)->map(fn ($f) => ['chave' => $f->chave, 'nome' => $f->chave === 'cartao_debito' ? 'Débito na hora' : $f->nome, 'tipo' => $f->tipo, 'icone' => $f->icone, 'cor' => $f->cor, 'largura' => $f->largura, 'ativo' => $f->chave !== 'pix'])->all());
+PHP
+  F=$(get /me "$TC" | j regras.formas_pagamento)
+  check "loja desligou o PIX: some da lista da maquininha" "$([ "$(echo "$F" | python3 -c 'import sys,json;print(sorted(x["forma"] for x in json.load(sys.stdin)))')" = "['cartao_credito', 'cartao_debito', 'dinheiro']" ] && echo 1)" "$F"
+  check "e a forma renomeada chega com o nome da loja" "$([ "$(echo "$F" | python3 -c 'import sys,json;print([x["nome"] for x in json.load(sys.stdin) if x["forma"]=="cartao_debito"][0])')" = "Débito na hora" ] && echo 1)" "$F"
+  ANT=$(sql "select count(*) from vendas")
+  CX=$(post /vendas/cotar "{\"itens\":[{\"produto_id\":$PID,\"quantidade\":1}],\"pagamento\":{\"forma\":\"pix\"}}" "$TC")
+  check "cotar no PIX desligado é recusado ANTES de cobrar na Stone" "$([ "$(echo "$CX" | j forma_desligada)" = true ] && echo "$CX" | grep -q 'desligada nesta loja' && [ "$(sql "select count(*) from vendas")" = "$ANT" ] && echo 1)" "$CX"
+  CD=$(post /vendas/cotar "{\"itens\":[{\"produto_id\":$PID,\"quantidade\":1}],\"pagamento\":{\"forma\":\"cartao_debito\"}}" "$TC")
+  check "cotar no débito (ligado) continua funcionando" "$([ -n "$(echo "$CD" | j total_centavos)" ] && echo 1)" "$CD"
+  KD=$(uuid); TD=$(echo "$CD" | j total_centavos); BD=$(echo "$CD" | j valor_base)
+  RD=$(post /vendas "{\"chave\":\"$KD\",\"itens\":[{\"produto_id\":$PID,\"quantidade\":1}],\"pagamento\":{\"forma\":\"cartao_debito\",\"valor_base\":$BD,\"stone\":{\"atk\":\"VALATK7\",\"autorizacao\":\"777777\",\"bandeira\":\"VISA\",\"valor_centavos\":$TD}}}" "$TC")
+  VD=$(echo "$RD" | j venda.id)
+  check "venda no débito guarda o nome que a loja deu à forma" "$([ -n "$VD" ] && [ "$(echo "$RD" | j venda.pagamentos.0.forma_nome)" = "Débito na hora" ] && [ "$(sql "select json_unquote(json_extract(pagamento_detalhes,'\$[0].forma_chave')) from vendas where id=$VD")" = "cartao_debito" ] && echo 1)" "$RD"
+  php_app <<'PHP' >/dev/null
+app(App\Services\FormaPagamentoService::class)->restaurarPadrao(1);
+PHP
+  check "restaurado o padrão, o PIX volta para a maquininha" "$(get /me "$TC" | j regras.formas_pagamento | grep -q '"pix"' && echo 1)"
+else
+  echo "   (pulado: informe APP_CT)"
+fi
 
 echo; echo "Resultado: $OK ✅  $FAIL ❌"; [ "$FAIL" = 0 ]

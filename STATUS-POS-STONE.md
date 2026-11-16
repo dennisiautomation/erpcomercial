@@ -1,6 +1,6 @@
 # Status dos projetos — maquininha Stone (JL Expresso e IA365)
 
-Atualizado em **14/11/2026**. Este arquivo é o mesmo nos três repositórios.
+Atualizado em **16/11/2026** (bloco do ERP Comercial; os dos apps seguem como em 14/11). Este arquivo é o mesmo nos três repositórios.
 
 | Projeto | Repositório | Branch atual | Situação |
 |---|---|---|---|
@@ -47,10 +47,13 @@ Falta:
 - **Produção:** `https://erp.ia365.com.br` ainda responde 404 nessas rotas.
 - **Documentação:** `docs.md`, bloco "Atualização 14/11/2026" dentro de "App POS Stone".
 
+Feito em 16/11/2026 (na branch unificada `homolog-cafeteria-14nov`, no ar na homologação):
+- Encaixe com as formas de pagamento configuráveis: `GET /me` devolve `regras.formas_pagamento` (das quatro formas da maquininha, só as ligadas na loja, com o nome que a loja deu) e `POST vendas/cotar` recusa a forma desligada (`forma_desligada: true`, 422) antes de cobrar na Stone. A venda guarda `forma_nome`/`forma_chave`.
+- Roteiro `scripts/validar-pos-stone-28out.sh` atualizado (caixa emite pedido, recibo no lugar de cupom, bloco 7 das formas): 38 ✅ / 0 ❌, 2×.
+
 Falta:
-1. Merge da `main` de 14/11 (formas de pagamento configuráveis por empresa) na branch. O POS ainda usa as quatro formas fixas; esse encaixe precisa ser conferido.
-2. Rodar PHPUnit e o roteiro de validação (não rodados em 14/11).
-3. Deploy em produção com as migrations `pos_*`.
+1. **App (APK):** ler `regras.formas_pagamento` do `/me` para esconder o botão da forma desligada e mostrar o nome da loja. Enquanto o app não fizer isso, a forma desligada aparece no app e é recusada com mensagem na hora de cotar (ninguém é cobrado).
+2. Deploy em produção com as migrations `pos_*`.
 
 ## Maquininhas de teste (Stone Code de teste 206192723)
 

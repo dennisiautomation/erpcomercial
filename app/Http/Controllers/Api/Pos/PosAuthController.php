@@ -169,6 +169,12 @@ class PosAuthController extends Controller
                 'emite_nfce' => (bool) ($fiscal?->emissao_fiscal_ativa && $fiscal?->emite_nfce),
                 'cpf_emite_fiscal' => (bool) $configLoja->cpf_emite_fiscal,
                 'cupom_automatico_cartao' => (bool) $configLoja->cupom_automatico_cartao,
+                // Formas de pagamento configuráveis (14/11): das quatro que a maquininha conhece,
+                // só as LIGADAS em Configurações da loja → Formas de pagamento, com o nome que a
+                // loja deu. O app esconde o botão da desligada; se mandar assim mesmo, cotar recusa.
+                'formas_pagamento' => app(\App\Services\FormaPagamentoService::class)->ativas($empresaId)
+                    ->filter(fn ($f) => in_array($f->chave, ['dinheiro', 'pix', 'cartao_debito', 'cartao_credito'], true))
+                    ->map(fn ($f) => ['forma' => $f->chave, 'nome' => $f->nome])->values(),
             ],
         ]);
     }

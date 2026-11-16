@@ -71,6 +71,10 @@ class PosVendaController extends Controller
             return $erro;
         }
 
+        if ($erro = $this->formaDesligada($request)) {
+            return $erro;
+        }
+
         $base = $this->valorBase($request, $tabelas);
         $forma = $request->input('pagamento.forma');
         $parcelas = $forma === 'cartao_credito' ? max(1, (int) $request->input('pagamento.parcelas', 1)) : null;
@@ -301,6 +305,21 @@ class PosVendaController extends Controller
     }
 
     // ─── Internos ───
+
+    /**
+     * Forma desligada em Configurações da loja → Formas de pagamento: recusa na COTAÇÃO,
+     * que acontece antes de cobrar na Stone (ninguém paga para depois precisar estornar).
+     */
+    private function formaDesligada(Request $request): ?JsonResponse
+    {
+        $forma = (string) $request->input('pagamento.forma');
+        if (app(\App\Services\FormaPagamentoService::class)->resolver((int) session('empresa_id'), $forma)) {
+            return null;
+        }
+        $nome = \App\Services\FormaPagamentoService::ROTULOS[$forma] ?? $forma;
+
+        return response()->json(['erro' => "A forma de pagamento \"{$nome}\" está desligada nesta loja.", 'forma_desligada' => true], 422);
+    }
 
     /** Soma dos itens na tabela de preço da forma, já com os descontos: o `valor` que o PDV espera. */
     private function valorBase(Request $request, TabelaPrecoService $tabelas): float
