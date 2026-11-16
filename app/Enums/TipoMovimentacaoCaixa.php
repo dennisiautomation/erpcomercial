@@ -30,7 +30,7 @@ enum TipoMovimentacaoCaixa: string
             self::Fechamento => 'Fechamento',
             self::Devolucao => 'Devolução',
             self::Estorno => 'Estorno de venda',
-            self::Recebimento => 'Recebimento de fiado',
+            self::Recebimento => 'Recebimento de cliente',
         };
     }
 

@@ -413,7 +413,7 @@
     {{-- Fiado pago pelos clientes neste caixa (16/11/2026) --}}
     @if(($resumo['recebimentos'] ?? 0) > 0)
     <div class="formas-box">
-        <div class="formas-title"><i class="bi bi-cash-coin me-1"></i> Fiado recebido de clientes</div>
+        <div class="formas-title"><i class="bi bi-cash-coin me-1"></i> {{ $resumo['nome_direto_loja'] ?? 'Crediário' }} recebido de clientes</div>
         @foreach($resumo['recebimentos_por_forma'] as $forma => $valor)
             @php $ehDinheiro = ($resumo['codigo_da_linha'][$forma] ?? $forma) === 'dinheiro'; @endphp
             <div class="forma-row {{ $ehDinheiro ? 'destaque' : '' }}">
@@ -428,7 +428,7 @@
     <div class="valor-esperado">
         <div class="label">Valor Esperado em Dinheiro (gaveta)</div>
         <div class="amount">R$ {{ number_format($valorEsperado, 2, ',', '.') }}</div>
-        <div class="hint">Abertura + vendas em dinheiro{{ ($resumo['recebimentos_dinheiro'] ?? 0) > 0 ? ' + fiado recebido em dinheiro' : '' }} + suprimentos − sangrias. PIX e cartão não contam aqui.</div>
+        <div class="hint">Abertura + vendas em dinheiro{{ ($resumo['recebimentos_dinheiro'] ?? 0) > 0 ? ' + ' . ($resumo['nome_direto_loja'] ?? 'Crediário') . ' recebido em dinheiro' : '' }} + suprimentos − sangrias. PIX e cartão não contam aqui.</div>
     </div>
     </div>
 

@@ -2560,7 +2560,7 @@ const PDV = {
         // Escolhido o cliente, o modal de pagamento reabre sozinho.
         if (forma === 'crediario' && !this.clienteId) {
             this._fiadoPendente = { forma, chave, nome };
-            this.showAlert('Venda no ' + (nome || 'fiado') + ' precisa do cliente. Escolha o cliente.', 'warning');
+            this.showAlert('Venda no ' + (nome || 'Crediário') + ' precisa do cliente. Escolha o cliente.', 'warning');
             this.openCliente();
             return;
         }
@@ -2620,7 +2620,7 @@ const PDV = {
         const labelValor = document.querySelector('#valorRecebidoWrap label');
         if (labelValor) {
             labelValor.textContent = forma === 'crediario'
-                ? 'Valor no ' + (nome || 'fiado') + ' (fica devendo)'
+                ? 'Valor no ' + (nome || 'Crediário') + ' (fica devendo)'
                 : (this.acrescimoDe(baseSugerida, forma) > 0
                     ? 'Valor que passa na maquininha'
                     : 'Valor Recebido');
@@ -2858,7 +2858,7 @@ const PDV = {
             const venc = document.getElementById('fiadoVencimento').value;
             if (!venc) { this.showAlert('Informe a data do 1º vencimento.', 'warning'); return; }
             if (this._fiadoSituacao && this._fiadoSituacao.saldo.disponivel !== null && valor > this._fiadoSituacao.saldo.disponivel + 0.005) {
-                this.showAlert('Passa do limite do cliente: pode comprar até ' + this.formatMoney(this._fiadoSituacao.saldo.disponivel) + ' no ' + (this.pagamentoNome || 'fiado') + '.', 'error');
+                this.showAlert('Passa do limite do cliente: pode comprar até ' + this.formatMoney(this._fiadoSituacao.saldo.disponivel) + ' no ' + (this.pagamentoNome || 'Crediário') + '.', 'error');
                 return;
             }
             parcelas = parseInt(document.getElementById('fiadoParcelas').value || '1', 10);

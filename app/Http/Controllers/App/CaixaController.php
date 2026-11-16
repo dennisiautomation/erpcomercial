@@ -108,6 +108,7 @@ class CaixaController extends Controller
             'sangrias'          => $sangrias,
             'devolucoes'        => $devolucoes,
             'recebimentos'           => round((float) $recebimentosPorForma->sum(), 2),
+            'nome_direto_loja'       => \App\Services\FiadoService::nome((int) $caixa->empresa_id), // FIADO, Crediário...
             'recebimentos_por_forma' => $recebimentosPorForma,
             'recebimentos_dinheiro'  => $recebimentosDinheiro,
             'esperado_dinheiro' => round($abertura + $vendasDinheiro + $recebimentosDinheiro + $suprimentos - $sangrias - $devolucoes, 2),

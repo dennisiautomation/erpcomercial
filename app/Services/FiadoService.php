@@ -40,6 +40,37 @@ class FiadoService
         return $forma === self::FORMA;
     }
 
+    /** @var array<int, ?\App\Models\FormaPagamento> botão por empresa (cache do request) */
+    private static array $botoes = [];
+
+    /** Botão "direto com a loja" da empresa (ligado ou não), ou null. */
+    public static function botao(int $empresaId): ?\App\Models\FormaPagamento
+    {
+        if (! array_key_exists($empresaId, self::$botoes)) {
+            // Ligado primeiro (pode ser uma forma criada que "funciona como" direto com a loja); senão o do sistema
+            $todas = app(FormaPagamentoService::class)->todas($empresaId);
+            self::$botoes[$empresaId] = $todas->first(fn ($f) => $f->ativo && $f->codigoGravado() === self::FORMA)
+                ?? $todas->firstWhere('chave', self::FORMA);
+        }
+
+        return self::$botoes[$empresaId];
+    }
+
+    /**
+     * Nome que a loja deu ao botão (FIADO, Crediário, Conta da loja...). Nenhum
+     * texto da tela diz "fiado" fixo: cada empresa vê o nome dela.
+     */
+    public static function nome(int $empresaId): string
+    {
+        return trim((string) self::botao($empresaId)?->nome) ?: FormaPagamentoService::ROTULOS[self::FORMA];
+    }
+
+    /** O botão está ligado (aparece nas vendas)? Sem ele o menu "quem me deve" some. */
+    public static function ligado(int $empresaId): bool
+    {
+        return (bool) self::botao($empresaId)?->ativo;
+    }
+
     /** Contas em aberto do cliente, da mais antiga para a mais nova. */
     public function contasAbertas(int $empresaId, int $clienteId, bool $travar = false): Collection
     {
@@ -90,11 +121,12 @@ class FiadoService
      *
      * @throws \DomainException
      */
-    public function validarVenda(int $empresaId, ?int $clienteId, float $valorFiado, string $nomeForma = 'fiado'): void
+    public function validarVenda(int $empresaId, ?int $clienteId, float $valorFiado, ?string $nomeForma = null): void
     {
         if ($valorFiado <= 0) {
             return;
         }
+        $nomeForma = $nomeForma ?: self::nome($empresaId);
         if (! $clienteId) {
             throw new \DomainException("Venda no \"{$nomeForma}\" precisa do cliente: escolha o cliente antes de finalizar.");
         }
@@ -130,13 +162,13 @@ class FiadoService
         try {
             $d = Carbon::createFromFormat('Y-m-d', trim($data))->startOfDay();
         } catch (\Throwable) {
-            throw new \DomainException('Data de vencimento do fiado inválida.');
+            throw new \DomainException('Data do 1º vencimento inválida.');
         }
         if ($d->lt(now()->startOfDay())) {
-            throw new \DomainException('O vencimento do fiado não pode ser antes de hoje.');
+            throw new \DomainException('O 1º vencimento não pode ser antes de hoje.');
         }
         if ($d->gt(now()->startOfDay()->addYear())) {
-            throw new \DomainException('O vencimento do fiado não pode passar de 1 ano.');
+            throw new \DomainException('O 1º vencimento não pode passar de 1 ano.');
         }
 
         return $d;
@@ -154,7 +186,7 @@ class FiadoService
     public function criarContas(array $base, string $prefixo, float $total, int $parcelas, Carbon $primeiro, ?ContaReceber $reaproveitar = null): array
     {
         $parcelas = max(1, min(self::MAX_PARCELAS, $parcelas));
-        $nome = (string) ($base['forma_nome'] ?? '') ?: 'Fiado';
+        $nome = (string) ($base['forma_nome'] ?? '') ?: self::nome((int) $base['empresa_id']);
         $valorParcela = round($total / $parcelas, 2);
         $acumulado = 0.0;
         $contas = [];
@@ -225,7 +257,7 @@ class FiadoService
 
             $aberto = round((float) $alvo->sum(fn ($c) => (float) $c->valor - (float) $c->valor_pago), 2);
             if ($aberto <= 0) {
-                throw new \DomainException("{$cliente->nome_razao_social} não tem fiado em aberto.");
+                throw new \DomainException("{$cliente->nome_razao_social} não tem nada em aberto no " . self::nome($empresaId) . '.');
             }
             if ($valor > $aberto + 0.005) {
                 throw new \DomainException(sprintf('O valor (R$ %s) é maior do que o cliente deve (R$ %s).', $this->brl($valor), $this->brl($aberto)));
@@ -249,7 +281,7 @@ class FiadoService
                     'status'      => $quitou ? 'paga' : $conta->status,
                     'pago_em'     => $quitou ? now() : $conta->pago_em,
                     'observacoes' => trim(($conta->observacoes ? $conta->observacoes . "\n" : '')
-                        . sprintf('Recebido R$ %s em %s (recibo de fiado nº %d)', $this->brl($abate), now()->format('d/m/Y H:i'), $numero)),
+                        . sprintf('Recebido R$ %s em %s (recibo de pagamento nº %d)', $this->brl($abate), now()->format('d/m/Y H:i'), $numero)),
                 ]);
 
                 $detalhe[] = [
@@ -272,7 +304,7 @@ class FiadoService
                 'forma_pagamento' => $forma,
                 'forma_chave'     => $pgto['forma_chave'] ?? null,
                 'forma_nome'      => $pgto['forma_nome'] ?? null,
-                'descricao'       => "Recebimento de fiado nº {$numero} — " . mb_substr((string) $cliente->nome_razao_social, 0, 120),
+                'descricao'       => 'Recebimento ' . self::nome($empresaId) . " nº {$numero} — " . mb_substr((string) $cliente->nome_razao_social, 0, 110),
                 'user_id'         => $userId,
             ]);
 

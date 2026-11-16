@@ -824,11 +824,15 @@
                                        href="{{ route('app.trocas.index') }}">Trocas e Vales</a>
                                 </li>
                                 @endif
-                                {{-- Fiado / direto com a loja (16/11/2026) --}}
+                                {{-- Direto com a loja (16/11/2026): com o nome que a loja deu ao botão
+                                     (FIADO, Crediário...) e só enquanto o botão estiver ligado --}}
+                                @php $empMenu = (int) (session('empresa_id') ?? auth()->user()?->empresa_id); @endphp
+                                @if($empMenu && \App\Services\FiadoService::ligado($empMenu))
                                 <li class="nav-item">
                                     <a class="nav-link {{ request()->routeIs('app.fiado.*') ? 'active' : '' }}"
-                                       href="{{ route('app.fiado.index') }}">Fiado — quem me deve</a>
+                                       href="{{ route('app.fiado.index') }}">{{ \Illuminate\Support\Str::limit(\App\Services\FiadoService::nome($empMenu), 18, '') }} — quem me deve</a>
                                 </li>
+                                @endif
                             </ul>
                         </div>
                     </li>

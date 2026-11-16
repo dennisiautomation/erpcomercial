@@ -418,7 +418,7 @@
 @if($contasFiado->isNotEmpty())
 <hr class="line">
 <div class="pagamento">
-    <div class="titulo">{{ $contasFiado->first()->forma_nome ?: 'Fiado' }} — a pagar na loja</div>
+    <div class="titulo">{{ $contasFiado->first()->forma_nome ?: \App\Services\FiadoService::nome((int) $venda->empresa_id) }} — a pagar na loja</div>
     @foreach($contasFiado as $cf)
         <div class="row">
             <span>{{ $cf->total_parcelas > 1 ? $cf->parcela . '/' . $cf->total_parcelas . ' ' : '' }}vence {{ $cf->vencimento?->format('d/m/Y') }}</span>

@@ -357,7 +357,7 @@ class PdvController extends Controller
                     (int) (session('empresa_id') ?? auth()->user()->empresa_id),
                     $request->cliente_id ? (int) $request->cliente_id : null,
                     (float) array_sum(array_map(fn ($p) => (float) $p['valor'], $pgtosFiado)),
-                    (string) ($pgtosFiado[0]['forma_nome'] ?? 'fiado')
+                    ($pgtosFiado[0]['forma_nome'] ?? null) ?: null
                 );
                 foreach ($pgtosFiado as $p) {
                     $fiadoSvc->primeiroVencimento($p['vencimento'] ?? null);

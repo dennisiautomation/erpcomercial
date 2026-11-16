@@ -52,7 +52,7 @@ if (idxFiado >= 0) {
     await sleep(300);
     await print(page, '02-editor-fiado');
     const txt = await page.evaluate(() => document.body.innerText);
-    check('2 editor do FIADO diz "Direto com a loja (fiado / crediário)"', txt.includes('Direto com a loja (fiado / crediário)'));
+    check('2 editor do FIADO diz "Direto com a loja (cliente paga depois)"', txt.includes('Direto com a loja (cliente paga depois)'));
 }
 
 // ---- Cadastro: limite do cliente

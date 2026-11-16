@@ -177,7 +177,7 @@
             </div>
             @php $saldoFiado = app(\App\Services\FiadoService::class)->saldo((int) $cliente->empresa_id, (int) $cliente->id); @endphp
             <div class="info-item">
-                <span class="info-label">Fiado / crediário</span>
+                <span class="info-label">{{ \App\Services\FiadoService::nome((int) $cliente->empresa_id) }} (pagar depois)</span>
                 <span class="info-value {{ $saldoFiado['devendo'] > 0 ? 'text-danger' : '' }}">
                     {{ $saldoFiado['devendo'] > 0 ? 'Deve R$ ' . number_format($saldoFiado['devendo'], 2, ',', '.') : 'Não deve nada' }}
                     @if(\App\Http\Middleware\CheckPermission::canUser(auth()->user(), 'vendas', 'ver'))

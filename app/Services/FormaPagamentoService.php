@@ -29,7 +29,7 @@ class FormaPagamentoService
         'pix'            => 'PIX',
         'boleto'         => 'Boleto',
         // 16/11/2026: fiado — fica em aberto no nome do cliente até ele pagar no caixa
-        'crediario'      => 'Direto com a loja (fiado / crediário)',
+        'crediario'      => 'Direto com a loja (cliente paga depois)',
         'transferencia'  => 'Transferência',
         'vale'           => 'Vale (crédito de troca)',
     ];

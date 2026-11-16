@@ -157,11 +157,11 @@ class ContaReceberController extends Controller
 
     public function baixar(ContaReceber $contaReceber)
     {
-        // Fiado (16/11/2026): o pagamento entra no caixa e gera recibo — pela ficha do cliente
+        // Direto com a loja / fiado (16/11/2026): o pagamento entra no caixa e gera recibo — pela ficha do cliente
         if ($contaReceber->forma_pagamento === \App\Services\FiadoService::FORMA && $contaReceber->cliente_id
             && in_array($contaReceber->status, ['pendente', 'vencida'], true)) {
             return redirect()->route('app.fiado.cliente', $contaReceber->cliente_id)
-                ->with('error', 'Fiado se recebe aqui: informe o valor e como o cliente pagou — entra no caixa e sai o recibo.');
+                ->with('error', 'Esta conta se recebe aqui: informe o valor e como o cliente pagou — entra no caixa e sai o recibo.');
         }
 
         $contaReceber->update([

@@ -139,7 +139,7 @@ for f in fs:
         f["nome"] = "FIADO"
 st, hd, b = dono.post("/app/configuracoes/formas-pagamento", {"formas": json.dumps(fs)}, metodo="PUT")
 check("1. renomear Crediário para FIADO salva", um("SELECT nome FROM formas_pagamento WHERE chave='crediario'") == "FIADO")
-check("2. editor mostra o tipo 'Direto com a loja (fiado / crediário)'", "Direto com a loja (fiado / crediário)" in dono.get("/app/configuracoes/formas-pagamento")[2])
+check("2. editor mostra o tipo 'Direto com a loja (cliente paga depois)'", "Direto com a loja (cliente paga depois)" in dono.get("/app/configuracoes/formas-pagamento")[2])
 
 dono.post("/app/caixa/abrir", {"valor_abertura": "100"})
 caixa_id = um("SELECT id FROM caixas WHERE status='aberto' AND user_id=2 ORDER BY id DESC LIMIT 1")
@@ -226,7 +226,7 @@ st, hd, fch = dono.get("/app/caixa/fechar")
 m = re.search(r'Valor Esperado em Dinheiro.*?R\$ ([\d.,]+)', fch, re.S)
 esp = float(m.group(1).replace(".", "").replace(",", ".")) if m else None
 check("27. esperado em dinheiro na gaveta sobe R$ 100", esperado_antes is not None and esp is not None and abs(esp - esperado_antes - 100) < 0.005, (esperado_antes, esp))
-check("28. fechamento mostra 'Fiado recebido de clientes'", "Fiado recebido de clientes" in fch)
+check("28. fechamento mostra 'FIADO recebido de clientes' (nome da loja)", "FIADO recebido de clientes" in fch)
 conf = fch.split("Conferência das demais formas")[1].split("</form>")[0] if "Conferência das demais formas" in fch else ""
 check("29. conferência NÃO pede para contar o FIADO (não há o que contar)", 'name="contado[crediario]"' not in conf and 'name="contado[pix]"' in conf, conf[:200])
 
@@ -236,7 +236,7 @@ for ch in ["crediario", "vale", "boleto"]:
     st, r = dono.post_json("/app/fiado/cliente/2/receber", {"valor": 10, "chave": ch})
     check(f"31. receber 'em {ch}' é recusado", st == 422, (st, r))
 st, r = dono.post_json("/app/fiado/cliente/1/receber", {"valor": 10, "chave": "pix"})
-check("32. cliente sem fiado: recusado", st == 422 and "não tem fiado" in r.get("error", ""), (st, r))
+check("32. cliente sem fiado: recusado", st == 422 and "não tem nada em aberto no FIADO" in r.get("error", ""), (st, r))
 
 # PIX entra na conferência do PIX
 st, r = dono.post_json("/app/fiado/cliente/2/receber", {"valor": 50, "chave": "pix", "observacoes": "pagou pelo celular"})
@@ -253,7 +253,7 @@ check("34. recibo imprime: cliente, valor, forma, quanto ainda deve, observaçã
 sql(f"UPDATE contas_receber SET vencimento=DATE_SUB(CURDATE(), INTERVAL 5 DAY) WHERE venda_id={v1}")  # Maria com conta vencida
 st, hd, ix = dono.get("/app/fiado")
 check("35. 'Quem me deve' abre e lista Maria e João", st == 200 and "Maria do Fiado" in ix and "João Limite" in ix, st)
-check("36. menu Vendas tem 'Fiado — quem me deve'", "Fiado — quem me deve" in ix)
+check("36. menu Vendas usa o nome da loja: 'FIADO — quem me deve'", "FIADO — quem me deve" in ix and "Fiado — quem me deve" not in ix)
 st, hd, ix2 = dono.get("/app/fiado?vencidos=1")
 check("37. filtro 'só vencidos' mostra Maria e esconde João", "Maria do Fiado" in ix2 and "João Limite" not in ix2)
 st, hd, ix3 = dono.get("/app/fiado?busca=15872934006")
@@ -344,6 +344,19 @@ st, j = dono.get_json("/app/fiado/cliente/99/situacao")
 check("59. cliente de outra empresa: 404", st == 404, st)
 st, r = dono.post_json("/app/fiado/cliente/99/receber", {"valor": 10, "chave": "dinheiro"})
 check("60. receber de cliente de outra empresa: recusado", st in (404, 422), st)
+
+# menu segue o nome do botão e some com o botão desligado
+sql("UPDATE formas_pagamento SET nome='Conta da loja' WHERE chave='crediario'")
+st, hd, ix = dono.get("/app/fiado")
+check("61. renomeado para 'Conta da loja': menu e tela acompanham", "Conta da loja — quem me deve" in ix and "FIADO" not in ix)
+sql("UPDATE formas_pagamento SET ativo=0 WHERE chave='crediario'")
+st, hd, ix = dono.get("/app/dashboard")
+check("62. botão desligado: o menu 'quem me deve' some", "quem me deve" not in ix, st)
+sql("DELETE FROM formas_pagamento")
+st, hd, ix = dono.get("/app/dashboard")
+check("63. empresa com os botões de fábrica: menu 'Crediario — quem me deve'", "Crediario — quem me deve" in ix, st)
+dono.get("/app/configuracoes/formas-pagamento")
+dono.post("/app/configuracoes/formas-pagamento", {"formas": json.dumps(fs)}, metodo="PUT")  # volta o FIADO para o teste do navegador
 
 print(f"\n{ok} ✅ / {falhas} ❌")
 raise SystemExit(1 if falhas else 0)

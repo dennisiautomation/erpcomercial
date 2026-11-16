@@ -83,7 +83,7 @@
             @endforelse
 
             @if(($resumo['recebimentos'] ?? 0) > 0)
-                <div class="pt-3 small text-muted fw-semibold">Fiado recebido de clientes</div>
+                <div class="pt-3 small text-muted fw-semibold">{{ $resumo['nome_direto_loja'] ?? 'Crediário' }} recebido de clientes</div>
                 @foreach($resumo['recebimentos_por_forma'] as $forma => $valor)
                     <div class="d-flex justify-content-between py-1">
                         <span>{{ $resumo['rotulos_forma'][$forma] ?? ucfirst($forma) }}</span>

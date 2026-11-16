@@ -63,10 +63,10 @@ class VendaCancelamentoService
             ->where('venda_id', $venda->id)
             ->where('forma_pagamento', \App\Services\FiadoService::FORMA)
             ->where('valor_pago', '>', 0)
-            ->where('observacoes', 'like', '%recibo de fiado%')
+            ->where('observacoes', 'like', '%(recibo de pagamento nº%')
             ->exists();
         if ($fiadoPago) {
-            throw new VendaNaoCancelavelException('O cliente já pagou parte do fiado desta venda — não dá para cancelar por inteiro. Use a troca/devolução, que abate do que ele ainda deve.');
+            throw new VendaNaoCancelavelException('O cliente já pagou parte desta venda (paga direto com a loja) — não dá para cancelar por inteiro. Use a troca/devolução, que abate do que ele ainda deve.');
         }
 
         // O que a venda lançou no caixa volta pelo estorno. Caixa da venda

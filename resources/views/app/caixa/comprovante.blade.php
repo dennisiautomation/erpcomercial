@@ -107,7 +107,7 @@
 <div class="row total"><span>TOTAL VENDIDO</span><span class="v">{{ $brl($resumo['vendas']) }}</span></div>
 @if(($resumo['recebimentos'] ?? 0) > 0)
 <hr class="line">
-<div class="secao">Fiado recebido de clientes</div>
+<div class="secao">{{ $resumo['nome_direto_loja'] ?? 'Crediário' }} recebido de clientes</div>
 @foreach($resumo['recebimentos_por_forma'] as $forma => $valor)
     <div class="row"><span>{{ $resumo['rotulos_forma'][$forma] ?? ucfirst(str_replace('_', ' ', $forma)) }}</span><span class="v">{{ $brl($valor) }}</span></div>
 @endforeach
@@ -131,7 +131,7 @@
 <div class="row"><span>Abertura (troco inicial)</span><span class="v">{{ $brl($resumo['abertura']) }}</span></div>
 <div class="row"><span>Vendas em dinheiro</span><span class="v">+ {{ $brl($resumo['vendas_dinheiro']) }}</span></div>
 @if(($resumo['recebimentos_dinheiro'] ?? 0) > 0)
-<div class="row"><span>Fiado recebido (dinheiro)</span><span class="v">+ {{ $brl($resumo['recebimentos_dinheiro']) }}</span></div>
+<div class="row"><span>{{ $resumo['nome_direto_loja'] ?? 'Crediário' }} recebido (dinheiro)</span><span class="v">+ {{ $brl($resumo['recebimentos_dinheiro']) }}</span></div>
 @endif
 <div class="row"><span>Suprimentos</span><span class="v">+ {{ $brl($resumo['suprimentos']) }}</span></div>
 <div class="row"><span>Sangrias</span><span class="v">- {{ $brl($resumo['sangrias']) }}</span></div>

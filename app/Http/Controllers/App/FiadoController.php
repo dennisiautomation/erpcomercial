@@ -134,7 +134,7 @@ class FiadoController extends Controller
 
         $caixa = app(LancamentoCaixaService::class)->caixaAbertoDoUsuario((int) session('unidade_id'), (int) auth()->id());
         if (! $caixa) {
-            return $erro('Abra o caixa antes de receber: o pagamento do fiado entra no caixa.');
+            return $erro('Abra o caixa antes de receber: o pagamento entra no caixa.');
         }
 
         try {
@@ -176,8 +176,6 @@ class FiadoController extends Controller
     /** Nome que a empresa deu ao botão (FIADO, Crediário...). */
     private function nomeDaForma(int $empresaId): string
     {
-        $f = app(FormaPagamentoService::class)->todas($empresaId)->firstWhere('chave', FiadoService::FORMA);
-
-        return $f?->nome ?: 'Fiado';
+        return FiadoService::nome($empresaId);
     }
 }
