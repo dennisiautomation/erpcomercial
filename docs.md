@@ -9806,3 +9806,10 @@ Migration `2026_11_16_180000_plataforma_faturas_caixa_ia365` (aditiva): `platafo
 3. `.env` de produção: `CAIXA_IA365_TOKEN` (cobrança), `LOJA_ONLINE_*` (loja online), e as chaves que cada seção lista.
 4. caixa.ia365: branch `feat/vinculo-erp-16nov` (§18.74 do docs.md de lá), junto com a §18.73.
 5. App da maquininha: release só funciona com a API em produção (ver `STATUS-POS-STONE.md`).
+
+### No ar na homologação (16/11/2026 07:12 BRT)
+- `erp-caf-app:1659bb9` (imagem `5661b584bcf9`), código da unificada em `1659bb9`; anterior `erp-caf-app:1a6000d` (`src-1a6000d`) e, antes dela, `a151766`; backup `backups/pre-unificada-20261116.sql.gz`. Nenhuma migration nova nesta subida.
+- **Conferido no próprio site depois de subir:** `/`, `/redes`, `/login`, `/loja/demo` 200; API da maquininha — login do operador, `/me` com `regras.formas_pagamento` (4 formas) e `emitir_pedido`, catálogo com 30 produtos; faixa da fatura, menu e tela Faturas em 1366 e 390 px; Produtos, PDV, Loja online e Meu Plano 200; sem erro de JavaScript.
+- **Roteiro de cliques da cafeteria** (`/home/ubuntu/erp-cafeteria-homolog/roteiro-cafeteria.mjs`) na homologação: **41 ✅ / 0 ❌**. A senha de `caixa@cafe.demo` foi trocada em 14/11 (uso real do Dennis na maquininha) e não foi mexida: o roteiro rodou com `caixa-roteiro@cafe.demo`, criado para isso e deixado INATIVO.
+- **Não provado:** o app da maquininha (APK) num aparelho de verdade contra esta versão — o que foi conferido é a API que ele chama; PIX/boleto reais do Inter; e-mail saindo por SMTP (a homologação é `MAIL_MAILER=log`).
+- **GitHub:** `homolog-cafeteria-14nov` enviada em 16/11 com tudo acima.
