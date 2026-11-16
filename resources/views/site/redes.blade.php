@@ -173,6 +173,23 @@ h1,h2,h3{letter-spacing:-.015em;text-wrap:balance}
 .steps b{font-size:1.08rem}
 .steps span{color:var(--ink2);font-size:.97rem}
 
+/* planos (vêm do cadastro de Planos do admin) */
+.plans__head{max-width:46rem;margin-bottom:2rem}
+.plans{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1.1rem;align-items:stretch}
+.plan{background:#fff;border:1px solid var(--sep);border-radius:var(--r);padding:1.5rem;display:flex;flex-direction:column}
+.plan--dest{border-color:transparent;box-shadow:0 0 0 2px var(--ink),var(--shadow)}
+.plan__para{font-size:.86rem;font-weight:600;color:var(--okD)}
+.plan h3{font-size:1.35rem;font-weight:700;margin:.15rem 0 .7rem}
+.plan__val{font-size:clamp(1.9rem,3.4vw,2.35rem);font-weight:700;line-height:1.1}
+.plan__val small{font-size:.95rem;font-weight:500;color:var(--ink2)}
+.plan__ano{font-size:.9rem;color:var(--ink2);margin-top:.3rem;min-height:1.4em}
+.plan ul{list-style:none;margin:1.1rem 0 1.4rem;display:grid;gap:.5rem;font-size:.96rem;flex:1;align-content:start}
+.plan li{display:flex;gap:.55rem}
+.plan li svg{flex:none;width:1.05em;height:1.05em;margin-top:.28em;color:var(--okD)}
+.pill--ghost{background:transparent;color:var(--blue);box-shadow:inset 0 0 0 1.5px var(--blue)}
+.pill--ghost:hover{background:rgba(0,113,227,.07)}
+.plans__fine{margin-top:1.3rem;font-size:.92rem;color:var(--ink2);max-width:60ch}
+
 /* formulário */
 .cta__grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:2.5rem;align-items:start}
 @media(max-width:820px){.cta__grid{grid-template-columns:1fr}}
@@ -837,6 +854,49 @@ html.js .rv.in{opacity:1;transform:none}
     </div>
   </div>
 </section>
+
+@if(isset($planos) && $planos->isNotEmpty())
+@php
+    $brl = fn ($v) => 'R$ ' . number_format((float) $v, fmod((float) $v, 1) ? 2 : 0, ',', '.');
+    $semLimite = fn ($n) => (int) $n >= 999;
+    $meio = $planos->count() >= 3 ? $planos->values()->get(1)?->id : null;
+@endphp
+<section class="sec" id="planos">
+  <div class="wrap">
+    <div class="plans__head">
+      <span class="kicker">Planos</span>
+      <h2 class="d2">O mesmo sistema em todos os planos.</h2>
+      <p class="lede" style="margin-top:.8rem">Venda, estoque, caixa, financeiro, nota fiscal, maquininha e loja online vêm em qualquer um. O que muda é o tamanho da operação.</p>
+    </div>
+    <div class="plans">
+      @foreach($planos as $plano)
+        @php
+            $lojas = (int) $plano->max_unidades;
+            $para = $semLimite($lojas) ? 'Para redes maiores' : ($lojas <= 1 ? 'Para uma loja' : 'Para redes de até ' . $lojas . ' lojas');
+            $economia = (float) $plano->preco_mensal > 0 && (float) $plano->preco_anual > 0
+                ? (int) round(100 - ((float) $plano->preco_anual / ((float) $plano->preco_mensal * 12)) * 100) : 0;
+            $anual = (float) $plano->preco_anual > 0
+                ? 'ou ' . $brl($plano->preco_anual) . ' no ano' . ($economia > 0 ? ', ' . $economia . '% a menos' : '') : '';
+        @endphp
+        <article class="plan {{ $plano->id === $meio ? 'plan--dest' : '' }}" data-plano="{{ $plano->slug }}">
+          <span class="plan__para">{{ $para }}</span>
+          <h3>{{ $plano->nome === 'Basico' ? 'Básico' : $plano->nome }}</h3>
+          <div class="plan__val num" data-plano-mensal>{{ $brl($plano->preco_mensal) }} <small>por mês</small></div>
+          <p class="plan__ano">{{ $anual }}</p>
+          <ul>
+            <li>{!! $check !!} {{ $semLimite($lojas) ? 'Lojas sem limite' : ($lojas <= 1 ? '1 loja' : 'Até ' . $lojas . ' lojas') }}</li>
+            <li>{!! $check !!} {{ $semLimite($plano->max_usuarios) ? 'Usuários sem limite' : 'Até ' . (int) $plano->max_usuarios . ' usuários' }}</li>
+            <li>{!! $check !!} {{ (int) $plano->max_produtos >= 999999 ? 'Produtos sem limite' : 'Até ' . number_format((int) $plano->max_produtos, 0, ',', '.') . ' produtos' }}</li>
+            <li>{!! $check !!} {{ (int) $plano->max_notas_mes >= 999999 ? 'Notas fiscais sem limite' : 'Até ' . number_format((int) $plano->max_notas_mes, 0, ',', '.') . ' notas fiscais por mês' }}</li>
+          </ul>
+          <a class="pill pill--block {{ $plano->id === $meio ? '' : 'pill--ghost' }}" href="#demo">Quero este plano</a>
+        </article>
+      @endforeach
+    </div>
+    <p class="plans__fine">Implantação e treinamento pela nossa equipe em todos os planos. O atendente de IA no WhatsApp é opcional e cobrado à parte.</p>
+  </div>
+</section>
+@endif
 
 <section class="sec sec--gray" id="duvidas">
   <div class="wrap faq">

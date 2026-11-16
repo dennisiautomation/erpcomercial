@@ -53,8 +53,22 @@ class SiteController extends Controller
         // no-cache no HTML: garante que o navegador sempre pegue a versão atual
         // do formulário (evita ficar preso em markup antigo após deploys).
         return response()
-            ->view($view)
+            ->view($view, $view === 'site.redes' ? ['planos' => $this->planosDoSite()] : [])
             ->header('Cache-Control', 'no-cache, no-store, must-revalidate');
+    }
+
+    /**
+     * Os planos que o site mostra: os mesmos do admin (Planos), só os ativos, na ordem de lá.
+     * Preço e limites vêm do cadastro — mudou no admin, mudou no site. Se a tabela não
+     * responder, o site abre sem a seção em vez de cair.
+     */
+    private function planosDoSite()
+    {
+        try {
+            return \App\Models\Plano::ativo()->orderBy('ordem')->orderBy('preco_mensal')->get();
+        } catch (\Throwable) {
+            return collect();
+        }
     }
 
     /**
@@ -65,7 +79,7 @@ class SiteController extends Controller
     public function redes()
     {
         return response()
-            ->view('site.redes')
+            ->view('site.redes', ['planos' => $this->planosDoSite()])
             ->header('Cache-Control', 'no-cache, no-store, must-revalidate');
     }
 
