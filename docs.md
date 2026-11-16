@@ -9668,3 +9668,9 @@ empresa, sem loja online, lista, PDV), pagamentos simulados **91 ✅**, navegado
 do PDV em 1440 e 390 px, com venda entrando pelo toque e pelo bipe), phpunit 340 com as 2 falhas antigas. **Não testado:** venda de
 variação FINALIZADA no PDV até o cupom (o teste vai até a peça entrar na venda; dali em diante é o fluxo de produto comum, sem mudança);
 aparelho real; app da Stone com produtos de grade.
+
+**Homologação (16/11/2026 00:40 BRT):** grade no cadastro, lista e PDV NO AR em `erp-caf-app:a151766` (junção `fe25f0c` + `a151766`;
+anterior `erp-caf-app:9660524`, fonte em `src-9660524`; backup `backups/pre-grade-erp-20261116.sql.gz`). Na junção com a cafeteria a
+busca do PDV agrupa a grade em cima do `produtosParaPdv` (variação leva `tipo`/`tem_opcoes`). Chave "Tamanhos e cores" LIGADA só na
+Loja Centro da Empresa Demo, para a conferência. Conferido em 1366 e 390 px: lista (1 linha "Vestido Longo Preto"), cadastro (6 linhas),
+configurações e janela do PDV (6 botões), sem erro de JavaScript. Não rodado: roteiro da cafeteria e o app da Stone depois da junção.
