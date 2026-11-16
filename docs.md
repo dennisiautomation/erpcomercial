@@ -8827,3 +8827,32 @@ Migration `2026_11_16_180000_plataforma_faturas_caixa_ia365` (aditiva): `platafo
 1. ERP: guardar a imagem no ar, build com `-f docker-compose.prod.yml`, `migrate --force`, acrescentar `CAIXA_IA365_TOKEN=<segredo novo>` no `.env` (`docker cp .env erp-com-app:/var/www/.env` + `config:clear`).
 2. caixa.ia365: `prisma db push` (3 colunas novas), `ERP_COMERCIAL_URL=https://erp.ia365.com.br` e `ERP_COMERCIAL_TOKEN=<o mesmo segredo>` no ambiente do `caixa-app`.
 3. Dennis: em cada cliente do caixa, escolher a "Empresa no ERP"; no admin do ERP, ligar "Bloquear automaticamente" e a tolerância de cada empresa.
+
+### Cobrança pelo caixa.ia365 — situação em 16/11/2026 (fim do dia) e passo a passo para a PRODUÇÃO
+
+**Onde está cada lado hoje**
+
+| Lado | Onde está no ar | Aponta para |
+|---|---|---|
+| caixa.ia365 (campo "Empresa no ERP", envio das cobranças e das baixas) | **PRODUÇÃO do caixa** desde 16/11 (imagem `1f2169e08b73`; §18.73 + §18.74 do docs.md do caixa) | o ERP de **HOMOLOGAÇÃO** |
+| ERP (faixa, tela Faturas, e-mail/sino, bloqueio) | só na **HOMOLOGAÇÃO** (`homolog-cafeteria-14nov`) | — |
+| ERP de produção | **não tem nada disto** (as rotas `api/integracao/v1/plataforma/caixa/*` não existem lá) | — |
+
+O caixa NÃO muda de alvo sozinho: o endereço e o segredo do ERP estão fixos em `/root/caixa/docker-compose.override.yml`.
+
+**Teste na homologação (o que o Dennis faz agora):** caixa.ia365 → Clientes → abrir um cliente DE TESTE → "Empresa no ERP" → Empresa Demo → salvar → emitir uma cobrança (PIX/boleto) → entrar em `homolog-erp.ia365.com.br` como `dono@demo.com`: faixa no topo e menu Faturas. Bloqueio: admin da homologação → empresa → "Bloquear automaticamente" + tolerância; a rotina roda 06:00 (ou `php artisan plataforma:processar-cobrancas` no `erp-caf-app` para ver na hora). Cuidado: para o cliente vinculado o caixa deixa de mandar o e-mail da fatura (passa a ser do ERP) e na homologação o e-mail é `MAIL_MAILER=log` — por isso cliente de teste. A Empresa Demo tem 2 faturas FICTÍCIAS (`caixa_ref` 900000/900001) postas à mão para mostrar as telas.
+
+**Para a produção (só com ordem do Dennis), nesta ordem**
+
+1. **ERP de produção** — subir SÓ a cobrança: branch `cobranca-caixa-16nov` (direto sobre a `main`, sem cafeteria/maquininha/loja online). Antes de juntar, trazer a `main` de 16/11 (fiado) para a branch. Guardar a imagem no ar (`docker tag`), build com `-f docker-compose.prod.yml`, `migrate --force` (1 migration aditiva: `2026_11_16_180000_plataforma_faturas_caixa_ia365`), gerar um segredo NOVO e gravar `CAIXA_IA365_TOKEN` no `.env` de produção (`docker cp .env erp-com-app:/var/www/.env` + `config:clear`). Conferir: `GET /api/integracao/v1/plataforma/caixa/empresas` → 401 sem segredo, 200 com ele.
+2. **Caixa** — trocar 3 linhas do `/root/caixa/docker-compose.override.yml` (precisa de root): `ERP_COMERCIAL_URL: https://erp.ia365.com.br`, `ERP_COMERCIAL_TOKEN: <o segredo novo>`, `extra_hosts: erp.ia365.com.br:host-gateway`; depois `cd /root/caixa && docker compose up -d --no-build caixa-app`. O código do caixa é o mesmo que já está no ar. O `extra_hosts` é obrigatório: o container do caixa não alcança os endereços públicos do próprio servidor.
+3. **Limpar os vínculos de teste** — os `Client.erpEmpresaId` gravados no teste são ids de empresas da HOMOLOGAÇÃO (não batem com os da produção). No banco do caixa: `update Client set erpEmpresaId = null, erpEmpresaNome = null; update Revenue set erpSync = null;` ANTES de apontar para a produção (senão o caixa mandaria faturas de teste para a empresa de produção que tiver o mesmo id).
+4. **Dennis** — em cada cliente real do caixa, escolher a "Empresa no ERP" (a lista passa a ser a de produção); no admin do ERP, ligar "Bloquear automaticamente" e a tolerância por empresa. Enquanto não ligar, ninguém é bloqueado.
+
+**O que muda para o cliente vinculado depois disso:** faixa e tela Faturas no ERP; e-mail da fatura sai pelo ERP (dono, gerente, admin, financeiro) e deixa de sair pelo caixa; WhatsApp continua pelo caixa; bloqueio só onde estiver ligado. Cliente não vinculado: nada muda. O cliente do caixa leva TODAS as cobranças dele para o ERP, inclusive as que não são do ERP (ex.: Dona Douro tem IA + ERP na mesma cobrança).
+
+**Decisões pendentes do Dennis**
+- O vencimento do teste grátis/licença NÃO bloqueia o sistema inteiro (só as rotas `plano:`). Bloqueio total hoje é só por fatura em atraso. EB GESTÃO, PROLOG e DG SOFTWARES têm teste vencido e seguem usando PDV/vendas.
+- Tela para o próprio lojista pôr as chaves de pagamento da loja online (hoje só o admin, em empresa → Integração).
+- Texto do topo do site: "A partir de R$ 590 por mês para a rede toda" × Básico = 1 loja.
+- Página inicial de PRODUÇÃO continua a V2; o site novo na inicial está só na homologação.
