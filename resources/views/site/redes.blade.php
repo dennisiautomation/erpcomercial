@@ -916,7 +916,7 @@ html.js .rv.in{opacity:1;transform:none}
 <footer class="foot">
   <div class="wrap">
     <span>© {{ date('Y') }} IA365 · ERP Comercial</span>
-    <span><a href="{{ route('site.home') }}">Conhecer o sistema completo</a> · contato@ia365.com.br</span>
+    <span><a href="{{ route('site.home', ['visual' => 'v2']) }}">Conhecer o sistema completo</a> · contato@ia365.com.br</span>
   </div>
 </footer>
 

@@ -18,9 +18,9 @@ class SiteController extends Controller
     /**
      * Landing pública. Usuário autenticado é levado direto ao sistema.
      *
-     * Visual V2 (estilo Apple) é o PADRÃO desde 14/08/2026 (ordem do Dennis).
-     * A v1 clássica continua no ar via ?visual=classico (grava na session);
-     * ?visual=v2 desfaz a escolha. Sem parâmetro, novo visitante vê a v2.
+     * O PADRÃO é o site novo (view `site.redes`) desde 16/11/2026 (ordem do Dennis).
+     * A V2 de 14/08 continua em ?visual=v2 e a v1 clássica em ?visual=classico
+     * (gravam na session); ?visual=novo desfaz a escolha.
      */
     public function index(Request $request)
     {
@@ -34,12 +34,21 @@ class SiteController extends Controller
             return redirect()->route('app.dashboard');
         }
 
+        // 16/11/2026 (ordem do Dennis): a página inicial passa a ser o SITE NOVO — a mesma
+        // página de /redes (maquininha, loja online e WhatsApp). As antigas continuam no ar:
+        // ?visual=v2 (a inicial de 14/08) e ?visual=classico (a v1); ?visual=novo desfaz a escolha.
         $visual = $request->query('visual');
         if (in_array($visual, ['v2', 'classico'], true)) {
             session(['site_visual' => $visual]);
+        } elseif ($visual === 'novo') {
+            session()->forget('site_visual');
         }
 
-        $view = session('site_visual') === 'classico' ? 'site.landing' : 'site.landing-v2';
+        $view = match (session('site_visual')) {
+            'classico' => 'site.landing',
+            'v2' => 'site.landing-v2',
+            default => 'site.redes',
+        };
 
         // no-cache no HTML: garante que o navegador sempre pegue a versão atual
         // do formulário (evita ficar preso em markup antigo após deploys).
