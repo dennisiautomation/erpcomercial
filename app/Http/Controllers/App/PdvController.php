@@ -225,7 +225,64 @@ class PdvController extends Controller
         // Insumo e adicional não são vendidos sozinhos (cafeteria, 30/10/2026)
         $produtos = self::buscarProdutosDaEmpresa((int) session('empresa_id'), (string) $codigo, 50, true);
 
-        return response()->json($this->produtosParaPdv($produtos, $tabelaPrecos));
+        // Grade como UMA linha (chave "Tamanhos e cores" da loja, 16/11/2026). Só quando a tela
+        // pede (?grade=1 — a busca da venda; a da troca não pede) e a busca foi por NOME: código
+        // bipado/digitado inteiro continua devolvendo a peça certa, direto.
+        $configLoja = ConfiguracaoLoja::daUnidade();
+        $termo = trim(preg_replace('/\s+/u', ' ', (string) $codigo));
+        $porCodigo = $produtos->contains(fn ($p) => in_array($termo, [$p->codigo_barras, $p->codigo_interno, $p->sku], true));
+        $grupos = $request->boolean('grade') && $configLoja->agrupar_grade && ! $porCodigo
+            // um tamanho só casou com o que foi digitado ("vestido longo m preto"): entra direto, sem janela
+            ? $produtos->whereNotNull('grade_id')->groupBy('grade_id')->filter(fn ($g) => $g->count() > 1)
+            : collect();
+        if ($grupos->isEmpty()) {
+            return response()->json($this->produtosParaPdv($produtos, $tabelaPrecos));
+        }
+
+        $todas = \App\Services\LojaOnline\GradeLoja::porGrade((int) session('empresa_id'), $grupos->keys()->all());
+        $todas->flatten(1)->each->loadCount('gruposOpcoes');
+        $saldos = SaldoEstoque::porProdutoDaUnidade((int) session('unidade_id'), $todas->flatten(1)->pluck('id')->all());
+        $soltos = $this->produtosParaPdv($produtos->filter(fn ($p) => ! $p->grade_id || ! $grupos->has((int) $p->grade_id)), $tabelaPrecos)->keyBy('id');
+        $saida = [];
+        $feitos = [];
+        foreach ($produtos as $p) {
+            $gid = (int) $p->grade_id;
+            if (! $gid || ! $grupos->has($gid)) {
+                $saida[] = $soltos[$p->id];
+                continue;
+            }
+            if (isset($feitos[$gid])) {
+                continue;
+            }
+            $feitos[$gid] = true;
+            $daGrade = $todas[$gid] ?? collect();
+            $principal = $daGrade->firstWhere('id', $gid) ?? $p;
+            $nomes = \App\Services\LojaOnline\GradeLoja::nomes($principal);
+            $ativas = $daGrade->where('status', 'ativo')->values();
+            $variacoes = $this->produtosParaPdv($ativas, $tabelaPrecos)->map(function ($dados, $i) use ($ativas, $nomes, $saldos) {
+                $op = \App\Services\LojaOnline\GradeLoja::opcoes($ativas[$i]);
+
+                return $dados + [
+                    'opcoes' => array_map(fn ($n) => (string) ($op[$n] ?? ''), $nomes),
+                    'estoque' => (float) ($saldos[$dados['id']] ?? 0),
+                ];
+            })->values();
+            $precos = $variacoes->pluck('preco_venda');
+            $saida[] = [
+                'id' => null,
+                'grade' => $gid,
+                'descricao' => \App\Services\LojaOnline\GradeLoja::nomeComum($principal),
+                'codigo_interno' => '',
+                'codigo_barras' => '',
+                'preco_venda' => (float) $precos->min(),
+                'preco_varia' => $precos->min() != $precos->max(),
+                'promocao' => $variacoes->pluck('promocao')->filter()->first(),
+                'nomes' => $nomes,
+                'variacoes' => $variacoes,
+            ];
+        }
+
+        return response()->json($saida);
     }
 
     /**
@@ -353,7 +410,7 @@ class PdvController extends Controller
 
         $base = fn () => Produto::where('empresa_id', $empresaId)
             ->where('status', 'ativo')
-            ->select('id', 'codigo_interno', 'codigo_barras', 'sku', 'descricao', 'preco_venda', 'unidade_medida', 'tipo')
+            ->select('id', 'codigo_interno', 'codigo_barras', 'sku', 'descricao', 'preco_venda', 'unidade_medida', 'tipo', 'grade_id', 'grade_opcoes')
             ->with('precos:id,produto_id,modalidade,valor')
             // PDV (cafeteria, 30/10/2026): só Revenda/Produzido, e se abre a janela de opções
             ->when($soVendaveis, fn ($q) => $q

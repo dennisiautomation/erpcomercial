@@ -9626,3 +9626,45 @@ contra a homologação: 23 ✅ / 0 ❌.
 **15/11/2026 16:22 BRT — homologação em `erp-caf-app:59d8656`** (merge do `3353fd0`: aba Aparência → **Editor visual**; Cores e letras → **Logo, cores e letras**; só rótulo). Anterior guardada em `src-3540eca` e `erp-caf-app:3540eca` (rollback = `docker tag erp-caf-app:3540eca erp-caf-app:latest` + `docker compose up -d app`). Conferido: `/login`, `/loja/demo`, `/loja/demo/produtos` e `/redes` 200, nenhuma migração pendente, rótulos novos dentro do container. Não reaberto no navegador na homologação (medido no ambiente descartável: 219 ✅).
 
 **15/11/2026 22:36 BRT — homologação em `erp-caf-app:9660524`** (merge do `ba8c3ac`: 5ª rodada da loja online — rastreio completo na aba Resultados, aba Domínio em 3 passos, dicas no editor). Migration `2026_11_16_100000` rodou sozinha na subida. Backup do banco antes: `backups/pre-loja-rodada5-20261116.sql.gz`; anterior guardada em `src-59d8656` e `erp-caf-app:59d8656` (rollback = `docker tag erp-caf-app:59d8656 erp-caf-app:latest` + `docker compose up -d app`; as tabelas `loja_sessoes`/`loja_buscas` e as colunas novas podem ficar, o código antigo não as lê). Conferido na homologação: `/login`, `/loja/demo`, busca e `/redes` 200; visita com `utm_source=instagram` gravada com a campanha e o aparelho; Resultados, Domínio e Editor visual abertos em 1366 e 390 px sem rolagem lateral e sem erro de JavaScript; nenhuma migração pendente. Não feito na homologação: apontar um domínio de verdade; `scripts/loja-dominios-host.sh` não instalado; roteiro da cafeteria não rodado de novo.
+### Grade (tamanhos e cores) no dia a dia do ERP — 16/11/2026: cadastro, lista de produtos e PDV
+
+**Onde cada coisa vive: a grade continua sendo só uma amarração entre PRODUTOS comuns (`produtos.grade_id` + `grade_opcoes`); quem cria
+e mexe nela agora é o CADASTRO do produto (quadro "Tamanhos e cores"), para qualquer empresa, com ou sem loja online; e a chave
+`configuracoes_loja.agrupar_grade` (por loja, desligada por padrão) só muda como ela APARECE no PDV e na lista de produtos.**
+
+**O que entrou**
+- **Cadastro do produto** — `produtos/_grade.blade.php`, incluído no `edit` FORA do formulário do produto, e `ProdutoGradeController`
+  (rotas `app.produtos.grade.*`, permissão `produtos,editar`): criar a grade, ver todas as variações com preço e saldo da loja da sessão,
+  **acrescentar** valor novo a uma opção (chegou o GG → cria só o que falta), **mesmo preço para todos** (preço de venda + preços fixos
+  por forma), **mesma foto para todos** (cada um com o seu arquivo), juntar produto que já existe, tirar e desfazer. A aba Loja online →
+  Grade continua e usa o mesmo `GradeLoja`.
+- **Lista de produtos** — com a chave ligada, `ProdutoController::index` troca a consulta pelos REPRESENTANTES
+  (`COALESCE(grade_id, id)` de tudo que casou com a busca/filtros): uma linha por produto, saldo somado, "a partir de" quando os preços
+  diferem, "7 de 8 ativos" quando há inativo, e um botão que abre as variações (preço editável em cada uma). Buscar o código de barras
+  de um tamanho acha a linha do produto.
+- **PDV** — `PdvController::buscarProduto` com `?grade=1` (só a busca da VENDA manda; a da troca não) devolve a grade como UM item
+  `{grade, descricao, nomes, preco_venda, preco_varia, variacoes[]}`; o JS (`PDV.escolherVariacao`) abre a janela com uma linha por valor
+  da 1ª opção e um botão por combinação, com o saldo da loja. Depois do toque a venda segue igual: entra um produto comum.
+  **Não agrupa** quando: a chave está desligada; o termo é um código exato (bipe); ou só UMA variação casou com o que foi digitado.
+- **Chave** — Configurações da loja → aba Estoque → "Tamanhos e cores (grade)". Migration `2026_11_16_150000`.
+
+**Defeito antigo corrigido de passagem:** a variação criada pela grade perdia os preços fixos por forma de pagamento
+(`produto_precos` não vem no `replicate`). `GradeLoja::clonar` copia.
+
+**App da maquininha Stone:** não precisou mudar. O catálogo dele (`PosCatalogoController`) lista cada variação como produto comum, com
+nome completo ("… - M / Preto") e saldo, e o bipe acha a peça. Agrupar lá exigiria tela nova no app (APK) — não foi feito.
+
+**Armadilhas**
+- **118. O bloco J do roteiro de navegador desfaz TODAS as grades da empresa 1** (`arrumarGrade`). Bloco que venha depois e precise de
+  grade tem de refazer a amarração (o bloco L refaz por SQL).
+- **119. Rodar o roteiro de navegador duas vezes sem recriar o banco falha nos testes do carrinho (B/H/I)** — não é defeito do código:
+  uma rodada que aborta no meio deixa estado. Sempre a sequência inteira: `migrate:fresh --seed` → cenário → py → pagamentos → navegador.
+- **120. `mysql -N` imprime `NULL` como texto:** no roteiro py, `vazio()` só funciona com `IFNULL(coluna,'')`.
+
+**Para subir:** a migration `2026_11_16_150000`, `route:cache`, `view:cache`. Nada muda para loja que não ligar a chave nem criar grade.
+
+**Validação (16/11/2026, ambiente `ec-*`, banco recriado):** py **577 ✅** (bloco W novo, 38 testes: cadastro, permissão, outra
+empresa, sem loja online, lista, PDV), pagamentos simulados **91 ✅**, navegador **242 ✅** (bloco L novo, 14: cadastro, lista e a janela
+do PDV em 1440 e 390 px, com venda entrando pelo toque e pelo bipe), phpunit 340 com as 2 falhas antigas. **Não testado:** venda de
+variação FINALIZADA no PDV até o cupom (o teste vai até a peça entrar na venda; dali em diante é o fluxo de produto comum, sem mudança);
+aparelho real; app da Stone com produtos de grade.

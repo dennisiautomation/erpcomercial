@@ -54,7 +54,25 @@ class ProdutoController extends Controller
             $query->where('tipo', $request->tipo);
         }
 
+        // Grade como UMA linha (chave "Tamanhos e cores" das Configurações da loja, 16/11/2026): a
+        // lista mostra o produto principal e ele representa todas as variações — a busca e os
+        // filtros continuam valendo para qualquer uma delas (bipar o código de um tamanho acha a linha).
+        $agruparGrade = (bool) \App\Models\ConfiguracaoLoja::daUnidade()->agrupar_grade;
+        if ($agruparGrade) {
+            $representantes = (clone $query)->reorder()->selectRaw('COALESCE(produtos.grade_id, produtos.id)');
+            $query = Produto::with(['categoria:id,nome', 'precos:id,produto_id,modalidade,valor'])->whereIn('id', $representantes);
+        }
+
         $produtos = $query->orderBy('descricao')->paginate(15)->withQueryString();
+
+        $grades = collect();
+        if ($agruparGrade) {
+            $grades = \App\Services\LojaOnline\GradeLoja::porGrade(
+                (int) (auth()->user()->empresa_id ?? session('empresa_id')),
+                $produtos->getCollection()->filter(fn ($p) => $p->grade_id && (int) $p->grade_id === (int) $p->id)->pluck('id')->all()
+            );
+        }
+        $idsDaPagina = $produtos->pluck('id')->merge($grades->flatten(1)->pluck('id'))->unique()->values()->all();
         // categorias.status é FEMININO ('ativa') — com 'ativo' o filtro vinha sempre vazio
         $categorias = Categoria::where('status', 'ativa')->orderBy('nome')->get();
 
@@ -63,18 +81,18 @@ class ProdutoController extends Controller
         $unidadeId = (int) session('unidade_id');
         $lojaAtual = $unidadeId ? \App\Models\Unidade::withoutGlobalScopes()->find($unidadeId, ['id', 'nome']) : null;
         $saldosLoja = $lojaAtual
-            ? \App\Services\SaldoEstoque::porProdutoDaUnidade($lojaAtual->id, $produtos->pluck('id')->all())
+            ? \App\Services\SaldoEstoque::porProdutoDaUnidade($lojaAtual->id, $idsDaPagina)
             : [];
 
         // Loja com mais de um estoque: a coluna também abre "Vitrine 3 · Depósito 7" (22/10/2026)
         $estoquesLoja = $lojaAtual ? $this->estoquesAtivos($lojaAtual->id) : collect();
         $saldosPorEstoque = $estoquesLoja->count() > 1
-            ? \App\Services\SaldoEstoque::porProdutoEEstoqueDaUnidade($lojaAtual->id, $produtos->pluck('id')->all())
+            ? \App\Services\SaldoEstoque::porProdutoEEstoqueDaUnidade($lojaAtual->id, $idsDaPagina)
             : [];
 
         $usaFichaTecnica = (bool) auth()->user()->empresa?->usaFichaTecnica();
 
-        return view('app.produtos.index', compact('produtos', 'categorias', 'lojaAtual', 'saldosLoja', 'estoquesLoja', 'saldosPorEstoque', 'usaFichaTecnica'));
+        return view('app.produtos.index', compact('produtos', 'categorias', 'lojaAtual', 'saldosLoja', 'estoquesLoja', 'saldosPorEstoque', 'usaFichaTecnica', 'grades'));
     }
 
     public function create()

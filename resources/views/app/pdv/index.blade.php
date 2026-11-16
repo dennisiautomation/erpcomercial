@@ -1872,12 +1872,15 @@ const PDV = {
         this.ultimaLeitura = { code, t: agora }; // janela deslizante: leitor em modo contínuo continua contando como um só
         if (repetida) return;
         try {
-            const resp = await fetch(`/app/pdv/produto/${encodeURIComponent(code)}`, {
+            const resp = await fetch(`/app/pdv/produto/${encodeURIComponent(code)}?grade=1`, {
                 headers: { 'X-Requested-With': 'XMLHttpRequest' }
             });
             const produtos = await resp.json();
             this.cachePrecos(produtos);
-            if (produtos.length === 1) {
+            if (produtos.length === 1 && produtos[0].grade) {
+                // Produto com tamanhos e cores: abre os botões para o caixa escolher
+                this.escolherVariacao(produtos[0]);
+            } else if (produtos.length === 1) {
                 this.addProduto(produtos[0]);
             } else if (produtos.length > 1) {
                 document.getElementById('searchInput').value = code;
@@ -1930,7 +1933,7 @@ const PDV = {
     async searchProdutos(term) {
         const seq = this.searchSeq = (this.searchSeq || 0) + 1;
         try {
-            const resp = await fetch(`/app/pdv/produto/${encodeURIComponent(term)}`, {
+            const resp = await fetch(`/app/pdv/produto/${encodeURIComponent(term)}?grade=1`, {
                 headers: { 'X-Requested-With': 'XMLHttpRequest' }
             });
             const produtos = await resp.json();
@@ -1951,6 +1954,7 @@ const PDV = {
         produtos.forEach(p => {
             if (p && p.precos) this.precosCache[p.id] = p.precos;
             if (p && p.id) this.produtosCache[p.id] = p;
+            if (p && Array.isArray(p.variacoes)) p.variacoes.forEach(v => { if (v.precos) this.precosCache[v.id] = v.precos; this.produtosCache[v.id] = v; });
         });
     },
 
@@ -1965,7 +1969,19 @@ const PDV = {
             return;
         }
 
-        dropdown.innerHTML = produtos.map(p => `
+        this._gradesDaBusca = {};
+        dropdown.innerHTML = produtos.map(p => {
+            if (! p.grade) return null;
+            this._gradesDaBusca[p.grade] = p;
+            return `
+            <div class="search-result-item" data-grade="${p.grade}" onclick="PDV.escolherVariacao(PDV._gradesDaBusca[${p.grade}])">
+                <div>
+                    <div class="prod-name">${this.escHtml(p.descricao)}</div>
+                    <div class="prod-code">${p.variacoes.length} opções${(p.nomes || []).length ? ' de ' + this.escHtml(p.nomes.slice(0, 2).join(' e ').toLowerCase()) : ''} — toque para escolher${p.promocao ? ' <span style="color:var(--accent-green);font-weight:600">· PROMOÇÃO</span>' : ''}</div>
+                </div>
+                <div class="prod-price">${p.preco_varia ? '<small style="font-weight:400">a partir de</small> ' : ''}${this.formatMoney(p.preco_venda)}</div>
+            </div>`;
+        }).map((html, i) => html !== null ? html : (p => `
             <div class="search-result-item" onclick="PDV.addProdutoById(${p.id}, '${(p.descricao||'').replace(/'/g, "\\'")}', ${p.preco_venda}, '${p.codigo_interno||''}', '${p.codigo_barras||''}')">
                 <div>
                     <div class="prod-name">${p.descricao}</div>
@@ -1973,8 +1989,86 @@ const PDV = {
                 </div>
                 <div class="prod-price">${this.formatMoney(p.preco_venda)}</div>
             </div>
-        `).join('');
+        `)(produtos[i])).join('');
         dropdown.classList.add('show');
+    },
+
+    // ===== GRADE — TAMANHOS E CORES (16/11/2026) =====
+    // A busca devolveu UM produto com várias variações: o caixa toca no tamanho/cor.
+    // Cada botão é um produto comum do ERP — depois do toque a venda segue igual.
+    escolherVariacao(grupo) {
+        if (! grupo || ! Array.isArray(grupo.variacoes) || grupo.variacoes.length === 0) return;
+        this.closeDropdown();
+        document.getElementById('gradeEscolha')?.remove();
+
+        const el = (tag, cls, txt) => { const n = document.createElement(tag); if (cls) n.className = cls; if (txt !== undefined) n.textContent = txt; return n; };
+        const num = (q) => String(Math.round(q * 1000) / 1000).replace('.', ',');
+        const wrap = el('div', 'modal fade show d-block');
+        wrap.id = 'gradeEscolha';
+        wrap.style.background = 'rgba(0,0,0,.5)';
+        wrap.tabIndex = -1;
+        wrap.setAttribute('role', 'dialog');
+        wrap.setAttribute('aria-modal', 'true');
+        wrap.setAttribute('aria-label', 'Escolher ' + (grupo.nomes || []).join(' e ').toLowerCase());
+        const dialog = el('div', 'modal-dialog modal-dialog-centered modal-dialog-scrollable');
+        const content = el('div', 'modal-content');
+        const header = el('div', 'modal-header');
+        const titulo = el('h6', 'modal-title', grupo.descricao);
+        const fecharBtn = el('button', 'btn-close');
+        fecharBtn.type = 'button';
+        fecharBtn.setAttribute('aria-label', 'Fechar');
+        header.append(titulo, fecharBtn);
+        const body = el('div', 'modal-body');
+        // sem .text-muted: no tema escuro do PDV ela some no fundo da janela
+        const dica = el('p', 'small mb-3', 'Escolha ' + ((grupo.nomes || []).join(' e ').toLowerCase() || 'a opção') + '. O número é o saldo nesta loja.');
+        dica.style.opacity = '.8';
+        body.append(dica);
+
+        const fechar = () => { wrap.remove(); document.removeEventListener('keydown', tecla, true); document.getElementById('searchInput')?.focus(); };
+        const tecla = (e) => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); fechar(); } };
+        const escolher = (v) => {
+            fechar();
+            document.getElementById('searchInput').value = '';
+            this.addProduto(v);
+        };
+
+        // Uma linha por valor da 1ª opção (P, M, G…); dentro dela, um botão por combinação do resto.
+        const variasOpcoes = (grupo.nomes || []).length > 1;
+        const linhas = new Map();
+        grupo.variacoes.forEach(v => {
+            const chave = variasOpcoes ? (v.opcoes[0] || '—') : '';
+            if (! linhas.has(chave)) linhas.set(chave, []);
+            linhas.get(chave).push(v);
+        });
+        linhas.forEach((variacoes, chave) => {
+            const linha = el('div', 'd-flex flex-wrap align-items-center gap-2 mb-2');
+            if (variasOpcoes) { const r = el('strong', '', chave); r.style.minWidth = '3rem'; linha.append(r); }
+            variacoes.forEach(v => {
+                const semSaldo = v.estoque <= 0;
+                const b = el('button', 'btn ' + (semSaldo ? 'btn-outline-secondary' : 'btn-outline-primary'));
+                b.type = 'button';
+                b.dataset.variacao = v.id;
+                b.style.minWidth = '5.5rem';
+                const rotulo = (variasOpcoes ? v.opcoes.slice(1) : v.opcoes).filter(Boolean).join(' / ') || v.descricao;
+                b.append(el('span', 'd-block fw-semibold', rotulo));
+                const detalhe = el('span', 'd-block small' + (semSaldo ? ' text-danger' : ''), semSaldo ? 'sem saldo' : num(v.estoque) + ' em estoque');
+                b.append(detalhe);
+                if (grupo.preco_varia) b.append(el('span', 'd-block small', this.formatMoney(v.preco_venda)));
+                b.setAttribute('aria-label', (variasOpcoes ? chave + ' ' : '') + rotulo + ', ' + detalhe.textContent);
+                b.addEventListener('click', () => escolher(v));
+                linha.append(b);
+            });
+            body.append(linha);
+        });
+
+        fecharBtn.addEventListener('click', fechar);
+        wrap.addEventListener('click', (e) => { if (e.target === wrap) fechar(); });
+        document.addEventListener('keydown', tecla, true);
+        content.append(header, body);
+        dialog.append(content);
+        wrap.append(dialog);
+        document.body.append(wrap);
+        body.querySelector('button')?.focus();
     },
 
     closeDropdown() {

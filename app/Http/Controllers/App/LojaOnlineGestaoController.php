@@ -229,14 +229,7 @@ class LojaOnlineGestaoController extends Controller
         ]);
         $produto = Produto::withoutGlobalScope(EmpresaScope::class)->where('empresa_id', $loja->empresa_id)->findOrFail((int) $dados['produto_id']);
 
-        $atributos = [];
-        foreach ($dados['atributo'] as $i => $nome) {
-            $nome = trim((string) $nome);
-            $valores = GradeLoja::valores((string) ($dados['valores'][$i] ?? ''));
-            if ($nome !== '' && ! str_starts_with($nome, '_') && $valores !== []) {
-                $atributos[mb_convert_case($nome, MB_CASE_TITLE)] = $valores;
-            }
-        }
+        $atributos = GradeLoja::atributosDaTela($dados['atributo'], $dados['valores']);
         try {
             $criadas = GradeLoja::gerar($produto, $atributos);
         } catch (\InvalidArgumentException $e) {

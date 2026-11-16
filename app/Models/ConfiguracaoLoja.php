@@ -34,6 +34,8 @@ class ConfiguracaoLoja extends Model
         'pdv_escolher_estoque',
         // Atalhos de produto no PDV — cafeteria (30/10/2026)
         'pdv_atalhos',
+        // Grade (tamanho/cor) como UMA linha no PDV e na lista de produtos (16/11/2026)
+        'agrupar_grade',
         'os_cabecalho',
         'os_termos_garantia',
         'os_texto_legal',
@@ -71,6 +73,7 @@ class ConfiguracaoLoja extends Model
         'orcamento_endereco'    => 'loja',
         'pdv_escolher_estoque'  => false,
         'pdv_atalhos'           => false,
+        'agrupar_grade'         => false,
         'preco_base'            => 'avista',
         'desconto_avista_percentual' => 0,
         // Trocas: loja que nunca abriu a tela troca em até 30 dias, sobra vira
@@ -100,6 +103,7 @@ class ConfiguracaoLoja extends Model
             'troca_senha_gerente'        => 'boolean',
             'pdv_escolher_estoque'       => 'boolean',
             'pdv_atalhos'                => 'boolean',
+            'agrupar_grade'              => 'boolean',
             'desconto_avista_percentual' => 'decimal:2',
             'desconto_max_percentual'    => 'decimal:2',
             'orcamento_parcelas'         => 'integer',

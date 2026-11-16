@@ -137,6 +137,7 @@ class ConfiguracaoLojaController extends Controller
             'cpf_emite_fiscal'           => 'nullable|boolean',
             'padrao_impressao'           => 'required|in:recibo,cupom_fiscal',
             'pdv_escolher_estoque'       => 'nullable|boolean',
+            'agrupar_grade'              => 'nullable|boolean',
             // Impressão da Ordem de Serviço
             // Limites ampliados em 02/09/2026: a Realiza Phone reportou "está
             // limitado a 500". Não havia limite de 500 em lugar nenhum (a coluna é
@@ -211,6 +212,7 @@ class ConfiguracaoLojaController extends Controller
             'troca_senha_gerente',
             'pdv_escolher_estoque',
             'pdv_atalhos',
+            'agrupar_grade',
         ] as $flag) {
             $dados[$flag] = (bool) ($dados[$flag] ?? false);
         }

@@ -60,6 +60,8 @@
     </div>
 </div>
 
+@include('app.produtos._grade', ['produto' => $produto])
+
 <form method="POST" action="{{ route('app.produtos.update', $produto) }}" enctype="multipart/form-data" id="formProduto" novalidate>
     @csrf
     @method('PUT')
