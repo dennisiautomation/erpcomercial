@@ -6168,6 +6168,24 @@ Dennis, pelo rito do topo). App Android (`app-pdv-stone`, `e5ea0b2`) segue só l
   (dinheiro, PIX, débito, crédito) e esse encaixe precisa ser conferido e testado; rodar as migrations `pos_*` no deploy.
 - **Não rodado em 14/11:** PHPUnit e roteiro de validação (ambiente Docker local desligado).
 
+**Atualização 16/11/2026:**
+- **Homologação Stone enviada** (app `APP-IA365-STONE`, branch `stone-homologacao`): IA365 Vendas 1.0.0 build 1, Deeplink,
+  pelo Partner Hub como nova aplicação; status "Aguardando aprovação do time de integrações". Roteiro executado na Gertec
+  GPOS730 contra esta homologação: 002/003 negados, 004 crédito R$ 5,00, 006 crédito 2x R$ 100,00 e 008 débito R$ 80,00
+  aprovados, 005/007/009 cancelamentos aprovados (vendas nº 15, 16 e 17 da Café Demo, todas canceladas). PIX não feito:
+  desabilitado no terminal de sandbox.
+- **App escolhe o servidor no login** (igual ao JL): tenta `erp.ia365.com.br`; cai para `homolog-erp.ia365.com.br` só com 404
+  (API do POS não publicada) ou 422 (credenciais que só existem na homologação). Rede, 5xx, 403 e 429 não trocam. Quando a
+  API for publicada em produção, o APK aprovado passa a usar a produção sem reenvio. O Dennis decidiu publicar só depois da
+  aprovação da Stone.
+- **Dados de teste criados na homologação (`erp-caf-*`, empresa 2 Café Demo, loja 2 Café Paulista):** usuário 10
+  `stone.teste@cafe.demo` (gerente; senha no `local.properties` do app), produtos 177–182 "TESTE STONE 0,51 / 0,55 / 5,00 /
+  80,00 / 15,00 / 100,00" (cópias da Água mineral, 100 un. de estoque cada), caixa 4 (aberto e fechado em 16/11) e a venda
+  nº 18 (crédito R$ 8,00, a do vídeo). Já havia na empresa um usuário 9 "Caixa do Roteiro (teste)" inativo, criado às 07:14
+  do mesmo dia por outra sessão; não foi mexido.
+- **Ainda pendente para produção:** os itens do bloco de 14/11 (merge da `main` com formas de pagamento configuráveis,
+  PHPUnit, deploy com migrations `pos_*`).
+
 ## Armadilhas conhecidas
 
 1. **EmpresaScope recursão**: `auth()->user()` dentro do scope chama User model que tem o scope → loop infinito. Scopes têm flag `static $applying`. Não remover.
