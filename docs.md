@@ -9956,3 +9956,28 @@ receber pelo caixa; o "Dar baixa" antigo volta a funcionar). A migration só des
 - **Rollback:** copiar `arquivos/` de volta (e apagar os 7 novos da `lista.txt`), `route:cache`, `view:cache`, USR2. A migration
   pode ficar (o `down` recusa se já houver recebimento lançado). Contas em aberto continuam `pendente`.
 - ✅ **`main` = GitHub = `9e5d156`** (fast-forward da branch, pushado 16/11 por ordem do Dennis "pode subir para o git para a main"); o código da `main` é o que está no ar (md5 conferido na subida).
+
+### Site novo na página inicial + `main` de 16/11 (fiado) juntada — no ar na homologação 16/11/2026 07:31 BRT
+
+**Pedido do Dennis (16/11):** abriu `https://homolog-erp.ia365.com.br` e viu "o site antigo" — o site novo estava só em `/redes`. Resposta dele: "Sim, na inicial".
+
+- **Página inicial:** `SiteController::index` passa a servir a view `site.redes` (o site novo: maquininha, loja online e WhatsApp) para o visitante sem login. As anteriores continuam no ar: `/?visual=v2` (a inicial de 14/08, "Sua loja vende. O sistema emite a nota sozinho.") e `/?visual=classico` (a v1) — a escolha fica na sessão; `/?visual=novo` desfaz. `/redes` continua existindo (destino dos anúncios). Quem está logado segue indo direto para o sistema.
+- Rodapé do site novo: "Conhecer o sistema completo" aponta para `?visual=v2` (antes apontava para a inicial, que agora é ele mesmo); rodapé da V2 ganhou o link "Página nova".
+- `tests/Feature/ExampleTest.php`: a inicial é `site.redes`; teste novo para `?visual=v2`, sessão, `?visual=novo` e `/redes`.
+- **`main` juntada (`b0c399c`):** o fiado / pagamento direto com a loja entrou em PRODUÇÃO em 16/11 07:10 BRT por outra frente (seção "Fiado / pagamento direto com a loja"); a unificada passou a contê-lo. Só o `docs.md` conflitou; o PDV (fiado × cafeteria × grade) juntou sem conflito e foi provado pelos roteiros abaixo.
+- **No ar:** `erp-caf-app:d90a7f2` (imagem `ace727c66bf0`); anterior `erp-caf-app:1659bb9` (`src-1659bb9`); backup `backups/pre-site-fiado-20261116.sql.gz`; migration `2026_11_16_200000_fiado_direto_com_a_loja` aplicada.
+
+| Bateria na junção (ambiente `hm-app`) | Resultado |
+|---|---|
+| PHPUnit | 384 testes, só as 2 falhas antigas |
+| Fiado, servidor (`validar-fiado-16nov.py`) | 66 ✅ / 0 ❌ |
+| Fiado, navegador (roda DEPOIS do `.py`, sem recriar o banco) | 28 ✅ / 0 ❌ |
+| Maquininha | 38 ✅ / 0 ❌ |
+| Cobrança do caixa | 86 ✅ / 0 ❌ |
+| Loja online, servidor | 572 ✅ / 5 ❌ (as mesmas 5 do IP fixo no roteiro) |
+| Loja online, pagamentos | 91 ✅ / 0 ❌ |
+| Loja online + grade, navegador | 239 ✅ / 0 ❌ |
+
+**Conferido no site depois de subir (1366 e 390 px):** `/` abre o site novo com o botão Entrar, sem rolagem lateral, sem erro de JavaScript e sem recurso quebrado; `?visual=v2` mostra a anterior, a escolha se mantém e `?visual=novo` volta; `/redes` 200; faixa da fatura, tela Faturas, Produtos, PDV, Loja online e Meu Plano 200; API da maquininha respondendo.
+
+**Não refeito nesta subida:** o roteiro de cliques da cafeteria (41 ✅ na versão `1659bb9`, antes do fiado entrar). **Produção:** a página inicial de produção continua a V2 — trocar lá é outra ordem.
