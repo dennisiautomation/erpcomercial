@@ -913,7 +913,7 @@ h1,h2,h3{letter-spacing:-.015em;text-wrap:balance}
     </div>
     <div class="foot__bar">
       <span>© <span id="ano">2026</span> IA365 · ERP Comercial. Todos os direitos reservados.</span>
-      <span>Emissão fiscal via Focus NFe · <a href="{{ route('site.home', ['visual' => 'novo']) }}">Página nova</a> · <a href="{{ route('site.home', ['visual' => 'classico']) }}">Visual clássico</a></span>
+      <span>Emissão fiscal via Focus NFe · <a href="{{ route('site.home', ['visual' => 'classico']) }}">Visual clássico</a></span>
     </div>
   </div>
 </footer>

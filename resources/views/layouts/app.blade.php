@@ -1120,7 +1120,7 @@
                                         </a>
                                     </li>
                                     @endif
-                                    @if($podeVer('integracoes') && auth()->user()->empresa_id)
+                                    @if($podeVer('integracoes') && auth()->user()->empresa_id && \App\Models\LojaOnline::ativaPara(auth()->user()->empresa_id))
                                     {{-- 16/11/2026: o lojista liga as próprias contas de pagamento e entrega --}}
                                     <li class="nav-item">
                                         <a class="nav-link {{ request()->routeIs('app.pagamento-entrega.*') ? 'active' : '' }}"

@@ -22,7 +22,7 @@ return new class extends Migration
 
         Schema::table('empresas', function (Blueprint $table) {
             $table->unsignedInteger('open_finance_contas_extras')->default(0);
-            $table->boolean('open_finance_ocultar')->default(false);
+            $table->boolean('open_finance_ocultar')->default(true); // 17/11: nasce escondido para todos (ordem do Dennis); o admin mostra por empresa
         });
 
         Schema::create('contas_bancarias', function (Blueprint $table) {

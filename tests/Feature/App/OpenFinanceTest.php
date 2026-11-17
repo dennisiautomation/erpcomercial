@@ -132,8 +132,17 @@ class OpenFinanceTest extends TestCase
 
     /* ---------------- liberação ---------------- */
 
+    public function test_empresa_nasce_com_open_finance_escondido(): void
+    {
+        // 17/11/2026 (ordem do Dennis): sobe desligado para todos; o admin mostra por empresa.
+        $this->assertTrue((bool) $this->empresa->fresh()->open_finance_ocultar);
+        $this->eu()->get(route('app.bancos.index'))->assertNotFound();
+        $this->eu()->get(route('app.dashboard'))->assertDontSee(route('app.bancos.index'));
+    }
+
     public function test_sem_liberacao_mostra_convite_e_nao_deixa_cadastrar(): void
     {
+        $this->empresa->update(['open_finance_ocultar' => false]);
         $this->eu()->get(route('app.bancos.index'))->assertOk()->assertSee('não faz parte do seu plano');
         $this->eu()->post(route('app.bancos.contas.store'), [])->assertForbidden();
         $this->eu()->get(route('app.dashboard'))->assertSee(route('app.bancos.index'));

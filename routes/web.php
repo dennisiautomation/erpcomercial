@@ -12,7 +12,6 @@ use Illuminate\Support\Facades\Route;
 /* ------------------------------------------------------------------ */
 
 Route::get('/', [\App\Http\Controllers\SiteController::class, 'index'])->name('site.home');
-Route::get('/redes', [\App\Http\Controllers\SiteController::class, 'redes'])->name('site.redes');
 Route::post('/agendar-demonstracao', [\App\Http\Controllers\SiteController::class, 'storeDemo'])
     ->middleware('throttle:10,1')
     ->name('site.demo.store');
