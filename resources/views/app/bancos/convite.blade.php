@@ -1,12 +1,12 @@
 @extends('layouts.app')
 
-@section('title', 'Bancos')
+@section('title', 'Open Finance')
 
 @section('content')
 <div class="fade-in">
 <div class="page-header">
     <div>
-        <h4><i class="bi bi-bank me-2"></i>Bancos</h4>
+        <h4><i class="bi bi-bank me-2"></i>Open Finance</h4>
         <div class="subtitle">O extrato do seu banco direto no sistema</div>
     </div>
 </div>

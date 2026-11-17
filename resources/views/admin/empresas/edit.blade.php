@@ -508,7 +508,7 @@
             <div class="card section-card shadow-sm mb-4">
                 <div class="card-header">
                     <i class="bi bi-bank me-2"></i>
-                    <strong>Bancos (Open Finance)</strong> — liberação e quantidade de contas
+                    <strong>Open Finance</strong> — liberação e quantidade de contas
                 </div>
                 <div class="card-body">
                     <div class="row g-3 align-items-end">

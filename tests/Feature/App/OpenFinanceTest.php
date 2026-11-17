@@ -134,7 +134,7 @@ class OpenFinanceTest extends TestCase
     {
         $this->eu()->get(route('app.bancos.index'))->assertOk()->assertSee('não faz parte do seu plano');
         $this->eu()->post(route('app.bancos.contas.store'), [])->assertForbidden();
-        $this->eu()->get(route('app.dashboard'))->assertSee('Bancos');
+        $this->eu()->get(route('app.dashboard'))->assertSee(route('app.bancos.index'));
     }
 
     public function test_nao_mostrar_esconde_do_menu_e_a_tela_some(): void
@@ -196,6 +196,8 @@ class OpenFinanceTest extends TestCase
             && $r->hasHeader('Authorization', 'Bearer tok'));
 
         $this->eu()->get(route('app.bancos.index'))->assertSee('Conectar ao banco')->assertSee('12.345.678/0001-95');
+        // a lista de bancos com busca vem na tela, por número e nome
+        $this->eu()->get(route('app.bancos.index'))->assertSee('data-codigo="341"', false)->assertSee('Nubank')->assertSee('Open Finance');
     }
 
     public function test_documento_do_dono_invalido_e_recusado(): void
@@ -206,6 +208,11 @@ class OpenFinanceTest extends TestCase
         $this->eu()->post(route('app.bancos.contas.store'), [
             'apelido' => 'X', 'banco_codigo' => '341', 'agencia' => '1', 'conta' => '2', 'titular_documento' => '123',
         ])->assertSessionHasErrors('titular_documento');
+
+        // sem banco escolhido também não passa
+        $this->eu()->post(route('app.bancos.contas.store'), [
+            'apelido' => 'X', 'banco_codigo' => '', 'agencia' => '1', 'conta' => '2', 'titular_documento' => '12345678000195',
+        ])->assertSessionHasErrors('banco_codigo');
 
         $this->assertSame(0, ContaBancaria::withoutGlobalScopes()->count());
         Http::assertNothingSent();

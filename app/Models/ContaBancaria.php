@@ -38,14 +38,25 @@ class ContaBancaria extends Model
         ];
     }
 
-    /** Bancos mais comuns para a lista da tela; a Tecnospeed aceita qualquer código de 3 dígitos. */
+    /**
+     * Bancos da lista da tela (busca por número ou nome). A Tecnospeed aceita qualquer código
+     * de 3 dígitos; quem não achar o banco aqui pode digitar o número.
+     */
     public const BANCOS = [
-        '001' => 'Banco do Brasil', '033' => 'Santander', '104' => 'Caixa Econômica', '237' => 'Bradesco',
+        '001' => 'Banco do Brasil', '033' => 'Santander', '104' => 'Caixa Econômica Federal', '237' => 'Bradesco',
         '341' => 'Itaú', '748' => 'Sicredi', '756' => 'Sicoob', '077' => 'Inter', '260' => 'Nubank',
         '336' => 'C6 Bank', '208' => 'BTG Pactual', '422' => 'Safra', '041' => 'Banrisul', '136' => 'Unicred',
-        '212' => 'Banco Original', '290' => 'PagBank', '323' => 'Mercado Pago', '197' => 'Stone',
-        '403' => 'Cora', '380' => 'PicPay', '070' => 'BRB', '004' => 'Banco do Nordeste', '085' => 'Ailos',
+        '212' => 'Banco Original', '290' => 'PagBank (PagSeguro)', '323' => 'Mercado Pago', '197' => 'Stone',
+        '403' => 'Cora', '380' => 'PicPay', '070' => 'BRB — Banco de Brasília', '004' => 'Banco do Nordeste',
+        '085' => 'Ailos', '003' => 'Banco da Amazônia', '021' => 'Banestes', '047' => 'Banese', '037' => 'Banpará',
+        '655' => 'Banco BV (Votorantim)', '623' => 'Banco Pan', '318' => 'Banco BMG', '389' => 'Mercantil do Brasil',
+        '707' => 'Daycoval', '745' => 'Citibank', '746' => 'Banco Modal', '218' => 'Banco BS2', '364' => 'Efí (Gerencianet)',
+        '536' => 'Neon', '335' => 'Banco Digio', '121' => 'Agibank', '633' => 'Banco Rendimento', '133' => 'Cresol',
+        '097' => 'Credisis', '099' => 'Uniprime', '461' => 'Asaas', '280' => 'Will Bank', '348' => 'Banco XP',
+        '654' => 'Banco Digimais', '643' => 'Banco Pine', '604' => 'Banco Industrial', '329' => 'QI Tech',
+        '450' => 'Fitbank', '542' => 'Cloudwalk (InfinitePay)', '274' => 'BMP Money Plus', '332' => 'Acesso Soluções de Pagamento',
     ];
+
 
     public function unidade(): BelongsTo
     {

@@ -937,7 +937,7 @@
                                 @if(auth()->user()->empresa?->openFinanceVisivel())
                                 <li class="nav-item">
                                     <a class="nav-link {{ request()->routeIs('app.bancos.*') ? 'active' : '' }}"
-                                       href="{{ route('app.bancos.index') }}">Bancos</a>
+                                       href="{{ route('app.bancos.index') }}">Open Finance</a>
                                 </li>
                                 @endif
                                 <li class="nav-item">

@@ -99,7 +99,7 @@ class BancoController extends Controller
 
         $request->merge([
             'titular_documento' => preg_replace('/\D/', '', (string) $request->input('titular_documento')),
-            'banco_codigo' => str_pad(preg_replace('/\D/', '', (string) $request->input('banco_codigo')), 3, '0', STR_PAD_LEFT),
+            'banco_codigo' => ($b = preg_replace('/\D/', '', (string) $request->input('banco_codigo'))) === '' ? '' : str_pad($b, 3, '0', STR_PAD_LEFT),
         ]);
 
         $dados = $request->validate([
@@ -114,6 +114,8 @@ class BancoController extends Controller
             'unidade_id' => ['nullable', Rule::exists('unidades', 'id')->where('empresa_id', $empresa->id)],
         ], [
             'titular_documento.regex' => 'Informe o CPF (11 números) ou o CNPJ (14 números) do dono da conta.',
+            'banco_codigo.required' => 'Escolha o banco na lista ou digite os 3 números dele.',
+            'banco_codigo.digits' => 'Escolha o banco na lista ou digite os 3 números dele.',
             'agencia.regex' => 'Na agência, só números (o dígito vai no campo ao lado).',
             'conta.regex' => 'Na conta, só números (o dígito vai no campo ao lado).',
         ]);

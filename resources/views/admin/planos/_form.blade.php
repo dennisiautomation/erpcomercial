@@ -130,7 +130,7 @@
 
 {{-- Open Finance (17/11/2026) --}}
 <div class="card shadow-sm mb-4">
-    <div class="card-header"><h6 class="mb-0">Bancos (Open Finance)</h6></div>
+    <div class="card-header"><h6 class="mb-0">Open Finance</h6></div>
     <div class="card-body">
         <div class="row g-3 align-items-end">
             <div class="col-md-5">

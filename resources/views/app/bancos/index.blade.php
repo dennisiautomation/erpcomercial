@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Bancos')
+@section('title', 'Open Finance')
 
 @section('content')
 @php
@@ -20,8 +20,8 @@
 <div class="fade-in">
 <div class="page-header">
     <div>
-        <h4><i class="bi bi-bank me-2"></i>Bancos</h4>
-        <div class="subtitle">Contas ligadas ao banco e conciliação · {{ $usadas }} de {{ $limite }} {{ $limite === 1 ? 'conta usada' : 'contas usadas' }}</div>
+        <h4><i class="bi bi-bank me-2"></i>Open Finance</h4>
+        <div class="subtitle">Contas do banco ligadas pelo Open Finance e conciliação · {{ $usadas }} de {{ $limite }} {{ $limite === 1 ? 'conta usada' : 'contas usadas' }}</div>
     </div>
     @if($usadas < $limite)
         <button type="button" class="btn btn-erp btn-erp-primary" data-bs-toggle="modal" data-bs-target="#modalNovaConta">
@@ -269,11 +269,22 @@
                         <input id="nc-apelido" name="apelido" class="form-control" maxlength="80" required value="{{ old('apelido') }}" placeholder="Ex.: Itaú da loja centro">
                     </div>
                     <div class="col-md-6">
-                        <label class="form-label" for="nc-banco">Banco</label>
-                        <input id="nc-banco" name="banco_codigo" class="form-control" list="nc-bancos" required value="{{ old('banco_codigo') }}" placeholder="Número do banco (ex.: 341)" inputmode="numeric" maxlength="3">
-                        <datalist id="nc-bancos">
-                            @foreach($bancos as $cod => $nome)<option value="{{ $cod }}">{{ $nome }}</option>@endforeach
-                        </datalist>
+                        <label class="form-label" for="nc-banco-busca">Banco</label>
+                        <div class="banco-busca">
+                            <input type="hidden" name="banco_codigo" id="nc-banco" value="{{ old('banco_codigo') }}">
+                            <input id="nc-banco-busca" type="text" class="form-control" autocomplete="off" required
+                                   placeholder="Digite o número ou o nome do banco"
+                                   role="combobox" aria-expanded="false" aria-controls="nc-banco-lista" aria-autocomplete="list"
+                                   value="{{ old('banco_codigo') ? old('banco_codigo') . ' — ' . ($bancos[old('banco_codigo')] ?? 'Outro banco') : '' }}">
+                            <ul id="nc-banco-lista" class="banco-lista list-unstyled mb-0" role="listbox" hidden>
+                                @foreach($bancos as $cod => $nome)
+                                    <li role="option" tabindex="-1" data-codigo="{{ $cod }}" data-texto="{{ $cod }} — {{ $nome }}">
+                                        <strong>{{ $cod }}</strong> — {{ $nome }}
+                                    </li>
+                                @endforeach
+                                <li class="banco-outro text-muted" hidden>Não está na lista? Digite os 3 números do banco.</li>
+                            </ul>
+                        </div>
                     </div>
                     <div class="col-md-4">
                         <label class="form-label" for="nc-agencia">Agência</label>
@@ -321,6 +332,74 @@
         </form>
     </div>
 </div>
+
+@push('styles')
+<style>
+    .banco-busca { position: relative; }
+    .banco-lista { position: absolute; z-index: 1060; left: 0; right: 0; top: calc(100% + 4px); max-height: 260px; overflow-y: auto;
+        background: var(--bs-body-bg, #fff); border: 1px solid var(--bs-border-color, #dee2e6); border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,.12); }
+    .banco-lista li { padding: 8px 12px; cursor: pointer; }
+    .banco-lista li[role="option"]:hover, .banco-lista li.ativo { background: rgba(79, 70, 229, .10); }
+    .banco-lista li.banco-outro { cursor: default; font-size: .875rem; }
+</style>
+@endpush
+
+@push('scripts')
+<script>
+(function () {
+    const busca = document.getElementById('nc-banco-busca');
+    const codigo = document.getElementById('nc-banco');
+    const lista = document.getElementById('nc-banco-lista');
+    if (!busca || !codigo || !lista) return;
+    const itens = Array.from(lista.querySelectorAll('li[role="option"]'));
+    const outro = lista.querySelector('.banco-outro');
+    const limpar = t => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    let ativo = -1;
+
+    function visiveis() { return itens.filter(li => !li.hidden); }
+    function marcar(i) {
+        const v = visiveis();
+        v.forEach(li => li.classList.remove('ativo'));
+        ativo = v.length ? (i + v.length) % v.length : -1;
+        if (ativo >= 0) { v[ativo].classList.add('ativo'); v[ativo].scrollIntoView({ block: 'nearest' }); }
+    }
+    function abrir() { lista.hidden = false; busca.setAttribute('aria-expanded', 'true'); }
+    function fechar() { lista.hidden = true; busca.setAttribute('aria-expanded', 'false'); }
+    function escolher(li) { codigo.value = li.dataset.codigo; busca.value = li.dataset.texto; busca.setCustomValidity(''); fechar(); }
+    function filtrar() {
+        const termo = limpar(busca.value.trim());
+        let achou = 0;
+        itens.forEach(li => { li.hidden = termo !== '' && !limpar(li.dataset.texto).includes(termo); if (!li.hidden) achou++; });
+        outro.hidden = achou > 0;
+        // banco fora da lista: vale o número de 3 dígitos digitado
+        codigo.value = /^\d{3}$/.test(busca.value.trim()) ? busca.value.trim() : '';
+        const exato = itens.find(li => li.dataset.codigo === busca.value.trim());
+        if (exato) codigo.value = exato.dataset.codigo;
+        marcar(0);
+        abrir();
+    }
+
+    busca.addEventListener('focus', () => { itens.forEach(li => li.hidden = false); outro.hidden = true; abrir(); });
+    busca.addEventListener('input', filtrar);
+    busca.addEventListener('keydown', e => {
+        if (e.key === 'ArrowDown') { e.preventDefault(); abrir(); marcar(ativo + 1); }
+        else if (e.key === 'ArrowUp') { e.preventDefault(); marcar(ativo - 1); }
+        else if (e.key === 'Enter' && !lista.hidden && ativo >= 0 && visiveis()[ativo]) { e.preventDefault(); escolher(visiveis()[ativo]); }
+        else if (e.key === 'Escape') { fechar(); }
+    });
+    itens.forEach(li => li.addEventListener('mousedown', e => { e.preventDefault(); escolher(li); }));
+    busca.addEventListener('blur', () => setTimeout(fechar, 120));
+    busca.form.addEventListener('submit', e => {
+        if (!/^\d{3}$/.test(codigo.value)) {
+            e.preventDefault();
+            busca.setCustomValidity('Escolha o banco na lista ou digite os 3 números dele.');
+            busca.reportValidity();
+        }
+    });
+    busca.addEventListener('input', () => busca.setCustomValidity(''));
+})();
+</script>
+@endpush
 
 @if($errors->any())
 @push('scripts')
