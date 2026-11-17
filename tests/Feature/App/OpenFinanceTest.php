@@ -610,6 +610,19 @@ class OpenFinanceTest extends TestCase
         $this->assertNull($criada->favorecido_nome);
     }
 
+    public function test_banco_que_manda_cpf_no_lugar_do_nome_usa_o_nome_do_texto(): void
+    {
+        $conta = $this->conta();
+        $l = $this->lancamento($conta, 'debito', 500.00, '2026-11-17', [
+            'contraparte_nome' => '082.399.694-88', 'contraparte_documento' => '08239969488', 'descricao' => 'Pix enviado SANDERSON RICARDO DA SILVA',
+        ]);
+
+        $p = app(\App\Services\OpenFinance\ClassificadorLancamentos::class)->propor($l);
+
+        $this->assertSame('SANDERSON RICARDO DA SILVA', $p['favorecido']);
+        $this->assertSame('Pagamento a Sanderson Ricardo Da Silva', $p['descricao']);
+    }
+
     public function test_plano_de_contas_de_outra_empresa_e_recusado_ao_lancar(): void
     {
         $this->liberar(1);

@@ -34,7 +34,7 @@ class ClassificadorLancamentos
         $proposta = [
             'origem' => null, 'usos' => 0,
             'fornecedor_id' => $fornecedor?->id,
-            'favorecido' => $fornecedor?->razao_social ?: ($l->contraparte_nome ?: ''),
+            'favorecido' => $fornecedor?->razao_social ?: $this->nomeDoBanco($l),
             'descricao' => $this->descricaoPadrao($l),
             'plano_conta_id' => null, 'plano_nome' => null, 'centro_custo_id' => null, 'centro_nome' => null,
         ];
@@ -91,7 +91,7 @@ class ClassificadorLancamentos
             ? Fornecedor::withoutGlobalScopes()->where('empresa_id', $l->empresa_id)->find($dados['fornecedor_id'])
             : $this->fornecedorPorDocumento($l->empresa_id, $l->contraparte_documento);
         $descricao = trim((string) ($dados['descricao'] ?? '')) ?: $this->descricaoPadrao($l);
-        $favorecido = $fornecedor ? null : (trim((string) ($dados['favorecido_nome'] ?? '')) ?: ($l->contraparte_nome ?: null));
+        $favorecido = $fornecedor ? null : (trim((string) ($dados['favorecido_nome'] ?? '')) ?: ($this->nomeDoBanco($l) ?: null));
 
         $unidadeId ??= $l->contaBancaria?->unidade_id
             ?? Unidade::withoutGlobalScopes()->where('empresa_id', $l->empresa_id)->orderBy('id')->value('id');
@@ -204,9 +204,25 @@ class ClassificadorLancamentos
 
     private function descricaoPadrao(LancamentoBancario $l): string
     {
-        $quem = $l->contraparte_nome ? Str::title(Str::lower($l->contraparte_nome)) : null;
+        $quem = $this->nomeDoBanco($l) !== '' ? Str::title(Str::lower($this->nomeDoBanco($l))) : null;
 
         return Str::limit($quem ? "Pagamento a {$quem}" : ($l->descricao ?: 'Saída do banco'), 250, '');
+    }
+
+    /**
+     * Nome de quem recebeu. Alguns bancos mandam o CPF/CNPJ no lugar do nome: aí vale o nome que
+     * vem no texto do lançamento ("Pix enviado FULANO DE TAL").
+     */
+    public function nomeDoBanco(LancamentoBancario $l): string
+    {
+        $nome = trim((string) $l->contraparte_nome);
+        if ($nome !== '' && ! preg_match('/^[\d.\-\/ ]+$/', $nome)) {
+            return $nome;
+        }
+
+        $texto = trim(preg_replace('/^(pix (enviado|recebido)|pagamento de pix( qr code)?|transferencia (enviada|recebida)|ted (enviada|recebida)|pagamento (de )?boleto|pagamento)\s*/i', '', (string) $l->descricao));
+
+        return preg_match('/\pL{3,}/u', $texto) ? $texto : '';
     }
 
     private function forma(?string $operacao): ?string
