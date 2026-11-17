@@ -95,7 +95,27 @@ class BancoController extends Controller
         }
         $conhecidos = $filtro === 'sem' ? $this->pendentesConhecidos($empresa->id, $contaId)->count() : 0;
 
+        // Painel: o que falta fazer e quanto há nas contas (tudo da empresa, sem o filtro de conta/cartão).
+        $tudo = LancamentoBancario::where('empresa_id', $empresa->id);
+        $mes = [now()->startOfMonth()->toDateString(), now()->endOfMonth()->toDateString()];
+        $comSaldo = $contas->filter(fn ($c) => $c->saldo !== null);
+        $painel = [
+            'saldo' => $comSaldo->isEmpty() ? null : (float) $comSaldo->sum(fn ($c) => (float) $c->saldo),
+            'saldo_aplicado' => (float) $comSaldo->sum(fn ($c) => (float) $c->saldo_aplicado),
+            'saldo_em' => $comSaldo->min('saldo_atualizado_em'),
+            'confirmar_qtd' => (clone $tudo)->where('status', 'sugerido')->count(),
+            'confirmar_valor' => (float) (clone $tudo)->where('status', 'sugerido')->sum('valor'),
+            'sem_qtd' => (clone $tudo)->where('status', 'pendente')->count(),
+            'sem_valor' => (float) (clone $tudo)->where('status', 'pendente')->sum('valor'),
+            // Só a CONTA: compra de cartão não é dinheiro que saiu do banco naquele dia.
+            'entradas_mes' => (float) (clone $tudo)->whereNull('cartao_credito_id')->where('tipo', 'credito')->where('status', '!=', 'removido')->whereBetween('data', $mes)->sum('valor'),
+            'saidas_mes' => (float) (clone $tudo)->whereNull('cartao_credito_id')->where('tipo', 'debito')->where('status', '!=', 'removido')->whereBetween('data', $mes)->sum('valor'),
+            'feitos_mes' => (clone $tudo)->where('status', 'conciliado')->whereBetween('data', $mes)->count(),
+            'total_mes' => (clone $tudo)->whereNotIn('status', ['removido', 'ignorado'])->whereBetween('data', $mes)->count(),
+        ];
+
         return view('app.bancos.index', [
+            'painel' => $painel,
             'propostas' => $propostas,
             'conhecidos' => $conhecidos,
             'planoContas' => $filtro === 'sem' ? PlanoContas::where('empresa_id', $empresa->id)->analiticas()->ativas()

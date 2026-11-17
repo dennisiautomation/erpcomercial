@@ -2,6 +2,7 @@
 
 namespace App\Services\OpenFinance;
 
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Cache;
@@ -24,14 +25,14 @@ class TecnospeedClient
     /** Cadastra a conta e devolve os dados dela (accountHash, openfinanceLink, statusOpenfinance). */
     public function criarConta(array $conta): array
     {
-        $r = $this->http()->post('/api/v1/account', [array_filter([
+        $r = $this->enviar('POST', '/api/v1/account', ['json' => [array_filter([
             'bankCode' => $conta['banco_codigo'],
             'agency' => $conta['agencia'],
             'agencyDigit' => $conta['agencia_digito'] ?? null,
             'accountNumber' => $conta['conta'],
             'accountNumberDigit' => $conta['conta_digito'] ?? null,
             'statementActived' => true,
-        ], fn ($v) => $v !== null && $v !== '')]);
+        ], fn ($v) => $v !== null && $v !== '')]]);
 
         $this->exigir($r, 'cadastrar a conta no banco');
 
@@ -40,7 +41,7 @@ class TecnospeedClient
 
     public function consultarConta(string $hash): array
     {
-        $r = $this->http()->get('/api/v1/account/' . $hash);
+        $r = $this->enviar('GET', '/api/v1/account/' . $hash);
         $this->exigir($r, 'consultar a conta');
         $dados = (array) $r->json();
 
@@ -51,9 +52,9 @@ class TecnospeedClient
     public function removerConta(string $hash): void
     {
         // A revogação pode falhar quando a conta nunca chegou a conectar — segue para apagar.
-        $this->http()->put('/api/v1/account/' . $hash . '/openfinance/revoke', ['revokeAndDisable' => true]);
+        $this->enviar('PUT', '/api/v1/account/' . $hash . '/openfinance/revoke', ['json' => ['revokeAndDisable' => true]]);
 
-        $r = $this->http()->send('DELETE', '/api/v1/account', ['json' => ['accountHash' => [$hash]]]);
+        $r = $this->enviar('DELETE', '/api/v1/account', ['json' => ['accountHash' => [$hash]]]);
         if ($r->status() !== 404) {
             $this->exigir($r, 'remover a conta');
         }
@@ -62,22 +63,34 @@ class TecnospeedClient
     /** Pede o extrato do período; devolve o protocolo (uniqueId) para consultar depois. */
     public function pedirExtrato(string $hash, string $inicio, string $fim, ?string $cartaoFinal = null): string
     {
-        $r = $this->http()->post('/api/v1/statement/openfinance', [
+        $r = $this->enviar('POST', '/api/v1/statement/openfinance', ['json' => [
             'accountHash' => $hash,
             'dateStart' => $inicio,
             'dateEnd' => $fim,
         ] + ($cartaoFinal !== null
             ? ['statementType' => 'CREDIT_CARD', 'cardNumber' => $cartaoFinal]
-            : ['statementType' => 'BANK']));
+            : ['statementType' => 'BANK'])]);
         $this->exigir($r, 'pedir o extrato');
 
         return (string) $r->json('uniqueId');
     }
 
+    /**
+     * Saldo da conta: ['balance' => float, 'blockedBalance' => float, 'automaticallyInvestedBalance' => float,
+     * 'updateDateTime' => ISO, 'nextUpdate' => ISO]. O banco só atualiza de 6 em 6 horas.
+     */
+    public function saldo(string $hash): array
+    {
+        $r = $this->enviar('GET', '/api/v1/balance/openfinance/realtime', ['query' => ['accountHash' => $hash]]);
+        $this->exigir($r, 'consultar o saldo');
+
+        return (array) $r->json();
+    }
+
     /** Cartões de crédito da conta: [['cardNumber' => '5817', 'additionalCards' => '3210,1646', 'creditLimit' => ..., 'availableCreditLimit' => ...]]. */
     public function listarCartoes(string $hash): array
     {
-        $r = $this->http()->get('/api/v1/statement/credit-card/openfinance', ['accountHash' => $hash]);
+        $r = $this->enviar('GET', '/api/v1/statement/credit-card/openfinance', ['query' => ['accountHash' => $hash]]);
         if ($r->status() === 404) {
             return [];   // "Nenhum cartão de crédito encontrado para esta conta"
         }
@@ -89,10 +102,20 @@ class TecnospeedClient
     /** Protocolo completo: ['statement' => [...], 'transaction' => ['credit' => [], 'debit' => []], ...]. */
     public function consultarExtrato(string $protocolo): array
     {
-        $r = $this->http()->get('/api/v1/statement/openfinance/' . $protocolo);
+        $r = $this->enviar('GET', '/api/v1/statement/openfinance/' . $protocolo);
         $this->exigir($r, 'consultar o extrato');
 
         return (array) $r->json();
+    }
+
+    /** Toda chamada passa por aqui: internet fora do ar vira mensagem tratável, não derruba a rotina. */
+    private function enviar(string $metodo, string $caminho, array $opcoes = []): Response
+    {
+        try {
+            return $this->http()->send($metodo, $caminho, $opcoes);
+        } catch (ConnectionException $e) {
+            throw new OpenFinanceException('Não foi possível falar com o banco agora. Tente de novo em instantes.');
+        }
     }
 
     private function http(): PendingRequest
@@ -118,11 +141,15 @@ class TecnospeedClient
             return $token;
         }
 
-        $r = Http::baseUrl(config('services.tecnospeed.base_url'))
-            ->withBasicAuth(config('services.tecnospeed.client_id'), config('services.tecnospeed.client_secret'))
-            ->asForm()
-            ->timeout(20)
-            ->post('/oauth/token', ['grant_type' => 'client_credentials']);
+        try {
+            $r = Http::baseUrl(config('services.tecnospeed.base_url'))
+                ->withBasicAuth(config('services.tecnospeed.client_id'), config('services.tecnospeed.client_secret'))
+                ->asForm()
+                ->timeout(20)
+                ->post('/oauth/token', ['grant_type' => 'client_credentials']);
+        } catch (ConnectionException $e) {
+            throw new OpenFinanceException('Não foi possível falar com o banco agora. Tente de novo em instantes.');
+        }
 
         if (! $r->successful() || ! $r->json('access_token')) {
             throw new OpenFinanceException('Não foi possível entrar na Tecnospeed: ' . ($r->json('message') ?: 'erro ' . $r->status()), $r->status());

@@ -32,6 +32,52 @@
     @endif
 </div>
 
+{{-- ---------------- Painel ---------------- --}}
+@if($contas->isNotEmpty())
+@php $pctMes = $painel['total_mes'] > 0 ? (int) round($painel['feitos_mes'] / $painel['total_mes'] * 100) : 0; @endphp
+<div class="row g-3 mb-4">
+    <div class="col-6 col-lg-3">
+        <div class="erp-card p-3 h-100">
+            <div class="text-muted small">Saldo nas contas</div>
+            <div class="fs-4 fw-semibold">{{ $painel['saldo'] === null ? '—' : $brl($painel['saldo']) }}</div>
+            <div class="text-muted small">
+                @if($painel['saldo'] === null)
+                    O banco ainda não informou.
+                @else
+                    Informado pelo banco em {{ $painel['saldo_em']?->format('d/m H:i') }}
+                    @if($painel['saldo_aplicado'] > 0) · mais {{ $brl($painel['saldo_aplicado']) }} em aplicação automática @endif
+                @endif
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <a class="erp-card p-3 h-100 d-block text-decoration-none text-reset" href="{{ route('app.bancos.index', ['ver' => 'conferir']) }}">
+            <div class="text-muted small">Para confirmar</div>
+            <div class="fs-4 fw-semibold">{{ $painel['confirmar_qtd'] }}</div>
+            <div class="text-muted small">{{ $painel['confirmar_qtd'] ? $brl($painel['confirmar_valor']) . ' já com sugestão' : 'Nada esperando você' }}</div>
+        </a>
+    </div>
+    <div class="col-6 col-lg-3">
+        <a class="erp-card p-3 h-100 d-block text-decoration-none text-reset" href="{{ route('app.bancos.index', ['ver' => 'sem']) }}">
+            <div class="text-muted small">Sem sugestão</div>
+            <div class="fs-4 fw-semibold">{{ $painel['sem_qtd'] }}</div>
+            <div class="text-muted small">{{ $painel['sem_qtd'] ? $brl($painel['sem_valor']) . ' para classificar' : 'Tudo classificado' }}</div>
+        </a>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="erp-card p-3 h-100">
+            <div class="text-muted small">{{ ucfirst(now()->translatedFormat('F')) }} na conta</div>
+            <div class="small mt-1"><span class="text-success fw-semibold">+ {{ $brl($painel['entradas_mes']) }}</span> entraram</div>
+            <div class="small"><span class="text-danger fw-semibold">− {{ $brl($painel['saidas_mes']) }}</span> saíram</div>
+            <div class="progress mt-2" style="height: 6px;" role="progressbar" aria-label="Conciliado no mês" aria-valuenow="{{ $pctMes }}" aria-valuemin="0" aria-valuemax="100">
+                <div class="progress-bar bg-success" style="width: {{ $pctMes }}%"></div>
+            </div>
+            <div class="text-muted small mt-1">{{ $painel['feitos_mes'] }} de {{ $painel['total_mes'] }} conciliados ({{ $pctMes }}%)</div>
+        </div>
+    </div>
+</div>
+@endif
+
 {{-- ---------------- Contas ---------------- --}}
 <div class="erp-card mb-4">
     <div class="table-responsive">
@@ -71,6 +117,9 @@
                     <td>
                         {{ $c->ultima_sincronizacao_em?->format('d/m/Y H:i') ?? '—' }}
                         @if($c->protocolo_pendente)<div class="text-muted small">Banco preparando o extrato…</div>@endif
+                        @if($c->saldo !== null)
+                            <div class="small mt-1">Saldo <strong>{{ $brl($c->saldo) }}</strong> <span class="text-muted">em {{ $c->saldo_atualizado_em?->format('d/m H:i') }}</span></div>
+                        @endif
                     </td>
                     <td>
                         <div class="d-flex flex-wrap gap-2">
@@ -105,7 +154,10 @@
                         <i class="bi bi-credit-card me-1 text-muted"></i> <strong>{{ $cc->nome() }}</strong>
                         @if($cc->adicionais)<div class="text-muted small ps-4">Adicionais: {{ str_replace(',', ', ', $cc->adicionais) }}</div>@endif
                     </td>
-                    <td class="text-muted small">Cartão de crédito · não conta como conta extra</td>
+                    <td class="text-muted small">
+                        Cartão de crédito · não conta como conta extra
+                        @if($cc->limite_disponivel !== null)<div>Limite disponível <strong class="text-body">{{ $brl($cc->limite_disponivel) }}</strong>@if($cc->limite !== null) de {{ $brl($cc->limite) }}@endif</div>@endif
+                    </td>
                     <td></td>
                     <td>
                         @if($cc->importar)

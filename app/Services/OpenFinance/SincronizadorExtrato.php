@@ -44,6 +44,8 @@ class SincronizadorExtrato
         // Cartões só depois que a conta conectou; cada cartão tem o seu próprio relógio de 6 h.
         $conta->refresh();
         if ($conta->situacao === 'conectada') {
+            $this->atualizarSaldo($conta);
+
             foreach ($conta->cartoes()->where('importar', true)->get() as $cartao) {
                 $resultado .= ' · ' . $cartao->nome() . ': ' . $this->passoDoCartao($conta, $cartao, $forcar);
             }
@@ -138,6 +140,42 @@ class SincronizadorExtrato
 
             return 'erro: ' . $e->getMessage();
         }
+    }
+
+    /**
+     * Saldo informado pelo banco. Serve para a pessoa VER quanto tem; nunca entra na conciliação
+     * (o banco atualiza só de 6 em 6 horas, então pode estar atrás do extrato). Falha aqui não
+     * atrapalha o extrato: tenta de novo em 1 hora.
+     */
+    public function atualizarSaldo(ContaBancaria $conta, bool $forcar = false): bool
+    {
+        if (! $forcar && $conta->saldo_proxima_em && $conta->saldo_proxima_em->isFuture()) {
+            return false;
+        }
+
+        try {
+            $d = $this->api->saldo($conta->account_hash);
+        } catch (OpenFinanceException) {
+            $conta->update(['saldo_proxima_em' => now()->addHour()]);
+
+            return false;
+        }
+
+        if (! is_numeric($d['balance'] ?? null)) {
+            $conta->update(['saldo_proxima_em' => now()->addHour()]);
+
+            return false;
+        }
+
+        $conta->update([
+            'saldo' => $d['balance'],
+            'saldo_bloqueado' => is_numeric($d['blockedBalance'] ?? null) ? $d['blockedBalance'] : null,
+            'saldo_aplicado' => is_numeric($d['automaticallyInvestedBalance'] ?? null) ? $d['automaticallyInvestedBalance'] : null,
+            'saldo_atualizado_em' => ! empty($d['updateDateTime']) ? Carbon::parse($d['updateDateTime'])->setTimezone(config('app.timezone')) : now(),
+            'saldo_proxima_em' => ! empty($d['nextUpdate']) ? Carbon::parse($d['nextUpdate'])->setTimezone(config('app.timezone')) : now()->addHours(self::INTERVALO_HORAS),
+        ]);
+
+        return true;
     }
 
     /** "FAILED — nenhuma transação foi localizada no período" não é erro: é período sem movimento. */

@@ -69,6 +69,8 @@ class OpenFinanceTest extends TestCase
                     'statusOpenfinance' => 'PENDENTE_ATIVACAO',
                 ]]], 201),
             self::BASE . '/api/v1/account/*/openfinance/revoke' => Http::response(['message' => 'Conta revogada com sucesso.']),
+            // saldo: por padrão o banco ainda não informou (não pode atrapalhar o extrato)
+            self::BASE . '/api/v1/balance/openfinance/realtime*' => Http::response(['code' => 404, 'message' => 'Verifique se a conta cadastrada possui o extrato ativo'], 404),
         ]);
     }
 
@@ -808,6 +810,65 @@ class OpenFinanceTest extends TestCase
         $x = $this->lancamento($conta, 'debito', 5.00, '2026-11-09');
         $this->eu()->post(route('app.bancos.lancamentos.fatura', $x), ['cartao_id' => $alheio->id])->assertSessionHasErrors('cartao_id');
         $this->eu()->post(route('app.bancos.cartoes.alternar', $alheio))->assertNotFound();
+    }
+
+    public function test_internet_fora_do_ar_nao_derruba_a_rotina(): void
+    {
+        $conta = $this->conta();
+        Http::fake(fn () => throw new \Illuminate\Http\Client\ConnectionException('cURL error 6: Could not resolve host'));
+
+        $resultado = app(SincronizadorExtrato::class)->sincronizar($conta);
+
+        $this->assertStringStartsWith('erro: Não foi possível falar com o banco agora', $resultado);
+        $this->assertTrue($conta->fresh()->proxima_sincronizacao_em->between(now()->addMinutes(50), now()->addMinutes(70)));
+        $this->artisan('openfinance:sincronizar')->assertSuccessful();
+    }
+
+    /* ---------------- saldo e painel ---------------- */
+
+    public function test_saldo_vem_do_banco_respeita_o_intervalo_e_falha_nao_atrapalha_o_extrato(): void
+    {
+        $conta = $this->conta(['proxima_sincronizacao_em' => now()->addHours(3)]);
+        $this->fakeTecnospeed([self::BASE . '/api/v1/balance/openfinance/realtime*' => Http::sequence()
+            ->push(['balance' => 1234.56, 'blockedBalance' => 0, 'automaticallyInvestedBalance' => 800.10, 'currencyCode' => 'BRL',
+                'updateDateTime' => now()->subMinutes(10)->toIso8601String(), 'nextUpdate' => now()->addHours(6)->toIso8601String()])
+            ->push(['code' => 404, 'message' => 'Verifique se a conta cadastrada possui o extrato ativo'], 404)]);
+        $s = app(SincronizadorExtrato::class);
+
+        $this->assertSame('ainda não é hora', $s->sincronizar($conta));
+        $conta->refresh();
+        $this->assertSame('1234.56', $conta->saldo);
+        $this->assertSame('800.10', $conta->saldo_aplicado);
+        $this->assertTrue($conta->saldo_proxima_em->gt(now()->addHours(5)));
+
+        $s->sincronizar($conta);                                                       // dentro das 6 h: não consulta de novo
+        Http::assertSentCount(2);                                                      // token + 1 saldo
+
+        $conta->update(['saldo_proxima_em' => now()->subMinute()]);
+        $this->assertSame('ainda não é hora', $s->sincronizar($conta->fresh()));      // saldo falhou, extrato segue normal
+        $this->assertSame('1234.56', $conta->fresh()->saldo);                          // mantém o último saldo bom
+        $this->assertNull($conta->fresh()->ultimo_erro);
+    }
+
+    public function test_painel_mostra_saldo_o_que_falta_e_o_mes_sem_misturar_cartao(): void
+    {
+        $this->liberar(2);
+        $conta = $this->conta(['saldo' => 1000.00, 'saldo_aplicado' => 250.00, 'saldo_atualizado_em' => now()->subHour()]);
+        $this->conta(['account_hash' => 'HASH2', 'apelido' => 'Sicredi', 'conta' => '999', 'saldo' => 500.50, 'saldo_atualizado_em' => now()]);
+        $cartao = $this->cartao($conta);
+        $hoje = now()->toDateString();
+        $this->lancamento($conta, 'credito', 300.00, $hoje, ['status' => 'conciliado']);
+        $this->lancamento($conta, 'debito', 120.00, $hoje, ['status' => 'sugerido', 'sugestao_confianca' => 90]);
+        $this->lancamento($conta, 'debito', 80.00, $hoje);
+        $this->lancamento($conta, 'debito', 999.00, $hoje, ['cartao_credito_id' => $cartao->id]);   // compra no cartão: fora do "saíram da conta"
+        $this->lancamento($conta, 'debito', 50.00, $hoje, ['status' => 'removido']);
+
+        $this->eu()->get(route('app.bancos.index'))->assertOk()
+            ->assertSee('Saldo nas contas')->assertSee('R$ 1.500,50')->assertSee('R$ 250,00 em aplicação automática')
+            ->assertSee('R$ 120,00 já com sugestão')
+            ->assertSee('R$ 1.079,00 para classificar')                                // 80 da conta + 999 do cartão
+            ->assertSee('+ R$ 300,00')->assertSee('− R$ 200,00')                       // só a conta: 120 + 80
+            ->assertSee('1 de 4 conciliados (25%)');
     }
 
     /* ---------------- rotina e admin ---------------- */

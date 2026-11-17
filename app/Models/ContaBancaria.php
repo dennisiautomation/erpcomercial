@@ -24,6 +24,7 @@ class ContaBancaria extends Model
         'account_hash', 'link_conexao', 'status_banco', 'situacao', 'conectada_em', 'desconectada_em',
         'protocolo_pendente', 'protocolo_inicio', 'protocolo_fim',
         'ultima_sincronizacao_em', 'proxima_sincronizacao_em', 'ultimo_erro',
+        'saldo', 'saldo_bloqueado', 'saldo_aplicado', 'saldo_atualizado_em', 'saldo_proxima_em',
     ];
 
     protected function casts(): array
@@ -35,6 +36,11 @@ class ContaBancaria extends Model
             'protocolo_fim' => 'date',
             'ultima_sincronizacao_em' => 'datetime',
             'proxima_sincronizacao_em' => 'datetime',
+            'saldo' => 'decimal:2',
+            'saldo_bloqueado' => 'decimal:2',
+            'saldo_aplicado' => 'decimal:2',
+            'saldo_atualizado_em' => 'datetime',
+            'saldo_proxima_em' => 'datetime',
         ];
     }
 
