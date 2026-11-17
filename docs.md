@@ -10230,3 +10230,11 @@ Cada passada faz uma coisa por conta: (1) aguardando → `GET /account/{hash}`, 
 - **Plano de 6 etapas: feito.** Fora do plano e ainda não escrito: um lançamento para várias contas (e o contrário), conciliar sozinho sem clique, cruzamento pela linha digitável, aviso da Tecnospeed por webhook.
 - Suíte inteira: **422 testes, só as 2 falhas antigas**.
 - **Conferido com dado real (17/11):** o saldo da conta Itaú veio e aparece no painel e na linha da conta. O valor de `balance` veio IGUAL ao de `automaticallyInvestedBalance` → tudo indica que a aplicação automática já está DENTRO do saldo (não é um valor a mais); a tela mostra os dois sem somar. Cinco dos seis cartões vieram com limite 0 (a tela só mostra limite quando é maior que zero).
+
+### "Cadastrar na hora" (17/11/2026, pedido do Dennis ao testar)
+- Na janela **Lançar despesa**, a lista de conta do plano de contas e a de centro de custo ganharam "＋ Cadastrar … novo agora": aparece um campo para o nome e, ao lançar, o item é criado e já usado. Mesmo nome (sem diferenciar maiúsculas) reaproveita o que existe.
+- Conta nova do plano: tipo despesa, analítica, código gerado `9.01`, `9.02`… (dá para trocar depois em Gestão → Plano de Contas). Centro de custo novo: código gerado das primeiras letras do nome. `ClassificadorLancamentos::contaDoPlanoPeloNome` / `centroDeCustoPeloNome`.
+- Na linha, a lista "Escolha a conta…" ganhou "＋ Cadastrar uma despesa nova agora…", que abre a mesma janela.
+- Quem pode: a mesma permissão `financeiro` que já vale para as telas de Plano de Contas e Centro de Custos.
+- Fornecedor continua sem cadastro automático (o cadastro exige endereço): a despesa leva o nome que veio do banco como favorecido.
+- Validação: `OpenFinanceTest` 39 ✅ (278 conferências); suíte inteira 423 testes, só as 2 falhas antigas.

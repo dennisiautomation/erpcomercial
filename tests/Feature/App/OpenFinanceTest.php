@@ -625,6 +625,41 @@ class OpenFinanceTest extends TestCase
         $this->assertSame('Pagamento a Sanderson Ricardo Da Silva', $p['descricao']);
     }
 
+    public function test_cadastra_conta_do_plano_e_centro_de_custo_na_hora_sem_duplicar(): void
+    {
+        $this->liberar(1);
+        $conta = $this->conta();
+        $a = $this->lancamento($conta, 'debito', 90.00, '2026-11-05', ['contraparte_nome' => 'POSTO SHELL', 'contraparte_documento' => '11222333000144']);
+        $b = $this->lancamento($conta, 'debito', 70.00, '2026-11-06', ['contraparte_nome' => 'POSTO IPIRANGA', 'contraparte_documento' => '55666777000188']);
+
+        $this->eu()->get(route('app.bancos.index', ['ver' => 'sem']))->assertOk()
+            ->assertSee('Cadastrar uma despesa nova agora')->assertSee('Cadastrar uma conta nova agora')->assertSee('Cadastrar um centro de custo novo agora');
+
+        $this->eu()->post(route('app.bancos.lancamentos.lancar', $a), [
+            'descricao' => 'Combustível', 'plano_conta_novo' => '  Combustível ', 'centro_custo_novo' => 'Entregas', 'lembrar' => 1,
+        ])->assertSessionHas('success');
+
+        $plano = \App\Models\PlanoContas::withoutGlobalScopes()->where('empresa_id', $this->empresa->id)->firstOrFail();
+        $centro = \App\Models\CentroCusto::withoutGlobalScopes()->where('empresa_id', $this->empresa->id)->firstOrFail();
+        $this->assertSame(['9.01', 'Combustível', 'despesa', 'analitica'], [$plano->codigo, $plano->nome, $plano->tipo, $plano->natureza]);
+        $this->assertSame(['ENTREG', 'Entregas'], [$centro->codigo, $centro->nome]);
+        $titulo = ContaPagar::withoutGlobalScopes()->firstOrFail();
+        $this->assertSame([$plano->id, $centro->id, 'Combustível', 'Entregas'], [$titulo->plano_conta_id, $titulo->centro_custo_id, $titulo->categoria, $titulo->centro_custo]);
+
+        // mesmo nome de novo (com outra caixa): usa o que existe, não duplica
+        $this->eu()->post(route('app.bancos.lancamentos.lancar', $b), ['plano_conta_novo' => 'COMBUSTÍVEL', 'centro_custo_novo' => 'entregas'])->assertSessionHas('success');
+        $this->assertSame(1, \App\Models\PlanoContas::withoutGlobalScopes()->where('empresa_id', $this->empresa->id)->count());
+        $this->assertSame(1, \App\Models\CentroCusto::withoutGlobalScopes()->where('empresa_id', $this->empresa->id)->count());
+
+        // a conta criada na hora já aparece nas telas normais do ERP
+        $this->eu()->get(route('app.plano-contas.index'))->assertOk()->assertSee('Combustível');
+
+        // nome curto demais é recusado e nada é criado
+        $c = $this->lancamento($conta, 'debito', 5.00, '2026-11-07');
+        $this->eu()->post(route('app.bancos.lancamentos.lancar', $c), ['plano_conta_novo' => 'X'])->assertSessionHasErrors('plano_conta_novo');
+        $this->assertSame('pendente', $c->fresh()->status);
+    }
+
     public function test_plano_de_contas_de_outra_empresa_e_recusado_ao_lancar(): void
     {
         $this->liberar(1);

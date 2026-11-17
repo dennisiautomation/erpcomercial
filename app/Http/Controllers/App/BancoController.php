@@ -331,7 +331,22 @@ class BancoController extends Controller
             'centro_custo_id' => ['nullable', Rule::exists('centros_custo', 'id')->where('empresa_id', $empresa->id)],
             'lembrar' => 'nullable|boolean',
             'usar_proposta' => 'nullable|boolean',
+            // cadastrar na hora, sem sair da tela
+            'plano_conta_novo' => 'nullable|string|min:2|max:100',
+            'centro_custo_novo' => 'nullable|string|min:2|max:100',
+        ], [
+            'plano_conta_novo.min' => 'Dê um nome para a conta nova (ao menos 2 letras).',
+            'centro_custo_novo.min' => 'Dê um nome para o centro de custo novo (ao menos 2 letras).',
         ]);
+
+        if (! $request->boolean('usar_proposta') && in_array($lancamento->status, ['pendente', 'sugerido'], true) && ! $lancamento->ehCredito()) {
+            if (filled($dados['plano_conta_novo'] ?? null)) {
+                $dados['plano_conta_id'] = $this->classificador->contaDoPlanoPeloNome($empresa->id, $dados['plano_conta_novo'])->id;
+            }
+            if (filled($dados['centro_custo_novo'] ?? null)) {
+                $dados['centro_custo_id'] = $this->classificador->centroDeCustoPeloNome($empresa->id, $dados['centro_custo_novo'])->id;
+            }
+        }
 
         // Um clique: vale a proposta do sistema (regra já aprendida).
         if ($request->boolean('usar_proposta')) {

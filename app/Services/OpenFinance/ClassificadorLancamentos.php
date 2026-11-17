@@ -141,6 +141,66 @@ class ClassificadorLancamentos
         return $conta;
     }
 
+    /**
+     * "Cadastrar na hora": conta de despesa nova no plano de contas, criada de dentro da janela
+     * de lançar. Se já existe uma com o mesmo nome, usa a que existe. O código é gerado (9.01,
+     * 9.02…) e pode ser trocado depois em Gestão → Plano de Contas.
+     */
+    public function contaDoPlanoPeloNome(int $empresaId, string $nome): PlanoContas
+    {
+        $nome = Str::limit(trim(preg_replace('/\s+/', ' ', $nome)), 100, '');
+
+        $existente = PlanoContas::withoutGlobalScopes()->where('empresa_id', $empresaId)->whereNull('deleted_at')
+            ->where('natureza', 'analitica')->whereIn('tipo', ['despesa', 'custo'])
+            ->whereRaw('LOWER(nome) = ?', [mb_strtolower($nome)])->first();
+        if ($existente) {
+            if (! $existente->ativo) {
+                $existente->update(['ativo' => true]);
+            }
+
+            return $existente;
+        }
+
+        // inclui as apagadas: o código é único por empresa mesmo depois de excluir
+        $usados = PlanoContas::withoutGlobalScopes()->where('empresa_id', $empresaId)->pluck('codigo')->all();
+        $n = 1;
+        do {
+            $codigo = '9.' . str_pad((string) $n++, 2, '0', STR_PAD_LEFT);
+        } while (in_array($codigo, $usados, true));
+
+        return PlanoContas::withoutGlobalScopes()->create([
+            'empresa_id' => $empresaId, 'codigo' => $codigo, 'nome' => $nome,
+            'tipo' => 'despesa', 'natureza' => 'analitica', 'ativo' => true,
+        ]);
+    }
+
+    /** "Cadastrar na hora": centro de custo novo pelo nome (ou o que já existe com esse nome). */
+    public function centroDeCustoPeloNome(int $empresaId, string $nome): CentroCusto
+    {
+        $nome = Str::limit(trim(preg_replace('/\s+/', ' ', $nome)), 100, '');
+
+        $existente = CentroCusto::withoutGlobalScopes()->where('empresa_id', $empresaId)->whereNull('deleted_at')
+            ->whereRaw('LOWER(nome) = ?', [mb_strtolower($nome)])->first();
+        if ($existente) {
+            if (! $existente->ativo) {
+                $existente->update(['ativo' => true]);
+            }
+
+            return $existente;
+        }
+
+        $usados = CentroCusto::withoutGlobalScopes()->where('empresa_id', $empresaId)->pluck('codigo')->all();
+        $base = Str::upper(Str::limit(preg_replace('/[^A-Za-z0-9]/', '', Str::ascii($nome)), 6, '')) ?: 'CC';
+        $codigo = $base;
+        for ($n = 2; in_array($codigo, $usados, true); $n++) {
+            $codigo = $base . $n;
+        }
+
+        return CentroCusto::withoutGlobalScopes()->create([
+            'empresa_id' => $empresaId, 'codigo' => $codigo, 'nome' => $nome, 'ativo' => true,
+        ]);
+    }
+
     /** Grava ou reforça a regra a partir de uma conta a pagar conciliada com este lançamento. */
     public function aprender(LancamentoBancario $l, ContaPagar $conta): void
     {

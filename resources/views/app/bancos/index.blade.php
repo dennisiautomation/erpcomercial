@@ -306,8 +306,11 @@
                                     @foreach($opcoes as $o)
                                         <option value="{{ $o->id }}">{{ $o->vencimento?->format('d/m') }} · {{ $brl($o->valor) }} · {{ \Illuminate\Support\Str::limit($quem($o) . ' — ' . $o->descricao, 60) }}</option>
                                     @endforeach
+                                    @if(isset($propostas[$l->id]))
+                                        <option value="__nova">＋ Cadastrar uma despesa nova agora…</option>
+                                    @endif
                                 </select>
-                                <button class="btn btn-sm btn-success" {{ $opcoes->isEmpty() ? 'disabled' : '' }}>Conciliar</button>
+                                <button class="btn btn-sm btn-success" {{ $opcoes->isEmpty() && ! isset($propostas[$l->id]) ? 'disabled' : '' }}>Conciliar</button>
                             </form>
                             @if(! $l->ehCredito() && ! $l->cartao && $cartoes->isNotEmpty())
                                 <form method="POST" action="{{ route('app.bancos.lancamentos.fatura', $l) }}" class="d-flex gap-2 mt-2">
@@ -425,20 +428,23 @@
                 </div>
                 <div class="mb-3">
                     <label class="form-label" for="lancar-plano">Conta do plano de contas</label>
-                    <select id="lancar-plano" name="plano_conta_id" class="form-select">
+                    <select id="lancar-plano" name="plano_conta_id" class="form-select" data-novo="#lancar-plano-novo">
                         <option value="">Sem classificar</option>
                         @foreach($planoContas as $pc)<option value="{{ $pc->id }}">{{ $pc->codigo }} — {{ $pc->nome }}</option>@endforeach
+                        <option value="__novo">＋ Cadastrar uma conta nova agora…</option>
                     </select>
-                    @if($planoContas->isEmpty())
-                        <div class="form-text">Nenhuma conta de despesa cadastrada. Cadastre em Gestão → Plano de Contas.</div>
-                    @endif
+                    <input id="lancar-plano-novo" name="plano_conta_novo" class="form-control mt-2" maxlength="100" hidden disabled
+                           placeholder="Nome da conta nova (ex.: Aluguel, Combustível)" aria-label="Nome da conta nova do plano de contas">
                 </div>
                 <div class="mb-3">
                     <label class="form-label" for="lancar-centro">Centro de custo</label>
-                    <select id="lancar-centro" name="centro_custo_id" class="form-select">
+                    <select id="lancar-centro" name="centro_custo_id" class="form-select" data-novo="#lancar-centro-novo">
                         <option value="">Sem centro de custo</option>
                         @foreach($centrosCusto as $cc)<option value="{{ $cc->id }}">{{ $cc->nome }}</option>@endforeach
+                        <option value="__novo">＋ Cadastrar um centro de custo novo agora…</option>
                     </select>
+                    <input id="lancar-centro-novo" name="centro_custo_novo" class="form-control mt-2" maxlength="100" hidden disabled
+                           placeholder="Nome do centro de custo novo (ex.: Loja Centro, Administrativo)" aria-label="Nome do centro de custo novo">
                 </div>
                 <div class="form-check form-switch">
                     <input type="hidden" name="lembrar" value="0">
@@ -466,6 +472,29 @@ document.getElementById('modalLancar')?.addEventListener('show.bs.modal', functi
     document.getElementById('lancar-descricao').value = b.dataset.descricao || '';
     document.getElementById('lancar-plano').value = b.dataset.plano || '';
     document.getElementById('lancar-centro').value = b.dataset.centro || '';
+    document.querySelectorAll('#modalLancar select[data-novo]').forEach(alternarNovo);
+});
+
+// "Cadastrar … novo agora": mostra o campo do nome e manda só ele (o select deixa de ir no envio).
+function alternarNovo(sel) {
+    const campo = document.querySelector(sel.dataset.novo);
+    const novo = sel.value === '__novo';
+    campo.hidden = !novo;
+    campo.disabled = !novo;
+    campo.required = novo;
+    if (!sel.dataset.nome) sel.dataset.nome = sel.name;
+    sel.name = novo ? '' : sel.dataset.nome;
+    if (novo) campo.focus(); else campo.value = '';
+}
+document.querySelectorAll('#modalLancar select[data-novo]').forEach(sel => sel.addEventListener('change', () => alternarNovo(sel)));
+
+// Na lista da linha, "Cadastrar uma despesa nova agora" abre a janela daquela saída.
+document.querySelectorAll('select[name="titulo_id"]').forEach(sel => {
+    sel.addEventListener('change', () => {
+        if (sel.value !== '__nova') return;
+        sel.value = '';
+        sel.closest('td').querySelector('.btn-lancar')?.click();
+    });
 });
 </script>
 @endpush
