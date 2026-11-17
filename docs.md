@@ -10145,3 +10145,10 @@ Cada passada faz uma coisa por conta: (1) aguardando → `GET /account/{hash}`, 
 - **Cartão de crédito** (`statementType = CREDIT_CARD`, `GET /statement/credit-card/openfinance`): fatura, despesas por compra, pagamento da fatura sem contar duas vezes.
 - Saldo por conta (`GET /balance/openfinance/realtime`) e painel.
 - Aviso da Tecnospeed por webhook (só existe em produção).
+
+### Validação (17/11/2026)
+- `tests/Feature/App/OpenFinanceTest.php`: **24 testes, 121 conferências, todos ✅** — liberação (convite, não mostrar, plano + extras, venda avulsa), conta (documento do dono, limite, desconectar libera vaga, outra empresa = 404), extrato (aguardando → conectada, pedir/buscar/gravar sem duplicar, só POSTED, limite de 6 h, lançamento que some), cruzamento (CPF/CNPJ, fornecedor, valor diferente, dois iguais, fiado fora), confirmar/desfazer/confirmar os certos/escolher à mão/ignorar, título de outra empresa, rotina e admin. As respostas da Tecnospeed são simuladas no formato da documentação.
+- Suíte inteira: **408 testes, só as 2 falhas antigas** (`LoginTest::test_oito_senhas_erradas_travam_o_email`, `PdvTest::test_caixa_fechamento_calculates_correctly`).
+- Como rodar: imagem `erp-caf-app:latest`, rede `erp-cafeteria-homolog_cafnet`, banco `erp_comercial_test`, a worktree montada em `/var/www` e o `vendor` de dev da worktree da cafeteria montado por cima (mesma receita do `/home/ubuntu/erp-cafeteria-homolog/phpunit.sh`).
+- Direto na API de homologação da Tecnospeed (com a chave real): token 200; cadastro de conta 201 com link (bancos 341, 237 e 260); consulta de conta; exclusão 200; extrato e saldo de conta ainda não autorizada devolvem 404 "Verifique se a conta tem as informações de openfinanceId…".
+- **NÃO provado:** autorização real num banco, extrato real chegando, formato real do status de conta ativa (o código aceita `openfinanceId` preenchido ou status ATIVO/ATIVA/ATIVADO/ACTIVE/CONECTADO).
