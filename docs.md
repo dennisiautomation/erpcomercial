@@ -10262,3 +10262,41 @@ Refino dentro do padrão visual do ERP (`DESIGN.md`, `erp.css`), sem mudar regra
   - Padrão do sistema: `<x-erp.page-header>`, `<x-erp.empty-state>`, `badge-status`, `data-confirm`, variáveis de cor.
 - **Não mudou:** janelas "Ligar uma conta" e "Lançar despesa" (já estavam no padrão), convite (só o cabeçalho), quadros do admin e cadastro de fornecedor.
 - Validação: `OpenFinanceTest` 41 ✅ (313 conferências); suíte inteira com as 2 falhas antigas; sem erro de JavaScript no console.
+
+### Open Finance — situação em 17/11/2026 ~12:10 BRT (fechamento do dia)
+**Onde está:** tudo na branch `open-finance-17nov`, que é igual à `homolog-cafeteria-14nov`; as duas no GitHub; no ar só na homologação (`homolog-erp.ia365.com.br`, imagem `erp-caf-app:2cc3e4e`). **Não está na `main` nem na produção do ERP.**
+
+**O que existe (as 6 etapas do plano + pedidos feitos durante o teste):**
+1. Liberação por plano (contas incluídas), contas extras por empresa (venda avulsa) e "Não mostrar".
+2. Contas bancárias com CPF/CNPJ do dono, banco com busca, conectar / já autorizei / desconectar (apaga na Tecnospeed).
+3. Extrato automático (rotina a cada 10 min; 6 h por conta; só efetivado; sem duplicar; lançamento que some).
+4. Conciliação por sugestão: cruza com contas a receber e a pagar (nota 0–100), confirmar, confirmar os certos, ligar à mão, ignorar, desfazer; saída sem conta vira despesa paga com plano de contas e centro de custo; regras que aprendem; cadastrar na hora conta do plano, centro de custo e fornecedor simples; entradas e saídas separadas.
+5. Cartões de crédito: lista da conta, liga/desliga por cartão, compras viram despesa, pagamento de fatura não conta duas vezes.
+6. Saldo por conta e painel.
+Mais: revisão de design da tela e fornecedor aceitando CPF.
+
+**Tecnospeed:**
+- Homologação do ERP aponta para a Tecnospeed de **produção** (a homologação deles não autoriza banco real). Chaves em `/home/ubuntu/tecnospeed-openfinance/.env.prod` e `.env.homolog` (fora do repositório).
+- Contas na Tecnospeed de produção: **uma**, a Itaú real do Dennis (hash `Pu42gEWDP3`, Café Demo), com 6 cartões. **Decisão do Dennis em 17/11: manter** — não gera custo a mais (está dentro das 50 do fixo) e é a prova do incentivo. Rever depois que a Tecnospeed confirmar o incentivo.
+- Contas na Tecnospeed de homologação: **nenhuma** (as duas fictícias dos testes foram apagadas em 17/11).
+- Prova do incentivo: protocolo `ZKhFiW7A3jA0W2` (extrato SUCCESS em produção). Enviar a `atendimento@tecnospeed.com.br` até 14/12/2026 — **ainda não enviado**, só com ordem do Dennis.
+
+**Validação:** `tests/Feature/App/OpenFinanceTest.php` 41 testes, 313 conferências, todos ✅; suíte inteira com as 2 falhas antigas (`LoginTest::test_oito_senhas_erradas_travam_o_email`, `PdvTest::test_caixa_fechamento_calculates_correctly`). Provado com a Tecnospeed de verdade: token, cadastro de conta, autorização no banco, extrato (25 lançamentos), lista de cartões, saldo, exclusão de conta. **Não provado:** compra real de cartão.
+
+**Decisões que o Dennis ainda não deu:**
+- cadastro único de contas bancárias para todo cliente, com o Open Finance como ligação a mais (hoje o cadastro só existe para quem tem Open Finance);
+- o que fazer com entrada do banco sem conta a receber (hoje: ligar à mão ou ignorar; não cria recebimento para não duplicar receita de venda);
+- primeira carga de 90 dias (como está) ou 12 meses;
+- endereço certo da IA365 no cadastro da Tecnospeed de produção (hoje provisório);
+- preço (sugestão: adicional de R$ 49/mês com 1 conta + R$ 29 por conta extra; plano de R$ 1.200 com 2 contas);
+- qual outro sistema recebe a integração (instruções prontas em `/home/ubuntu/tecnospeed-openfinance/INSTRUCOES-INTEGRACAO-OPEN-FINANCE.md`).
+
+**Para levar à produção do ERP (só com ordem do Dennis):**
+1. A branch saiu de cima da de homologação: carrega cafeteria, maquininha, loja online e cobrança pelo caixa. Para subir **só** o Open Finance, criar uma branch a partir da `main` e trazer os commits `5adc1e4` até `2cc3e4e` (os que tocam `app/Services/OpenFinance`, `bancos/`, as 5 migrations `2026_11_17_*` e os quadros do admin).
+2. Guardar a imagem no ar (`docker tag`), build com `-f docker-compose.prod.yml`, `migrate --force` (5 migrations aditivas: tabelas do Open Finance, regras, cartões, saldo e endereço opcional do fornecedor).
+3. `.env` de produção: `TECNOSPEED_BASE_URL=https://api.pagamentobancario.com.br`, `TECNOSPEED_OPER_CLIENT_ID`, `TECNOSPEED_OPER_CLIENT_SECRET` (as do `.env.prod`); `docker cp .env` e `config:clear`.
+4. Em Admin → Planos, ligar o Open Finance e as contas incluídas nos planos que terão a função; nenhuma empresa muda sozinha.
+5. Conferir que a rotina `openfinance:sincronizar` aparece em `schedule:list`.
+6. A conta da Café Demo existe só na homologação: em produção cada cliente conecta a sua.
+
+**Loja online (dúvida do Dennis em 17/11):** é ligada cliente por cliente pela plataforma (Admin → Empresas → empresa → Integração, `lojas_online.ativo`) e depois publicada pelo lojista (`publicada`). Não está ligada ao plano e ainda não está em produção.
