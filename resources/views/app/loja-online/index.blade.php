@@ -60,7 +60,14 @@
     <div class="col-6 col-lg-3"><x-erp.stat-card icon="box-seam" color="primary" :value="$noCatalogo" label="Produtos na loja" /></div>
     <div class="col-6 col-lg-3"><x-erp.stat-card icon="image" color="{{ $semFoto ? 'warning' : 'success' }}" :value="$semFoto" label="Sem foto de capa" /></div>
     <div class="col-6 col-lg-3"><x-erp.stat-card icon="receipt" color="info" :value="$totalPedidos" label="Pedidos pela loja" /></div>
-    <div class="col-6 col-lg-3"><x-erp.stat-card icon="shop" color="secondary" :value="$loja->unidade?->nome ?? '—'" label="Vende o estoque de" /></div>
+    {{-- 17/11/2026: nome da loja não é número — cartão próprio, em tamanho de texto, com atalho para trocar --}}
+    <div class="col-6 col-lg-3">
+        <a href="{{ route('app.loja-online.configuracoes') }}" class="lj-origem h-100">
+            <span class="lj-origem-rotulo"><i class="bi bi-shop me-1"></i>Vende o estoque de</span>
+            <span class="lj-origem-nome">{{ $loja->unidade?->nome ?? 'Nenhuma loja escolhida' }}</span>
+            <span class="lj-origem-acao">Trocar em Configurações <i class="bi bi-arrow-right"></i></span>
+        </a>
+    </div>
 </div>
 
 <div class="row g-3 mb-4">
@@ -117,3 +124,17 @@
     @endif
 </x-erp.card>
 @endsection
+
+@push('styles')
+<style>
+    .lj-origem {
+        display: flex; flex-direction: column; gap: 0.25rem; padding: 1rem 1.125rem;
+        background: var(--bg-card, #fff); border: 1px solid var(--border, #e2e8f0); border-radius: 0.75rem;
+        color: inherit; text-decoration: none; transition: border-color .15s ease, box-shadow .15s ease;
+    }
+    .lj-origem:hover { border-color: var(--border-hover, #cbd5e1); box-shadow: 0 2px 8px rgba(15, 23, 42, .06); }
+    .lj-origem-rotulo { font-size: 0.75rem; font-weight: 600; color: var(--text-muted, #64748b); }
+    .lj-origem-nome { font-size: 1.0625rem; font-weight: 700; color: var(--text-primary, #0f172a); line-height: 1.3; overflow-wrap: anywhere; }
+    .lj-origem-acao { margin-top: auto; font-size: 0.8125rem; color: var(--primary, #4f46e5); }
+</style>
+@endpush

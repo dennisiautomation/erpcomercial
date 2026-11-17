@@ -3,8 +3,49 @@
 @section('title', 'Integrações')
 
 @section('content')
-<x-erp.page-header title="Integrações" icon="plug">
+<x-erp.page-header title="Integrações" icon="plug" subtitle="O que cada empresa ligou e o que a IA365 configura uma vez para todas">
 </x-erp.page-header>
+
+{{-- 17/11/2026: situação das ligações que são da PLATAFORMA (uma vez para todas as empresas) --}}
+@php
+    $todasEmpresas = \App\Models\Empresa::withoutGlobalScopes();
+    $plataforma = [
+        [
+            'icone' => 'box-seam', 'nome' => 'Melhor Envio', 'onde' => 'Aplicativo IA365, configurado nesta tela',
+            'ok' => $melhorEnvio['configurado'],
+            'estado' => $melhorEnvio['configurado'] ? 'Configurado · ' . ($melhorEnvio['ambiente'] === 'sandbox' ? 'sandbox' : 'produção') : 'Falta Client ID / Secret',
+            'link' => '#melhor-envio',
+        ],
+        [
+            'icone' => 'bank', 'nome' => 'Open Finance (Tecnospeed)', 'onde' => 'Chaves no servidor; liberação por plano e por empresa',
+            'ok' => filled(config('services.tecnospeed.client_id')) && filled(config('services.tecnospeed.client_secret')),
+            'estado' => (filled(config('services.tecnospeed.client_id')) ? 'Chaves gravadas' : 'Sem chaves')
+                . ' · aparece em ' . (clone $todasEmpresas)->where('open_finance_ocultar', false)->count() . ' de ' . (clone $todasEmpresas)->count() . ' empresas',
+            'link' => route('admin.planos.index'),
+        ],
+        [
+            'icone' => 'receipt', 'nome' => 'Cobrança pelo caixa.ia365', 'onde' => 'Faturas da IA365 nascem no caixa e aparecem no ERP',
+            'ok' => filled(config('services.caixa_ia365.token')),
+            'estado' => (filled(config('services.caixa_ia365.token')) ? 'Ligado' : 'Sem segredo')
+                . ' · ' . (clone $todasEmpresas)->whereNotNull('caixa_cliente_id')->count() . ' empresa(s) vinculada(s)',
+            'link' => route('admin.financeiro.index'),
+        ],
+    ];
+@endphp
+<div class="plataforma-faixa mb-4" aria-label="Ligações da plataforma">
+    @foreach($plataforma as $item)
+        <a href="{{ $item['link'] }}" class="plataforma-item">
+            <span class="plataforma-icone {{ $item['ok'] ? 'is-ok' : 'is-pendente' }}"><i class="bi bi-{{ $item['icone'] }}"></i></span>
+            <span class="plataforma-texto">
+                <span class="plataforma-nome">{{ $item['nome'] }}</span>
+                <span class="plataforma-estado {{ $item['ok'] ? 'text-success-emphasis' : 'text-warning-emphasis' }}">
+                    <i class="bi bi-{{ $item['ok'] ? 'check-circle-fill' : 'exclamation-circle-fill' }} me-1"></i>{{ $item['estado'] }}
+                </span>
+                <span class="plataforma-onde">{{ $item['onde'] }}</span>
+            </span>
+        </a>
+    @endforeach
+</div>
 
 {{-- 25/09/2026: painel geral. As integrações de pagamento e entrega são DE CADA EMPRESA
      (a conta dela) e se configuram na aba Integração da empresa; aqui é só a visão de todas. --}}
@@ -15,7 +56,8 @@
     </div>
     <div class="card-body p-0">
         @if($empresas->isEmpty())
-            <p class="text-muted small p-3 mb-0">Nenhuma empresa ligou o Agente IA ou uma integração ainda. Isso se faz na aba <em>Integração</em> de cada empresa.</p>
+            <x-erp.empty-state title="Nenhuma empresa ligou integração ainda" icon="plug"
+                description="O Agente IA, PIX, cartão e entrega se ligam na aba Integração de cada empresa." />
         @else
             <div class="table-responsive">
                 <table class="table table-sm align-middle mb-0">
@@ -92,75 +134,122 @@
     </div>
 </div>
 
-<h6 class="text-muted text-uppercase small fw-semibold mb-2">Configuração da plataforma</h6>
-<p class="text-muted small">
-    Só o que é da <strong>IA365</strong> e vale para todas as empresas. Hoje apenas o <strong>Melhor Envio</strong> precisa disso
-    (exige um aplicativo IA365 cadastrado uma vez). PIX Sicredi, Asaas, InfinitePay e Uber usam só a conta de cada empresa —
-    não têm nada aqui.
-</p>
-
-<div class="row g-4">
+<div class="row g-4 align-items-start" id="melhor-envio">
     <div class="col-lg-7">
-        <div class="card detail-card shadow-sm h-100">
-            <div class="card-header d-flex justify-content-between align-items-center">
+        <div class="card detail-card shadow-sm">
+            <div class="card-header d-flex justify-content-between align-items-center gap-2">
                 <h6 class="mb-0"><i class="bi bi-box-seam me-1"></i> Melhor Envio — aplicativo IA365</h6>
                 @if($melhorEnvio['configurado'])
                     <span class="badge bg-success bg-opacity-10 text-success">Configurado · {{ $melhorEnvio['ambiente'] === 'sandbox' ? 'sandbox' : 'produção' }}</span>
                 @else
-                    <span class="badge bg-warning bg-opacity-10 text-warning">Falta Client ID / Secret</span>
+                    <span class="badge bg-warning bg-opacity-10 text-warning-emphasis">Falta Client ID / Secret</span>
                 @endif
             </div>
             <div class="card-body">
-                <p class="text-muted small mb-3">
-                    É o aplicativo cadastrado em <strong>Melhor Envio → Integrações → Área do desenvolvedor</strong>.
-                    Um só para todas as empresas: cada uma autoriza a própria conta pelo botão
-                    <em>Conectar Melhor Envio</em> na aba Integração dela — ninguém copia chave.
-                </p>
-                <form method="POST" action="{{ route('admin.integracoes.melhor-envio.store') }}" class="row g-2">
+                <form method="POST" action="{{ route('admin.integracoes.melhor-envio.store') }}" class="row g-3">
                     @csrf
                     <div class="col-md-4">
                         <label for="campo-client_id" class="form-label small mb-1">Client ID</label>
-                        <input id="campo-client_id" type="text" name="client_id" class="form-control form-control-sm"
+                        <input id="campo-client_id" type="text" name="client_id" class="form-control"
                                placeholder="{{ filled($melhorEnvio['client_id']) ? '•••• salvo (' . $melhorEnvio['client_id'] . ') — preencha p/ trocar' : 'ex.: 29391' }}">
                     </div>
                     <div class="col-md-8">
                         <label for="campo-client_secret" class="form-label small mb-1">Secret</label>
-                        <input id="campo-client_secret" type="password" name="client_secret" class="form-control form-control-sm" autocomplete="new-password"
+                        <input id="campo-client_secret" type="password" name="client_secret" class="form-control" autocomplete="new-password"
                                placeholder="{{ filled($melhorEnvio['client_secret']) ? '•••• salvo — preencha p/ trocar' : 'Secret do aplicativo (fica cifrado no banco)' }}">
                     </div>
                     <div class="col-md-6">
                         <label for="campo-email_suporte" class="form-label small mb-1">E-mail de suporte técnico</label>
-                        <input id="campo-email_suporte" type="email" name="email_suporte" class="form-control form-control-sm" value="{{ $melhorEnvio['email'] }}">
+                        <input id="campo-email_suporte" type="email" name="email_suporte" class="form-control" value="{{ $melhorEnvio['email'] }}">
                         <div class="form-text">Vai no cabeçalho <code>User-Agent</code> de toda chamada (o Melhor Envio exige).</div>
                     </div>
                     <div class="col-md-6">
                         <label for="campo-ambiente" class="form-label small mb-1">Ambiente</label>
-                        <select id="campo-ambiente" name="ambiente" class="form-select form-select-sm">
+                        <select id="campo-ambiente" name="ambiente" class="form-select">
                             <option value="producao" @selected($melhorEnvio['ambiente'] !== 'sandbox')>Produção (melhorenvio.com.br)</option>
                             <option value="sandbox" @selected($melhorEnvio['ambiente'] === 'sandbox')>Sandbox (sandbox.melhorenvio.com.br — app separado)</option>
                         </select>
                     </div>
                     <div class="col-12">
-                        <label for="campo-scopes" class="form-label small mb-1">Escopos pedidos na autorização</label>
-                        <input id="campo-scopes" type="text" name="scopes" class="form-control form-control-sm" value="{{ $melhorEnvio['scopes'] }}">
-                        <div class="form-text">Padrão: <code>{{ $scopesPadrao }}</code>. Só mude se o Melhor Envio recusar um escopo.</div>
-                    </div>
-                    <div class="col-12">
-                        <label class="form-label small mb-1">URL de redirecionamento (cadastre EXATAMENTE assim no aplicativo)</label>
-                        <div class="input-group input-group-sm">
-                            <input type="text" class="form-control" value="{{ $callbackUrl }}" readonly onclick="this.select()">
-                            <button class="btn btn-outline-secondary" type="button"
-                                    onclick="navigator.clipboard.writeText('{{ $callbackUrl }}'); this.textContent='Copiado'">Copiar</button>
+                        <label for="campo-callback" class="form-label small mb-1">URL de redirecionamento (cadastre EXATAMENTE assim no aplicativo)</label>
+                        <div class="input-group">
+                            <input id="campo-callback" type="text" class="form-control font-monospace small" value="{{ $callbackUrl }}" readonly onclick="this.select()">
+                            <button class="btn btn-outline-secondary" type="button" data-copiar="{{ $callbackUrl }}">
+                                <i class="bi bi-clipboard me-1"></i><span>Copiar</span>
+                            </button>
                         </div>
                         <div class="form-text">Uma URL para todas as empresas — o retorno traz um código assinado que diz de qual empresa é a autorização.</div>
                     </div>
-                    <div class="col-12 mt-3">
-                        <button type="submit" class="btn btn-sm btn-primary">Salvar</button>
+                    <div class="col-12">
+                        <details class="avancado">
+                            <summary>Avançado: escopos pedidos na autorização</summary>
+                            <label for="campo-scopes" class="visually-hidden">Escopos pedidos na autorização</label>
+                            <input id="campo-scopes" type="text" name="scopes" class="form-control form-control-sm mt-2" value="{{ $melhorEnvio['scopes'] }}">
+                            <div class="form-text">Padrão: <code>{{ $scopesPadrao }}</code>. Só mude se o Melhor Envio recusar um escopo.</div>
+                        </details>
+                    </div>
+                    <div class="col-12">
+                        <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg me-1"></i>Salvar</button>
                     </div>
                 </form>
             </div>
         </div>
     </div>
 
+    <div class="col-lg-5">
+        <div class="passos-card">
+            <h6 class="fw-semibold mb-1">Como ligar o Melhor Envio</h6>
+            <p class="small text-muted mb-3">Só o Melhor Envio precisa de algo aqui. PIX Sicredi, Asaas, InfinitePay e Uber usam a conta de cada empresa — não têm nada nesta tela.</p>
+            <ol class="passos">
+                <li>No Melhor Envio, em <strong>Integrações → Área do desenvolvedor</strong>, cadastre o aplicativo IA365 com a URL de redirecionamento ao lado.</li>
+                <li>Cole o <strong>Client ID</strong> e o <strong>Secret</strong> aqui e salve. É um aplicativo só, para todas as empresas.</li>
+                <li>Cada empresa autoriza a própria conta pelo botão <em>Conectar Melhor Envio</em> na aba Integração dela — ninguém copia chave.</li>
+            </ol>
+        </div>
+    </div>
 </div>
 @endsection
+
+@push('styles')
+<style>
+    .plataforma-faixa { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr)); gap: 0.75rem; }
+    .plataforma-item {
+        display: flex; gap: 0.75rem; align-items: flex-start; padding: 0.875rem 1rem;
+        background: var(--bg-card, #fff); border: 1px solid var(--border, #e2e8f0); border-radius: 0.75rem;
+        color: inherit; text-decoration: none; transition: border-color .15s ease, box-shadow .15s ease;
+    }
+    .plataforma-item:hover { border-color: var(--border-hover, #cbd5e1); box-shadow: 0 2px 8px rgba(15, 23, 42, .06); }
+    .plataforma-icone {
+        flex: none; width: 2.25rem; height: 2.25rem; border-radius: 0.5rem; display: grid; place-items: center; font-size: 1.1rem;
+    }
+    .plataforma-icone.is-ok { background: var(--success-light, #ecfdf5); color: var(--success-text, #047857); }
+    .plataforma-icone.is-pendente { background: var(--warning-light, #fffbeb); color: var(--warning-text, #b45309); }
+    .plataforma-texto { display: flex; flex-direction: column; min-width: 0; }
+    .plataforma-nome { font-weight: 600; color: var(--text-primary, #0f172a); }
+    .plataforma-estado { font-size: 0.8125rem; font-weight: 500; }
+    .plataforma-onde { font-size: 0.75rem; color: var(--text-muted, #64748b); margin-top: 0.125rem; }
+    .passos-card { padding: 1.25rem; border-radius: 0.75rem; background: var(--primary-light, #eef2ff); }
+    .passos { counter-reset: passo; list-style: none; padding: 0; margin: 0; display: grid; gap: 0.75rem; }
+    .passos li { counter-increment: passo; position: relative; padding-left: 2.25rem; font-size: 0.875rem; line-height: 1.5; color: var(--text-secondary, #475569); }
+    .passos li::before {
+        content: counter(passo); position: absolute; left: 0; top: 0; width: 1.5rem; height: 1.5rem; border-radius: 50%;
+        background: var(--primary, #4f46e5); color: #fff; font-size: 0.75rem; font-weight: 700; display: grid; place-items: center;
+    }
+    .avancado summary { cursor: pointer; font-size: 0.8125rem; color: var(--text-secondary, #475569); }
+    .avancado summary:focus-visible { outline: 2px solid var(--primary, #4f46e5); outline-offset: 2px; border-radius: 4px; }
+</style>
+@endpush
+
+@push('scripts')
+<script>
+document.querySelectorAll('[data-copiar]').forEach(function (botao) {
+    botao.addEventListener('click', function () {
+        const rotulo = botao.querySelector('span');
+        navigator.clipboard.writeText(botao.dataset.copiar).then(function () {
+            rotulo.textContent = 'Copiado';
+            setTimeout(function () { rotulo.textContent = 'Copiar'; }, 2000);
+        });
+    });
+});
+</script>
+@endpush

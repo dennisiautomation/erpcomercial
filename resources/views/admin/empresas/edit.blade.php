@@ -29,11 +29,45 @@
     .required-dot {
         color: #ef4444;
     }
+    .section-card .card-sub {
+        margin: 0.125rem 0 0 1.75rem;
+        font-size: 0.8125rem;
+        color: var(--text-muted, #64748b);
+    }
+    /* Opções em cartão (regime de cobrança, política multi-loja) */
+    .opcao-cartao {
+        white-space: normal;
+        border-width: 1.5px;
+        transition: background-color .15s ease, box-shadow .15s ease;
+    }
+    .opcao-cartao strong { line-height: 1.25; }
+    .opcao-cartao small { line-height: 1.45; }
+    .btn-check:checked + .opcao-cartao small.text-muted { color: rgba(255, 255, 255, .88) !important; }
+    .btn-check:focus-visible + .opcao-cartao { box-shadow: 0 0 0 .25rem rgba(79, 70, 229, .3); }
+    /* Regras e recursos: chave à esquerda, efeito explicado embaixo, linhas separadas */
+    .chaves-lista { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr)); }
+    .chave-linha {
+        padding: 1rem 1.25rem;
+        border-top: 1px solid var(--border-light, #f1f5f9);
+        border-right: 1px solid var(--border-light, #f1f5f9);
+    }
+    .chave-linha .form-check-label { color: var(--text-primary, #0f172a); }
+    .chave-ajuda {
+        margin: 0.375rem 0 0 2.5rem;
+        font-size: 0.8125rem;
+        line-height: 1.5;
+        color: var(--text-muted, #64748b);
+        max-width: 60ch;
+    }
     .btn-actions {
         position: sticky;
         bottom: 0;
-        background: #f1f5f9;
-        padding: 1rem 0;
+        background: rgba(241, 245, 249, .94);
+        backdrop-filter: blur(6px);
+        border-top: 1px solid var(--border, #e2e8f0);
+        padding: 0.75rem 0;
+        margin-top: -0.5rem;
+        margin-bottom: 1.5rem;
         z-index: 10;
     }
     .empresa-header-badge {
@@ -229,77 +263,22 @@
                     </div>
                 </div>
             </div>
-        </div>
-
-        {{-- Sidebar --}}
-        <div class="col-lg-4">
-            {{-- Regime, Plano e Status --}}
-            <div class="card section-card shadow-sm mb-4">
-                <div class="card-header">
-                    <h6 class="mb-0"><i class="bi bi-gear me-2 text-secondary"></i>Configurações</h6>
-                </div>
-                <div class="card-body">
-                    <div class="mb-3">
-                        <label for="status" class="form-label">Status <span class="required-dot">*</span></label>
-                        <select class="form-select @error('status') is-invalid @enderror" id="status" name="status" required>
-                            @foreach(\App\Enums\StatusEmpresa::cases() as $statusOpt)
-                                <option value="{{ $statusOpt->value }}"
-                                    {{ old('status', $empresa->status->value) === $statusOpt->value ? 'selected' : '' }}>
-                                    {{ $statusOpt->label() }}
-                                </option>
-                            @endforeach
-                        </select>
-                        @error('status')
-                            <div class="invalid-feedback">{{ $message }}</div>
-                        @enderror
-                    </div>
-                    <div class="mb-3">
-                        <label for="regime_tributario" class="form-label">Regime Tributario <span class="required-dot">*</span></label>
-                        <select class="form-select @error('regime_tributario') is-invalid @enderror"
-                                id="regime_tributario" name="regime_tributario" required>
-                            <option value="">Selecione...</option>
-                            @foreach(\App\Enums\RegimeTributario::cases() as $regime)
-                                <option value="{{ $regime->value }}" {{ old('regime_tributario', $empresa->regime_tributario?->value) === $regime->value ? 'selected' : '' }}>
-                                    {{ $regime->label() }}
-                                </option>
-                            @endforeach
-                        </select>
-                        @error('regime_tributario')
-                            <div class="invalid-feedback">{{ $message }}</div>
-                        @enderror
-                    </div>
-                    <div>
-                        <label for="plano" class="form-label">Plano</label>
-                        <select class="form-select @error('plano') is-invalid @enderror" id="plano" name="plano">
-                            <option value="">Selecione...</option>
-                            @foreach($planos as $planoItem)
-                                <option value="{{ $planoItem->slug }}" {{ old('plano', $empresa->plano) === $planoItem->slug ? 'selected' : '' }}>
-                                    {{ $planoItem->nome }} - R$ {{ number_format($planoItem->preco_mensal, 2, ',', '.') }}/mes
-                                </option>
-                            @endforeach
-                        </select>
-                        @error('plano')
-                            <div class="invalid-feedback">{{ $message }}</div>
-                        @enderror
-                    </div>
-                </div>
-            </div>
 
             {{-- Regime de cobrança --}}
             <div class="card section-card shadow-sm mb-4">
                 <div class="card-header">
-                    <i class="bi bi-credit-card-2-back me-2"></i>
-                    <strong>Regime de cobrança</strong> — como a IA365 fatura esta empresa
+                    <h6 class="mb-0"><i class="bi bi-credit-card-2-back me-2 text-primary"></i>Regime de cobrança</h6>
+                    <p class="card-sub">Como a IA365 fatura esta empresa</p>
                 </div>
                 <div class="card-body">
                     @php $regimeAtual = old('regime_cobranca', $empresa->regime_cobranca?->value ?? 'padrao'); @endphp
                     <div class="row g-3">
                         @foreach(\App\Enums\RegimeCobranca::cases() as $regime)
-                            <div class="col-md-6 col-lg-3">
+                            <div class="col-sm-6 col-xxl-3">
                                 <input type="radio" class="btn-check" name="regime_cobranca"
                                        id="rc_{{ $regime->value }}" value="{{ $regime->value }}"
                                        {{ $regimeAtual === $regime->value ? 'checked' : '' }}>
-                                <label class="btn btn-outline-{{ $regime->color() }} w-100 h-100 text-start p-3"
+                                <label class="btn btn-outline-{{ $regime->color() }} opcao-cartao w-100 h-100 text-start p-3"
                                        for="rc_{{ $regime->value }}">
                                     <div class="d-flex align-items-center mb-2">
                                         <i class="bi bi-{{ $regime->icon() }} fs-3 me-2"></i>
@@ -357,8 +336,8 @@
             <div class="card section-card shadow-sm mb-4">
                 <div class="card-header d-flex align-items-center justify-content-between">
                     <div>
-                        <i class="bi bi-cash-coin me-2"></i>
-                        <strong>Cobrança direta</strong> — cliente paga direto à IA365 (sem gateway)
+                        <h6 class="mb-0"><i class="bi bi-cash-coin me-2 text-success"></i>Cobrança direta</h6>
+                        <p class="card-sub">Cliente paga direto à IA365 (sem gateway)</p>
                     </div>
                     @if($empresa->estaSuspensa())
                         <span class="badge bg-danger"><i class="bi bi-lock-fill me-1"></i>ACESSO SUSPENSO</span>
@@ -467,8 +446,8 @@
             @if($empresa->unidades()->count() > 1)
             <div class="card section-card shadow-sm mb-4">
                 <div class="card-header">
-                    <i class="bi bi-shop-window me-2"></i>
-                    <strong>Política multi-loja</strong> — visibilidade e venda de estoque entre unidades
+                    <h6 class="mb-0"><i class="bi bi-shop-window me-2 text-info"></i>Política multi-loja</h6>
+                    <p class="card-sub">Visibilidade e venda de estoque entre unidades</p>
                 </div>
                 <div class="card-body">
                     @php $pol = old('politica_estoque_inter_unidade', $empresa->politica_estoque_inter_unidade ?? 'ver_e_vender'); @endphp
@@ -482,7 +461,7 @@
                                 <input type="radio" class="btn-check" name="politica_estoque_inter_unidade"
                                        id="pol_{{ $value }}" value="{{ $value }}"
                                        {{ $pol === $value ? 'checked' : '' }}>
-                                <label class="btn btn-outline-{{ $color }} w-100 h-100 text-start p-3" for="pol_{{ $value }}">
+                                <label class="btn btn-outline-{{ $color }} opcao-cartao w-100 h-100 text-start p-3" for="pol_{{ $value }}">
                                     <div class="d-flex align-items-center mb-2">
                                         <i class="bi bi-{{ $icon }} fs-3 me-2"></i>
                                         <strong>{{ $label }}</strong>
@@ -506,9 +485,16 @@
                 $ofDoPlano = ($ofPlano && $ofPlano->open_finance_habilitado) ? (int) $ofPlano->open_finance_contas : 0;
             @endphp
             <div class="card section-card shadow-sm mb-4">
-                <div class="card-header">
-                    <i class="bi bi-bank me-2"></i>
-                    <strong>Open Finance</strong> — liberação e quantidade de contas
+                <div class="card-header d-flex align-items-start justify-content-between gap-2">
+                    <div>
+                        <h6 class="mb-0"><i class="bi bi-bank me-2 text-primary"></i>Open Finance</h6>
+                        <p class="card-sub">Liberação e quantidade de contas</p>
+                    </div>
+                    @if($empresa->openFinanceVisivel())
+                        <span class="badge rounded-pill text-bg-success">Aparece para a empresa</span>
+                    @else
+                        <span class="badge rounded-pill text-bg-light border">Escondido</span>
+                    @endif
                 </div>
                 <div class="card-body">
                     <div class="row g-3 align-items-end">
@@ -546,106 +532,103 @@
                 </div>
             </div>
 
-            {{-- Cadastros --}}
-            <div class="card section-card shadow-sm mb-4">
+            {{-- Regras e recursos (antes "Cadastros"): cada chave com o efeito explicado ao lado --}}
+            <div class="card section-card shadow-sm mb-4" id="sec-recursos">
                 <div class="card-header">
-                    <i class="bi bi-person-vcard me-2"></i>
-                    <strong>Cadastros</strong> — obrigatoriedade do documento
+                    <h6 class="mb-0"><i class="bi bi-toggles me-2 text-primary"></i>Regras e recursos da empresa</h6>
                 </div>
-                <div class="card-body">
-                    @php $exigeDoc = (bool) old('exige_documento_cadastro', $empresa->exige_documento_cadastro ?? true); @endphp
-                    <div class="form-check form-switch">
-                        <input type="hidden" name="exige_documento_cadastro" value="0">
-                        <input class="form-check-input" type="checkbox" role="switch" value="1"
-                               id="exige_documento_cadastro" name="exige_documento_cadastro"
-                               @checked($exigeDoc)>
-                        <label class="form-check-label" for="exige_documento_cadastro">
-                            Exigir CPF/CNPJ no cadastro de clientes e fornecedores
-                        </label>
+                <div class="card-body p-0">
+                    @php
+                        $chaves = [
+                            ['exige_documento_cadastro', (bool) old('exige_documento_cadastro', $empresa->exige_documento_cadastro ?? true),
+                             'Exigir CPF/CNPJ no cadastro de clientes e fornecedores',
+                             'Desmarcado, o documento vira opcional nas duas telas (inclusive no cadastro rápido de cliente dos Pedidos e da Ordem de Serviço). A <strong>NF-e continua exigindo</strong> CPF/CNPJ do destinatário — venda para cliente sem documento não emite nota modelo 55. A NFC-e não é afetada.'],
+                            ['vendedor_apenas_pdv', (bool) old('vendedor_apenas_pdv', $empresa->vendedor_apenas_pdv ?? false),
+                             'Vendedor opera somente o PDV',
+                             'Marcado, o perfil <strong>Vendedor</strong> desta empresa entra direto no PDV e perde o Dashboard, os relatórios, os cadastros, o estoque, o financeiro e o fiscal — inclusive digitando o endereço no navegador. Continua vendendo, trocando (F6), usando vale e abrindo/fechando o caixa. Vale para todas as lojas da empresa; gerente, caixa, financeiro, consulta e dono não mudam. O dono também liga isto em <strong>Configurações da Loja</strong>.'],
+                            ['pdv_vendedores_da_loja', (bool) old('pdv_vendedores_da_loja', $empresa->pdv_vendedores_da_loja ?? false),
+                             'No PDV, mostrar só os vendedores da loja',
+                             'Marcado, o select de vendedor do PDV (F3) lista só quem está vinculado à loja em que o caixa está operando (pivô <code>unidade_user</code>, ajustado em Funcionários). <strong>Dono e IA365 aparecem em qualquer loja</strong>, e quem não tem loja vinculada aparece em todas. Independente da opção acima.'],
+                            ['pdv_credishop', (bool) old('pdv_credishop', $empresa->pdv_credishop ?? false),
+                             'Forma de pagamento Credishop no PDV',
+                             'Marcado, o PDV de todas as lojas da empresa ganha o botão <strong>Credishop</strong>. Conta como cartão de crédito: preço do cartão, acréscimo do crédito e NFC-e com forma 03.'],
+                            ['usa_ficha_tecnica', (bool) old('usa_ficha_tecnica', $empresa->usa_ficha_tecnica ?? false),
+                             'Cafeteria/alimentação: tipo do produto, ficha técnica e adicionais',
+                             'Liga o Tipo no cadastro de produto (Revenda, Produzido, Insumo, Adicional), a receita que baixa insumos e os grupos de opções do PDV. Os atalhos do PDV são por loja, em <strong>Configurações da Loja</strong>.'],
+                        ];
+                    @endphp
+                    <div class="chaves-lista">
+                        @foreach($chaves as [$campo, $ligado, $titulo, $explica])
+                            <div class="chave-linha">
+                                <div class="form-check form-switch m-0">
+                                    <input type="hidden" name="{{ $campo }}" value="0">
+                                    <input class="form-check-input" type="checkbox" role="switch" value="1"
+                                           id="{{ $campo }}" name="{{ $campo }}" aria-describedby="{{ $campo }}_ajuda"
+                                           @checked($ligado)>
+                                    <label class="form-check-label fw-semibold" for="{{ $campo }}">{{ $titulo }}</label>
+                                </div>
+                                <p class="chave-ajuda" id="{{ $campo }}_ajuda">{!! $explica !!}</p>
+                            </div>
+                        @endforeach
                     </div>
-                    <small class="text-muted d-block mt-2">
-                        <i class="bi bi-info-circle me-1"></i>
-                        Desmarcado, o documento vira opcional nas duas telas (inclusive no cadastro rápido
-                        de cliente dos Pedidos e da Ordem de Serviço). A <strong>NF-e continua exigindo</strong>
-                        CPF/CNPJ do destinatário — venda para cliente sem documento não emite nota modelo 55.
-                        A NFC-e não é afetada.
-                    </small>
-
-                    <hr class="my-3">
-
-                    @php $soPdv = (bool) old('vendedor_apenas_pdv', $empresa->vendedor_apenas_pdv ?? false); @endphp
-                    <div class="form-check form-switch">
-                        <input type="hidden" name="vendedor_apenas_pdv" value="0">
-                        <input class="form-check-input" type="checkbox" role="switch" value="1"
-                               id="vendedor_apenas_pdv" name="vendedor_apenas_pdv"
-                               @checked($soPdv)>
-                        <label class="form-check-label" for="vendedor_apenas_pdv">
-                            Vendedor opera somente o PDV
-                        </label>
-                    </div>
-                    <small class="text-muted d-block mt-2">
-                        <i class="bi bi-info-circle me-1"></i>
-                        Marcado, o perfil <strong>Vendedor</strong> desta empresa entra direto no PDV e
-                        perde o Dashboard, os relatórios, os cadastros, o estoque, o financeiro e o
-                        fiscal — inclusive digitando o endereço no navegador. Continua vendendo, trocando
-                        (F6), usando vale e abrindo/fechando o caixa. Vale para todas as lojas da empresa;
-                        gerente, caixa, financeiro, consulta e dono não mudam. O dono também liga isto em
-                        <strong>Configurações da Loja</strong>.
-                    </small>
-
-                    @php $soLoja = (bool) old('pdv_vendedores_da_loja', $empresa->pdv_vendedores_da_loja ?? false); @endphp
-                    <div class="form-check form-switch mt-3">
-                        <input type="hidden" name="pdv_vendedores_da_loja" value="0">
-                        <input class="form-check-input" type="checkbox" role="switch" value="1"
-                               id="pdv_vendedores_da_loja" name="pdv_vendedores_da_loja"
-                               @checked($soLoja)>
-                        <label class="form-check-label" for="pdv_vendedores_da_loja">
-                            No PDV, mostrar só os vendedores da loja
-                        </label>
-                    </div>
-                    <small class="text-muted d-block mt-2">
-                        <i class="bi bi-info-circle me-1"></i>
-                        Marcado, o select de vendedor do PDV (F3) lista só quem está vinculado à loja
-                        em que o caixa está operando (pivô <code>unidade_user</code>, ajustado em
-                        Funcionários). <strong>Dono e IA365 aparecem em qualquer loja</strong>, e quem
-                        não tem loja vinculada aparece em todas. Independente da opção acima.
-                    </small>
-
-                    @php $credishop = (bool) old('pdv_credishop', $empresa->pdv_credishop ?? false); @endphp
-                    <div class="form-check form-switch mt-3">
-                        <input type="hidden" name="pdv_credishop" value="0">
-                        <input class="form-check-input" type="checkbox" role="switch" value="1"
-                               id="pdv_credishop" name="pdv_credishop"
-                               @checked($credishop)>
-                        <label class="form-check-label" for="pdv_credishop">
-                            Forma de pagamento Credishop no PDV
-                        </label>
-                    </div>
-                    <small class="text-muted d-block mt-2">
-                        <i class="bi bi-info-circle me-1"></i>
-                        Marcado, o PDV de todas as lojas da empresa ganha o botão <strong>Credishop</strong>.
-                        Conta como cartão de crédito: preço do cartão, acréscimo do crédito e NFC-e com
-                        forma 03.
-                    </small>
-
-                    @php $fichaTecnica = (bool) old('usa_ficha_tecnica', $empresa->usa_ficha_tecnica ?? false); @endphp
-                    <div class="form-check form-switch mt-3">
-                        <input type="hidden" name="usa_ficha_tecnica" value="0">
-                        <input class="form-check-input" type="checkbox" role="switch" value="1"
-                               id="usa_ficha_tecnica" name="usa_ficha_tecnica"
-                               @checked($fichaTecnica)>
-                        <label class="form-check-label" for="usa_ficha_tecnica">
-                            Cafeteria/alimentação: tipo do produto, ficha técnica e adicionais
-                        </label>
-                    </div>
-                    <small class="text-muted d-block mt-2">
-                        <i class="bi bi-info-circle me-1"></i>
-                        Liga o Tipo no cadastro de produto (Revenda, Produzido, Insumo, Adicional), a receita que
-                        baixa insumos e os grupos de opções do PDV. Os atalhos do PDV são por loja, em
-                        <strong>Configurações da Loja</strong>.
-                    </small>
                 </div>
             </div>
+        </div>
+
+        {{-- Sidebar --}}
+        <div class="col-lg-4">
+            {{-- Regime, Plano e Status --}}
+            <div class="card section-card shadow-sm mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="bi bi-gear me-2 text-secondary"></i>Configurações</h6>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="status" class="form-label">Status <span class="required-dot">*</span></label>
+                        <select class="form-select @error('status') is-invalid @enderror" id="status" name="status" required>
+                            @foreach(\App\Enums\StatusEmpresa::cases() as $statusOpt)
+                                <option value="{{ $statusOpt->value }}"
+                                    {{ old('status', $empresa->status->value) === $statusOpt->value ? 'selected' : '' }}>
+                                    {{ $statusOpt->label() }}
+                                </option>
+                            @endforeach
+                        </select>
+                        @error('status')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
+                    </div>
+                    <div class="mb-3">
+                        <label for="regime_tributario" class="form-label">Regime Tributario <span class="required-dot">*</span></label>
+                        <select class="form-select @error('regime_tributario') is-invalid @enderror"
+                                id="regime_tributario" name="regime_tributario" required>
+                            <option value="">Selecione...</option>
+                            @foreach(\App\Enums\RegimeTributario::cases() as $regime)
+                                <option value="{{ $regime->value }}" {{ old('regime_tributario', $empresa->regime_tributario?->value) === $regime->value ? 'selected' : '' }}>
+                                    {{ $regime->label() }}
+                                </option>
+                            @endforeach
+                        </select>
+                        @error('regime_tributario')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
+                    </div>
+                    <div>
+                        <label for="plano" class="form-label">Plano</label>
+                        <select class="form-select @error('plano') is-invalid @enderror" id="plano" name="plano">
+                            <option value="">Selecione...</option>
+                            @foreach($planos as $planoItem)
+                                <option value="{{ $planoItem->slug }}" {{ old('plano', $empresa->plano) === $planoItem->slug ? 'selected' : '' }}>
+                                    {{ $planoItem->nome }} - R$ {{ number_format($planoItem->preco_mensal, 2, ',', '.') }}/mes
+                                </option>
+                            @endforeach
+                        </select>
+                        @error('plano')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
+                    </div>
+                </div>
+            </div>
+
 
             {{-- Logo --}}
             <div class="card section-card shadow-sm mb-4">

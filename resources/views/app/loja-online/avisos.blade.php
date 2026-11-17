@@ -50,7 +50,7 @@
             </div>
         </div>
     </x-erp.card>
-    <div class="d-flex justify-content-end mb-4"><button type="submit" class="btn btn-primary"><i class="bi bi-check-lg me-1"></i> Salvar avisos</button></div>
+    <div class="lj-salvar d-flex justify-content-end mb-4"><button type="submit" class="btn btn-primary"><i class="bi bi-check-lg me-1"></i> Salvar avisos</button></div>
 </form>
 
 <x-erp.card title="Ver como chega" icon="send">

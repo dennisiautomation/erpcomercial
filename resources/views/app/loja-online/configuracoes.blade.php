@@ -163,7 +163,7 @@
         </div>
     </x-erp.card>
 
-    <div class="d-flex justify-content-end">
+    <div class="lj-salvar d-flex justify-content-end">
         <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg me-1"></i> Salvar configurações</button>
     </div>
 </form>

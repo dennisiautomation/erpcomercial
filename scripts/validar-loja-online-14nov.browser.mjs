@@ -582,7 +582,7 @@ for (const [larg, nome] of [[390, 'celular']]) {
 
 // painel: abas novas
 await erp.goto(BASE + '/app/loja-online/promocoes', { waitUntil: 'networkidle2' });
-h = await erp.evaluate(() => ({ abas: [...document.querySelectorAll('.nav-pills .nav-link')].map(a => a.textContent.trim()), cupom: document.body.innerText.includes('NAV20'), contato: document.body.innerText.includes('navegador@teste.test') }));
+h = await erp.evaluate(() => ({ abas: [...document.querySelectorAll('.lj-aba')].map(a => a.textContent.trim()), cupom: document.body.innerText.includes('NAV20'), contato: document.body.innerText.includes('navegador@teste.test') }));
 check('H36 painel: 14 abas (5ª rodada), com o cupom e o contato captado no popup', h.abas.length === 14 && h.abas.includes('Domínio') && h.abas.includes('Editor visual') && h.abas.includes('Promoções') && h.abas.includes('Anúncios') && h.abas.includes('Pedidos') && h.abas.includes('Grade') && h.cupom && h.contato, h);
 await erp.select('#cupom_tipo', 'frete_gratis');
 check('H37 escolher "Frete grátis" no cupom trava o campo de valor', await erp.$eval('#cupom_valor', e => e.disabled));

@@ -74,6 +74,6 @@
         </div>
         <div class="form-text mt-2">A loja já publica sozinha o mapa do site (<code>/sitemap.xml</code>) e os dados de produto para o Google (preço e disponibilidade).</div>
     </x-erp.card>
-    <div class="d-flex justify-content-end"><button type="submit" class="btn btn-primary"><i class="bi bi-check-lg me-1"></i> Salvar</button></div>
+    <div class="lj-salvar d-flex justify-content-end"><button type="submit" class="btn btn-primary"><i class="bi bi-check-lg me-1"></i> Salvar</button></div>
 </form>
 @endsection
