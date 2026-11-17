@@ -500,6 +500,52 @@
             </div>
             @endif
 
+            {{-- Open Finance (17/11/2026) --}}
+            @php
+                $ofPlano = $empresa->getPlanoAtivo();
+                $ofDoPlano = ($ofPlano && $ofPlano->open_finance_habilitado) ? (int) $ofPlano->open_finance_contas : 0;
+            @endphp
+            <div class="card section-card shadow-sm mb-4">
+                <div class="card-header">
+                    <i class="bi bi-bank me-2"></i>
+                    <strong>Bancos (Open Finance)</strong> — liberação e quantidade de contas
+                </div>
+                <div class="card-body">
+                    <div class="row g-3 align-items-end">
+                        <div class="col-md-3">
+                            <label class="form-label">Contas do plano</label>
+                            <input type="text" class="form-control" value="{{ $ofDoPlano }}" disabled>
+                            <div class="form-text">{{ $ofDoPlano ? 'Vêm no plano ' . $ofPlano->nome . '.' : 'O plano desta empresa não inclui.' }}</div>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="open_finance_contas_extras" class="form-label">Contas extras (venda avulsa)</label>
+                            <input type="number" min="0" max="999" class="form-control @error('open_finance_contas_extras') is-invalid @enderror"
+                                   id="open_finance_contas_extras" name="open_finance_contas_extras"
+                                   value="{{ old('open_finance_contas_extras', $empresa->open_finance_contas_extras ?? 0) }}">
+                            @error('open_finance_contas_extras') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Em uso</label>
+                            <input type="text" class="form-control" value="{{ $empresa->openFinanceContasUsadas() }} de {{ $empresa->openFinanceLimiteContas() }}" disabled>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-check form-switch mb-2">
+                                <input type="hidden" name="open_finance_ocultar" value="0">
+                                <input class="form-check-input" type="checkbox" role="switch" value="1" name="open_finance_ocultar" id="open_finance_ocultar"
+                                       {{ old('open_finance_ocultar', $empresa->open_finance_ocultar) ? 'checked' : '' }}>
+                                <label class="form-check-label" for="open_finance_ocultar">
+                                    <strong>Não mostrar</strong> para esta empresa
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    <small class="text-muted d-block mt-3">
+                        <i class="bi bi-info-circle me-1"></i>
+                        Com contas (do plano ou extras) a empresa usa a função. Sem contas, ela vê o convite para contratar — ou nada, se "Não mostrar" estiver ligado.
+                    </small>
+                </div>
+            </div>
+
             {{-- Cadastros --}}
             <div class="card section-card shadow-sm mb-4">
                 <div class="card-header">

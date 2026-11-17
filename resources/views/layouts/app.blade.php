@@ -893,15 +893,15 @@
                     {{-- ---- Financeiro ---- --}}
                     <li class="sidebar-heading">Financeiro</li>
                     <li class="nav-item">
-                        <a class="nav-link nav-toggle {{ request()->routeIs('app.contas-receber.*', 'app.contas-pagar.*', 'app.folha.*', 'app.financeiro.*', 'app.adquirentes.*', 'app.boletos.*', 'app.conciliacao.*', 'app.contratos.*') ? '' : 'collapsed' }}"
+                        <a class="nav-link nav-toggle {{ request()->routeIs('app.contas-receber.*', 'app.contas-pagar.*', 'app.folha.*', 'app.financeiro.*', 'app.adquirentes.*', 'app.boletos.*', 'app.conciliacao.*', 'app.bancos.*', 'app.contratos.*') ? '' : 'collapsed' }}"
                            data-bs-toggle="collapse" href="#menuFinanceiro" role="button"
-                           aria-expanded="{{ request()->routeIs('app.contas-receber.*', 'app.contas-pagar.*', 'app.folha.*', 'app.financeiro.*', 'app.adquirentes.*', 'app.boletos.*', 'app.conciliacao.*', 'app.contratos.*') ? 'true' : 'false' }}"
+                           aria-expanded="{{ request()->routeIs('app.contas-receber.*', 'app.contas-pagar.*', 'app.folha.*', 'app.financeiro.*', 'app.adquirentes.*', 'app.boletos.*', 'app.conciliacao.*', 'app.bancos.*', 'app.contratos.*') ? 'true' : 'false' }}"
                            aria-controls="menuFinanceiro">
                             <i class="bi bi-wallet2 nav-icon"></i>
                             <span class="nav-text">Financeiro</span>
                             <i class="bi bi-chevron-right toggle-icon"></i>
                         </a>
-                        <div class="collapse {{ request()->routeIs('app.contas-receber.*', 'app.contas-pagar.*', 'app.folha.*', 'app.financeiro.*', 'app.adquirentes.*', 'app.boletos.*', 'app.conciliacao.*', 'app.contratos.*') ? 'show' : '' }}" id="menuFinanceiro">
+                        <div class="collapse {{ request()->routeIs('app.contas-receber.*', 'app.contas-pagar.*', 'app.folha.*', 'app.financeiro.*', 'app.adquirentes.*', 'app.boletos.*', 'app.conciliacao.*', 'app.bancos.*', 'app.contratos.*') ? 'show' : '' }}" id="menuFinanceiro">
                             <ul class="nav flex-column submenu">
                                 <li class="nav-item">
                                     <a class="nav-link {{ request()->routeIs('app.contas-receber.*') ? 'active' : '' }}"
@@ -933,6 +933,13 @@
                                     <a class="nav-link {{ request()->routeIs('app.boletos.*') ? 'active' : '' }}"
                                        href="{{ route('app.boletos.index') }}">Boletos</a>
                                 </li>
+                                {{-- Open Finance (17/11/2026): some do menu quando o admin marcou "não mostrar" e a empresa não tem a função --}}
+                                @if(auth()->user()->empresa?->openFinanceVisivel())
+                                <li class="nav-item">
+                                    <a class="nav-link {{ request()->routeIs('app.bancos.*') ? 'active' : '' }}"
+                                       href="{{ route('app.bancos.index') }}">Bancos</a>
+                                </li>
+                                @endif
                                 <li class="nav-item">
                                     <a class="nav-link {{ request()->routeIs('app.conciliacao.*') ? 'active' : '' }}"
                                        href="{{ route('app.conciliacao.index') }}">Conciliação</a>

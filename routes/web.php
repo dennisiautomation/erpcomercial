@@ -685,6 +685,19 @@ Route::middleware(['auth', 'suspensao', 'unidade', \App\Http\Middleware\Restring
             ->middleware('permission:financeiro,editar');
     });
 
+    /* ------ Bancos / Open Finance (17/11/2026): contas ligadas ao banco e conciliação por sugestão ------ */
+    Route::prefix('financeiro/bancos')->name('bancos.')->middleware('permission:financeiro')->group(function () {
+        Route::get('/', [App\BancoController::class, 'index'])->name('index');
+        Route::post('/contas', [App\BancoController::class, 'store'])->name('contas.store');
+        Route::post('/contas/{conta}/atualizar', [App\BancoController::class, 'atualizar'])->name('contas.atualizar');
+        Route::post('/contas/{conta}/desconectar', [App\BancoController::class, 'desconectar'])->name('contas.desconectar');
+        Route::post('/confirmar-certos', [App\BancoController::class, 'confirmarCertos'])->name('confirmar-certos');
+        Route::post('/lancamentos/{lancamento}/confirmar', [App\BancoController::class, 'confirmar'])->name('lancamentos.confirmar');
+        Route::post('/lancamentos/{lancamento}/recusar', [App\BancoController::class, 'recusar'])->name('lancamentos.recusar');
+        Route::post('/lancamentos/{lancamento}/ignorar', [App\BancoController::class, 'ignorar'])->name('lancamentos.ignorar');
+        Route::post('/lancamentos/{lancamento}/desfazer', [App\BancoController::class, 'desfazer'])->name('lancamentos.desfazer');
+    });
+
     /* ------ Conciliação Bancária ------ */
     Route::prefix('conciliacao')->name('conciliacao.')->middleware(['permission:financeiro', 'plano:conciliacao'])->group(function () {
         Route::get('/', [App\ConciliacaoBancariaController::class, 'index'])->name('index');

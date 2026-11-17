@@ -80,6 +80,14 @@ return [
 
     // caixa.ia365 → ERP (16/11/2026): segredo com que o caixa.ia365 manda as
     // faturas da plataforma (api/integracao/v1/plataforma/caixa/*). Vazio = desligado.
+    // Open Finance (17/11/2026) — extrato do banco pela Tecnospeed (PlugBank). Uma chave só da
+    // IA365 (OPERATIONAL, escopo OPENFINANCE) atende todas as empresas. Sem chave = função parada.
+    'tecnospeed' => [
+        'base_url'      => rtrim(env('TECNOSPEED_BASE_URL', 'https://staging.pagamentobancario.com.br'), '/'),
+        'client_id'     => env('TECNOSPEED_OPER_CLIENT_ID', ''),
+        'client_secret' => env('TECNOSPEED_OPER_CLIENT_SECRET', ''),
+    ],
+
     'caixa_ia365' => [
         'token' => env('CAIXA_IA365_TOKEN', ''),
     ],

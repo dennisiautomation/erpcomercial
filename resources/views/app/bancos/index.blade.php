@@ -1,0 +1,330 @@
+@extends('layouts.app')
+
+@section('title', 'Bancos')
+
+@section('content')
+@php
+    $brl = fn ($v) => 'R$ ' . number_format((float) $v, 2, ',', '.');
+    $quem = function ($t) {
+        if (! $t) return '—';
+        if ($t instanceof \App\Models\ContaReceber) return $t->cliente?->nome_razao_social ?: 'Sem cliente';
+        return $t->fornecedor?->razao_social ?: $t->funcionario?->name ?: $t->favorecido_nome ?: 'Sem favorecido';
+    };
+    $abas = [
+        'conferir' => ['Para confirmar', $totais['conferir']],
+        'sem' => ['Sem sugestão', $totais['sem']],
+        'feitos' => ['Conciliados', $totais['feitos']],
+        'ignorados' => ['Ignorados', $totais['ignorados']],
+    ];
+@endphp
+<div class="fade-in">
+<div class="page-header">
+    <div>
+        <h4><i class="bi bi-bank me-2"></i>Bancos</h4>
+        <div class="subtitle">Contas ligadas ao banco e conciliação · {{ $usadas }} de {{ $limite }} {{ $limite === 1 ? 'conta usada' : 'contas usadas' }}</div>
+    </div>
+    @if($usadas < $limite)
+        <button type="button" class="btn btn-erp btn-erp-primary" data-bs-toggle="modal" data-bs-target="#modalNovaConta">
+            <i class="bi bi-plus-lg me-1"></i> Ligar uma conta
+        </button>
+    @else
+        <span class="text-muted small">Todas as contas do plano estão em uso. Para ligar mais, fale com a IA365.</span>
+    @endif
+</div>
+
+{{-- ---------------- Contas ---------------- --}}
+<div class="erp-card mb-4">
+    <div class="table-responsive">
+        <table class="erp-table">
+            <thead>
+                <tr>
+                    <th>Conta</th>
+                    <th>Dono da conta</th>
+                    <th>Loja</th>
+                    <th>Situação</th>
+                    <th>Último extrato</th>
+                    <th width="330">Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                @forelse($contas as $c)
+                <tr>
+                    <td>
+                        <strong>{{ $c->apelido }}</strong>
+                        <div class="text-muted small">{{ $c->descricaoConta() }}</div>
+                    </td>
+                    <td>
+                        {{ $c->titularFormatado() }}
+                        @if($c->titular_nome)<div class="text-muted small">{{ $c->titular_nome }}</div>@endif
+                    </td>
+                    <td>{{ $c->unidade?->nome ?? 'Todas' }}</td>
+                    <td>
+                        @if($c->situacao === 'conectada')
+                            <span class="badge bg-success">Conectada</span>
+                        @else
+                            <span class="badge bg-warning text-dark">Aguardando você autorizar no banco</span>
+                        @endif
+                        @if($c->ultimo_erro)
+                            <div class="text-danger small mt-1">{{ $c->ultimo_erro }}</div>
+                        @endif
+                    </td>
+                    <td>
+                        {{ $c->ultima_sincronizacao_em?->format('d/m/Y H:i') ?? '—' }}
+                        @if($c->protocolo_pendente)<div class="text-muted small">Banco preparando o extrato…</div>@endif
+                    </td>
+                    <td>
+                        <div class="d-flex flex-wrap gap-2">
+                            @if($c->situacao !== 'conectada' && $c->link_conexao)
+                                <a href="{{ $c->link_conexao }}" target="_blank" rel="noopener" class="btn btn-sm btn-erp btn-erp-primary">
+                                    <i class="bi bi-box-arrow-up-right me-1"></i> Conectar ao banco
+                                </a>
+                            @endif
+                            <form method="POST" action="{{ route('app.bancos.contas.atualizar', $c) }}">
+                                @csrf
+                                <button class="btn btn-sm btn-outline-secondary">
+                                    <i class="bi bi-arrow-repeat me-1"></i> {{ $c->situacao === 'conectada' ? 'Buscar extrato' : 'Já autorizei' }}
+                                </button>
+                            </form>
+                            <form method="POST" action="{{ route('app.bancos.contas.desconectar', $c) }}"
+                                  onsubmit="return confirm('Desconectar esta conta do banco? O que já foi conciliado continua como está.');">
+                                @csrf
+                                <button class="btn btn-sm btn-outline-danger">Desconectar</button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                @empty
+                <tr><td colspan="6" class="text-center text-muted py-4">Nenhuma conta ligada ainda. Clique em <strong>Ligar uma conta</strong> para começar.</td></tr>
+                @endforelse
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{{-- ---------------- Conciliação ---------------- --}}
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+    <ul class="nav nav-pills">
+        @foreach($abas as $chave => [$rotulo, $qtd])
+            <li class="nav-item">
+                <a class="nav-link {{ $filtro === $chave ? 'active' : '' }}"
+                   href="{{ route('app.bancos.index', array_filter(['ver' => $chave, 'conta' => $contaId])) }}">
+                    {{ $rotulo }} <span class="badge bg-light text-dark ms-1">{{ $qtd }}</span>
+                </a>
+            </li>
+        @endforeach
+    </ul>
+    <div class="d-flex align-items-center gap-2">
+        @if($contas->count() > 1)
+            <form method="GET" action="{{ route('app.bancos.index') }}">
+                <input type="hidden" name="ver" value="{{ $filtro }}">
+                <select name="conta" class="form-select form-select-sm" onchange="this.form.submit()" aria-label="Conta">
+                    <option value="">Todas as contas</option>
+                    @foreach($contas as $c)
+                        <option value="{{ $c->id }}" {{ $contaId === $c->id ? 'selected' : '' }}>{{ $c->apelido }}</option>
+                    @endforeach
+                </select>
+            </form>
+        @endif
+        @if($filtro === 'conferir' && $totais['certos'] > 0)
+            <form method="POST" action="{{ route('app.bancos.confirmar-certos') }}"
+                  onsubmit="return confirm('Confirmar os {{ $totais['certos'] }} lançamentos que o sistema tem como certos? As contas serão baixadas com a data e o valor do banco.');">
+                @csrf
+                <input type="hidden" name="conta" value="{{ $contaId }}">
+                <button class="btn btn-sm btn-success">
+                    <i class="bi bi-check2-all me-1"></i> Confirmar os {{ $totais['certos'] }} certos
+                </button>
+            </form>
+        @endif
+    </div>
+</div>
+
+<div class="erp-card">
+    <div class="table-responsive">
+        <table class="erp-table align-middle">
+            <thead>
+                <tr>
+                    <th width="95">Data</th>
+                    <th>No banco</th>
+                    <th width="130" class="text-end">Valor</th>
+                    <th>{{ $filtro === 'feitos' ? 'Conciliado com' : ($filtro === 'conferir' ? 'O sistema sugere' : 'Conta') }}</th>
+                    <th width="250">Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                @forelse($lancamentos as $l)
+                @php
+                    $titulo = $filtro === 'feitos'
+                        ? ($l->ehCredito() ? $l->contaReceber : $l->contaPagar)
+                        : ($l->ehCredito() ? $l->sugestaoContaReceber : $l->sugestaoContaPagar);
+                @endphp
+                <tr>
+                    <td>{{ $l->data->format('d/m/Y') }}</td>
+                    <td>
+                        <div>{{ $l->descricao ?: 'Sem descrição' }}
+                            @if($l->operacao)<span class="badge bg-light text-dark ms-1">{{ $l->operacao }}</span>@endif
+                        </div>
+                        <div class="text-muted small">
+                            {{ $l->contraparte_nome }}
+                            @if($l->contraparte_documento) · {{ $l->contraparte_documento }} @endif
+                            @if($contas->count() > 1) · {{ $l->contaBancaria?->apelido }} @endif
+                        </div>
+                        @if($l->sumiu_no_banco)
+                            <div class="text-danger small"><i class="bi bi-exclamation-triangle me-1"></i>O banco deixou de mostrar este lançamento. Confira se a baixa ainda vale.</div>
+                        @endif
+                    </td>
+                    <td class="text-end fw-semibold {{ $l->ehCredito() ? 'text-success' : 'text-danger' }}">
+                        {{ $l->ehCredito() ? '+' : '−' }} {{ $brl($l->valor) }}
+                    </td>
+                    <td>
+                        @if($titulo)
+                            <div><strong>{{ $quem($titulo) }}</strong> — {{ $titulo->descricao }}</div>
+                            <div class="text-muted small">
+                                {{ $l->ehCredito() ? 'A receber' : 'A pagar' }} · {{ $brl($titulo->valor) }} · vence {{ $titulo->vencimento?->format('d/m/Y') }}
+                                @if(! $l->ehCredito() && $titulo->centroCusto) · {{ $titulo->centroCusto->nome }} @endif
+                            </div>
+                            @if($filtro === 'conferir')
+                                <div class="small mt-1">
+                                    <span class="badge {{ $l->confiancaAlta() ? 'bg-success' : 'bg-warning text-dark' }}">{{ $l->confiancaAlta() ? 'Certo' : 'Conferir' }}</span>
+                                    <span class="text-muted">{{ $l->sugestao_motivo }}</span>
+                                </div>
+                            @endif
+                        @elseif($filtro === 'sem')
+                            @php $opcoes = ($l->ehCredito() ? $abertasReceber : $abertasPagar); @endphp
+                            <form method="POST" action="{{ route('app.bancos.lancamentos.confirmar', $l) }}" class="d-flex gap-2">
+                                @csrf
+                                <select name="titulo_id" class="form-select form-select-sm" required aria-label="Conta que corresponde">
+                                    <option value="">{{ $opcoes->isEmpty() ? 'Nenhuma conta em aberto' : 'Escolha a conta…' }}</option>
+                                    @foreach($opcoes as $o)
+                                        <option value="{{ $o->id }}">{{ $o->vencimento?->format('d/m') }} · {{ $brl($o->valor) }} · {{ \Illuminate\Support\Str::limit($quem($o) . ' — ' . $o->descricao, 60) }}</option>
+                                    @endforeach
+                                </select>
+                                <button class="btn btn-sm btn-success" {{ $opcoes->isEmpty() ? 'disabled' : '' }}>Conciliar</button>
+                            </form>
+                        @else
+                            <span class="text-muted">—</span>
+                        @endif
+                    </td>
+                    <td>
+                        <div class="d-flex flex-wrap gap-2">
+                            @if($filtro === 'conferir')
+                                <form method="POST" action="{{ route('app.bancos.lancamentos.confirmar', $l) }}">
+                                    @csrf
+                                    <button class="btn btn-sm btn-success"><i class="bi bi-check-lg me-1"></i>Confirmar</button>
+                                </form>
+                                <form method="POST" action="{{ route('app.bancos.lancamentos.recusar', $l) }}">
+                                    @csrf
+                                    <button class="btn btn-sm btn-outline-secondary">Não é isso</button>
+                                </form>
+                            @endif
+                            @if(in_array($filtro, ['conferir', 'sem']))
+                                <form method="POST" action="{{ route('app.bancos.lancamentos.ignorar', $l) }}">
+                                    @csrf
+                                    <button class="btn btn-sm btn-outline-secondary" title="Não é conta a pagar nem a receber">Ignorar</button>
+                                </form>
+                            @else
+                                <form method="POST" action="{{ route('app.bancos.lancamentos.desfazer', $l) }}"
+                                      onsubmit="return confirm('{{ $filtro === 'feitos' ? 'Desfazer a conciliação? A conta volta a ficar em aberto.' : 'Voltar este lançamento para a fila?' }}');">
+                                    @csrf
+                                    <button class="btn btn-sm btn-outline-secondary">{{ $filtro === 'feitos' ? 'Desfazer' : 'Voltar para a fila' }}</button>
+                                </form>
+                            @endif
+                        </div>
+                    </td>
+                </tr>
+                @empty
+                <tr><td colspan="5" class="text-center text-muted py-4">
+                    @if($contas->isEmpty())
+                        Ligue uma conta para o extrato começar a chegar.
+                    @elseif($filtro === 'conferir')
+                        Nada para confirmar agora.
+                    @elseif($filtro === 'sem')
+                        Nenhum lançamento sem sugestão.
+                    @else
+                        Nada aqui ainda.
+                    @endif
+                </td></tr>
+                @endforelse
+            </tbody>
+        </table>
+    </div>
+    @if($lancamentos->hasPages())
+        <div class="p-3">{{ $lancamentos->links() }}</div>
+    @endif
+</div>
+</div>
+
+{{-- ---------------- Nova conta ---------------- --}}
+<div class="modal fade" id="modalNovaConta" tabindex="-1" aria-labelledby="modalNovaContaTitulo" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <form method="POST" action="{{ route('app.bancos.contas.store') }}" class="modal-content">
+            @csrf
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalNovaContaTitulo">Ligar uma conta do banco</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label" for="nc-apelido">Nome para você reconhecer</label>
+                        <input id="nc-apelido" name="apelido" class="form-control" maxlength="80" required value="{{ old('apelido') }}" placeholder="Ex.: Itaú da loja centro">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" for="nc-banco">Banco</label>
+                        <input id="nc-banco" name="banco_codigo" class="form-control" list="nc-bancos" required value="{{ old('banco_codigo') }}" placeholder="Número do banco (ex.: 341)" inputmode="numeric" maxlength="3">
+                        <datalist id="nc-bancos">
+                            @foreach($bancos as $cod => $nome)<option value="{{ $cod }}">{{ $nome }}</option>@endforeach
+                        </datalist>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label" for="nc-agencia">Agência</label>
+                        <input id="nc-agencia" name="agencia" class="form-control" maxlength="10" required inputmode="numeric" value="{{ old('agencia') }}">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label" for="nc-agdig">Dígito</label>
+                        <input id="nc-agdig" name="agencia_digito" class="form-control" maxlength="2" value="{{ old('agencia_digito') }}">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label" for="nc-conta">Conta</label>
+                        <input id="nc-conta" name="conta" class="form-control" maxlength="12" required inputmode="numeric" value="{{ old('conta') }}">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label" for="nc-ctdig">Dígito</label>
+                        <input id="nc-ctdig" name="conta_digito" class="form-control" maxlength="2" value="{{ old('conta_digito') }}">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" for="nc-doc">CPF ou CNPJ do dono da conta</label>
+                        <input id="nc-doc" name="titular_documento" class="form-control" required maxlength="18" inputmode="numeric" value="{{ old('titular_documento', $empresa->cnpj) }}">
+                        <div class="form-text">É quem vai autorizar no banco.</div>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" for="nc-nome">Nome do dono da conta</label>
+                        <input id="nc-nome" name="titular_nome" class="form-control" maxlength="120" value="{{ old('titular_nome', $empresa->razao_social) }}">
+                    </div>
+                    @if($unidades->count() > 1)
+                    <div class="col-md-6">
+                        <label class="form-label" for="nc-loja">Loja</label>
+                        <select id="nc-loja" name="unidade_id" class="form-select">
+                            <option value="">Todas as lojas</option>
+                            @foreach($unidades as $u)<option value="{{ $u->id }}" {{ (string) old('unidade_id') === (string) $u->id ? 'selected' : '' }}>{{ $u->nome }}</option>@endforeach
+                        </select>
+                    </div>
+                    @endif
+                </div>
+                <div class="alert alert-info mt-3 mb-0 small">
+                    Depois de salvar, clique em <strong>Conectar ao banco</strong>: abre a página do seu banco para você autorizar. O extrato começa a chegar em até 24 horas.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button class="btn btn-erp btn-erp-primary">Salvar e continuar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@if($errors->any())
+@push('scripts')
+<script>document.addEventListener('DOMContentLoaded', () => new bootstrap.Modal(document.getElementById('modalNovaConta')).show());</script>
+@endpush
+@endif
+@endsection

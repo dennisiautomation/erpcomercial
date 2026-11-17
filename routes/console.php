@@ -126,3 +126,13 @@ Schedule::command('loja:rotinas')
     ->everyFifteenMinutes()
     ->name('loja-online-rotinas')
     ->withoutOverlapping();
+
+// ──────────────────────────────────────────────────────────────────
+// Open Finance (17/11/2026): confere conexões, busca o extrato dos
+// bancos e deixa as sugestões de conciliação prontas. A rotina roda a
+// cada 10 min, mas cada conta só pede extrato de 6 em 6 horas.
+// ──────────────────────────────────────────────────────────────────
+Schedule::command('openfinance:sincronizar')
+    ->everyTenMinutes()
+    ->name('openfinance-sincronizar')
+    ->withoutOverlapping();

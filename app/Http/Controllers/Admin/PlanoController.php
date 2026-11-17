@@ -32,6 +32,10 @@ class PlanoController extends Controller
 
         $validated = $request->validate($this->rules());
 
+        if (array_key_exists('open_finance_contas', $validated)) {
+            $validated['open_finance_contas'] = (int) ($validated['open_finance_contas'] ?? 0);
+        }
+
         Plano::create($validated);
 
         return redirect()->route('admin.planos.index')
@@ -50,6 +54,10 @@ class PlanoController extends Controller
         abort_unless($request->user()->is_admin, 403);
 
         $validated = $request->validate($this->rules($plano->id));
+
+        if (array_key_exists('open_finance_contas', $validated)) {
+            $validated['open_finance_contas'] = (int) ($validated['open_finance_contas'] ?? 0);
+        }
 
         $plano->update($validated);
 
@@ -92,6 +100,8 @@ class PlanoController extends Controller
             'dre_habilitado'         => ['boolean'],
             'boletos_habilitado'     => ['boolean'],
             'api_habilitada'         => ['boolean'],
+            'open_finance_habilitado' => ['boolean'],
+            'open_finance_contas'    => ['nullable', 'integer', 'min:0', 'max:999'],
             'dias_trial'             => ['required', 'integer', 'min:0'],
             'ativo'                  => ['boolean'],
             'ordem'                  => ['required', 'integer', 'min:0'],

@@ -128,6 +128,32 @@
     </div>
 </div>
 
+{{-- Open Finance (17/11/2026) --}}
+<div class="card shadow-sm mb-4">
+    <div class="card-header"><h6 class="mb-0">Bancos (Open Finance)</h6></div>
+    <div class="card-body">
+        <div class="row g-3 align-items-end">
+            <div class="col-md-5">
+                <div class="form-check form-switch">
+                    <input type="hidden" name="open_finance_habilitado" value="0">
+                    <input class="form-check-input" type="checkbox" id="open_finance_habilitado" name="open_finance_habilitado" value="1"
+                           {{ old('open_finance_habilitado', $p?->open_finance_habilitado ?? false) ? 'checked' : '' }}>
+                    <label class="form-check-label" for="open_finance_habilitado">Este plano inclui a ligação com o banco</label>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <label for="open_finance_contas" class="form-label">Contas incluídas</label>
+                <input type="number" class="form-control @error('open_finance_contas') is-invalid @enderror" id="open_finance_contas"
+                       name="open_finance_contas" min="0" max="999" value="{{ old('open_finance_contas', $p?->open_finance_contas ?? 0) }}">
+                @error('open_finance_contas') <div class="invalid-feedback">{{ $message }}</div> @enderror
+            </div>
+            <div class="col-md-4 text-muted small">
+                Cada conta conectada custa para a IA365. Contas a mais para uma empresa específica se vendem à parte, no cadastro da empresa.
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="d-flex justify-content-end gap-2">
     <a href="{{ route('admin.planos.index') }}" class="btn btn-outline-secondary">Cancelar</a>
     <button type="submit" class="btn btn-primary">

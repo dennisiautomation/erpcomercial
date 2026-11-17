@@ -62,6 +62,8 @@ class Empresa extends Model
         'caixa_cliente_nome',
         'caixa_vinculado_em',
         'em_trial',
+        'open_finance_contas_extras',
+        'open_finance_ocultar',
         'status',
         'observacoes',
     ];
@@ -79,6 +81,8 @@ class Empresa extends Model
             'assinatura_inicio' => 'date',
             'assinatura_fim'    => 'date',
             'em_trial'          => 'boolean',
+            'open_finance_ocultar' => 'boolean',
+            'open_finance_contas_extras' => 'integer',
             'cobranca_valor'                => 'decimal:2',
             'cobranca_proxima_renovacao'    => 'date',
             'cobranca_bloqueio_automatico'  => 'boolean',
@@ -286,6 +290,48 @@ class Empresa extends Model
     public function ehGratuita(): bool
     {
         return $this->regime_cobranca?->ehGratuito() ?? false;
+    }
+
+    /* ------------------------------------------------------------------ */
+    /*  Open Finance (17/11/2026)                                          */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * Quantas contas bancárias a empresa pode conectar: as do plano (se o plano tem a função)
+     * mais as extras vendidas à parte. Cada conta custa para a IA365, então parceiro e
+     * cortesia NÃO furam este limite — só o que está escrito aqui vale.
+     */
+    public function openFinanceLimiteContas(): int
+    {
+        $plano = $this->getPlanoAtivo();
+        $doPlano = ($plano && $plano->open_finance_habilitado) ? (int) $plano->open_finance_contas : 0;
+
+        return $doPlano + (int) $this->open_finance_contas_extras;
+    }
+
+    public function openFinanceLiberado(): bool
+    {
+        return $this->openFinanceLimiteContas() > 0;
+    }
+
+    /** Sem liberação a tela mostra o convite — a não ser que o admin tenha mandado esconder. */
+    public function openFinanceVisivel(): bool
+    {
+        return $this->openFinanceLiberado() || ! $this->open_finance_ocultar;
+    }
+
+    public function openFinanceContasUsadas(): int
+    {
+        return ContaBancaria::withoutGlobalScopes()
+            ->where('empresa_id', $this->id)
+            ->whereNotNull('account_hash')
+            ->where('situacao', '!=', 'desconectada')
+            ->count();
+    }
+
+    public function openFinanceTemVaga(): bool
+    {
+        return $this->openFinanceContasUsadas() < $this->openFinanceLimiteContas();
     }
 
     /** True se essa empresa ignora limites/features do plano (parceiro). */

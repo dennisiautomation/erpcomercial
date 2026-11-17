@@ -10087,3 +10087,61 @@ O caixa NÃO muda de alvo sozinho: o endereço e o segredo do ERP estão fixos e
 - **Como o Dennis usa na homologação:** entrar em `homolog-erp.ia365.com.br` como dono da loja → Gestão → Pagamento e entrega. Para o botão do Melhor Envio acender lá, cadastrar antes o aplicativo IA365 em Admin → Integrações (homologação não tem).
 - **Onde o lojista escolhe o que a loja online aceita** (não mudou): Loja online → Configurações → bloco Pagamento (chaves PIX, Cartão por link, Combinar com a loja). A tela nova é onde ele liga a CONTA; aquela é onde ele liga a OPÇÃO na vitrine.
 
+
+## Bancos / Open Finance: extrato do banco no ERP e conciliação por sugestão (17/11/2026) — branch `open-finance-17nov`
+
+**Pedido do Dennis (17/11):** ligar a API de Extrato Open Finance da Tecnospeed (PlugBank) no ERP; ele controla por plano ou venda avulsa quem tem a função e quantas contas cada empresa conecta; pode esconder a função de uma empresa; a pessoa informa o CPF/CNPJ do dono da conta; a conciliação tem de ser por sugestão ("como no Conta Azul"): o sistema cruza recebimentos e pagamentos com as contas cadastradas e a pessoa só confirma.
+
+**Onde cada coisa vive (uma frase):** a Tecnospeed guarda a ligação com o banco e devolve o extrato; o ERP guarda de qual empresa é cada conta (`contas_bancarias`), os lançamentos (`lancamentos_bancarios`) e faz o cruzamento com `contas_receber` / `contas_pagar`.
+
+### Contrato e custo (Tecnospeed, "Open Finance Bronze", assinado 04/11/2026)
+- R$ 825/mês fixo até 50 contas **cadastradas** (R$ 412,50 de dez/2026 a mar/2027); 51–70 = R$ 15/conta; 71+ = R$ 14/conta. Cobrado mesmo sem uso. Cartões de crédito da mesma conta não contam como conta.
+- Por isso **desconectar no ERP apaga a conta na Tecnospeed** (ela sai da fatura) e **parceiro/cortesia não fura o limite** de contas.
+- Até 4 extratos por dia por conta (1 a cada 6 h) e só 12 meses para trás.
+
+### Uma chave só (decisão de 17/11)
+- A documentação do modelo novo manda criar uma chave OPERATIONAL por pagador (cliente), à mão, no Portal com código de segurança — não escala.
+- O cadastro de conta (`POST /api/v1/account`) **não tem campo de titular**. Provado na homologação: com a chave única da IA365 (pagador = a própria IAUTOMATION) dá para cadastrar várias contas, de qualquer banco (testado 341, 237 e 260), cada uma com o seu `openfinanceLink`.
+- Então: **1 pagador (IA365) + N contas**; o ERP sabe de quem é cada `account_hash`. O isolamento entre empresas é 100% do ERP (`empresa_id` + `EmpresaScope`).
+- **Não provado:** conta de titular com CNPJ diferente concluir a autorização no banco e devolver extrato (ninguém abriu um link ainda); aceite da Tecnospeed por escrito (o Wagner falou em "cada cliente um pagador").
+- Alternativa documentada e viva nos dois ambientes: modelo legado (`cnpjsh` + `tokensh` + `payercpfcnpj`), um token só para todos os pagadores. Não foi preciso.
+
+### Configuração
+`config/services.php` → `tecnospeed`: `TECNOSPEED_BASE_URL` (homologação `https://staging.pagamentobancario.com.br`, produção `https://api.pagamentobancario.com.br`), `TECNOSPEED_OPER_CLIENT_ID`, `TECNOSPEED_OPER_CLIENT_SECRET`. Sem chave a função fica parada (a rotina não faz nada; cadastrar conta devolve mensagem). Chaves de homologação em `/home/ubuntu/tecnospeed-openfinance/.env.homolog`. IPs liberados na Tecnospeed: 177.104.137.178 e .179.
+
+### Liberação (quem tem e quantas contas)
+- `planos.open_finance_habilitado` + `planos.open_finance_contas` — Admin → Planos, quadro "Bancos (Open Finance)".
+- `empresas.open_finance_contas_extras` (venda avulsa) e `empresas.open_finance_ocultar` ("Não mostrar") — Admin → Empresa → editar, quadro "Bancos (Open Finance)".
+- Regra em `Empresa`: `openFinanceLimiteContas()` = contas do plano (só se o plano tem a função) + extras; `openFinanceLiberado()` = limite > 0; `openFinanceVisivel()` = liberado OU não oculto; `openFinanceContasUsadas()` = contas com `account_hash` e não desconectadas.
+- Empresa sem contas vê o convite; com "Não mostrar", o item some do menu e a tela devolve 404. "Não mostrar" não esconde de quem tem a função.
+- Tudo nasce desligado: nenhuma empresa muda no deploy.
+
+### Telas (Financeiro → Bancos, `/app/financeiro/bancos`, `permission:financeiro`)
+- **Contas:** apelido, banco (código de 3 dígitos; lista de sugestões), agência, conta, **CPF ou CNPJ do dono** (obrigatório, 11 ou 14 números), nome do dono, loja. Ao salvar chama a Tecnospeed e guarda `account_hash` e o link.
+- **Conectar ao banco:** abre o link da Tecnospeed em outra aba; o dono autoriza no banco (6 a 24 h para ativar). **Já autorizei / Buscar extrato:** confere a conexão e busca na hora. **Desconectar:** revoga, apaga na Tecnospeed, libera a vaga; os lançamentos e as baixas ficam.
+- **Conciliação**, quatro abas: Para confirmar (sugeridos) · Sem sugestão (escolhe a conta à mão) · Conciliados (desfazer) · Ignorados (voltar para a fila). Botão "Confirmar os N certos" confirma de uma vez as sugestões de nota ≥ 80.
+
+### Extrato (`App\Services\OpenFinance\SincronizadorExtrato`, rotina `openfinance:sincronizar` a cada 10 min)
+Cada passada faz uma coisa por conta: (1) aguardando → `GET /account/{hash}`, vira conectada quando vem `openfinanceId` ou status ativo; (2) protocolo pendente → `GET /statement/openfinance/{uniqueId}`, grava; (3) passou das 6 h → `POST /statement/openfinance` (1ª vez 90 dias para trás; depois, 5 dias antes do último lançamento).
+- Só grava `status = POSTED`; não duplica (`unique(conta_bancaria_id, transaction_id)`); lê `transaction` e `transactionDuplicated`.
+- No crédito a contraparte é `participantPayer`; no débito, `participantReceiver`. Guarda documento, nome, `operationType`, linha digitável e o JSON bruto.
+- **Lançamento que o banco apaga e reenvia com outro número:** o que estava no período pedido e não voltou vira `removido` (sai da fila); se já estava conciliado fica `sumiu_no_banco` para revisão — a baixa NÃO é desfeita sozinha. Se voltar, volta para a fila.
+- 429 (limite de 6 h) ou erro: grava `ultimo_erro` e tenta de novo depois (6 h ou 1 h), sem laço.
+- Empresa que perdeu a liberação: a rotina pula as contas dela.
+
+### Cruzamento (`App\Services\OpenFinance\ConciliadorSugestoes`)
+- Candidatos: título em aberto (`pendente`/`vencida`) da mesma empresa, **mesmo valor** (no receber vale também o `valor_liquido` da maquininha), vencimento até 45 dias do lançamento, e que não esteja sugerido/conciliado em outro lançamento.
+- Nota: mesmo valor 50 (líquido 45) · vencimento a ≤3 dias +20, ≤10 +10, mais que isso +3 · mesmo CPF/CNPJ +30, ou nome parecido +15, ou nome na descrição do banco +10 · único título com esse valor +10. Sugere a partir de 60; "certo" a partir de 80.
+- **Sugerir não baixa nada.** Confirmar dá a baixa do título com a **data e o valor do banco** (`pago_em`, `valor_pago`, `status = paga`) — a mesma baixa das telas de Contas a Receber/Pagar, que não mexe em caixa. Desfazer reabre o título.
+- Conta "direto com a loja" (fiado) fica fora: ela se recebe pela ficha do cliente, que lança no caixa e gera recibo.
+
+### Arquivos
+`database/migrations/2026_11_17_100000_create_open_finance_tables.php`; `app/Models/ContaBancaria.php`, `LancamentoBancario.php`, `Plano.php`, `Empresa.php`; `app/Services/OpenFinance/{TecnospeedClient,SincronizadorExtrato,ConciliadorSugestoes,OpenFinanceException}.php`; `app/Console/Commands/OpenFinanceSincronizar.php`; `routes/console.php`; `app/Http/Controllers/App/BancoController.php`; `resources/views/app/bancos/{index,convite}.blade.php`; `routes/web.php`; `layouts/app.blade.php` (menu); admin: `Admin/PlanoController`, `admin/planos/_form`, `Admin/EmpresaController`, `admin/empresas/edit`; `config/services.php`; `tests/Feature/App/OpenFinanceTest.php`.
+
+### Ainda não feito (próximas entregas)
+- Lançamento **sem título cadastrado** → criar a conta já com fornecedor, categoria e centro de custo sugeridos pelo histórico; regras que aprendem com cada confirmação.
+- Um lançamento para vários títulos (e o contrário); valor com juros/desconto.
+- Conciliar sozinho, sem clique, quando a empresa ligar (só nota alta).
+- **Cartão de crédito** (`statementType = CREDIT_CARD`, `GET /statement/credit-card/openfinance`): fatura, despesas por compra, pagamento da fatura sem contar duas vezes.
+- Saldo por conta (`GET /balance/openfinance/realtime`) e painel.
+- Aviso da Tecnospeed por webhook (só existe em produção).

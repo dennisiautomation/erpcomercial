@@ -27,6 +27,8 @@ class Plano extends Model
         'dre_habilitado',
         'boletos_habilitado',
         'api_habilitada',
+        'open_finance_habilitado',
+        'open_finance_contas',
         'dias_trial',
         'ativo',
         'ordem',
@@ -46,6 +48,8 @@ class Plano extends Model
             'dre_habilitado'         => 'boolean',
             'boletos_habilitado'     => 'boolean',
             'api_habilitada'         => 'boolean',
+            'open_finance_habilitado' => 'boolean',
+            'open_finance_contas'    => 'integer',
             'ativo'                  => 'boolean',
         ];
     }
@@ -90,6 +94,7 @@ class Plano extends Model
             'dre'         => 'dre_habilitado',
             'boletos'     => 'boletos_habilitado',
             'api'         => 'api_habilitada',
+            'open_finance' => 'open_finance_habilitado',
         ];
 
         $column = $map[$feature] ?? null;
