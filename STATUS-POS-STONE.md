@@ -1,12 +1,12 @@
 # Status dos projetos — maquininha Stone (JL Expresso e IA365)
 
-Atualizado em **16/11/2026** (bloco do ERP Comercial; os dos apps seguem como em 14/11). Este arquivo é o mesmo nos três repositórios.
+Atualizado em **17/11/2026** (bloco do ERP Comercial; os dos apps como em 16/11). Este arquivo é o mesmo nos três repositórios.
 
 | Projeto | Repositório | Branch atual | Situação |
 |---|---|---|---|
 | JL Passagens (app) | `dennisiautomation/APP-STONE-JL` | `stone-homologacao` | Homologação enviada à Stone em 14/11; aguardando resposta |
-| IA365 Vendas (app) | `dennisiautomation/APP-IA365-STONE` | `main` | Funcionando na homologação do ERP; ainda não enviado à Stone |
-| ERP Comercial (backend) | `dennisiautomation/erpcomercial` | `feature/pos-stone-app` | API da maquininha no ar na homologação; não está em produção |
+| IA365 Vendas (app) | `dennisiautomation/APP-IA365-STONE` | `stone-homologacao` | Homologação enviada à Stone em 16/11; aguardando resposta |
+| ERP Comercial (backend) | `dennisiautomation/erpcomercial` | `main` | API da maquininha EM PRODUÇÃO desde 17/11/2026 (e na homologação) |
 
 ## JL Passagens — app de venda de passagens
 
@@ -30,40 +30,53 @@ Falta:
 
 - **Versão:** 1.0.0 (versionCode 1), pacote `br.com.ia365.vendas.pos`, integração Deeplink.
 - **Funções:** venda (PDV), pedido, caixa, clientes, e o pedido de balcão/cafeteria (nome ou mesa, cobrado depois).
-- **Servidores por build:** maquininha de teste (`positivo`) → `homolog-erp.ia365.com.br`; release → `erp.ia365.com.br`; emulador (`debug`) → cópia local.
-- **Validação:** instalado na Gertec GPOS730; login e uso validados pelo Dennis com usuários reais da homologação em 14/11.
-- **Documentação:** `README.md` e `docs/REQUISITOS.md`.
+- **Servidores (16/11):** o release (APK da Stone) tenta `erp.ia365.com.br` e cai para `homolog-erp.ia365.com.br` se a produção responder 404 ou 422 no login, igual ao JL; faixa "SERVIDOR DE TESTE" na homologação. Maquininha de teste (`positivo`) → só homologação; emulador (`debug`) → cópia local. A API foi publicada em produção em 17/11 junto com a unificada (ordem do Dennis), antes da aprovação; o avaliador da Stone continua entrando pela homologação porque o usuário de teste só existe lá.
+- **Homologação Stone:** enviada em 16/11/2026 pelo Partner Hub (nova aplicação, 1.0.0 build 1, APK assinado com `release.jks`). Status: "Aguardando aprovação do time de integrações". Prazo: até 5 dias úteis.
+- **Roteiro (16/11, Gertec GPOS730):** 002 e 003 negados como esperado; 004 crédito R$ 5,00 e 006 crédito 2x R$ 100,00 aprovados; 008 débito R$ 80,00 aprovado; 005, 007 e 009 cancelamentos aprovados. PIX (010) não feito: desabilitado no terminal de sandbox (não obrigatório).
+- **Vídeo:** https://youtube.com/shorts/jvsAmtstm0M (não listado).
+- **Teste na homologação do ERP:** usuário `stone.teste@cafe.demo` (gerente, Café Demo / loja Café Paulista; senha no `local.properties`), produtos TESTE STONE (ids 177–182).
+- **Suporte no app:** (11) 98802-7022 (telefone e WhatsApp), suporte@ia365.com.br.
+- **Documentação:** `README.md`, `docs/REQUISITOS.md` e `docs/stone/homologacao/` (evidências, `RESULTADOS-2026-11-16.md`, roteiro e guia em PDF, scripts, `ROTEIRO-VIDEO.md`).
 
 Falta:
-1. Atualizar a Positivo D400, que ainda está com o APK antigo (servidor local).
-2. Criar a keystore de release e guardar em local seguro.
-3. Processo da Stone: roteiro de testes, guia de ativação, vídeo e envio. O caminho completo está em `APP-STONE-JL`, `docs.md` §17.
-4. Depende de a API estar em produção para o build de release funcionar.
+1. Resposta da Stone. Se pedirem correção: versionCode 2 e reenvio em Homologação › Versionamento.
+2. Backup de `release.jks` e `keystore.properties` (sem eles não dá para atualizar o app na Stone).
+3. ~~Publicar a API em produção~~ — feito em 17/11; o mesmo APK já usa a produção para quem tem login lá.
+4. Atualizar a Positivo D400, que ainda está com o APK antigo (servidor local).
 
 ## ERP Comercial — backend da maquininha
 
-- **API:** `api/integracao/pos/v1`, na branch `feature/pos-stone-app`.
-- **Homologação:** no ar em `https://homolog-erp.ia365.com.br` desde 14/11/2026.
-- **Produção:** `https://erp.ia365.com.br` ainda responde 404 nessas rotas.
-- **Documentação:** `docs.md`, bloco "Atualização 14/11/2026" dentro de "App POS Stone".
+- **API:** `api/integracao/pos/v1` — **EM PRODUÇÃO desde 17/11/2026 10:50 BRT** (unificada, `main`); continua também na homologação.
+- **Produção:** `https://erp.ia365.com.br/api/integracao/pos/v1/auth/login` responde (422 sem dados). Qualquer usuário vendedor, caixa ou gerente de empresa ativa entra; não há chave por empresa.
+- **Homologação:** `https://homolog-erp.ia365.com.br`, com o usuário de teste da Stone (`stone.teste@cafe.demo`) e os produtos TESTE STONE.
+- **Formas de pagamento:** `GET /me` devolve `regras.formas_pagamento` (só as ligadas na loja, com o nome que a loja deu) e `POST vendas/cotar` recusa a forma desligada (422) antes de cobrar na Stone. Roteiro `scripts/validar-pos-stone-28out.sh`: 38 ✅ / 0 ❌.
+- **Documentação:** `docs.md`, seção "App de vendas na maquininha Stone" (blocos 14/11, 16/11 e 17/11) e "Unificada em produção (17/11/2026)".
 
-Feito em 16/11/2026 (na branch unificada `homolog-cafeteria-14nov`, no ar na homologação):
-- Encaixe com as formas de pagamento configuráveis: `GET /me` devolve `regras.formas_pagamento` (das quatro formas da maquininha, só as ligadas na loja, com o nome que a loja deu) e `POST vendas/cotar` recusa a forma desligada (`forma_desligada: true`, 422) antes de cobrar na Stone. A venda guarda `forma_nome`/`forma_chave`.
-- Roteiro `scripts/validar-pos-stone-28out.sh` atualizado (caixa emite pedido, recibo no lugar de cupom, bloco 7 das formas): 38 ✅ / 0 ❌, 2×.
+**Qual APK fala com qual servidor (o que pegou o Dennis em 17/11):**
+
+| APK | Onde está | Servidor |
+|---|---|---|
+| release (assinado com `release.jks`) — o enviado à Stone em 16/11 | Mac do Dennis (`dist/`) e Partner Hub | tenta `erp.ia365.com.br`; cai para a homologação só se a produção responder 404 ou 422 no login |
+| `positivo` (chave debug) | instalado na Gertec GPOS730 | **só** `homolog-erp.ia365.com.br` |
+| `debug` | emulador | cópia local |
+
+Em 17/11 ~11:41 o Dennis tentou entrar na GPOS730 com o login de um cliente real e recebeu "e-mail ou senha não conferem": as 3 tentativas chegaram só na homologação (log do `erp-caf-app`), nenhuma na produção — era o build `positivo`. **Com o APK aprovado pela Stone (o release) os clientes reais entram na produção sem reenvio.** Para testar cliente real na GPOS730, instalar o APK release.
 
 Falta:
-1. **App (APK):** ler `regras.formas_pagamento` do `/me` para esconder o botão da forma desligada e mostrar o nome da loja. Enquanto o app não fizer isso, a forma desligada aparece no app e é recusada com mensagem na hora de cotar (ninguém é cobrado).
-2. Deploy em produção com as migrations `pos_*`.
+1. Resposta da Stone sobre o IA365 Vendas (enviado 16/11).
+2. App: ler `regras.formas_pagamento` do `/me` para esconder o botão da forma desligada e mostrar o nome da loja (hoje a forma desligada aparece e é recusada ao cotar, ninguém é cobrado).
+3. Decidir se a API da maquininha deve ter liberação por empresa (hoje é aberta a toda empresa ativa).
 
 ## Maquininhas de teste (Stone Code de teste 206192723)
 
 | Terminal | Serial | Situação |
 |---|---|---|
 | Positivo D400 | 4AK459T1G | Ativada. JL Passagens 1.2.2; IA365 Vendas antigo. No Partner Hub o serial está digitado `4ak129t1g`, sem impacto |
-| Gertec GPOS730 | 6801132650000263 | Ativada em 14/11 após recadastro do modelo (estava como GPOS700X). JL Passagens 1.2.2 e IA365 Vendas 1.0.0 |
+| Gertec GPOS730 | 6801132650000263 | Ativada em 14/11 após recadastro do modelo (estava como GPOS700X). JL Passagens 1.2.2 e IA365 Vendas 1.0.0 (build positivo de 16/11). PIX desabilitado no sandbox |
 | Sunmi P2 | PB09218474721 | Vinculado no Partner Hub; não usado nesta rodada |
 
 Dicas que custaram tempo:
+- A Stone cancela o pagamento após ~20 s sem cartão; o cancelamento às vezes pede a senha administrativa do terminal.
 - Ativação no sandbox: usar Wi-Fi com dados móveis desligados; pelo chip o servidor recusa a conexão.
 - "Unprocessable entity" na ativação: cadastro do terminal errado na Stone. Recadastrar pelo formulário "Adicionar novo meio de captura ao STONECODE de teste".
 - `adb` não lista o terminal com o Chrome aberto: desmarcar "Discover USB devices" em `chrome://inspect/#devices` e reconectar.
