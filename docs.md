@@ -10330,4 +10330,4 @@ Mais: revisão de design da tela e fornecedor aceitando CPF.
 
 **Rollback:** copiar `arquivos/` de volta e apagar os novos da `lista.txt` (os que não estão em `arquivos/`), `config:cache`, `route:cache`, `view:cache`, USR2. As 13 migrations são aditivas e podem ficar. Ou voltar o container inteiro para a foto `erp-com-app:pre-unificada-20261117`.
 
-**Git:** `producao-17nov` = produção (não mergeada na `main`, não pushada — só com ordem do Dennis).
+**Git:** ✅ **`main` = GitHub = produção** — `producao-17nov` juntada na `main` por fast-forward e pushada em 17/11 por ordem do Dennis ("Sim, manda"); conferido arquivo a arquivo (app, config, database, resources, routes): container = `main`, nenhuma diferença.
