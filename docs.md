@@ -10445,3 +10445,17 @@ banco de produção de 17/11 10:49 BRT, `mm-app` 10.213.80.13 = imagem de produ�
 - `scripts/loja-merlinda-capturas.mjs`: computador 1366 e celular 390 sem rolagem lateral e sem erro de JavaScript; editor mostrando o modelo.
 - `tests/Feature/App/LojaModeloExclusivoTest.php` (4 testes) + phpunit inteiro.
 - **Não validado:** compra paga (ela só tem "combinar"), aparelho real.
+
+### EM PRODUÇÃO 17/11/2026 13:06 BRT (ordem do Dennis: "pode levar esta loja para a miss merlinda produção")
+- Antes: os 14 arquivos alterados conferidos iguais à `main` no container; foto `erp-com-app:pre-loja-merlinda-20261117`; arquivos
+  antigos e `lojas_online` (JSON) em `/home/ubuntu/erp-backups/pre-loja-merlinda-20261117/`.
+- Subida por tar dos arquivos de `app/ database/ resources/ routes/` da branch (`a2c6eb5`), `chown`, `migrate --force`
+  (`2026_11_17_220000`), `route:cache` + `view:cache` como www-data, USR2, `queue:restart`. md5 conferido arquivo a arquivo.
+- Aplicado na MISS MERLINDA (empresa 4, loja id 1) pelo mesmo caminho do admin (`modelo_exclusivo` + `Merlinda::instalar`): 9 blocos,
+  logo, WhatsApp (99) 8542-0619, rodapé "seis lojas em Teresina, Timon e Caxias", 18 imagens. Nenhuma outra loja tem exclusivo.
+  A loja segue **fora do ar** (`publicada = 0`); a prévia logada mostra o visual, as 6 lojas e os produtos de exemplo. Nenhum erro novo no log.
+- **Rollback:** `migrate:rollback --step=1` com os arquivos novos no lugar; copiar `arquivos/` de volta; apagar `app/Services/LojaOnline/Exclusivos`,
+  `resources/loja-modelos`, `resources/views/loja/modelos`, `resources/views/loja/blocos/lojas_fisicas.blade.php` e a migration; `route:cache`,
+  `view:cache`, USR2. A linha da loja volta com o JSON do backup (modelo `vitrine`, sem blocos).
+- Falta: a loja trocar as fotos de banco de imagens pelas dela, criar categorias e foto nos produtos, marcar produtos e pôr no ar;
+  ligar PIX/cartão se quiser receber online; conferir o número do WhatsApp (o cadastro tem 10 dígitos, sem o 9).
