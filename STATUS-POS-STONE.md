@@ -1,16 +1,16 @@
 # Status dos projetos — maquininha Stone (JL Expresso e IA365)
 
-Atualizado em **16/11/2026**. Este arquivo é o mesmo nos três repositórios.
+Atualizado em **17/11/2026**. Este arquivo é o mesmo nos três repositórios.
 
 | Projeto | Repositório | Branch atual | Situação |
 |---|---|---|---|
-| JL Passagens (app) | `dennisiautomation/APP-STONE-JL` | `stone-homologacao` | Homologação enviada à Stone em 14/11; aguardando resposta |
-| IA365 Vendas (app) | `dennisiautomation/APP-IA365-STONE` | `stone-homologacao` | Homologação enviada à Stone em 16/11; aguardando resposta |
+| JL Passagens (app) | `dennisiautomation/APP-STONE-JL` | `stone-homologacao` | 1.2.2 recusada (guia não chegou ao portal); 1.2.3 reenviada em 17/11 com arquivos conferidos |
+| IA365 Vendas (app) | `dennisiautomation/APP-IA365-STONE` | `stone-homologacao` | 1.0.0 recusada (APK não chegou ao portal); 1.0.1 reenviada em 17/11 com arquivos conferidos |
 | ERP Comercial (backend) | `dennisiautomation/erpcomercial` | `feature/pos-stone-app` | API da maquininha no ar na homologação; não está em produção |
 
 ## JL Passagens — app de venda de passagens
 
-- **Versão:** 1.2.2 (versionCode 5), pacote `br.com.jlexpresso.passagens.pos`, integração Deeplink.
+- **Versão:** 1.2.3 (versionCode 6), pacote `br.com.jlexpresso.passagens.pos`, integração Deeplink.
 - **Homologação Stone:** enviada em 14/11/2026 pelo Partner Hub (parceiro iAutomation Consultoria). Prazo de resposta: até 5 dias úteis.
 - **Testes do roteiro (10/11, Positivo D400):** crédito negado R$ 0,51 e R$ 0,55, crédito aprovado R$ 5,00, débito aprovado R$ 80,00 e os dois cancelamentos. Parcelado não se aplica. PIX não executado.
 - **Vídeo:** https://youtu.be/bfNX3Z_PLR4 (não listado).
@@ -28,7 +28,7 @@ Falta:
 
 ## IA365 Vendas — app do ERP na maquininha
 
-- **Versão:** 1.0.0 (versionCode 1), pacote `br.com.ia365.vendas.pos`, integração Deeplink.
+- **Versão:** 1.0.1 (versionCode 2), pacote `br.com.ia365.vendas.pos`, integração Deeplink.
 - **Funções:** venda (PDV), pedido, caixa, clientes, e o pedido de balcão/cafeteria (nome ou mesa, cobrado depois).
 - **Servidores (16/11):** o release (APK da Stone) tenta `erp.ia365.com.br` e cai para `homolog-erp.ia365.com.br` se a produção responder 404 ou 422 no login, igual ao JL; faixa "SERVIDOR DE TESTE" na homologação. Maquininha de teste (`positivo`) → só homologação; emulador (`debug`) → cópia local. Decisão do Dennis: produção só depois de a Stone aprovar.
 - **Homologação Stone:** enviada em 16/11/2026 pelo Partner Hub (nova aplicação, 1.0.0 build 1, APK assinado com `release.jks`). Status: "Aguardando aprovação do time de integrações". Prazo: até 5 dias úteis.
@@ -55,6 +55,10 @@ Falta:
 1. Merge da `main` de 14/11 (formas de pagamento configuráveis por empresa) na branch. O POS ainda usa as quatro formas fixas; esse encaixe precisa ser conferido.
 2. Rodar PHPUnit e o roteiro de validação (não rodados em 14/11).
 3. Deploy em produção com as migrations `pos_*`.
+
+**Lição de 17/11 (as duas recusas):** a barra verde do Partner Hub não garante que o arquivo subiu. O guia do JL 1.2.2 e o
+APK do IA365 1.0.0 não existiam no armazenamento da Stone. Nos reenvios, cada arquivo foi baixado de volta do
+armazenamento e comparado com o original antes de clicar em Enviar.
 
 ## Maquininhas de teste (Stone Code de teste 206192723)
 
