@@ -50,11 +50,23 @@ class BancoController extends Controller
         $filtro = in_array($request->query('ver'), ['conferir', 'sem', 'feitos', 'ignorados'], true) ? $request->query('ver') : 'conferir';
         $contaId = (int) $request->query('conta') ?: null;
         $cartaoId = (int) $request->query('cartao') ?: null;
+        // Entradas e saídas separadas: 'entradas' = crédito, 'saidas' = débito, vazio = tudo.
+        $lado = in_array($request->query('lado'), ['entradas', 'saidas'], true) ? $request->query('lado') : null;
         $cartoes = CartaoCredito::where('empresa_id', $empresa->id)->whereIn('conta_bancaria_id', $contas->pluck('id'))->orderBy('final')->get();
 
         $base = LancamentoBancario::where('empresa_id', $empresa->id)
             ->when($contaId, fn ($q) => $q->where('conta_bancaria_id', $contaId)->whereNull('cartao_credito_id'))
             ->when($cartaoId, fn ($q) => $q->where('cartao_credito_id', $cartaoId));
+
+        // Quantos há de cada lado na aba atual (para os botões Entradas / Saídas).
+        $statusDaAba = ['conferir' => 'sugerido', 'sem' => 'pendente', 'feitos' => 'conciliado', 'ignorados' => 'ignorado'][$filtro];
+        $porLado = [
+            'tudo' => (clone $base)->where('status', $statusDaAba)->count(),
+            'entradas' => (clone $base)->where('status', $statusDaAba)->where('tipo', 'credito')->count(),
+            'saidas' => (clone $base)->where('status', $statusDaAba)->where('tipo', 'debito')->count(),
+        ];
+
+        $base->when($lado, fn ($q) => $q->where('tipo', $lado === 'entradas' ? 'credito' : 'debito'));
 
         $totais = [
             'conferir' => (clone $base)->where('status', 'sugerido')->count(),
@@ -131,6 +143,8 @@ class BancoController extends Controller
             'filtro' => $filtro,
             'contaId' => $contaId,
             'cartaoId' => $cartaoId,
+            'lado' => $lado,
+            'porLado' => $porLado,
             'cartoes' => $cartoes,
             'abertasReceber' => $abertasReceber,
             'abertasPagar' => $abertasPagar,
@@ -413,6 +427,7 @@ class BancoController extends Controller
             ->where('status', 'sugerido')
             ->where('sugestao_confianca', '>=', LancamentoBancario::CONFIANCA_ALTA)
             ->when((int) $request->input('conta'), fn ($q, $id) => $q->where('conta_bancaria_id', $id))
+            ->when(in_array($request->input('lado'), ['entradas', 'saidas'], true), fn ($q) => $q->where('tipo', $request->input('lado') === 'entradas' ? 'credito' : 'debito'))
             ->orderBy('data')->get()
             ->each(function (LancamentoBancario $l) use (&$feitos) {
                 try {

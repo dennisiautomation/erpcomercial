@@ -943,6 +943,31 @@ class OpenFinanceTest extends TestCase
             ->assertSee('1 de 4 conciliados (25%)');
     }
 
+    public function test_fila_separa_entradas_e_saidas(): void
+    {
+        $this->liberar(1);
+        $conta = $this->conta();
+        $this->lancamento($conta, 'credito', 111.11, '2026-11-10', ['descricao' => 'ENTRADA UM']);
+        $this->lancamento($conta, 'debito', 222.22, '2026-11-10', ['descricao' => 'SAIDA UM']);
+        $this->lancamento($conta, 'debito', 333.33, '2026-11-11', ['descricao' => 'SAIDA DOIS']);
+
+        $this->eu()->get(route('app.bancos.index', ['ver' => 'sem']))->assertOk()
+            ->assertSee('ENTRADA UM')->assertSee('SAIDA UM')->assertSeeInOrder(['Tudo', '3', 'Entradas', '1', 'Saídas', '2']);
+        $this->eu()->get(route('app.bancos.index', ['ver' => 'sem', 'lado' => 'entradas']))->assertOk()
+            ->assertSee('ENTRADA UM')->assertDontSee('SAIDA UM')->assertDontSee('SAIDA DOIS');
+        $this->eu()->get(route('app.bancos.index', ['ver' => 'sem', 'lado' => 'saidas']))->assertOk()
+            ->assertDontSee('ENTRADA UM')->assertSee('SAIDA UM')->assertSee('SAIDA DOIS')
+            ->assertSee('lado=saidas', false);                                         // as abas e o filtro de conta mantêm o lado
+
+        // "Confirmar os certos" com o lado escolhido só mexe naquele lado
+        $t1 = $this->receber(111.11, '2026-11-10');
+        $t2 = $this->pagar(222.22, '2026-11-10');
+        app(ConciliadorSugestoes::class)->sugerirPendentes($this->empresa->id);
+        $this->eu()->post(route('app.bancos.confirmar-certos'), ['lado' => 'saidas'])->assertSessionHas('success', '1 lançamento(s) conciliado(s).');
+        $this->assertSame('paga', $t2->fresh()->status);
+        $this->assertSame('pendente', $t1->fresh()->status);
+    }
+
     /* ---------------- rotina e admin ---------------- */
 
     public function test_rotina_pula_empresa_sem_liberacao_e_sem_chave_nao_faz_nada(): void

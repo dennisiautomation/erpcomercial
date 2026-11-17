@@ -10245,3 +10245,7 @@ Cada passada faz uma coisa por conta: (1) aguardando → `GET /account/{hash}`, 
 - **Banco de dados:** migration `2026_11_17_210000_fornecedores_endereco_opcional` — `cep`, `logradouro`, `numero`, `bairro`, `cidade`, `uf` e `telefone` de `fornecedores` passam a aceitar vazio (igual a clientes). **A tela completa de Fornecedores continua exigindo endereço e telefone**; as telas de lista, ficha e edição já tratavam campo vazio.
 - `ClassificadorLancamentos::fornecedorSimples`; campo `fornecedor_novo` em `BancoController::lancar`.
 - Validação: `OpenFinanceTest` 40 ✅ (297 conferências); suíte inteira 424 testes, só as 2 falhas antigas.
+
+### Entradas e saídas separadas na fila (17/11/2026, pedido do Dennis)
+- Ao lado das abas, botões **Tudo · Entradas · Saídas** com a quantidade de cada um na aba atual (`?lado=entradas|saidas`). O lado escolhido se mantém ao trocar de aba ou de conta/cartão, e "Confirmar os certos" só mexe no lado escolhido.
+- Validação: `OpenFinanceTest` 41 ✅ (313 conferências); suíte inteira 425 testes, só as 2 falhas antigas.

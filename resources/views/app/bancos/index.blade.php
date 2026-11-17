@@ -195,21 +195,30 @@
         @foreach($abas as $chave => [$rotulo, $qtd])
             <li class="nav-item">
                 <a class="nav-link {{ $filtro === $chave ? 'active' : '' }}"
-                   href="{{ route('app.bancos.index', array_filter(['ver' => $chave, 'conta' => $contaId, 'cartao' => $cartaoId])) }}">
+                   href="{{ route('app.bancos.index', array_filter(['ver' => $chave, 'conta' => $contaId, 'cartao' => $cartaoId, 'lado' => $lado])) }}">
                     {{ $rotulo }} <span class="badge bg-light text-dark ms-1">{{ $qtd }}</span>
                 </a>
             </li>
         @endforeach
     </ul>
-    <div class="d-flex align-items-center gap-2">
+    <div class="d-flex flex-wrap align-items-center gap-2">
+        <div class="btn-group btn-group-sm" role="group" aria-label="Entradas ou saídas">
+            @foreach(['' => ['Tudo', $porLado['tudo']], 'entradas' => ['Entradas', $porLado['entradas']], 'saidas' => ['Saídas', $porLado['saidas']]] as $valor => [$rotulo, $qtd])
+                <a class="btn {{ (string) $lado === (string) $valor ? 'btn-secondary' : 'btn-outline-secondary' }}"
+                   @if((string) $lado === (string) $valor) aria-current="true" @endif
+                   href="{{ route('app.bancos.index', array_filter(['ver' => $filtro, 'conta' => $contaId, 'cartao' => $cartaoId, 'lado' => $valor])) }}">
+                    {{ $rotulo }} <span class="opacity-75">{{ $qtd }}</span>
+                </a>
+            @endforeach
+        </div>
         @if($contas->count() > 1 || $cartoes->isNotEmpty())
             <select class="form-select form-select-sm" style="width: auto;" aria-label="Conta ou cartão" onchange="window.location = this.value">
-                <option value="{{ route('app.bancos.index', ['ver' => $filtro]) }}">Todas as contas e cartões</option>
+                <option value="{{ route('app.bancos.index', array_filter(['ver' => $filtro, 'lado' => $lado])) }}">Todas as contas e cartões</option>
                 @foreach($contas as $c)
-                    <option value="{{ route('app.bancos.index', ['ver' => $filtro, 'conta' => $c->id]) }}" {{ $contaId === $c->id ? 'selected' : '' }}>{{ $c->apelido }}</option>
+                    <option value="{{ route('app.bancos.index', array_filter(['ver' => $filtro, 'conta' => $c->id, 'lado' => $lado])) }}" {{ $contaId === $c->id ? 'selected' : '' }}>{{ $c->apelido }}</option>
                 @endforeach
                 @foreach($cartoes as $cc)
-                    <option value="{{ route('app.bancos.index', ['ver' => $filtro, 'cartao' => $cc->id]) }}" {{ $cartaoId === $cc->id ? 'selected' : '' }}>{{ $cc->nome() }}</option>
+                    <option value="{{ route('app.bancos.index', array_filter(['ver' => $filtro, 'cartao' => $cc->id, 'lado' => $lado])) }}" {{ $cartaoId === $cc->id ? 'selected' : '' }}>{{ $cc->nome() }}</option>
                 @endforeach
             </select>
         @endif
@@ -228,6 +237,7 @@
                   onsubmit="return confirm('Confirmar os {{ $totais['certos'] }} lançamentos que o sistema tem como certos? As contas serão baixadas com a data e o valor do banco.');">
                 @csrf
                 <input type="hidden" name="conta" value="{{ $contaId }}">
+                <input type="hidden" name="lado" value="{{ $lado }}">
                 <button class="btn btn-sm btn-success">
                     <i class="bi bi-check2-all me-1"></i> Confirmar os {{ $totais['certos'] }} certos
                 </button>
