@@ -157,12 +157,12 @@
 
             <div class="row g-3">
                 <div class="col-md-5">
-                    <label for="cpf_cnpj" class="form-label @if($exigeDoc) required-dot @endif">CNPJ{{ $exigeDoc ? '' : ' (opcional)' }}</label>
+                    <label for="cpf_cnpj" class="form-label @if($exigeDoc) required-dot @endif">CPF ou CNPJ{{ $exigeDoc ? '' : ' (opcional)' }}</label>
                     <div class="input-group">
                         <input type="text" name="cpf_cnpj" id="cpf_cnpj"
                                class="form-control @error('cpf_cnpj') is-invalid @enderror"
                                value="{{ old('cpf_cnpj', $fornecedore->cpf_cnpj) }}"
-                               maxlength="18" data-mask="cnpj" data-cnpj-lookup @if($exigeDoc) required @endif>
+                               maxlength="18" data-mask="cpfCnpj" data-cnpj-lookup @if($exigeDoc) required @endif>
                         <span class="input-group-text bg-white" id="cnpjLoading" style="display:none;">
                             <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
                         </span>
@@ -172,7 +172,7 @@
                 </div>
 
                 <div class="col-md-7">
-                    <label for="razao_social" class="form-label required-dot">Razão Social</label>
+                    <label for="razao_social" class="form-label required-dot">Nome ou razão social</label>
                     <input type="text" name="razao_social" id="razao_social"
                            class="form-control @error('razao_social') is-invalid @enderror"
                            value="{{ old('razao_social', $fornecedore->razao_social) }}" required>
@@ -372,7 +372,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     : 'Informe um CPF ou CNPJ valido');
                 valid = false;
             }
-            if (!razao) { showError('errorRazaoSocial', 'Informe a Razao Social'); valid = false; }
+            if (!razao) { showError('errorRazaoSocial', 'Informe o nome ou a razão social'); valid = false; }
             return valid;
         }
         return true;

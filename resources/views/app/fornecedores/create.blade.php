@@ -198,17 +198,17 @@
              ═══════════════════════════════════════════════════ --}}
         <div class="wizard-step active" data-step="1">
             <h5 class="step-title">Identificacao</h5>
-            <p class="step-subtitle">Informe o CNPJ para buscar automaticamente os dados</p>
+            <p class="step-subtitle">Pessoa ou empresa. Com CNPJ, os dados são buscados automaticamente</p>
 
             <div class="row g-3">
                 <div class="col-md-5">
-                    <label for="cpf_cnpj" class="form-label @if($exigeDoc) required-dot @endif">CNPJ{{ $exigeDoc ? '' : ' (opcional)' }}</label>
+                    <label for="cpf_cnpj" class="form-label @if($exigeDoc) required-dot @endif">CPF ou CNPJ{{ $exigeDoc ? '' : ' (opcional)' }}</label>
                     <div class="input-group">
                         <input type="text" name="cpf_cnpj" id="cpf_cnpj"
                                class="form-control @error('cpf_cnpj') is-invalid @enderror"
                                value="{{ old('cpf_cnpj') }}"
-                               maxlength="18" placeholder="00.000.000/0000-00"
-                               data-mask="cnpj" data-cnpj-lookup @if($exigeDoc) required @endif>
+                               maxlength="18" placeholder="CPF (pessoa) ou CNPJ (empresa)"
+                               data-mask="cpfCnpj" data-cnpj-lookup @if($exigeDoc) required @endif>
                         <span class="input-group-text bg-white" id="cnpjLoading" style="display:none;">
                             <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
                         </span>
@@ -220,7 +220,7 @@
                 </div>
 
                 <div class="col-md-7">
-                    <label for="razao_social" class="form-label required-dot">Razão Social</label>
+                    <label for="razao_social" class="form-label required-dot">Nome ou razão social</label>
                     <input type="text" name="razao_social" id="razao_social"
                            class="form-control @error('razao_social') is-invalid @enderror"
                            value="{{ old('razao_social', request('razao_social')) }}"
@@ -482,7 +482,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 valid = false;
             }
             if (!razao) {
-                showError('errorRazaoSocial', 'Informe a Razao Social');
+                showError('errorRazaoSocial', 'Informe o nome ou a razão social');
                 valid = false;
             }
             return valid;

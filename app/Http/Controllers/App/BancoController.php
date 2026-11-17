@@ -8,6 +8,9 @@ use App\Models\ContaPagar;
 use App\Models\ContaReceber;
 use App\Models\LancamentoBancario;
 use App\Models\Unidade;
+use App\Models\CentroCusto;
+use App\Models\PlanoContas;
+use App\Services\OpenFinance\ClassificadorLancamentos;
 use App\Services\OpenFinance\ConciliadorSugestoes;
 use App\Services\OpenFinance\OpenFinanceException;
 use App\Services\OpenFinance\SincronizadorExtrato;
@@ -28,6 +31,7 @@ class BancoController extends Controller
         private readonly TecnospeedClient $api,
         private readonly SincronizadorExtrato $sincronizador,
         private readonly ConciliadorSugestoes $conciliador,
+        private readonly ClassificadorLancamentos $classificador,
     ) {}
 
     public function index(Request $request)
@@ -76,7 +80,24 @@ class BancoController extends Controller
             ->whereIn('status', ['pendente', 'vencida'])
             ->with(['fornecedor', 'funcionario'])->orderBy('vencimento')->limit(300)->get() : collect();
 
+        // Saída sem conta cadastrada: proposta de despesa já classificada (regra aprendida ou histórico).
+        $propostas = [];
+        if ($filtro === 'sem') {
+            foreach ($lancamentos as $l) {
+                if (! $l->ehCredito()) {
+                    $propostas[$l->id] = $this->classificador->propor($l);
+                }
+            }
+        }
+        $conhecidos = $filtro === 'sem' ? $this->pendentesConhecidos($empresa->id, $contaId)->count() : 0;
+
         return view('app.bancos.index', [
+            'propostas' => $propostas,
+            'conhecidos' => $conhecidos,
+            'planoContas' => $filtro === 'sem' ? PlanoContas::where('empresa_id', $empresa->id)->analiticas()->ativas()
+                ->whereIn('tipo', ['despesa', 'custo'])->orderBy('codigo')->get(['id', 'codigo', 'nome']) : collect(),
+            'centrosCusto' => $filtro === 'sem' ? CentroCusto::where('empresa_id', $empresa->id)->where('ativo', true)
+                ->orderBy('nome')->get(['id', 'codigo', 'nome']) : collect(),
             'empresa' => $empresa,
             'contas' => $contas,
             'limite' => $empresa->openFinanceLimiteContas(),
@@ -207,7 +228,77 @@ class BancoController extends Controller
             return back()->with('error', $e->getMessage());
         }
 
+        // Aprende a classificação da conta confirmada, para propor igual na próxima saída deste favorecido.
+        $lancamento->refresh();
+        if (! $lancamento->ehCredito() && $lancamento->contaPagar) {
+            $this->classificador->aprender($lancamento, $lancamento->contaPagar);
+        }
+
         return back()->with('success', 'Conciliado: a conta foi baixada com a data e o valor do banco.');
+    }
+
+    /** Saída do banco sem conta cadastrada: cria a despesa já paga, classificada, e concilia. */
+    public function lancar(Request $request, LancamentoBancario $lancamento)
+    {
+        $empresa = $this->empresaLiberada();
+        $this->daEmpresa($lancamento->empresa_id);
+
+        $dados = $request->validate([
+            'descricao' => 'nullable|string|max:250',
+            'plano_conta_id' => ['nullable', Rule::exists('plano_contas', 'id')->where('empresa_id', $empresa->id)],
+            'centro_custo_id' => ['nullable', Rule::exists('centros_custo', 'id')->where('empresa_id', $empresa->id)],
+            'lembrar' => 'nullable|boolean',
+            'usar_proposta' => 'nullable|boolean',
+        ]);
+
+        // Um clique: vale a proposta do sistema (regra já aprendida).
+        if ($request->boolean('usar_proposta')) {
+            $p = $this->classificador->propor($lancamento);
+            $dados = ['descricao' => $p['descricao'], 'plano_conta_id' => $p['plano_conta_id'], 'centro_custo_id' => $p['centro_custo_id'],
+                'fornecedor_id' => $p['fornecedor_id'], 'favorecido_nome' => $p['favorecido']];
+        }
+        $dados['lembrar'] = $request->has('lembrar') ? $request->boolean('lembrar') : true;
+
+        try {
+            $this->classificador->lancar($lancamento, auth()->id(), $dados, session('unidade_id'));
+        } catch (\DomainException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return back()->with('success', 'Despesa lançada e conciliada com a data e o valor do banco.');
+    }
+
+    /** Lança de uma vez todas as saídas cuja classificação o sistema já aprendeu. */
+    public function lancarConhecidos(Request $request)
+    {
+        $empresa = $this->empresaLiberada();
+
+        $feitos = 0;
+        foreach ($this->pendentesConhecidos($empresa->id, (int) $request->input('conta') ?: null) as [$l, $p]) {
+            try {
+                $this->classificador->lancar($l, auth()->id(), [
+                    'descricao' => $p['descricao'], 'plano_conta_id' => $p['plano_conta_id'], 'centro_custo_id' => $p['centro_custo_id'],
+                    'fornecedor_id' => $p['fornecedor_id'], 'favorecido_nome' => $p['favorecido'],
+                ], session('unidade_id'));
+                $feitos++;
+            } catch (\DomainException) {
+                // tratado por outro caminho nesse meio tempo
+            }
+        }
+
+        return back()->with('success', "{$feitos} despesa(s) lançada(s) com a classificação já conhecida.");
+    }
+
+    /** Saídas pendentes para as quais existe regra aprendida. @return \Illuminate\Support\Collection<int, array{0: LancamentoBancario, 1: array}> */
+    private function pendentesConhecidos(int $empresaId, ?int $contaId)
+    {
+        return LancamentoBancario::where('empresa_id', $empresaId)
+            ->where('status', 'pendente')->where('tipo', 'debito')
+            ->when($contaId, fn ($q) => $q->where('conta_bancaria_id', $contaId))
+            ->orderBy('data')->limit(500)->get()
+            ->map(fn (LancamentoBancario $l) => [$l, $this->classificador->propor($l)])
+            ->filter(fn ($par) => $par[1]['origem'] === 'regra')
+            ->values();
     }
 
     /** Confirma de uma vez tudo o que o sistema tem como certo (nota alta). */
@@ -225,6 +316,10 @@ class BancoController extends Controller
                 try {
                     $this->conciliador->confirmar($l, auth()->id());
                     $feitos++;
+                    $l->refresh();
+                    if (! $l->ehCredito() && $l->contaPagar) {
+                        $this->classificador->aprender($l, $l->contaPagar);
+                    }
                 } catch (\DomainException) {
                     // título baixado por outro caminho nesse meio tempo: fica para conferir à mão
                 }

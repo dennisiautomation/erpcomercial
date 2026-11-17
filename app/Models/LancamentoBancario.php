@@ -17,7 +17,7 @@ class LancamentoBancario extends Model
         'empresa_id', 'conta_bancaria_id', 'transaction_id', 'data', 'tipo', 'valor', 'descricao', 'operacao',
         'contraparte_nome', 'contraparte_documento', 'linha_digitavel', 'bruto', 'status',
         'sugestao_conta_receber_id', 'sugestao_conta_pagar_id', 'sugestao_confianca', 'sugestao_motivo',
-        'conta_receber_id', 'conta_pagar_id', 'conciliado_em', 'conciliado_por', 'sumiu_no_banco',
+        'conta_receber_id', 'conta_pagar_id', 'conciliado_em', 'conciliado_por', 'sumiu_no_banco', 'titulo_criado',
     ];
 
     protected function casts(): array
@@ -28,6 +28,7 @@ class LancamentoBancario extends Model
             'bruto' => 'array',
             'conciliado_em' => 'datetime',
             'sumiu_no_banco' => 'boolean',
+            'titulo_criado' => 'boolean',
         ];
     }
 

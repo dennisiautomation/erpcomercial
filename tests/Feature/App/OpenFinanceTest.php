@@ -496,6 +496,149 @@ class OpenFinanceTest extends TestCase
         $this->assertSame('pendente', $l->fresh()->status);
     }
 
+    /* ---------------- despesa nova a partir do extrato ---------------- */
+
+    private function classificacao(): array
+    {
+        $plano = \App\Models\PlanoContas::withoutGlobalScopes()->create([
+            'empresa_id' => $this->empresa->id, 'codigo' => '3.2.01', 'nome' => 'Aluguel', 'tipo' => 'despesa', 'natureza' => 'analitica', 'ativo' => true,
+        ]);
+        $centro = \App\Models\CentroCusto::withoutGlobalScopes()->create([
+            'empresa_id' => $this->empresa->id, 'codigo' => 'ADM', 'nome' => 'Administrativo', 'ativo' => true,
+        ]);
+
+        return [$plano, $centro];
+    }
+
+    public function test_saida_sem_conta_vira_despesa_paga_classificada_e_o_sistema_aprende(): void
+    {
+        $this->liberar(1);
+        $conta = $this->conta();
+        [$plano, $centro] = $this->classificacao();
+        $l = $this->lancamento($conta, 'debito', 2500.00, '2026-11-05', [
+            'contraparte_documento' => '44555666000177', 'contraparte_nome' => 'IMOBILIARIA CENTRAL LTDA', 'operacao' => 'PIX',
+        ]);
+
+        $this->eu()->get(route('app.bancos.index', ['ver' => 'sem']))->assertOk()
+            ->assertSee('Lançar despesa')->assertSee('falta classificar')->assertSee('Aluguel')->assertSee('Administrativo');
+
+        $this->eu()->post(route('app.bancos.lancamentos.lancar', $l), [
+            'descricao' => 'Aluguel da loja', 'plano_conta_id' => $plano->id, 'centro_custo_id' => $centro->id, 'lembrar' => 1,
+        ])->assertSessionHas('success');
+
+        $titulo = ContaPagar::withoutGlobalScopes()->firstOrFail();
+        $this->assertSame('paga', $titulo->status);
+        $this->assertSame('2500.00', $titulo->valor_pago);
+        $this->assertSame('2026-11-05', $titulo->pago_em->toDateString());
+        $this->assertSame('2026-11-01', $titulo->competencia->toDateString());
+        $this->assertSame($plano->id, $titulo->plano_conta_id);
+        $this->assertSame('Aluguel', $titulo->categoria);
+        $this->assertSame($centro->id, $titulo->centro_custo_id);
+        $this->assertSame('IMOBILIARIA CENTRAL LTDA', $titulo->favorecido_nome);
+        $this->assertSame('pix', $titulo->forma_pagamento);
+        $this->assertSame($this->unidade->id, $titulo->unidade_id);
+        $this->assertSame('conciliado', $l->fresh()->status);
+        $this->assertTrue($l->fresh()->titulo_criado);
+
+        // mês seguinte, mesmo CNPJ: já vem conhecida e lança com um clique
+        $prox = $this->lancamento($conta, 'debito', 2600.00, '2026-12-05', ['contraparte_documento' => '44555666000177', 'contraparte_nome' => 'IMOBILIARIA CENTRAL LTDA']);
+        $this->eu()->get(route('app.bancos.index', ['ver' => 'sem']))->assertSee('Já conhecida')->assertSee('Lançar as 1 já conhecidas');
+
+        $this->eu()->post(route('app.bancos.lancamentos.lancar', $prox), ['usar_proposta' => 1])->assertSessionHas('success');
+        $novo = ContaPagar::withoutGlobalScopes()->orderByDesc('id')->first();
+        $this->assertSame('Aluguel da loja', $novo->descricao);
+        $this->assertSame($plano->id, $novo->plano_conta_id);
+        $this->assertSame($centro->id, $novo->centro_custo_id);
+        $this->assertSame('2600.00', $novo->valor);
+        $this->assertSame(2, \App\Models\RegraConciliacao::withoutGlobalScopes()->first()->usos);
+    }
+
+    public function test_lancar_as_conhecidas_de_uma_vez_e_desfazer_apaga_a_despesa_criada(): void
+    {
+        $this->liberar(1);
+        $conta = $this->conta();
+        [$plano, $centro] = $this->classificacao();
+        \App\Models\RegraConciliacao::withoutGlobalScopes()->create([
+            'empresa_id' => $this->empresa->id, 'chave_tipo' => 'descricao', 'chave' => 'tarifa pacote de servicos',
+            'descricao_padrao' => 'Tarifa bancária', 'plano_conta_id' => $plano->id, 'centro_custo_id' => $centro->id, 'usos' => 3,
+        ]);
+        $a = $this->lancamento($conta, 'debito', 49.90, '2026-11-03', ['descricao' => 'TARIFA PACOTE DE SERVICOS 11/2026']);
+        $b = $this->lancamento($conta, 'debito', 49.90, '2026-12-03', ['descricao' => 'Tarifa Pacote de Serviços 12/2026']);
+        $desconhecido = $this->lancamento($conta, 'debito', 10.00, '2026-11-04', ['descricao' => 'COMPRA CARTAO 1234']);
+        $entrada = $this->lancamento($conta, 'credito', 49.90, '2026-11-03', ['descricao' => 'TARIFA PACOTE DE SERVICOS']);
+
+        $this->eu()->post(route('app.bancos.lancar-conhecidos'))->assertSessionHas('success', '2 despesa(s) lançada(s) com a classificação já conhecida.');
+
+        $this->assertSame(2, ContaPagar::withoutGlobalScopes()->where('descricao', 'Tarifa bancária')->where('status', 'paga')->count());
+        $this->assertSame('pendente', $desconhecido->fresh()->status);
+        $this->assertSame('pendente', $entrada->fresh()->status);                      // entrada nunca vira despesa
+
+        $this->eu()->post(route('app.bancos.lancamentos.lancar', $entrada), [])->assertSessionHas('error');
+
+        $this->eu()->post(route('app.bancos.lancamentos.desfazer', $a))->assertSessionHas('success');
+        $this->assertSame('pendente', $a->fresh()->status);
+        $this->assertFalse($a->fresh()->titulo_criado);
+        $this->assertSame(1, ContaPagar::withoutGlobalScopes()->whereNull('deleted_at')->count());   // a despesa criada foi apagada
+        $this->assertSame('conciliado', $b->fresh()->status);
+    }
+
+    public function test_confirmar_conta_cadastrada_ensina_a_classificacao_e_fornecedor_por_cpf_e_reconhecido(): void
+    {
+        $this->liberar(1);
+        $conta = $this->conta();
+        [$plano, $centro] = $this->classificacao();
+        $pessoa = $this->createFornecedor($this->empresa, ['cpf_cnpj' => '321.654.987-00', 'razao_social' => 'José Pedreiro']);
+        $titulo = $this->pagar(800.00, '2026-11-10', ['fornecedor_id' => $pessoa->id, 'plano_conta_id' => $plano->id, 'centro_custo_id' => $centro->id]);
+        $l = $this->lancamento($conta, 'debito', 800.00, '2026-11-10', ['contraparte_documento' => '32165498700', 'contraparte_nome' => 'JOSE PEDREIRO']);
+        app(ConciliadorSugestoes::class)->sugerirPendentes($this->empresa->id);
+
+        $this->eu()->post(route('app.bancos.lancamentos.confirmar', $l))->assertSessionHas('success');
+        $this->assertSame('paga', $titulo->fresh()->status);
+
+        // nova saída para o mesmo CPF, sem conta cadastrada: proposta vem com fornecedor, conta e centro
+        $novo = $this->lancamento($conta, 'debito', 350.00, '2026-11-20', ['contraparte_documento' => '32165498700', 'contraparte_nome' => 'JOSE PEDREIRO']);
+        $p = app(\App\Services\OpenFinance\ClassificadorLancamentos::class)->propor($novo);
+        $this->assertSame('regra', $p['origem']);
+        $this->assertSame($pessoa->id, $p['fornecedor_id']);
+        $this->assertSame('José Pedreiro', $p['favorecido']);
+        $this->assertSame($plano->id, $p['plano_conta_id']);
+        $this->assertSame($centro->id, $p['centro_custo_id']);
+
+        $this->eu()->post(route('app.bancos.lancamentos.lancar', $novo), ['usar_proposta' => 1]);
+        $criada = ContaPagar::withoutGlobalScopes()->orderByDesc('id')->first();
+        $this->assertSame($pessoa->id, $criada->fornecedor_id);
+        $this->assertNull($criada->favorecido_nome);
+    }
+
+    public function test_plano_de_contas_de_outra_empresa_e_recusado_ao_lancar(): void
+    {
+        $this->liberar(1);
+        $conta = $this->conta();
+        [$outra] = $this->createTenant('2');
+        $alheio = \App\Models\PlanoContas::withoutGlobalScopes()->create([
+            'empresa_id' => $outra->id, 'codigo' => '9', 'nome' => 'Alheia', 'tipo' => 'despesa', 'natureza' => 'analitica', 'ativo' => true,
+        ]);
+        $l = $this->lancamento($conta, 'debito', 10.00, '2026-11-05');
+
+        $this->eu()->post(route('app.bancos.lancamentos.lancar', $l), ['plano_conta_id' => $alheio->id])->assertSessionHasErrors('plano_conta_id');
+        $this->assertSame(0, ContaPagar::withoutGlobalScopes()->count());
+    }
+
+    public function test_fornecedor_pessoa_fisica_com_cpf_e_aceito_no_cadastro(): void
+    {
+        $dono = $this->createUser($this->empresa, $this->unidade, 'dono');
+
+        $this->actingAsUser($dono, $this->unidade)->get(route('app.fornecedores.create'))->assertOk()
+            ->assertSee('CPF ou CNPJ')->assertSee('data-mask="cpfCnpj"', false);
+
+        $this->actingAsUser($dono, $this->unidade)->post(route('app.fornecedores.store'), [
+            'cpf_cnpj' => '321.654.987-00', 'razao_social' => 'José Pedreiro', 'cep' => '01001-000', 'logradouro' => 'Rua A',
+            'numero' => '10', 'bairro' => 'Centro', 'cidade' => 'São Paulo', 'uf' => 'SP', 'telefone' => '(11) 99999-0000',
+        ])->assertSessionHasNoErrors();
+
+        $this->assertSame(1, \App\Models\Fornecedor::withoutGlobalScopes()->where('cpf_cnpj', '321.654.987-00')->count());
+    }
+
     /* ---------------- rotina e admin ---------------- */
 
     public function test_rotina_pula_empresa_sem_liberacao_e_sem_chave_nao_faz_nada(): void

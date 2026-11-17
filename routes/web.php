@@ -693,6 +693,8 @@ Route::middleware(['auth', 'suspensao', 'unidade', \App\Http\Middleware\Restring
         Route::post('/contas/{conta}/desconectar', [App\BancoController::class, 'desconectar'])->name('contas.desconectar');
         Route::post('/confirmar-certos', [App\BancoController::class, 'confirmarCertos'])->name('confirmar-certos');
         Route::post('/lancamentos/{lancamento}/confirmar', [App\BancoController::class, 'confirmar'])->name('lancamentos.confirmar');
+        Route::post('/lancar-conhecidos', [App\BancoController::class, 'lancarConhecidos'])->name('lancar-conhecidos');
+        Route::post('/lancamentos/{lancamento}/lancar', [App\BancoController::class, 'lancar'])->name('lancamentos.lancar');
         Route::post('/lancamentos/{lancamento}/recusar', [App\BancoController::class, 'recusar'])->name('lancamentos.recusar');
         Route::post('/lancamentos/{lancamento}/ignorar', [App\BancoController::class, 'ignorar'])->name('lancamentos.ignorar');
         Route::post('/lancamentos/{lancamento}/desfazer', [App\BancoController::class, 'desfazer'])->name('lancamentos.desfazer');

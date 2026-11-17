@@ -125,6 +125,16 @@
                 </select>
             </form>
         @endif
+        @if($filtro === 'sem' && $conhecidos > 0)
+            <form method="POST" action="{{ route('app.bancos.lancar-conhecidos') }}"
+                  onsubmit="return confirm('Lançar {{ $conhecidos }} despesa(s) com a classificação que o sistema já aprendeu? Cada uma entra como paga, com a data e o valor do banco.');">
+                @csrf
+                <input type="hidden" name="conta" value="{{ $contaId }}">
+                <button class="btn btn-sm btn-success">
+                    <i class="bi bi-lightning-charge me-1"></i> Lançar as {{ $conhecidos }} já conhecidas
+                </button>
+            </form>
+        @endif
         @if($filtro === 'conferir' && $totais['certos'] > 0)
             <form method="POST" action="{{ route('app.bancos.confirmar-certos') }}"
                   onsubmit="return confirm('Confirmar os {{ $totais['certos'] }} lançamentos que o sistema tem como certos? As contas serão baixadas com a data e o valor do banco.');">
@@ -200,6 +210,41 @@
                                 </select>
                                 <button class="btn btn-sm btn-success" {{ $opcoes->isEmpty() ? 'disabled' : '' }}>Conciliar</button>
                             </form>
+                            @if(isset($propostas[$l->id]))
+                                @php $p = $propostas[$l->id]; @endphp
+                                <div class="mt-2 p-2 rounded" style="background: rgba(79,70,229,.06);">
+                                    <div class="small">
+                                        <strong>{{ $opcoes->isEmpty() ? 'Lançar como despesa' : 'Ou lançar como despesa nova' }}:</strong>
+                                        {{ $p['favorecido'] ?: 'sem favorecido' }}
+                                        @if($p['plano_nome']) · {{ $p['plano_nome'] }} @endif
+                                        @if($p['centro_nome']) · {{ $p['centro_nome'] }} @endif
+                                        @if($p['origem'] === 'regra')
+                                            <span class="badge bg-success ms-1">Já conhecida{{ $p['usos'] > 1 ? ' · ' . $p['usos'] . ' vezes' : '' }}</span>
+                                        @elseif($p['origem'] === 'historico')
+                                            <span class="badge bg-warning text-dark ms-1">Igual à última deste fornecedor</span>
+                                        @else
+                                            <span class="text-muted">· falta classificar</span>
+                                        @endif
+                                    </div>
+                                    <div class="d-flex flex-wrap gap-2 mt-2">
+                                        @if($p['origem'] === 'regra')
+                                            <form method="POST" action="{{ route('app.bancos.lancamentos.lancar', $l) }}">
+                                                @csrf
+                                                <input type="hidden" name="usar_proposta" value="1">
+                                                <button class="btn btn-sm btn-success"><i class="bi bi-check-lg me-1"></i>Lançar</button>
+                                            </form>
+                                        @endif
+                                        <button type="button" class="btn btn-sm {{ $p['origem'] === 'regra' ? 'btn-outline-secondary' : 'btn-erp btn-erp-primary' }} btn-lancar"
+                                                data-bs-toggle="modal" data-bs-target="#modalLancar"
+                                                data-acao="{{ route('app.bancos.lancamentos.lancar', $l) }}"
+                                                data-resumo="{{ $l->data->format('d/m/Y') }} · {{ $brl($l->valor) }} · {{ $l->contraparte_nome ?: $l->descricao }}"
+                                                data-descricao="{{ $p['descricao'] }}"
+                                                data-plano="{{ $p['plano_conta_id'] }}" data-centro="{{ $p['centro_custo_id'] }}">
+                                            {{ $p['origem'] === 'regra' ? 'Ajustar' : 'Lançar despesa' }}
+                                        </button>
+                                    </div>
+                                </div>
+                            @endif
                         @else
                             <span class="text-muted">—</span>
                         @endif
@@ -252,6 +297,70 @@
     @endif
 </div>
 </div>
+
+{{-- ---------------- Lançar despesa a partir do extrato ---------------- --}}
+@if($filtro === 'sem')
+<div class="modal fade" id="modalLancar" tabindex="-1" aria-labelledby="modalLancarTitulo" aria-hidden="true">
+    <div class="modal-dialog">
+        <form method="POST" action="" class="modal-content" id="formLancar">
+            @csrf
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalLancarTitulo">Lançar como despesa</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted small mb-3" id="lancarResumo"></p>
+                <div class="mb-3">
+                    <label class="form-label" for="lancar-descricao">Descrição</label>
+                    <input id="lancar-descricao" name="descricao" class="form-control" maxlength="250">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="lancar-plano">Conta do plano de contas</label>
+                    <select id="lancar-plano" name="plano_conta_id" class="form-select">
+                        <option value="">Sem classificar</option>
+                        @foreach($planoContas as $pc)<option value="{{ $pc->id }}">{{ $pc->codigo }} — {{ $pc->nome }}</option>@endforeach
+                    </select>
+                    @if($planoContas->isEmpty())
+                        <div class="form-text">Nenhuma conta de despesa cadastrada. Cadastre em Gestão → Plano de Contas.</div>
+                    @endif
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="lancar-centro">Centro de custo</label>
+                    <select id="lancar-centro" name="centro_custo_id" class="form-select">
+                        <option value="">Sem centro de custo</option>
+                        @foreach($centrosCusto as $cc)<option value="{{ $cc->id }}">{{ $cc->nome }}</option>@endforeach
+                    </select>
+                </div>
+                <div class="form-check form-switch">
+                    <input type="hidden" name="lembrar" value="0">
+                    <input class="form-check-input" type="checkbox" role="switch" id="lancar-lembrar" name="lembrar" value="1" checked>
+                    <label class="form-check-label" for="lancar-lembrar">Lembrar esta classificação para os próximos pagamentos a este favorecido</label>
+                </div>
+                <div class="alert alert-info mt-3 mb-0 small">
+                    A despesa entra em Contas a Pagar já como paga, com a data e o valor do banco. Dá para desfazer na aba Conciliados.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button class="btn btn-success">Lançar e conciliar</button>
+            </div>
+        </form>
+    </div>
+</div>
+@push('scripts')
+<script>
+document.getElementById('modalLancar')?.addEventListener('show.bs.modal', function (e) {
+    const b = e.relatedTarget;
+    if (!b) return;
+    document.getElementById('formLancar').action = b.dataset.acao;
+    document.getElementById('lancarResumo').textContent = b.dataset.resumo;
+    document.getElementById('lancar-descricao').value = b.dataset.descricao || '';
+    document.getElementById('lancar-plano').value = b.dataset.plano || '';
+    document.getElementById('lancar-centro').value = b.dataset.centro || '';
+});
+</script>
+@endpush
+@endif
 
 {{-- ---------------- Nova conta ---------------- --}}
 <div class="modal fade" id="modalNovaConta" tabindex="-1" aria-labelledby="modalNovaContaTitulo" aria-hidden="true">

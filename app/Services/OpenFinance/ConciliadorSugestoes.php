@@ -274,7 +274,10 @@ class ConciliadorSugestoes
                 ? ContaReceber::withoutGlobalScopes()->where('empresa_id', $l->empresa_id)->find($l->conta_receber_id)
                 : ContaPagar::withoutGlobalScopes()->where('empresa_id', $l->empresa_id)->find($l->conta_pagar_id);
 
-            if ($titulo && $titulo->status === 'paga') {
+            if ($titulo && $l->titulo_criado) {
+                // A conta nasceu deste lançamento: desfazer apaga a conta (não deixa despesa em aberto que nunca existiu).
+                $titulo->delete();
+            } elseif ($titulo && $titulo->status === 'paga') {
                 $titulo->update([
                     'valor_pago' => 0,
                     'pago_em' => null,
@@ -285,7 +288,7 @@ class ConciliadorSugestoes
             $l->update([
                 'status' => 'pendente',
                 'conta_receber_id' => null, 'conta_pagar_id' => null,
-                'conciliado_em' => null, 'conciliado_por' => null,
+                'conciliado_em' => null, 'conciliado_por' => null, 'titulo_criado' => false,
                 'sugestao_conta_receber_id' => null, 'sugestao_conta_pagar_id' => null,
                 'sugestao_confianca' => null, 'sugestao_motivo' => null,
             ]);
