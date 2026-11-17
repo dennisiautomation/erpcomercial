@@ -10175,3 +10175,11 @@ Cada passada faz uma coisa por conta: (1) aguardando → `GET /account/{hash}`, 
 - **Homologação do ERP:** `.env` com `TECNOSPEED_BASE_URL=https://api.pagamentobancario.com.br` e a chave OPERATIONAL de produção (cópia do anterior em `.env.antes-tecnospeed-prod-20261117`; voltar = restaurar a cópia e `docker compose up -d app`). Mesma imagem `erp-caf-app:3c33737`.
 - **Contas:** as duas contas que o ERP tinha criado na Tecnospeed de homologação foram apagadas lá; a fictícia "Teste Inter" ficou desconectada no ERP; a conta Itaú da Café Demo (id 2) foi recadastrada em produção (hash `Pu42gEWDP3`, aguardando autorização).
 - **Atenção:** o extrato real da conta conectada fica gravado no banco da HOMOLOGAÇÃO. Produção da Tecnospeed aceita 1 pedido de extrato a cada 6 h por conta. A homologação não roda a rotina: buscar pelo botão.
+
+### EXTRATO REAL PROVADO (17/11/2026 09:24 BRT) — conta Itaú conectada em produção da Tecnospeed
+- O Dennis autorizou no banco pelo "Conectar ao banco"; a Tecnospeed devolveu `statusOpenfinance = ATIVO` e `openfinanceId` (o identificador que aparece na janela fica no cadastro da conta lá; o ERP não precisa guardar). **Valor real do status de conta ativa: `ATIVO`.** A ativação foi na hora, não levou as 6–24 h.
+- ERP (homologação): conta virou "Conectada", pediu o extrato (protocolo `ZKhFiW7A3jA0W2`, 19/08 a 17/11), o banco respondeu **SUCCESS em menos de 2 minutos** com 25 lançamentos (7 entradas, 18 saídas; 24 PIX e 1 boleto), todos gravados com nome e CPF/CNPJ da contraparte. O banco só devolveu de 12/11 em diante, apesar do pedido de 90 dias.
+- Cruzamento com dado real: criadas na Café Demo uma conta a pagar e uma a receber "TESTE conciliação Open Finance" iguais a dois lançamentos → sugestões com nota 95 (valor + dia + nome + único) e 80 (valor + 2 dias + único); aparecem em "Para confirmar" com o botão "Confirmar os 2 certos".
+- **Achado:** a consulta de protocolo tem limite de **3 chamadas por minuto** (422, `internalCode 4005`). A rotina de 10 min não chega perto; o botão da tela faz no máximo 2 seguidas.
+- **Incentivo:** o protocolo `ZKhFiW7A3jA0W2` é um uniqueId SUCCESS em produção — é a prova pedida pelo programa (enviar a atendimento@tecnospeed.com.br só com ordem do Dennis).
+- Boleto veio sem linha digitável neste extrato (1 caso) — o cruzamento por linha digitável ainda não foi escrito.
