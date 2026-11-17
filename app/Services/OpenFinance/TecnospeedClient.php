@@ -60,17 +60,30 @@ class TecnospeedClient
     }
 
     /** Pede o extrato do período; devolve o protocolo (uniqueId) para consultar depois. */
-    public function pedirExtrato(string $hash, string $inicio, string $fim): string
+    public function pedirExtrato(string $hash, string $inicio, string $fim, ?string $cartaoFinal = null): string
     {
         $r = $this->http()->post('/api/v1/statement/openfinance', [
             'accountHash' => $hash,
             'dateStart' => $inicio,
             'dateEnd' => $fim,
-            'statementType' => 'BANK',
-        ]);
+        ] + ($cartaoFinal !== null
+            ? ['statementType' => 'CREDIT_CARD', 'cardNumber' => $cartaoFinal]
+            : ['statementType' => 'BANK']));
         $this->exigir($r, 'pedir o extrato');
 
         return (string) $r->json('uniqueId');
+    }
+
+    /** Cartões de crédito da conta: [['cardNumber' => '5817', 'additionalCards' => '3210,1646', 'creditLimit' => ..., 'availableCreditLimit' => ...]]. */
+    public function listarCartoes(string $hash): array
+    {
+        $r = $this->http()->get('/api/v1/statement/credit-card/openfinance', ['accountHash' => $hash]);
+        if ($r->status() === 404) {
+            return [];   // "Nenhum cartão de crédito encontrado para esta conta"
+        }
+        $this->exigir($r, 'buscar os cartões');
+
+        return array_values(array_filter((array) $r->json(), 'is_array'));
     }
 
     /** Protocolo completo: ['statement' => [...], 'transaction' => ['credit' => [], 'debit' => []], ...]. */

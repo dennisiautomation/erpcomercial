@@ -68,6 +68,11 @@ class ContaBancaria extends Model
         return $this->hasMany(LancamentoBancario::class);
     }
 
+    public function cartoes(): HasMany
+    {
+        return $this->hasMany(CartaoCredito::class);
+    }
+
     /** Ocupa uma vaga do limite: tem cadastro na Tecnospeed e não foi desconectada. */
     public function ocupaVaga(): bool
     {

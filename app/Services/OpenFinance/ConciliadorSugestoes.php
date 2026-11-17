@@ -48,7 +48,7 @@ class ConciliadorSugestoes
         $melhor = $this->candidatos($l)->first();
 
         if (! $melhor || $melhor['nota'] < self::NOTA_MINIMA) {
-            return false;
+            return $this->sugerirPagamentoDeFatura($l);
         }
 
         $l->update([
@@ -63,12 +63,58 @@ class ConciliadorSugestoes
     }
 
     /**
+     * Saída da CONTA com o mesmo valor de um crédito que apareceu no cartão (pagamento de fatura)
+     * em até 5 dias: é a fatura sendo paga. Não é despesa nova — as compras já entram uma a uma.
+     */
+    private function sugerirPagamentoDeFatura(LancamentoBancario $l): bool
+    {
+        if ($l->ehCredito() || $l->ehDeCartao()) {
+            return false;
+        }
+
+        $jaUsados = LancamentoBancario::withoutGlobalScopes()
+            ->where('empresa_id', $l->empresa_id)->where('id', '!=', $l->id)
+            ->where(fn ($q) => $q->whereNotNull('fatura_cartao_id')->orWhereNotNull('sugestao_fatura_cartao_id'))
+            ->where('valor', $l->valor)
+            ->count();
+
+        $creditos = LancamentoBancario::withoutGlobalScopes()
+            ->where('empresa_id', $l->empresa_id)
+            ->whereNotNull('cartao_credito_id')->where('tipo', 'credito')
+            ->where('valor', $l->valor)
+            ->whereBetween('data', [$l->data->copy()->subDays(5), $l->data->copy()->addDays(5)])
+            ->orderBy('data')->get();
+
+        // um crédito no cartão explica uma saída da conta, não duas
+        $credito = $creditos->get($jaUsados);
+        if (! $credito) {
+            return false;
+        }
+
+        $l->update([
+            'status' => 'sugerido',
+            'sugestao_conta_receber_id' => null,
+            'sugestao_conta_pagar_id' => null,
+            'sugestao_fatura_cartao_id' => $credito->cartao_credito_id,
+            'sugestao_confianca' => 85,
+            'sugestao_motivo' => 'mesmo valor que entrou no cartão como pagamento de fatura',
+        ]);
+
+        return true;
+    }
+
+    /**
      * Títulos em aberto que podem ser este lançamento, do mais provável ao menos.
      *
      * @return Collection<int, array{titulo: ContaReceber|ContaPagar, nota: int, motivos: string[]}>
      */
     public function candidatos(LancamentoBancario $l): Collection
     {
+        // Crédito no cartão é pagamento de fatura ou estorno: nunca é uma conta a receber.
+        if ($l->ehDeCartao() && $l->ehCredito()) {
+            return collect();
+        }
+
         $ocupados = $this->titulosOcupados($l);
         $inicio = $l->data->copy()->subDays(self::JANELA_DIAS);
         $fim = $l->data->copy()->addDays(self::JANELA_DIAS);
@@ -205,6 +251,13 @@ class ConciliadorSugestoes
             throw new \DomainException('Este lançamento já foi tratado.');
         }
 
+        // Pagamento de fatura: só marca de qual cartão é. Não cria nem baixa conta nenhuma.
+        if (! $tituloId && $l->sugestao_fatura_cartao_id) {
+            $this->marcarPagamentoDeFatura($l, $usuarioId, $l->sugestao_fatura_cartao_id);
+
+            return;
+        }
+
         $tituloId ??= $l->ehCredito() ? $l->sugestao_conta_receber_id : $l->sugestao_conta_pagar_id;
         if (! $tituloId) {
             throw new \DomainException('Escolha a conta que corresponde a este lançamento.');
@@ -240,6 +293,7 @@ class ConciliadorSugestoes
                 $col => $titulo->id,
                 'conciliado_em' => now(),
                 'conciliado_por' => $usuarioId,
+                'sugestao_fatura_cartao_id' => null,
             ]);
 
             // Outro lançamento que sugeria este mesmo título perde a sugestão.
@@ -251,6 +305,30 @@ class ConciliadorSugestoes
                     'sugestao_confianca' => null, 'sugestao_motivo' => null,
                 ]);
         });
+    }
+
+    public function marcarPagamentoDeFatura(LancamentoBancario $l, ?int $usuarioId, int $cartaoId): void
+    {
+        if (! in_array($l->status, ['pendente', 'sugerido'], true)) {
+            throw new \DomainException('Este lançamento já foi tratado.');
+        }
+        if ($l->ehCredito() || $l->ehDeCartao()) {
+            throw new \DomainException('Pagamento de fatura é sempre uma saída da conta.');
+        }
+
+        $cartao = \App\Models\CartaoCredito::withoutGlobalScopes()->where('empresa_id', $l->empresa_id)->find($cartaoId);
+        if (! $cartao) {
+            throw new \DomainException('Cartão não encontrado.');
+        }
+
+        $l->update([
+            'status' => 'conciliado',
+            'fatura_cartao_id' => $cartao->id,
+            'conciliado_em' => now(),
+            'conciliado_por' => $usuarioId,
+            'sugestao_conta_receber_id' => null, 'sugestao_conta_pagar_id' => null, 'sugestao_fatura_cartao_id' => null,
+            'sugestao_confianca' => null, 'sugestao_motivo' => null,
+        ]);
     }
 
     private function titulosOcupadosConciliados(LancamentoBancario $l): array
@@ -287,7 +365,7 @@ class ConciliadorSugestoes
 
             $l->update([
                 'status' => 'pendente',
-                'conta_receber_id' => null, 'conta_pagar_id' => null,
+                'conta_receber_id' => null, 'conta_pagar_id' => null, 'fatura_cartao_id' => null, 'sugestao_fatura_cartao_id' => null,
                 'conciliado_em' => null, 'conciliado_por' => null, 'titulo_criado' => false,
                 'sugestao_conta_receber_id' => null, 'sugestao_conta_pagar_id' => null,
                 'sugestao_confianca' => null, 'sugestao_motivo' => null,

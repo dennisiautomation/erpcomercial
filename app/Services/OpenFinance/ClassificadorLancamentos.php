@@ -45,7 +45,7 @@ class ClassificadorLancamentos
                 'origem' => 'regra', 'usos' => (int) $regra->usos,
                 'fornecedor_id' => $regra->fornecedor_id ?: $proposta['fornecedor_id'],
                 'favorecido' => $regra->fornecedor?->razao_social ?: ($regra->favorecido_nome ?: $proposta['favorecido']),
-                'descricao' => $regra->descricao_padrao ?: $proposta['descricao'],
+                'descricao' => $l->ehDeCartao() ? $proposta['descricao'] : ($regra->descricao_padrao ?: $proposta['descricao']),
                 'plano_conta_id' => $regra->plano_conta_id, 'plano_nome' => $regra->planoConta?->nome,
                 'centro_custo_id' => $regra->centro_custo_id, 'centro_nome' => $regra->centroCusto?->nome,
             ]);
@@ -112,11 +112,13 @@ class ClassificadorLancamentos
                 'categoria' => $plano ? Str::limit($plano->nome, 100, '') : null,
                 'centro_custo_id' => $centro?->id,
                 'centro_custo' => $centro ? Str::limit($centro->nome, 100, '') : null,
-                'forma_pagamento' => $this->forma($l->operacao),
+                'forma_pagamento' => $l->ehDeCartao() ? 'cartao_credito' : $this->forma($l->operacao),
                 'parcela' => 1,
                 'total_parcelas' => 1,
                 'status' => 'paga',
-                'observacoes' => 'Lançada pelo extrato do banco (Open Finance).',
+                'observacoes' => $l->ehDeCartao()
+                    ? 'Compra no ' . ($l->cartao?->nome() ?? 'cartão de crédito') . ' (Open Finance).'
+                    : 'Lançada pelo extrato do banco (Open Finance).',
             ]);
 
             $l->update([
@@ -158,7 +160,7 @@ class ClassificadorLancamentos
             'fornecedor_id' => $conta->fornecedor_id,
             'favorecido_nome' => $conta->fornecedor_id ? null : ($conta->favorecido_nome ?: $l->contraparte_nome),
             // conta de folha/imposto tem descrição própria de cada mês: não vira texto padrão
-            'descricao_padrao' => $conta->serie_id || $conta->folha_ref ? $regra->descricao_padrao : $conta->descricao,
+            'descricao_padrao' => $conta->serie_id || $conta->folha_ref || $l->ehDeCartao() ? $regra->descricao_padrao : $conta->descricao,
             'plano_conta_id' => $conta->plano_conta_id,
             'centro_custo_id' => $conta->centro_custo_id,
             'usos' => $regra->exists ? $regra->usos + 1 : 1,
@@ -204,6 +206,13 @@ class ClassificadorLancamentos
 
     private function descricaoPadrao(LancamentoBancario $l): string
     {
+        // Compra no cartão: o texto é o nome da loja; parcelada ganha "(2/4)".
+        if ($l->ehDeCartao()) {
+            $parcela = $l->parcela_total > 1 ? " ({$l->parcela_numero}/{$l->parcela_total})" : '';
+
+            return Str::limit(trim((string) $l->descricao) ?: 'Compra no cartão', 240, '') . $parcela;
+        }
+
         $quem = $this->nomeDoBanco($l) !== '' ? Str::title(Str::lower($this->nomeDoBanco($l))) : null;
 
         return Str::limit($quem ? "Pagamento a {$quem}" : ($l->descricao ?: 'Saída do banco'), 250, '');

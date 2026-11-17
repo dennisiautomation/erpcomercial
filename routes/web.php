@@ -691,6 +691,9 @@ Route::middleware(['auth', 'suspensao', 'unidade', \App\Http\Middleware\Restring
         Route::post('/contas', [App\BancoController::class, 'store'])->name('contas.store');
         Route::post('/contas/{conta}/atualizar', [App\BancoController::class, 'atualizar'])->name('contas.atualizar');
         Route::post('/contas/{conta}/desconectar', [App\BancoController::class, 'desconectar'])->name('contas.desconectar');
+        Route::post('/contas/{conta}/cartoes', [App\BancoController::class, 'buscarCartoes'])->name('contas.cartoes');
+        Route::post('/cartoes/{cartao}/alternar', [App\BancoController::class, 'alternarCartao'])->name('cartoes.alternar');
+        Route::post('/lancamentos/{lancamento}/fatura', [App\BancoController::class, 'marcarFatura'])->name('lancamentos.fatura');
         Route::post('/confirmar-certos', [App\BancoController::class, 'confirmarCertos'])->name('confirmar-certos');
         Route::post('/lancamentos/{lancamento}/confirmar', [App\BancoController::class, 'confirmar'])->name('lancamentos.confirmar');
         Route::post('/lancar-conhecidos', [App\BancoController::class, 'lancarConhecidos'])->name('lancar-conhecidos');

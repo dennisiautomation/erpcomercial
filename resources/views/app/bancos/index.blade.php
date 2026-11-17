@@ -85,6 +85,12 @@
                                     <i class="bi bi-arrow-repeat me-1"></i> {{ $c->situacao === 'conectada' ? 'Buscar extrato' : 'Já autorizei' }}
                                 </button>
                             </form>
+                            @if($c->situacao === 'conectada')
+                            <form method="POST" action="{{ route('app.bancos.contas.cartoes', $c) }}">
+                                @csrf
+                                <button class="btn btn-sm btn-outline-secondary"><i class="bi bi-credit-card me-1"></i> Cartões</button>
+                            </form>
+                            @endif
                             <form method="POST" action="{{ route('app.bancos.contas.desconectar', $c) }}"
                                   onsubmit="return confirm('Desconectar esta conta do banco? O que já foi conciliado continua como está.');">
                                 @csrf
@@ -93,6 +99,36 @@
                         </div>
                     </td>
                 </tr>
+                @foreach($cartoes->where('conta_bancaria_id', $c->id) as $cc)
+                <tr style="background: rgba(79,70,229,.03);">
+                    <td class="ps-4">
+                        <i class="bi bi-credit-card me-1 text-muted"></i> <strong>{{ $cc->nome() }}</strong>
+                        @if($cc->adicionais)<div class="text-muted small ps-4">Adicionais: {{ str_replace(',', ', ', $cc->adicionais) }}</div>@endif
+                    </td>
+                    <td class="text-muted small">Cartão de crédito · não conta como conta extra</td>
+                    <td></td>
+                    <td>
+                        @if($cc->importar)
+                            <span class="badge bg-success">Trazendo as compras</span>
+                        @else
+                            <span class="badge bg-secondary">Desligado</span>
+                        @endif
+                        @if($cc->ultimo_erro)<div class="text-danger small mt-1">{{ $cc->ultimo_erro }}</div>@endif
+                    </td>
+                    <td>
+                        {{ $cc->ultima_sincronizacao_em?->format('d/m/Y H:i') ?? '—' }}
+                        @if($cc->protocolo_pendente)<div class="text-muted small">Banco preparando…</div>@endif
+                    </td>
+                    <td>
+                        <form method="POST" action="{{ route('app.bancos.cartoes.alternar', $cc) }}">
+                            @csrf
+                            <button class="btn btn-sm {{ $cc->importar ? 'btn-outline-secondary' : 'btn-erp btn-erp-primary' }}">
+                                {{ $cc->importar ? 'Parar de trazer' : 'Trazer as compras' }}
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                @endforeach
                 @empty
                 <tr><td colspan="6" class="text-center text-muted py-4">Nenhuma conta ligada ainda. Clique em <strong>Ligar uma conta</strong> para começar.</td></tr>
                 @endforelse
@@ -107,23 +143,23 @@
         @foreach($abas as $chave => [$rotulo, $qtd])
             <li class="nav-item">
                 <a class="nav-link {{ $filtro === $chave ? 'active' : '' }}"
-                   href="{{ route('app.bancos.index', array_filter(['ver' => $chave, 'conta' => $contaId])) }}">
+                   href="{{ route('app.bancos.index', array_filter(['ver' => $chave, 'conta' => $contaId, 'cartao' => $cartaoId])) }}">
                     {{ $rotulo }} <span class="badge bg-light text-dark ms-1">{{ $qtd }}</span>
                 </a>
             </li>
         @endforeach
     </ul>
     <div class="d-flex align-items-center gap-2">
-        @if($contas->count() > 1)
-            <form method="GET" action="{{ route('app.bancos.index') }}">
-                <input type="hidden" name="ver" value="{{ $filtro }}">
-                <select name="conta" class="form-select form-select-sm" onchange="this.form.submit()" aria-label="Conta">
-                    <option value="">Todas as contas</option>
-                    @foreach($contas as $c)
-                        <option value="{{ $c->id }}" {{ $contaId === $c->id ? 'selected' : '' }}>{{ $c->apelido }}</option>
-                    @endforeach
-                </select>
-            </form>
+        @if($contas->count() > 1 || $cartoes->isNotEmpty())
+            <select class="form-select form-select-sm" style="width: auto;" aria-label="Conta ou cartão" onchange="window.location = this.value">
+                <option value="{{ route('app.bancos.index', ['ver' => $filtro]) }}">Todas as contas e cartões</option>
+                @foreach($contas as $c)
+                    <option value="{{ route('app.bancos.index', ['ver' => $filtro, 'conta' => $c->id]) }}" {{ $contaId === $c->id ? 'selected' : '' }}>{{ $c->apelido }}</option>
+                @endforeach
+                @foreach($cartoes as $cc)
+                    <option value="{{ route('app.bancos.index', ['ver' => $filtro, 'cartao' => $cc->id]) }}" {{ $cartaoId === $cc->id ? 'selected' : '' }}>{{ $cc->nome() }}</option>
+                @endforeach
+            </select>
         @endif
         @if($filtro === 'sem' && $conhecidos > 0)
             <form method="POST" action="{{ route('app.bancos.lancar-conhecidos') }}"
@@ -172,6 +208,8 @@
                     <td>
                         <div>{{ $l->descricao ?: 'Sem descrição' }}
                             @if($l->operacao)<span class="badge bg-light text-dark ms-1">{{ $l->operacao }}</span>@endif
+                            @if($l->cartao)<span class="badge bg-info text-dark ms-1"><i class="bi bi-credit-card me-1"></i>{{ $l->cartao->nome() }}</span>@endif
+                            @if($l->parcela_total > 1)<span class="badge bg-light text-dark ms-1">parcela {{ $l->parcela_numero }}/{{ $l->parcela_total }}</span>@endif
                         </div>
                         <div class="text-muted small">
                             {{ $l->contraparte_nome }}
@@ -186,7 +224,16 @@
                         {{ $l->ehCredito() ? '+' : '−' }} {{ $brl($l->valor) }}
                     </td>
                     <td>
-                        @if($titulo)
+                        @php $fatura = $filtro === 'feitos' ? $l->faturaCartao : ($filtro === 'conferir' ? $l->sugestaoFaturaCartao : null); @endphp
+                        @if($fatura)
+                            <div><strong>Pagamento da fatura</strong> — {{ $fatura->nome() }}</div>
+                            <div class="text-muted small">Não entra como despesa: as compras do cartão já entram uma a uma.</div>
+                            @if($filtro === 'conferir')
+                                <div class="small mt-1"><span class="badge bg-success">Certo</span> <span class="text-muted">{{ $l->sugestao_motivo }}</span></div>
+                            @endif
+                        @elseif($filtro === 'ignorados' && $l->sugestao_motivo)
+                            <span class="text-muted">{{ $l->sugestao_motivo }}</span>
+                        @elseif($titulo)
                             <div><strong>{{ $quem($titulo) }}</strong> — {{ $titulo->descricao }}</div>
                             <div class="text-muted small">
                                 {{ $l->ehCredito() ? 'A receber' : 'A pagar' }} · {{ $brl($titulo->valor) }} · vence {{ $titulo->vencimento?->format('d/m/Y') }}
@@ -210,6 +257,16 @@
                                 </select>
                                 <button class="btn btn-sm btn-success" {{ $opcoes->isEmpty() ? 'disabled' : '' }}>Conciliar</button>
                             </form>
+                            @if(! $l->ehCredito() && ! $l->cartao && $cartoes->isNotEmpty())
+                                <form method="POST" action="{{ route('app.bancos.lancamentos.fatura', $l) }}" class="d-flex gap-2 mt-2">
+                                    @csrf
+                                    <select name="cartao_id" class="form-select form-select-sm" required aria-label="Cartão da fatura">
+                                        <option value="">É pagamento de fatura do cartão…</option>
+                                        @foreach($cartoes as $cc)<option value="{{ $cc->id }}">{{ $cc->nome() }}</option>@endforeach
+                                    </select>
+                                    <button class="btn btn-sm btn-outline-secondary text-nowrap">Marcar fatura</button>
+                                </form>
+                            @endif
                             @if(isset($propostas[$l->id]))
                                 @php $p = $propostas[$l->id]; @endphp
                                 <div class="mt-2 p-2 rounded" style="background: rgba(79,70,229,.06);">

@@ -652,6 +652,164 @@ class OpenFinanceTest extends TestCase
         $this->assertSame(1, \App\Models\Fornecedor::withoutGlobalScopes()->where('cpf_cnpj', '321.654.987-00')->count());
     }
 
+    /* ---------------- cartão de crédito ---------------- */
+
+    private function cartao(ContaBancaria $conta, array $extra = []): \App\Models\CartaoCredito
+    {
+        return \App\Models\CartaoCredito::withoutGlobalScopes()->create($extra + [
+            'empresa_id' => $conta->empresa_id, 'conta_bancaria_id' => $conta->id, 'final' => '2524', 'importar' => true,
+        ]);
+    }
+
+    public function test_busca_os_cartoes_da_conta_e_a_empresa_escolhe_quais_trazer(): void
+    {
+        $this->liberar(1);
+        $conta = $this->conta();
+        $this->fakeTecnospeed([self::BASE . '/api/v1/statement/credit-card/openfinance*' => Http::response([
+            ['cardNumber' => '2524', 'additionalCards' => '7012,4714', 'availableCreditLimit' => '1500.50', 'creditLimit' => '5000'],
+            ['cardNumber' => '6869', 'additionalCards' => null, 'availableCreditLimit' => '100', 'creditLimit' => '100'],
+        ])]);
+
+        $this->eu()->post(route('app.bancos.contas.cartoes', $conta))->assertSessionHas('success');
+        $this->eu()->post(route('app.bancos.contas.cartoes', $conta));                 // de novo não duplica
+
+        $cartoes = \App\Models\CartaoCredito::withoutGlobalScopes()->orderBy('final')->get();
+        $this->assertSame(['2524', '6869'], $cartoes->pluck('final')->all());
+        $this->assertSame('7012,4714', $cartoes[0]->adicionais);
+        $this->assertSame('5000.00', $cartoes[0]->limite);
+        $this->assertFalse($cartoes[0]->importar);                                     // nasce desligado
+        $this->assertSame(1, $this->empresa->openFinanceContasUsadas());               // cartão não ocupa vaga
+
+        $this->eu()->post(route('app.bancos.cartoes.alternar', $cartoes[0]));
+        $this->assertTrue($cartoes[0]->fresh()->importar);
+        $this->eu()->get(route('app.bancos.index'))->assertOk()->assertSee('Cartão final 2524')->assertSee('Trazendo as compras')->assertSee('7012, 4714');
+    }
+
+    public function test_compras_do_cartao_entram_e_credito_no_cartao_nao_vira_receita(): void
+    {
+        $conta = $this->conta(['proxima_sincronizacao_em' => now()->addHours(3)]);     // a conta em si não está na hora
+        $cartao = $this->cartao($conta);
+        $desligado = $this->cartao($conta, ['final' => '6869', 'importar' => false]);
+        $compras = $this->extrato(
+            [$this->transacao('PG1', 'credit', 900.00, '2026-11-10', ['description' => 'PAGAMENTO EFETUADO'])],
+            [
+                $this->transacao('CP1', 'debit', 120.00, '2026-11-03', ['description' => 'POSTO BOA VIAGEM', 'operationType' => 'OUTROS', 'participantReceiver' => null, 'creditCardInstallmentNumber' => 2, 'creditCardTotalInstallments' => 4]),
+                $this->transacao('CP2', 'debit', 59.90, '2026-11-04', ['description' => 'DL*GOOGLE YouTube', 'operationType' => 'OUTROS', 'participantReceiver' => null]),
+            ],
+        );
+        $this->fakeTecnospeed([
+            self::BASE . '/api/v1/statement/openfinance' => Http::response(['uniqueId' => 'PROTC', 'status' => 'PROCESSING']),
+            self::BASE . '/api/v1/statement/openfinance/PROTC' => Http::response($compras),
+        ]);
+        $s = app(SincronizadorExtrato::class);
+
+        $this->assertStringContainsString('Cartão final 2524: compras pedidas ao banco', $s->sincronizar($conta));
+        Http::assertSent(fn ($r) => $r->method() === 'POST' && str_ends_with($r->url(), '/statement/openfinance')
+            && $r->data()['statementType'] === 'CREDIT_CARD' && $r->data()['cardNumber'] === '2524');
+        $this->assertNull($desligado->fresh()->protocolo_pendente);                    // cartão desligado não gasta consulta
+
+        $this->assertStringContainsString('2 compra(s) nova(s)', $s->sincronizar($conta->fresh()));
+
+        $l = LancamentoBancario::withoutGlobalScopes()->orderBy('data')->get();
+        $this->assertCount(3, $l);
+        $this->assertTrue($l->every(fn ($x) => $x->cartao_credito_id === $cartao->id));
+        $this->assertSame('cc2524:CP1', $l[0]->transaction_id);
+        $this->assertSame([2, 4], [$l[0]->parcela_numero, $l[0]->parcela_total]);
+        $this->assertSame('pendente', $l[0]->status);
+        $credito = $l->firstWhere('tipo', 'credito');
+        $this->assertSame('ignorado', $credito->status);                               // pagamento de fatura no cartão
+        $this->assertNotNull($cartao->fresh()->ultima_sincronizacao_em);
+        $this->assertTrue($cartao->fresh()->proxima_sincronizacao_em->gt(now()->addHours(5)));
+
+        // crédito no cartão nunca casa com conta a receber, mesmo com valor igual
+        $this->receber(900.00, '2026-11-10');
+        $credito->update(['status' => 'pendente']);
+        $this->assertSame(0, app(ConciliadorSugestoes::class)->sugerirPendentes($this->empresa->id) - LancamentoBancario::withoutGlobalScopes()->where('status', 'sugerido')->where('tipo', 'debito')->count());
+        $this->assertSame('pendente', $credito->fresh()->status);
+    }
+
+    public function test_periodo_sem_compras_no_cartao_nao_vira_erro(): void
+    {
+        $conta = $this->conta(['proxima_sincronizacao_em' => now()->addHours(3)]);
+        $cartao = $this->cartao($conta, ['protocolo_pendente' => 'PROTV']);
+        $this->fakeTecnospeed([self::BASE . '/api/v1/statement/openfinance/PROTV' => Http::response(['statement' => [
+            'status' => 'FAILED', 'reason' => 'Falha ao criar extrato: nenhuma transação foi localizada no período solicitado',
+            'creditCardCurrentCreditLimit' => '5000.00', 'creditCardCurrentAvaliableCreditLimit' => '4200.10',
+        ], 'transaction' => ['credit' => [], 'debit' => []]])]);
+
+        $this->assertStringContainsString('sem compras no período', app(SincronizadorExtrato::class)->sincronizar($conta));
+        $cartao->refresh();
+        $this->assertNull($cartao->ultimo_erro);
+        $this->assertNull($cartao->protocolo_pendente);
+        $this->assertSame('4200.10', $cartao->limite_disponivel);
+    }
+
+    public function test_compra_do_cartao_vira_despesa_com_forma_cartao_e_parcela_na_descricao(): void
+    {
+        $this->liberar(1);
+        $conta = $this->conta();
+        $cartao = $this->cartao($conta);
+        [$plano, $centro] = $this->classificacao();
+        $compra = $this->lancamento($conta, 'debito', 120.00, '2026-11-03', [
+            'cartao_credito_id' => $cartao->id, 'descricao' => 'POSTO BOA VIAGEM', 'parcela_numero' => 2, 'parcela_total' => 4,
+        ]);
+
+        $this->eu()->get(route('app.bancos.index', ['ver' => 'sem', 'cartao' => $cartao->id]))->assertOk()
+            ->assertSee('POSTO BOA VIAGEM')->assertSee('parcela 2/4')->assertSee('Cartão final 2524');
+
+        $this->eu()->post(route('app.bancos.lancamentos.lancar', $compra), ['plano_conta_id' => $plano->id, 'centro_custo_id' => $centro->id, 'lembrar' => 1])
+            ->assertSessionHas('success');
+
+        $d = ContaPagar::withoutGlobalScopes()->firstOrFail();
+        $this->assertSame('POSTO BOA VIAGEM (2/4)', $d->descricao);
+        $this->assertSame('cartao_credito', $d->forma_pagamento);
+        $this->assertSame('paga', $d->status);
+        $this->assertSame($centro->id, $d->centro_custo_id);
+
+        // parcela seguinte no mesmo posto: já conhecida, com a parcela certa na descrição
+        $prox = $this->lancamento($conta, 'debito', 120.00, '2026-12-03', [
+            'cartao_credito_id' => $cartao->id, 'descricao' => 'POSTO BOA VIAGEM', 'parcela_numero' => 3, 'parcela_total' => 4,
+        ]);
+        $p = app(\App\Services\OpenFinance\ClassificadorLancamentos::class)->propor($prox);
+        $this->assertSame('regra', $p['origem']);
+        $this->assertSame('POSTO BOA VIAGEM (3/4)', $p['descricao']);
+        $this->assertSame($plano->id, $p['plano_conta_id']);
+    }
+
+    public function test_pagamento_da_fatura_na_conta_nao_vira_despesa_de_novo(): void
+    {
+        $this->liberar(1);
+        $conta = $this->conta();
+        $cartao = $this->cartao($conta);
+        $this->lancamento($conta, 'credito', 900.00, '2026-11-10', ['cartao_credito_id' => $cartao->id, 'status' => 'ignorado', 'descricao' => 'PAGAMENTO EFETUADO']);
+        $saida = $this->lancamento($conta, 'debito', 900.00, '2026-11-09', ['descricao' => 'PAGTO FATURA CARTAO']);
+        $outra = $this->lancamento($conta, 'debito', 900.00, '2026-11-09', ['descricao' => 'PIX ENVIADO']);   // mesmo valor, mas só há um crédito no cartão
+
+        $this->assertSame(1, app(ConciliadorSugestoes::class)->sugerirPendentes($this->empresa->id));
+        $this->assertSame($cartao->id, $saida->fresh()->sugestao_fatura_cartao_id);
+        $this->assertSame('pendente', $outra->fresh()->status);
+
+        $this->eu()->get(route('app.bancos.index'))->assertOk()->assertSee('Pagamento da fatura')->assertSee('Não entra como despesa');
+        $this->eu()->post(route('app.bancos.lancamentos.confirmar', $saida))->assertSessionHas('success');
+
+        $saida->refresh();
+        $this->assertSame('conciliado', $saida->status);
+        $this->assertSame($cartao->id, $saida->fatura_cartao_id);
+        $this->assertSame(0, ContaPagar::withoutGlobalScopes()->count());              // nenhuma despesa criada
+
+        $this->eu()->post(route('app.bancos.lancamentos.desfazer', $saida));
+        $this->assertNull($saida->fresh()->fatura_cartao_id);
+
+        // à mão, e cartão de outra empresa é recusado
+        $this->eu()->post(route('app.bancos.lancamentos.fatura', $outra), ['cartao_id' => $cartao->id])->assertSessionHas('success');
+        $this->assertSame($cartao->id, $outra->fresh()->fatura_cartao_id);
+        [$emp2] = $this->createTenant('2');
+        $alheio = $this->cartao($this->conta(['empresa_id' => $emp2->id, 'account_hash' => 'H2']), ['final' => '9999']);
+        $x = $this->lancamento($conta, 'debito', 5.00, '2026-11-09');
+        $this->eu()->post(route('app.bancos.lancamentos.fatura', $x), ['cartao_id' => $alheio->id])->assertSessionHasErrors('cartao_id');
+        $this->eu()->post(route('app.bancos.cartoes.alternar', $alheio))->assertNotFound();
+    }
+
     /* ---------------- rotina e admin ---------------- */
 
     public function test_rotina_pula_empresa_sem_liberacao_e_sem_chave_nao_faz_nada(): void

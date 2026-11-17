@@ -14,8 +14,9 @@ class LancamentoBancario extends Model
     protected $table = 'lancamentos_bancarios';
 
     protected $fillable = [
-        'empresa_id', 'conta_bancaria_id', 'transaction_id', 'data', 'tipo', 'valor', 'descricao', 'operacao',
-        'contraparte_nome', 'contraparte_documento', 'linha_digitavel', 'bruto', 'status',
+        'empresa_id', 'conta_bancaria_id', 'cartao_credito_id', 'transaction_id', 'data', 'tipo', 'valor', 'descricao', 'operacao',
+        'contraparte_nome', 'contraparte_documento', 'linha_digitavel', 'parcela_numero', 'parcela_total', 'bruto', 'status',
+        'sugestao_fatura_cartao_id', 'fatura_cartao_id',
         'sugestao_conta_receber_id', 'sugestao_conta_pagar_id', 'sugestao_confianca', 'sugestao_motivo',
         'conta_receber_id', 'conta_pagar_id', 'conciliado_em', 'conciliado_por', 'sumiu_no_banco', 'titulo_criado',
     ];
@@ -38,6 +39,27 @@ class LancamentoBancario extends Model
     public function contaBancaria(): BelongsTo
     {
         return $this->belongsTo(ContaBancaria::class);
+    }
+
+    public function cartao(): BelongsTo
+    {
+        return $this->belongsTo(CartaoCredito::class, 'cartao_credito_id');
+    }
+
+    /** Cartão cuja fatura esta saída da conta parece pagar. */
+    public function sugestaoFaturaCartao(): BelongsTo
+    {
+        return $this->belongsTo(CartaoCredito::class, 'sugestao_fatura_cartao_id');
+    }
+
+    public function faturaCartao(): BelongsTo
+    {
+        return $this->belongsTo(CartaoCredito::class, 'fatura_cartao_id');
+    }
+
+    public function ehDeCartao(): bool
+    {
+        return $this->cartao_credito_id !== null;
     }
 
     public function sugestaoContaReceber(): BelongsTo

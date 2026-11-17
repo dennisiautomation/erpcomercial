@@ -8,6 +8,7 @@ use App\Models\ContaPagar;
 use App\Models\ContaReceber;
 use App\Models\LancamentoBancario;
 use App\Models\Unidade;
+use App\Models\CartaoCredito;
 use App\Models\CentroCusto;
 use App\Models\PlanoContas;
 use App\Services\OpenFinance\ClassificadorLancamentos;
@@ -48,9 +49,12 @@ class BancoController extends Controller
 
         $filtro = in_array($request->query('ver'), ['conferir', 'sem', 'feitos', 'ignorados'], true) ? $request->query('ver') : 'conferir';
         $contaId = (int) $request->query('conta') ?: null;
+        $cartaoId = (int) $request->query('cartao') ?: null;
+        $cartoes = CartaoCredito::where('empresa_id', $empresa->id)->whereIn('conta_bancaria_id', $contas->pluck('id'))->orderBy('final')->get();
 
         $base = LancamentoBancario::where('empresa_id', $empresa->id)
-            ->when($contaId, fn ($q) => $q->where('conta_bancaria_id', $contaId));
+            ->when($contaId, fn ($q) => $q->where('conta_bancaria_id', $contaId)->whereNull('cartao_credito_id'))
+            ->when($cartaoId, fn ($q) => $q->where('cartao_credito_id', $cartaoId));
 
         $totais = [
             'conferir' => (clone $base)->where('status', 'sugerido')->count(),
@@ -64,7 +68,7 @@ class BancoController extends Controller
 
         $lancamentos = (clone $base)->where('status', $status)
             ->with([
-                'contaBancaria',
+                'contaBancaria', 'cartao', 'sugestaoFaturaCartao', 'faturaCartao',
                 'sugestaoContaReceber.cliente', 'sugestaoContaPagar.fornecedor', 'sugestaoContaPagar.funcionario', 'sugestaoContaPagar.centroCusto',
                 'contaReceber.cliente', 'contaPagar.fornecedor', 'contaPagar.funcionario', 'contaPagar.centroCusto',
             ])
@@ -106,6 +110,8 @@ class BancoController extends Controller
             'totais' => $totais,
             'filtro' => $filtro,
             'contaId' => $contaId,
+            'cartaoId' => $cartaoId,
+            'cartoes' => $cartoes,
             'abertasReceber' => $abertasReceber,
             'abertasPagar' => $abertasPagar,
             'unidades' => Unidade::where('empresa_id', $empresa->id)->orderBy('nome')->get(),
@@ -215,6 +221,58 @@ class BancoController extends Controller
         return back()->with('success', 'Conta desconectada. A vaga ficou livre e o que já foi conciliado continua como está.');
     }
 
+    /** Pergunta ao banco quais cartões de crédito a conta tem. */
+    public function buscarCartoes(ContaBancaria $conta)
+    {
+        $this->empresaLiberada();
+        $this->daEmpresa($conta->empresa_id);
+        abort_unless($conta->situacao === 'conectada', 422, 'Conecte a conta ao banco antes de buscar os cartões.');
+
+        try {
+            $novos = $this->sincronizador->buscarCartoes($conta);
+        } catch (OpenFinanceException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        $total = $conta->cartoes()->count();
+
+        return back()->with('success', $total === 0
+            ? 'O banco não informou nenhum cartão de crédito nesta conta.'
+            : "{$total} cartão(ões) nesta conta" . ($novos ? " ({$novos} novo(s))" : '') . '. Ligue os que você quer acompanhar.');
+    }
+
+    /** Liga ou desliga a importação das compras de um cartão. Cartão não conta como conta extra. */
+    public function alternarCartao(CartaoCredito $cartao)
+    {
+        $this->empresaLiberada();
+        $this->daEmpresa($cartao->empresa_id);
+
+        $cartao->update(['importar' => ! $cartao->importar]);
+
+        return back()->with('success', $cartao->importar
+            ? $cartao->nome() . ': as compras passam a entrar aqui. Clique em "Buscar extrato" na conta para trazer agora.'
+            : $cartao->nome() . ': parou de trazer compras. O que já entrou continua aqui.');
+    }
+
+    /** "Esta saída da conta é o pagamento da fatura do cartão X" — não é despesa nova. */
+    public function marcarFatura(Request $request, LancamentoBancario $lancamento)
+    {
+        $empresa = $this->empresaLiberada();
+        $this->daEmpresa($lancamento->empresa_id);
+
+        $dados = $request->validate([
+            'cartao_id' => ['required', Rule::exists('cartoes_credito', 'id')->where('empresa_id', $empresa->id)],
+        ]);
+
+        try {
+            $this->conciliador->marcarPagamentoDeFatura($lancamento, auth()->id(), (int) $dados['cartao_id']);
+        } catch (\DomainException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return back()->with('success', 'Marcado como pagamento de fatura. Não entra como despesa: as compras do cartão já entram uma a uma.');
+    }
+
     public function confirmar(Request $request, LancamentoBancario $lancamento)
     {
         $this->empresaLiberada();
@@ -228,8 +286,12 @@ class BancoController extends Controller
             return back()->with('error', $e->getMessage());
         }
 
-        // Aprende a classificação da conta confirmada, para propor igual na próxima saída deste favorecido.
         $lancamento->refresh();
+        if ($lancamento->fatura_cartao_id) {
+            return back()->with('success', 'Marcado como pagamento de fatura. Não entra como despesa: as compras do cartão já entram uma a uma.');
+        }
+
+        // Aprende a classificação da conta confirmada, para propor igual na próxima saída deste favorecido.
         if (! $lancamento->ehCredito() && $lancamento->contaPagar) {
             $this->classificador->aprender($lancamento, $lancamento->contaPagar);
         }
@@ -337,7 +399,7 @@ class BancoController extends Controller
         if ($lancamento->status === 'sugerido') {
             $lancamento->update([
                 'status' => 'pendente', 'sugestao_conta_receber_id' => null, 'sugestao_conta_pagar_id' => null,
-                'sugestao_confianca' => null, 'sugestao_motivo' => null,
+                'sugestao_fatura_cartao_id' => null, 'sugestao_confianca' => null, 'sugestao_motivo' => null,
             ]);
         }
 
@@ -353,7 +415,7 @@ class BancoController extends Controller
         if (in_array($lancamento->status, ['pendente', 'sugerido'], true)) {
             $lancamento->update([
                 'status' => 'ignorado', 'sugestao_conta_receber_id' => null, 'sugestao_conta_pagar_id' => null,
-                'sugestao_confianca' => null, 'sugestao_motivo' => null,
+                'sugestao_fatura_cartao_id' => null, 'sugestao_confianca' => null, 'sugestao_motivo' => null,
             ]);
         }
 
