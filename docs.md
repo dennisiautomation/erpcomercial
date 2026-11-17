@@ -10238,3 +10238,10 @@ Cada passada faz uma coisa por conta: (1) aguardando → `GET /account/{hash}`, 
 - Quem pode: a mesma permissão `financeiro` que já vale para as telas de Plano de Contas e Centro de Custos.
 - Fornecedor continua sem cadastro automático (o cadastro exige endereço): a despesa leva o nome que veio do banco como favorecido.
 - Validação: `OpenFinanceTest` 39 ✅ (278 conferências); suíte inteira 423 testes, só as 2 falhas antigas.
+
+### Fornecedor simples na hora (17/11/2026, pedido do Dennis)
+- Na janela **Lançar despesa** aparece o favorecido que veio do banco e a chave **"Cadastrar como fornecedor agora"**: cria o fornecedor só com o nome (editável) e o CPF/CNPJ que o banco informou, e a despesa já sai ligada a ele. Se o favorecido já é fornecedor (mesmo CPF/CNPJ), a janela avisa e a chave some.
+- Mesmo CPF/CNPJ nunca duplica; sem CPF/CNPJ do banco, entra só com o nome (e reaproveita fornecedor de mesmo nome).
+- **Banco de dados:** migration `2026_11_17_210000_fornecedores_endereco_opcional` — `cep`, `logradouro`, `numero`, `bairro`, `cidade`, `uf` e `telefone` de `fornecedores` passam a aceitar vazio (igual a clientes). **A tela completa de Fornecedores continua exigindo endereço e telefone**; as telas de lista, ficha e edição já tratavam campo vazio.
+- `ClassificadorLancamentos::fornecedorSimples`; campo `fornecedor_novo` em `BancoController::lancar`.
+- Validação: `OpenFinanceTest` 40 ✅ (297 conferências); suíte inteira 424 testes, só as 2 falhas antigas.

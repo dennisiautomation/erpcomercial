@@ -34,6 +34,7 @@ class ClassificadorLancamentos
         $proposta = [
             'origem' => null, 'usos' => 0,
             'fornecedor_id' => $fornecedor?->id,
+            'documento' => $l->contraparte_documento,
             'favorecido' => $fornecedor?->razao_social ?: $this->nomeDoBanco($l),
             'descricao' => $this->descricaoPadrao($l),
             'plano_conta_id' => null, 'plano_nome' => null, 'centro_custo_id' => null, 'centro_nome' => null,
@@ -171,6 +172,40 @@ class ClassificadorLancamentos
         return PlanoContas::withoutGlobalScopes()->create([
             'empresa_id' => $empresaId, 'codigo' => $codigo, 'nome' => $nome,
             'tipo' => 'despesa', 'natureza' => 'analitica', 'ativo' => true,
+        ]);
+    }
+
+    /**
+     * "Cadastrar na hora": fornecedor simples, só com nome e CPF/CNPJ (o que o banco informou).
+     * Se já existe um com o mesmo documento, usa o que existe. Endereço e telefone ficam para
+     * completar depois em Cadastros → Fornecedores.
+     */
+    public function fornecedorSimples(LancamentoBancario $l, string $nome): Fornecedor
+    {
+        $existente = $this->fornecedorPorDocumento($l->empresa_id, $l->contraparte_documento);
+        if ($existente) {
+            return $existente;
+        }
+
+        $nome = Str::limit(trim(preg_replace('/\s+/', ' ', $nome)), 250, '');
+        $d = (string) $l->contraparte_documento;
+        $documento = match (strlen($d)) {
+            14 => preg_replace('/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/', '$1.$2.$3/$4-$5', $d),
+            11 => preg_replace('/(\d{3})(\d{3})(\d{3})(\d{2})/', '$1.$2.$3-$4', $d),
+            default => null,
+        };
+
+        // Sem documento, não duplica fornecedor de mesmo nome.
+        if ($documento === null) {
+            $mesmoNome = Fornecedor::withoutGlobalScopes()->where('empresa_id', $l->empresa_id)->whereNull('deleted_at')
+                ->whereRaw('LOWER(razao_social) = ?', [mb_strtolower($nome)])->first();
+            if ($mesmoNome) {
+                return $mesmoNome;
+            }
+        }
+
+        return Fornecedor::withoutGlobalScopes()->create([
+            'empresa_id' => $l->empresa_id, 'cpf_cnpj' => $documento, 'razao_social' => $nome,
         ]);
     }
 

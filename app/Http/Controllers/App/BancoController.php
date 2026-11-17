@@ -334,7 +334,9 @@ class BancoController extends Controller
             // cadastrar na hora, sem sair da tela
             'plano_conta_novo' => 'nullable|string|min:2|max:100',
             'centro_custo_novo' => 'nullable|string|min:2|max:100',
+            'fornecedor_novo' => 'nullable|string|min:2|max:250',
         ], [
+            'fornecedor_novo.min' => 'Dê um nome para o fornecedor (ao menos 2 letras).',
             'plano_conta_novo.min' => 'Dê um nome para a conta nova (ao menos 2 letras).',
             'centro_custo_novo.min' => 'Dê um nome para o centro de custo novo (ao menos 2 letras).',
         ]);
@@ -345,6 +347,9 @@ class BancoController extends Controller
             }
             if (filled($dados['centro_custo_novo'] ?? null)) {
                 $dados['centro_custo_id'] = $this->classificador->centroDeCustoPeloNome($empresa->id, $dados['centro_custo_novo'])->id;
+            }
+            if (filled($dados['fornecedor_novo'] ?? null)) {
+                $dados['fornecedor_id'] = $this->classificador->fornecedorSimples($lancamento, $dados['fornecedor_novo'])->id;
             }
         }
 

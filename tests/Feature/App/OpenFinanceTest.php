@@ -660,6 +660,43 @@ class OpenFinanceTest extends TestCase
         $this->assertSame('pendente', $c->fresh()->status);
     }
 
+    public function test_cadastra_fornecedor_simples_na_hora_so_com_nome_e_documento(): void
+    {
+        $this->liberar(1);
+        $conta = $this->conta();
+        $a = $this->lancamento($conta, 'debito', 500.00, '2026-11-17', ['contraparte_nome' => 'SANDERSON RICARDO DA SILVA', 'contraparte_documento' => '08239969488']);
+        $b = $this->lancamento($conta, 'debito', 300.00, '2026-11-18', ['contraparte_nome' => 'SANDERSON R SILVA', 'contraparte_documento' => '08239969488']);
+        $semDoc = $this->lancamento($conta, 'debito', 49.90, '2026-11-18', ['descricao' => 'TARIFA PACOTE']);
+
+        $this->eu()->get(route('app.bancos.index', ['ver' => 'sem']))->assertOk()->assertSee('Cadastrar como fornecedor agora');
+
+        $this->eu()->post(route('app.bancos.lancamentos.lancar', $a), ['fornecedor_novo' => 'Sanderson Ricardo', 'lembrar' => 1])->assertSessionHas('success');
+
+        $f = \App\Models\Fornecedor::withoutGlobalScopes()->where('empresa_id', $this->empresa->id)->firstOrFail();
+        $this->assertSame(['Sanderson Ricardo', '082.399.694-88', null, null], [$f->razao_social, $f->cpf_cnpj, $f->cep, $f->telefone]);
+        $titulo = ContaPagar::withoutGlobalScopes()->firstOrFail();
+        $this->assertSame($f->id, $titulo->fornecedor_id);
+        $this->assertNull($titulo->favorecido_nome);
+
+        // mesmo CPF de novo: usa o fornecedor que já existe (com outro nome digitado, não duplica)
+        $this->eu()->post(route('app.bancos.lancamentos.lancar', $b), ['fornecedor_novo' => 'Outro nome'])->assertSessionHas('success');
+        $this->assertSame(1, \App\Models\Fornecedor::withoutGlobalScopes()->where('empresa_id', $this->empresa->id)->count());
+        $this->assertSame($f->id, ContaPagar::withoutGlobalScopes()->orderByDesc('id')->first()->fornecedor_id);
+
+        // sem CPF/CNPJ do banco: entra só com o nome
+        $this->eu()->post(route('app.bancos.lancamentos.lancar', $semDoc), ['fornecedor_novo' => 'Banco Itaú'])->assertSessionHas('success');
+        $banco = \App\Models\Fornecedor::withoutGlobalScopes()->where('razao_social', 'Banco Itaú')->firstOrFail();
+        $this->assertNull($banco->cpf_cnpj);
+
+        // o fornecedor simples abre nas telas normais e a tela completa continua exigindo endereço
+        $dono = $this->createUser($this->empresa, $this->unidade, 'dono');
+        $this->actingAsUser($dono, $this->unidade)->get(route('app.fornecedores.index'))->assertOk()->assertSee('Sanderson Ricardo');
+        $this->actingAsUser($dono, $this->unidade)->get(route('app.fornecedores.show', $f))->assertOk();
+        $this->actingAsUser($dono, $this->unidade)->get(route('app.fornecedores.edit', $f))->assertOk();
+        $this->actingAsUser($dono, $this->unidade)->post(route('app.fornecedores.store'), ['cpf_cnpj' => '11.222.333/0001-81', 'razao_social' => 'Sem endereço'])
+            ->assertSessionHasErrors(['cep', 'logradouro', 'telefone']);
+    }
+
     public function test_plano_de_contas_de_outra_empresa_e_recusado_ao_lancar(): void
     {
         $this->liberar(1);

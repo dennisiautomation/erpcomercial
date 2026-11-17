@@ -351,7 +351,8 @@
                                                 data-acao="{{ route('app.bancos.lancamentos.lancar', $l) }}"
                                                 data-resumo="{{ $l->data->format('d/m/Y') }} · {{ $brl($l->valor) }} · {{ $l->contraparte_nome ?: $l->descricao }}"
                                                 data-descricao="{{ $p['descricao'] }}"
-                                                data-plano="{{ $p['plano_conta_id'] }}" data-centro="{{ $p['centro_custo_id'] }}">
+                                                data-plano="{{ $p['plano_conta_id'] }}" data-centro="{{ $p['centro_custo_id'] }}"
+                                                data-favorecido="{{ $p['favorecido'] }}" data-fornecedor="{{ $p['fornecedor_id'] }}" data-documento="{{ $p['documento'] }}">
                                             {{ $p['origem'] === 'regra' ? 'Ajustar' : 'Lançar despesa' }}
                                         </button>
                                     </div>
@@ -427,6 +428,19 @@
                     <input id="lancar-descricao" name="descricao" class="form-control" maxlength="250">
                 </div>
                 <div class="mb-3">
+                    <div class="form-label mb-1">Favorecido</div>
+                    <div id="lancar-favorecido-fixo" class="small"></div>
+                    <div id="lancar-fornecedor-bloco">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" role="switch" id="lancar-fornecedor-chave">
+                            <label class="form-check-label" for="lancar-fornecedor-chave">Cadastrar como fornecedor agora</label>
+                        </div>
+                        <input id="lancar-fornecedor-nome" name="fornecedor_novo" class="form-control mt-2" maxlength="250" hidden disabled
+                               aria-label="Nome do fornecedor">
+                        <div id="lancar-fornecedor-ajuda" class="form-text" hidden></div>
+                    </div>
+                </div>
+                <div class="mb-3">
                     <label class="form-label" for="lancar-plano">Conta do plano de contas</label>
                     <select id="lancar-plano" name="plano_conta_id" class="form-select" data-novo="#lancar-plano-novo">
                         <option value="">Sem classificar</option>
@@ -473,7 +487,32 @@ document.getElementById('modalLancar')?.addEventListener('show.bs.modal', functi
     document.getElementById('lancar-plano').value = b.dataset.plano || '';
     document.getElementById('lancar-centro').value = b.dataset.centro || '';
     document.querySelectorAll('#modalLancar select[data-novo]').forEach(alternarNovo);
+
+    // Favorecido: já é fornecedor cadastrado, ou pode virar um agora só com nome e CPF/CNPJ.
+    const jaEh = !!b.dataset.fornecedor;
+    const chave = document.getElementById('lancar-fornecedor-chave');
+    const nome = document.getElementById('lancar-fornecedor-nome');
+    document.getElementById('lancar-favorecido-fixo').textContent = (b.dataset.favorecido || 'Sem nome informado pelo banco')
+        + (jaEh ? ' — fornecedor já cadastrado' : '');
+    document.getElementById('lancar-fornecedor-bloco').hidden = jaEh;
+    chave.checked = false;
+    nome.value = b.dataset.favorecido || '';
+    document.getElementById('lancar-fornecedor-ajuda').textContent = b.dataset.documento
+        ? 'Entra com o CPF/CNPJ que o banco informou (' + b.dataset.documento + '). Endereço e telefone você completa depois em Cadastros → Fornecedores, se precisar.'
+        : 'O banco não informou CPF/CNPJ: entra só com o nome. O resto você completa depois em Cadastros → Fornecedores.';
+    alternarFornecedor();
 });
+
+function alternarFornecedor() {
+    const ligado = document.getElementById('lancar-fornecedor-chave').checked;
+    const nome = document.getElementById('lancar-fornecedor-nome');
+    nome.hidden = !ligado;
+    nome.disabled = !ligado;
+    nome.required = ligado;
+    document.getElementById('lancar-fornecedor-ajuda').hidden = !ligado;
+    if (ligado) nome.focus();
+}
+document.getElementById('lancar-fornecedor-chave')?.addEventListener('change', alternarFornecedor);
 
 // "Cadastrar … novo agora": mostra o campo do nome e manda só ele (o select deixa de ir no envio).
 function alternarNovo(sel) {
