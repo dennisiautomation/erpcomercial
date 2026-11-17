@@ -18,196 +18,185 @@
     ];
 @endphp
 <div class="fade-in">
-<div class="page-header">
-    <div>
-        <h4><i class="bi bi-bank me-2"></i>Open Finance</h4>
-        <div class="subtitle">Contas do banco ligadas pelo Open Finance e conciliação · {{ $usadas }} de {{ $limite }} {{ $limite === 1 ? 'conta usada' : 'contas usadas' }}</div>
-    </div>
+<x-erp.page-header title="Open Finance" icon="bank"
+    :subtitle="'Contas ligadas ao banco e conciliação · ' . $usadas . ' de ' . $limite . ' ' . ($limite === 1 ? 'conta usada' : 'contas usadas')">
     @if($usadas < $limite)
         <button type="button" class="btn btn-erp btn-erp-primary" data-bs-toggle="modal" data-bs-target="#modalNovaConta">
-            <i class="bi bi-plus-lg me-1"></i> Ligar uma conta
+            <i class="bi bi-plus-lg me-1" aria-hidden="true"></i> Ligar uma conta
         </button>
     @else
-        <span class="text-muted small">Todas as contas do plano estão em uso. Para ligar mais, fale com a IA365.</span>
+        <span class="text-muted small align-self-center">Todas as contas do plano estão em uso. Para ligar mais, fale com a IA365.</span>
     @endif
-</div>
+</x-erp.page-header>
 
-{{-- ---------------- Painel ---------------- --}}
+{{-- ---------------- Painel: uma faixa só, não quatro cartões iguais ---------------- --}}
 @if($contas->isNotEmpty())
 @php $pctMes = $painel['total_mes'] > 0 ? (int) round($painel['feitos_mes'] / $painel['total_mes'] * 100) : 0; @endphp
-<div class="row g-3 mb-4">
-    <div class="col-6 col-lg-3">
-        <div class="erp-card p-3 h-100">
-            <div class="text-muted small">Saldo nas contas</div>
-            <div class="fs-4 fw-semibold">{{ $painel['saldo'] === null ? '—' : $brl($painel['saldo']) }}</div>
-            <div class="text-muted small">
-                @if($painel['saldo'] === null)
-                    O banco ainda não informou.
-                @else
-                    Informado pelo banco em {{ $painel['saldo_em']?->format('d/m H:i') }}
-                    @if($painel['saldo_aplicado'] > 0) · {{ $brl($painel['saldo_aplicado']) }} em aplicação automática @endif
-                @endif
-            </div>
+<section class="erp-card of-painel mb-4" aria-label="Resumo">
+    <div class="of-painel-item">
+        <div class="of-rotulo">Saldo nas contas</div>
+        <div class="of-valor">{{ $painel['saldo'] === null ? '—' : $brl($painel['saldo']) }}</div>
+        <div class="of-apoio">
+            @if($painel['saldo'] === null)
+                O banco ainda não informou.
+            @else
+                Informado pelo banco em {{ $painel['saldo_em']?->format('d/m H:i') }}
+                @if($painel['saldo_aplicado'] > 0)<br>{{ $brl($painel['saldo_aplicado']) }} em aplicação automática @endif
+            @endif
         </div>
     </div>
-    <div class="col-6 col-lg-3">
-        <a class="erp-card p-3 h-100 d-block text-decoration-none text-reset" href="{{ route('app.bancos.index', ['ver' => 'conferir']) }}">
-            <div class="text-muted small">Para confirmar</div>
-            <div class="fs-4 fw-semibold">{{ $painel['confirmar_qtd'] }}</div>
-            <div class="text-muted small">{{ $painel['confirmar_qtd'] ? $brl($painel['confirmar_valor']) . ' já com sugestão' : 'Nada esperando você' }}</div>
-        </a>
-    </div>
-    <div class="col-6 col-lg-3">
-        <a class="erp-card p-3 h-100 d-block text-decoration-none text-reset" href="{{ route('app.bancos.index', ['ver' => 'sem']) }}">
-            <div class="text-muted small">Sem sugestão</div>
-            <div class="fs-4 fw-semibold">{{ $painel['sem_qtd'] }}</div>
-            <div class="text-muted small">{{ $painel['sem_qtd'] ? $brl($painel['sem_valor']) . ' para classificar' : 'Tudo classificado' }}</div>
-        </a>
-    </div>
-    <div class="col-6 col-lg-3">
-        <div class="erp-card p-3 h-100">
-            <div class="text-muted small">{{ ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'][now()->month - 1] }} na conta</div>
-            <div class="small mt-1"><span class="text-success fw-semibold">+ {{ $brl($painel['entradas_mes']) }}</span> entraram</div>
-            <div class="small"><span class="text-danger fw-semibold">− {{ $brl($painel['saidas_mes']) }}</span> saíram</div>
-            <div class="progress mt-2" style="height: 6px;" role="progressbar" aria-label="Conciliado no mês" aria-valuenow="{{ $pctMes }}" aria-valuemin="0" aria-valuemax="100">
-                <div class="progress-bar bg-success" style="width: {{ $pctMes }}%"></div>
-            </div>
-            <div class="text-muted small mt-1">{{ $painel['feitos_mes'] }} de {{ $painel['total_mes'] }} conciliados ({{ $pctMes }}%)</div>
+    <a class="of-painel-item of-painel-link" href="{{ route('app.bancos.index', ['ver' => 'conferir']) }}">
+        <div class="of-rotulo">Para confirmar</div>
+        <div class="of-valor">{{ $painel['confirmar_qtd'] }}</div>
+        <div class="of-apoio">{{ $painel['confirmar_qtd'] ? $brl($painel['confirmar_valor']) . ' já com sugestão' : 'Nada esperando você' }}</div>
+    </a>
+    <a class="of-painel-item of-painel-link" href="{{ route('app.bancos.index', ['ver' => 'sem']) }}">
+        <div class="of-rotulo">Sem sugestão</div>
+        <div class="of-valor">{{ $painel['sem_qtd'] }}</div>
+        <div class="of-apoio">{{ $painel['sem_qtd'] ? $brl($painel['sem_valor']) . ' para classificar' : 'Tudo classificado' }}</div>
+    </a>
+    <div class="of-painel-item">
+        <div class="of-rotulo">{{ ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'][now()->month - 1] }} na conta</div>
+        <div class="of-mes"><span class="of-entrada">+ {{ $brl($painel['entradas_mes']) }}</span> entraram</div>
+        <div class="of-mes"><span class="of-saida">− {{ $brl($painel['saidas_mes']) }}</span> saíram</div>
+        <div class="progress mt-2" style="height: 6px;" role="progressbar" aria-label="Conciliado no mês" aria-valuenow="{{ $pctMes }}" aria-valuemin="0" aria-valuemax="100">
+            <div class="progress-bar bg-success" style="width: {{ $pctMes }}%"></div>
         </div>
+        <div class="of-apoio mt-1">{{ $painel['feitos_mes'] }} de {{ $painel['total_mes'] }} conciliados ({{ $pctMes }}%)</div>
     </div>
-</div>
+</section>
 @endif
 
 {{-- ---------------- Contas ---------------- --}}
-<div class="erp-card mb-4">
-    <div class="table-responsive">
-        <table class="erp-table">
-            <thead>
-                <tr>
-                    <th>Conta</th>
-                    <th>Dono da conta</th>
-                    <th>Loja</th>
-                    <th>Situação</th>
-                    <th>Último extrato</th>
-                    <th width="330">Ações</th>
-                </tr>
-            </thead>
-            <tbody>
-                @forelse($contas as $c)
-                <tr>
-                    <td>
-                        <strong>{{ $c->apelido }}</strong>
-                        <div class="text-muted small">{{ $c->descricaoConta() }}</div>
-                    </td>
-                    <td>
-                        {{ $c->titularFormatado() }}
-                        @if($c->titular_nome)<div class="text-muted small">{{ $c->titular_nome }}</div>@endif
-                    </td>
-                    <td>{{ $c->unidade?->nome ?? 'Todas' }}</td>
-                    <td>
-                        @if($c->situacao === 'conectada')
-                            <span class="badge bg-success">Conectada</span>
-                        @else
-                            <span class="badge bg-warning text-dark">Aguardando você autorizar no banco</span>
-                        @endif
-                        @if($c->ultimo_erro)
-                            <div class="text-danger small mt-1">{{ $c->ultimo_erro }}</div>
-                        @endif
-                    </td>
-                    <td>
-                        {{ $c->ultima_sincronizacao_em?->format('d/m/Y H:i') ?? '—' }}
-                        @if($c->protocolo_pendente)<div class="text-muted small">Banco preparando o extrato…</div>@endif
-                        @if($c->saldo !== null)
-                            <div class="small mt-1">Saldo <strong>{{ $brl($c->saldo) }}</strong> <span class="text-muted">em {{ $c->saldo_atualizado_em?->format('d/m H:i') }}</span></div>
-                        @endif
-                    </td>
-                    <td>
-                        <div class="d-flex flex-wrap gap-2">
-                            @if($c->situacao !== 'conectada' && $c->link_conexao)
-                                <a href="{{ $c->link_conexao }}" target="_blank" rel="noopener" class="btn btn-sm btn-erp btn-erp-primary">
-                                    <i class="bi bi-box-arrow-up-right me-1"></i> Conectar ao banco
-                                </a>
-                            @endif
-                            <form method="POST" action="{{ route('app.bancos.contas.atualizar', $c) }}">
-                                @csrf
-                                <button class="btn btn-sm btn-outline-secondary">
-                                    <i class="bi bi-arrow-repeat me-1"></i> {{ $c->situacao === 'conectada' ? 'Buscar extrato' : 'Já autorizei' }}
-                                </button>
-                            </form>
-                            @if($c->situacao === 'conectada')
-                            <form method="POST" action="{{ route('app.bancos.contas.cartoes', $c) }}">
-                                @csrf
-                                <button class="btn btn-sm btn-outline-secondary"><i class="bi bi-credit-card me-1"></i> Cartões</button>
-                            </form>
-                            @endif
-                            <form method="POST" action="{{ route('app.bancos.contas.desconectar', $c) }}"
-                                  onsubmit="return confirm('Desconectar esta conta do banco? O que já foi conciliado continua como está.');">
-                                @csrf
-                                <button class="btn btn-sm btn-outline-danger">Desconectar</button>
-                            </form>
-                        </div>
-                    </td>
-                </tr>
-                @foreach($cartoes->where('conta_bancaria_id', $c->id) as $cc)
-                <tr style="background: rgba(79,70,229,.03);">
-                    <td class="ps-4">
-                        <i class="bi bi-credit-card me-1 text-muted"></i> <strong>{{ $cc->nome() }}</strong>
-                        @if($cc->adicionais)<div class="text-muted small ps-4">Adicionais: {{ str_replace(',', ', ', $cc->adicionais) }}</div>@endif
-                    </td>
-                    <td class="text-muted small">
-                        Cartão de crédito · não conta como conta extra
-                        @if($cc->limite !== null && (float) $cc->limite > 0)<div>Limite disponível <strong class="text-body">{{ $brl($cc->limite_disponivel) }}</strong>@if($cc->limite !== null) de {{ $brl($cc->limite) }}@endif</div>@endif
-                    </td>
-                    <td></td>
-                    <td>
-                        @if($cc->importar)
-                            <span class="badge bg-success">Trazendo as compras</span>
-                        @else
-                            <span class="badge bg-secondary">Desligado</span>
-                        @endif
-                        @if($cc->ultimo_erro)<div class="text-danger small mt-1">{{ $cc->ultimo_erro }}</div>@endif
-                    </td>
-                    <td>
-                        {{ $cc->ultima_sincronizacao_em?->format('d/m/Y H:i') ?? '—' }}
-                        @if($cc->protocolo_pendente)<div class="text-muted small">Banco preparando…</div>@endif
-                    </td>
-                    <td>
-                        <form method="POST" action="{{ route('app.bancos.cartoes.alternar', $cc) }}">
+<section class="erp-card mb-4" aria-label="Contas ligadas">
+    @forelse($contas as $c)
+    @php $doConta = $cartoes->where('conta_bancaria_id', $c->id); $ligados = $doConta->where('importar', true)->count(); @endphp
+    <div class="of-conta">
+        <div class="of-conta-quem">
+            <div class="of-conta-nome">{{ $c->apelido }}</div>
+            <div class="of-apoio">{{ $c->descricaoConta() }}</div>
+            <div class="of-apoio">{{ $c->titular_nome ?: 'Dono' }} · {{ $c->titularFormatado() }}@if($c->unidade) · {{ $c->unidade->nome }}@endif</div>
+        </div>
+        <div class="of-conta-estado">
+            @if($c->situacao === 'conectada')
+                <span class="badge-status ativa">Conectada</span>
+            @else
+                <span class="badge-status pendente">Falta autorizar no banco</span>
+            @endif
+            <div class="of-apoio mt-1">
+                @if($c->protocolo_pendente)
+                    Banco preparando o extrato…
+                @elseif($c->ultima_sincronizacao_em)
+                    Último extrato {{ $c->ultima_sincronizacao_em->format('d/m H:i') }}
+                @elseif($c->situacao === 'conectada')
+                    Extrato ainda não buscado
+                @endif
+            </div>
+            @if($c->saldo !== null)
+                <div class="of-apoio">Saldo <strong class="text-body">{{ $brl($c->saldo) }}</strong> em {{ $c->saldo_atualizado_em?->format('d/m H:i') }}</div>
+            @endif
+            @if($c->ultimo_erro)
+                <div class="of-erro mt-1"><i class="bi bi-exclamation-circle me-1" aria-hidden="true"></i>{{ $c->ultimo_erro }}</div>
+            @endif
+        </div>
+        <div class="of-conta-acoes">
+            @if($c->situacao !== 'conectada' && $c->link_conexao)
+                <a href="{{ $c->link_conexao }}" target="_blank" rel="noopener" class="btn btn-sm btn-erp btn-erp-primary">
+                    <i class="bi bi-box-arrow-up-right me-1" aria-hidden="true"></i> Conectar ao banco
+                </a>
+            @endif
+            <form method="POST" action="{{ route('app.bancos.contas.atualizar', $c) }}">
+                @csrf
+                <button class="btn btn-sm btn-outline-secondary">
+                    <i class="bi bi-arrow-repeat me-1" aria-hidden="true"></i> {{ $c->situacao === 'conectada' ? 'Buscar extrato' : 'Já autorizei' }}
+                </button>
+            </form>
+            <div class="dropdown">
+                <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Mais ações da conta {{ $c->apelido }}">
+                    <i class="bi bi-three-dots" aria-hidden="true"></i>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    @if($c->situacao === 'conectada')
+                    <li>
+                        <form method="POST" action="{{ route('app.bancos.contas.cartoes', $c) }}">
                             @csrf
-                            <button class="btn btn-sm {{ $cc->importar ? 'btn-outline-secondary' : 'btn-erp btn-erp-primary' }}">
-                                {{ $cc->importar ? 'Parar de trazer' : 'Trazer as compras' }}
-                            </button>
+                            <button class="dropdown-item"><i class="bi bi-credit-card me-2" aria-hidden="true"></i>Buscar cartões desta conta</button>
                         </form>
-                    </td>
-                </tr>
-                @endforeach
-                @empty
-                <tr><td colspan="6" class="text-center text-muted py-4">Nenhuma conta ligada ainda. Clique em <strong>Ligar uma conta</strong> para começar.</td></tr>
-                @endforelse
-            </tbody>
-        </table>
+                    </li>
+                    <li><hr class="dropdown-divider"></li>
+                    @endif
+                    <li>
+                        <form method="POST" action="{{ route('app.bancos.contas.desconectar', $c) }}"
+                              data-confirm="Desconectar esta conta do banco? O que já foi conciliado continua como está.">
+                            @csrf
+                            <button class="dropdown-item text-danger"><i class="bi bi-plug me-2" aria-hidden="true"></i>Desconectar do banco</button>
+                        </form>
+                    </li>
+                </ul>
+            </div>
+        </div>
     </div>
-</div>
+    @if($doConta->isNotEmpty())
+    <details class="of-cartoes" @if($cartaoId && $doConta->contains('id', $cartaoId)) open @endif>
+        <summary>
+            <i class="bi bi-credit-card me-1" aria-hidden="true"></i>
+            {{ $doConta->count() }} {{ $doConta->count() === 1 ? 'cartão de crédito' : 'cartões de crédito' }}
+            <span class="of-apoio">· {{ $ligados ? $ligados . ' trazendo as compras' : 'nenhum trazendo as compras' }} · não contam como conta extra</span>
+        </summary>
+        <ul class="of-cartoes-lista">
+            @foreach($doConta as $cc)
+            <li>
+                <div>
+                    <strong>{{ $cc->nome() }}</strong>
+                    @if($cc->adicionais)<span class="of-apoio"> · adicionais {{ str_replace(',', ', ', $cc->adicionais) }}</span>@endif
+                    <div class="of-apoio">
+                        @if($cc->importar)
+                            {{ $cc->protocolo_pendente ? 'Banco preparando as compras…' : ($cc->ultima_sincronizacao_em ? 'Compras buscadas em ' . $cc->ultima_sincronizacao_em->format('d/m H:i') : 'Compras entram no próximo extrato') }}
+                        @else
+                            Desligado
+                        @endif
+                        @if($cc->limite !== null && (float) $cc->limite > 0) · limite disponível {{ $brl($cc->limite_disponivel) }} de {{ $brl($cc->limite) }} @endif
+                    </div>
+                    @if($cc->ultimo_erro)<div class="of-erro">{{ $cc->ultimo_erro }}</div>@endif
+                </div>
+                <form method="POST" action="{{ route('app.bancos.cartoes.alternar', $cc) }}">
+                    @csrf
+                    <div class="form-check form-switch m-0">
+                        <input class="form-check-input" type="checkbox" role="switch" id="cartao-{{ $cc->id }}"
+                               {{ $cc->importar ? 'checked' : '' }} onchange="this.form.submit()">
+                        <label class="form-check-label" for="cartao-{{ $cc->id }}">Trazer as compras</label>
+                    </div>
+                </form>
+            </li>
+            @endforeach
+        </ul>
+    </details>
+    @endif
+    @empty
+    <x-erp.empty-state title="Nenhuma conta ligada ainda" icon="bank"
+        description="Ligue a conta do banco e o extrato começa a chegar aqui sozinho, já cruzado com as suas contas a receber e a pagar." />
+    @endforelse
+</section>
 
 {{-- ---------------- Conciliação ---------------- --}}
-<div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
-    <ul class="nav nav-pills">
+<div class="of-barra">
+    <ul class="nav nav-pills of-abas">
         @foreach($abas as $chave => [$rotulo, $qtd])
             <li class="nav-item">
-                <a class="nav-link {{ $filtro === $chave ? 'active' : '' }}"
+                <a class="nav-link {{ $filtro === $chave ? 'active' : '' }}" @if($filtro === $chave) aria-current="page" @endif
                    href="{{ route('app.bancos.index', array_filter(['ver' => $chave, 'conta' => $contaId, 'cartao' => $cartaoId, 'lado' => $lado])) }}">
-                    {{ $rotulo }} <span class="badge bg-light text-dark ms-1">{{ $qtd }}</span>
+                    {{ $rotulo }} <span class="of-conta-num">{{ $qtd }}</span>
                 </a>
             </li>
         @endforeach
     </ul>
-    <div class="d-flex flex-wrap align-items-center gap-2">
+    <div class="of-filtros">
         <div class="btn-group btn-group-sm" role="group" aria-label="Entradas ou saídas">
             @foreach(['' => ['Tudo', $porLado['tudo']], 'entradas' => ['Entradas', $porLado['entradas']], 'saidas' => ['Saídas', $porLado['saidas']]] as $valor => [$rotulo, $qtd])
                 <a class="btn {{ (string) $lado === (string) $valor ? 'btn-secondary' : 'btn-outline-secondary' }}"
                    @if((string) $lado === (string) $valor) aria-current="true" @endif
                    href="{{ route('app.bancos.index', array_filter(['ver' => $filtro, 'conta' => $contaId, 'cartao' => $cartaoId, 'lado' => $valor])) }}">
-                    {{ $rotulo }} <span class="opacity-75">{{ $qtd }}</span>
+                    {{ $rotulo }} <span class="of-conta-num">{{ $qtd }}</span>
                 </a>
             @endforeach
         </div>
@@ -224,202 +213,248 @@
         @endif
         @if($filtro === 'sem' && $conhecidos > 0)
             <form method="POST" action="{{ route('app.bancos.lancar-conhecidos') }}"
-                  onsubmit="return confirm('Lançar {{ $conhecidos }} despesa(s) com a classificação que o sistema já aprendeu? Cada uma entra como paga, com a data e o valor do banco.');">
+                  data-confirm="Lançar {{ $conhecidos }} despesa(s) com a classificação que o sistema já aprendeu? Cada uma entra como paga, com a data e o valor do banco.">
                 @csrf
                 <input type="hidden" name="conta" value="{{ $contaId }}">
                 <button class="btn btn-sm btn-success">
-                    <i class="bi bi-lightning-charge me-1"></i> Lançar as {{ $conhecidos }} já conhecidas
+                    <i class="bi bi-lightning-charge me-1" aria-hidden="true"></i> Lançar as {{ $conhecidos }} já conhecidas
                 </button>
             </form>
         @endif
         @if($filtro === 'conferir' && $totais['certos'] > 0)
             <form method="POST" action="{{ route('app.bancos.confirmar-certos') }}"
-                  onsubmit="return confirm('Confirmar os {{ $totais['certos'] }} lançamentos que o sistema tem como certos? As contas serão baixadas com a data e o valor do banco.');">
+                  data-confirm="Confirmar os {{ $totais['certos'] }} lançamentos que o sistema tem como certos? As contas serão baixadas com a data e o valor do banco.">
                 @csrf
                 <input type="hidden" name="conta" value="{{ $contaId }}">
                 <input type="hidden" name="lado" value="{{ $lado }}">
                 <button class="btn btn-sm btn-success">
-                    <i class="bi bi-check2-all me-1"></i> Confirmar os {{ $totais['certos'] }} certos
+                    <i class="bi bi-check2-all me-1" aria-hidden="true"></i> Confirmar os {{ $totais['certos'] }} certos
                 </button>
             </form>
         @endif
     </div>
 </div>
 
-<div class="erp-card">
-    <div class="table-responsive">
-        <table class="erp-table align-middle">
-            <thead>
-                <tr>
-                    <th width="95">Data</th>
-                    <th>No banco</th>
-                    <th width="130" class="text-end">Valor</th>
-                    <th>{{ $filtro === 'feitos' ? 'Conciliado com' : ($filtro === 'conferir' ? 'O sistema sugere' : 'Conta') }}</th>
-                    <th width="250">Ações</th>
-                </tr>
-            </thead>
-            <tbody>
-                @forelse($lancamentos as $l)
-                @php
-                    $titulo = $filtro === 'feitos'
-                        ? ($l->ehCredito() ? $l->contaReceber : $l->contaPagar)
-                        : ($l->ehCredito() ? $l->sugestaoContaReceber : $l->sugestaoContaPagar);
-                @endphp
-                <tr>
-                    <td>{{ $l->data->format('d/m/Y') }}</td>
-                    <td>
-                        <div>{{ $l->descricao ?: 'Sem descrição' }}
-                            @if($l->operacao)<span class="badge bg-light text-dark ms-1">{{ $l->operacao }}</span>@endif
-                            @if($l->cartao)<span class="badge bg-info text-dark ms-1"><i class="bi bi-credit-card me-1"></i>{{ $l->cartao->nome() }}</span>@endif
-                            @if($l->parcela_total > 1)<span class="badge bg-light text-dark ms-1">parcela {{ $l->parcela_numero }}/{{ $l->parcela_total }}</span>@endif
+<section class="erp-card" aria-label="Lançamentos do banco">
+    <ul class="of-fila">
+        @forelse($lancamentos as $l)
+        @php
+            $titulo = $filtro === 'feitos'
+                ? ($l->ehCredito() ? $l->contaReceber : $l->contaPagar)
+                : ($l->ehCredito() ? $l->sugestaoContaReceber : $l->sugestaoContaPagar);
+            $fatura = $filtro === 'feitos' ? $l->faturaCartao : ($filtro === 'conferir' ? $l->sugestaoFaturaCartao : null);
+            $p = $propostas[$l->id] ?? null;
+            $temAbertas = ($l->ehCredito() ? $abertasReceber : $abertasPagar)->isNotEmpty();
+            $resumo = $l->data->format('d/m/Y') . ' · ' . $brl($l->valor) . ' · ' . ($l->contraparte_nome ?: $l->descricao);
+        @endphp
+        <li class="of-linha">
+            <div class="of-data">{{ $l->data->format('d/m') }}<span class="of-ano">/{{ $l->data->format('Y') }}</span></div>
+
+            <div class="of-banco">
+                <div class="of-descricao" data-quando="{{ $l->data->format('d/m') }}">{{ $l->descricao ?: 'Sem descrição' }}</div>
+                <div class="of-apoio">
+                    @if($l->operacao){{ $l->operacao }} · @endif
+                    @if($l->contraparte_nome && ! preg_match('/^[\d.\-\/ ]+$/', $l->contraparte_nome)){{ $l->contraparte_nome }} · @endif
+                    @if($l->contraparte_documento){{ $l->contraparte_documento }} · @endif
+                    {{ $l->cartao ? $l->cartao->nome() : $l->contaBancaria?->apelido }}
+                    @if($l->parcela_total > 1) · parcela {{ $l->parcela_numero }}/{{ $l->parcela_total }} @endif
+                </div>
+                @if($l->sumiu_no_banco)
+                    <div class="of-erro"><i class="bi bi-exclamation-triangle me-1" aria-hidden="true"></i>O banco deixou de mostrar este lançamento. Confira se a baixa ainda vale.</div>
+                @endif
+            </div>
+
+            <div class="of-valor-linha {{ $l->ehCredito() ? 'of-entrada' : 'of-saida' }}">{{ $l->ehCredito() ? '+' : '−' }} {{ $brl($l->valor) }}</div>
+
+            <div class="of-destino">
+                @if($fatura)
+                    <div><strong>Pagamento da fatura</strong> — {{ $fatura->nome() }}</div>
+                    <div class="of-apoio">Não entra como despesa: as compras do cartão já entram uma a uma.</div>
+                    @if($filtro === 'conferir')
+                        <div class="of-apoio mt-1"><span class="badge-status ativa">Certo</span> {{ $l->sugestao_motivo }}</div>
+                    @endif
+                @elseif($filtro === 'ignorados')
+                    <span class="of-apoio">{{ $l->sugestao_motivo ?: 'Ignorado por você' }}</span>
+                @elseif($titulo)
+                    <div><strong>{{ $quem($titulo) }}</strong> — {{ $titulo->descricao }}</div>
+                    <div class="of-apoio">
+                        {{ $l->ehCredito() ? 'A receber' : 'A pagar' }} · {{ $brl($titulo->valor) }} · vence {{ $titulo->vencimento?->format('d/m/Y') }}
+                        @if(! $l->ehCredito() && $titulo->centroCusto) · {{ $titulo->centroCusto->nome }} @endif
+                    </div>
+                    @if($filtro === 'conferir')
+                        <div class="of-apoio mt-1">
+                            <span class="badge-status {{ $l->confiancaAlta() ? 'ativa' : 'pendente' }}">{{ $l->confiancaAlta() ? 'Certo' : 'Conferir' }}</span>
+                            {{ $l->sugestao_motivo }}
                         </div>
-                        <div class="text-muted small">
-                            {{ $l->contraparte_nome }}
-                            @if($l->contraparte_documento) · {{ $l->contraparte_documento }} @endif
-                            @if($contas->count() > 1) · {{ $l->contaBancaria?->apelido }} @endif
-                        </div>
-                        @if($l->sumiu_no_banco)
-                            <div class="text-danger small"><i class="bi bi-exclamation-triangle me-1"></i>O banco deixou de mostrar este lançamento. Confira se a baixa ainda vale.</div>
-                        @endif
-                    </td>
-                    <td class="text-end fw-semibold {{ $l->ehCredito() ? 'text-success' : 'text-danger' }}">
-                        {{ $l->ehCredito() ? '+' : '−' }} {{ $brl($l->valor) }}
-                    </td>
-                    <td>
-                        @php $fatura = $filtro === 'feitos' ? $l->faturaCartao : ($filtro === 'conferir' ? $l->sugestaoFaturaCartao : null); @endphp
-                        @if($fatura)
-                            <div><strong>Pagamento da fatura</strong> — {{ $fatura->nome() }}</div>
-                            <div class="text-muted small">Não entra como despesa: as compras do cartão já entram uma a uma.</div>
-                            @if($filtro === 'conferir')
-                                <div class="small mt-1"><span class="badge bg-success">Certo</span> <span class="text-muted">{{ $l->sugestao_motivo }}</span></div>
-                            @endif
-                        @elseif($filtro === 'ignorados' && $l->sugestao_motivo)
-                            <span class="text-muted">{{ $l->sugestao_motivo }}</span>
-                        @elseif($titulo)
-                            <div><strong>{{ $quem($titulo) }}</strong> — {{ $titulo->descricao }}</div>
-                            <div class="text-muted small">
-                                {{ $l->ehCredito() ? 'A receber' : 'A pagar' }} · {{ $brl($titulo->valor) }} · vence {{ $titulo->vencimento?->format('d/m/Y') }}
-                                @if(! $l->ehCredito() && $titulo->centroCusto) · {{ $titulo->centroCusto->nome }} @endif
-                            </div>
-                            @if($filtro === 'conferir')
-                                <div class="small mt-1">
-                                    <span class="badge {{ $l->confiancaAlta() ? 'bg-success' : 'bg-warning text-dark' }}">{{ $l->confiancaAlta() ? 'Certo' : 'Conferir' }}</span>
-                                    <span class="text-muted">{{ $l->sugestao_motivo }}</span>
-                                </div>
-                            @endif
-                        @elseif($filtro === 'sem')
-                            @php $opcoes = ($l->ehCredito() ? $abertasReceber : $abertasPagar); @endphp
-                            <form method="POST" action="{{ route('app.bancos.lancamentos.confirmar', $l) }}" class="d-flex gap-2">
-                                @csrf
-                                <select name="titulo_id" class="form-select form-select-sm" required aria-label="Conta que corresponde">
-                                    <option value="">{{ $opcoes->isEmpty() ? 'Nenhuma conta em aberto' : 'Escolha a conta…' }}</option>
-                                    @foreach($opcoes as $o)
-                                        <option value="{{ $o->id }}">{{ $o->vencimento?->format('d/m') }} · {{ $brl($o->valor) }} · {{ \Illuminate\Support\Str::limit($quem($o) . ' — ' . $o->descricao, 60) }}</option>
-                                    @endforeach
-                                    @if(isset($propostas[$l->id]))
-                                        <option value="__nova">＋ Cadastrar uma despesa nova agora…</option>
-                                    @endif
-                                </select>
-                                <button class="btn btn-sm btn-success" {{ $opcoes->isEmpty() && ! isset($propostas[$l->id]) ? 'disabled' : '' }}>Conciliar</button>
-                            </form>
-                            @if(! $l->ehCredito() && ! $l->cartao && $cartoes->isNotEmpty())
-                                <form method="POST" action="{{ route('app.bancos.lancamentos.fatura', $l) }}" class="d-flex gap-2 mt-2">
-                                    @csrf
-                                    <select name="cartao_id" class="form-select form-select-sm" required aria-label="Cartão da fatura">
-                                        <option value="">É pagamento de fatura do cartão…</option>
-                                        @foreach($cartoes as $cc)<option value="{{ $cc->id }}">{{ $cc->nome() }}</option>@endforeach
-                                    </select>
-                                    <button class="btn btn-sm btn-outline-secondary text-nowrap">Marcar fatura</button>
-                                </form>
-                            @endif
-                            @if(isset($propostas[$l->id]))
-                                @php $p = $propostas[$l->id]; @endphp
-                                <div class="mt-2 p-2 rounded" style="background: rgba(79,70,229,.06);">
-                                    <div class="small">
-                                        <strong>{{ $opcoes->isEmpty() ? 'Lançar como despesa' : 'Ou lançar como despesa nova' }}:</strong>
-                                        {{ $p['favorecido'] ?: 'sem favorecido' }}
-                                        @if($p['plano_nome']) · {{ $p['plano_nome'] }} @endif
-                                        @if($p['centro_nome']) · {{ $p['centro_nome'] }} @endif
-                                        @if($p['origem'] === 'regra')
-                                            <span class="badge bg-success ms-1">Já conhecida{{ $p['usos'] > 1 ? ' · ' . $p['usos'] . ' vezes' : '' }}</span>
-                                        @elseif($p['origem'] === 'historico')
-                                            <span class="badge bg-warning text-dark ms-1">Igual à última deste fornecedor</span>
-                                        @else
-                                            <span class="text-muted">· falta classificar</span>
-                                        @endif
-                                    </div>
-                                    <div class="d-flex flex-wrap gap-2 mt-2">
-                                        @if($p['origem'] === 'regra')
-                                            <form method="POST" action="{{ route('app.bancos.lancamentos.lancar', $l) }}">
-                                                @csrf
-                                                <input type="hidden" name="usar_proposta" value="1">
-                                                <button class="btn btn-sm btn-success"><i class="bi bi-check-lg me-1"></i>Lançar</button>
-                                            </form>
-                                        @endif
-                                        <button type="button" class="btn btn-sm {{ $p['origem'] === 'regra' ? 'btn-outline-secondary' : 'btn-erp btn-erp-primary' }} btn-lancar"
-                                                data-bs-toggle="modal" data-bs-target="#modalLancar"
-                                                data-acao="{{ route('app.bancos.lancamentos.lancar', $l) }}"
-                                                data-resumo="{{ $l->data->format('d/m/Y') }} · {{ $brl($l->valor) }} · {{ $l->contraparte_nome ?: $l->descricao }}"
-                                                data-descricao="{{ $p['descricao'] }}"
-                                                data-plano="{{ $p['plano_conta_id'] }}" data-centro="{{ $p['centro_custo_id'] }}"
-                                                data-favorecido="{{ $p['favorecido'] }}" data-fornecedor="{{ $p['fornecedor_id'] }}" data-documento="{{ $p['documento'] }}">
-                                            {{ $p['origem'] === 'regra' ? 'Ajustar' : 'Lançar despesa' }}
-                                        </button>
-                                    </div>
-                                </div>
-                            @endif
+                    @endif
+                @elseif($filtro === 'sem' && $p)
+                    <div>{{ $p['favorecido'] ?: 'Sem favorecido' }}</div>
+                    <div class="of-apoio">
+                        @if($p['origem'] === 'regra')
+                            <span class="badge-status ativa">Já conhecida</span>
+                            {{ collect([$p['plano_nome'], $p['centro_nome']])->filter()->implode(' · ') ?: 'sem classificação' }}@if($p['usos'] > 1) · usada {{ $p['usos'] }} vezes @endif
+                        @elseif($p['origem'] === 'historico')
+                            <span class="badge-status pendente">Igual à última</span>
+                            {{ collect([$p['plano_nome'], $p['centro_nome']])->filter()->implode(' · ') }}
                         @else
-                            <span class="text-muted">—</span>
+                            Despesa nova · falta classificar
                         @endif
-                    </td>
-                    <td>
-                        <div class="d-flex flex-wrap gap-2">
-                            @if($filtro === 'conferir')
-                                <form method="POST" action="{{ route('app.bancos.lancamentos.confirmar', $l) }}">
-                                    @csrf
-                                    <button class="btn btn-sm btn-success"><i class="bi bi-check-lg me-1"></i>Confirmar</button>
-                                </form>
-                                <form method="POST" action="{{ route('app.bancos.lancamentos.recusar', $l) }}">
-                                    @csrf
-                                    <button class="btn btn-sm btn-outline-secondary">Não é isso</button>
-                                </form>
+                    </div>
+                @elseif($filtro === 'sem')
+                    <span class="of-apoio">{{ $l->cartao ? 'Pagamento ou estorno no cartão' : 'Entrada sem conta a receber correspondente' }}</span>
+                @else
+                    <span class="of-apoio">—</span>
+                @endif
+            </div>
+
+            <div class="of-acoes">
+                @if($filtro === 'conferir')
+                    <form method="POST" action="{{ route('app.bancos.lancamentos.confirmar', $l) }}">
+                        @csrf
+                        <button class="btn btn-sm btn-success"><i class="bi bi-check-lg me-1" aria-hidden="true"></i>Confirmar</button>
+                    </form>
+                    <form method="POST" action="{{ route('app.bancos.lancamentos.recusar', $l) }}">
+                        @csrf
+                        <button class="btn btn-sm btn-outline-secondary">Não é isso</button>
+                    </form>
+                @elseif($filtro === 'sem')
+                    @if($p && $p['origem'] === 'regra')
+                        <form method="POST" action="{{ route('app.bancos.lancamentos.lancar', $l) }}">
+                            @csrf
+                            <input type="hidden" name="usar_proposta" value="1">
+                            <button class="btn btn-sm btn-success"><i class="bi bi-check-lg me-1" aria-hidden="true"></i>Lançar</button>
+                        </form>
+                    @endif
+                    @if($p)
+                        <button type="button" class="btn btn-sm {{ $p['origem'] === 'regra' ? 'btn-outline-secondary' : 'btn-erp btn-erp-primary' }} btn-lancar"
+                                data-bs-toggle="modal" data-bs-target="#modalLancar"
+                                data-acao="{{ route('app.bancos.lancamentos.lancar', $l) }}"
+                                data-resumo="{{ $resumo }}"
+                                data-descricao="{{ $p['descricao'] }}"
+                                data-plano="{{ $p['plano_conta_id'] }}" data-centro="{{ $p['centro_custo_id'] }}"
+                                data-favorecido="{{ $p['favorecido'] }}" data-fornecedor="{{ $p['fornecedor_id'] }}" data-documento="{{ $p['documento'] }}">
+                            {{ $p['origem'] === 'regra' ? 'Ajustar' : 'Lançar despesa' }}
+                        </button>
+                    @elseif(! $l->cartao)
+                        <button type="button" class="btn btn-sm btn-erp btn-erp-primary" {{ $temAbertas ? '' : 'disabled' }}
+                                data-bs-toggle="modal" data-bs-target="#modalEscolher"
+                                data-acao="{{ route('app.bancos.lancamentos.confirmar', $l) }}" data-resumo="{{ $resumo }}" data-lado="receber">
+                            Ligar a uma conta a receber
+                        </button>
+                    @endif
+                @endif
+
+                <div class="dropdown">
+                    <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Mais ações deste lançamento">
+                        <i class="bi bi-three-dots" aria-hidden="true"></i>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        @if($filtro === 'sem' && $p)
+                            <li>
+                                <button type="button" class="dropdown-item" {{ $temAbertas ? '' : 'disabled' }}
+                                        data-bs-toggle="modal" data-bs-target="#modalEscolher"
+                                        data-acao="{{ route('app.bancos.lancamentos.confirmar', $l) }}" data-resumo="{{ $resumo }}" data-lado="pagar">
+                                    <i class="bi bi-link-45deg me-2" aria-hidden="true"></i>Ligar a uma conta a pagar já cadastrada
+                                </button>
+                            </li>
+                            @if(! $l->cartao && $cartoes->isNotEmpty())
+                                <li><h6 class="dropdown-header">É pagamento de fatura do</h6></li>
+                                @foreach($cartoes as $cc)
+                                <li>
+                                    <form method="POST" action="{{ route('app.bancos.lancamentos.fatura', $l) }}">
+                                        @csrf
+                                        <input type="hidden" name="cartao_id" value="{{ $cc->id }}">
+                                        <button class="dropdown-item"><i class="bi bi-credit-card me-2" aria-hidden="true"></i>{{ $cc->nome() }}</button>
+                                    </form>
+                                </li>
+                                @endforeach
                             @endif
-                            @if(in_array($filtro, ['conferir', 'sem']))
+                            <li><hr class="dropdown-divider"></li>
+                        @endif
+                        @if(in_array($filtro, ['conferir', 'sem']))
+                            <li>
                                 <form method="POST" action="{{ route('app.bancos.lancamentos.ignorar', $l) }}">
                                     @csrf
-                                    <button class="btn btn-sm btn-outline-secondary" title="Não é conta a pagar nem a receber">Ignorar</button>
+                                    <button class="dropdown-item"><i class="bi bi-eye-slash me-2" aria-hidden="true"></i>Ignorar (não é conta a pagar nem a receber)</button>
                                 </form>
-                            @else
+                            </li>
+                        @else
+                            <li>
                                 <form method="POST" action="{{ route('app.bancos.lancamentos.desfazer', $l) }}"
-                                      onsubmit="return confirm('{{ $filtro === 'feitos' ? 'Desfazer a conciliação? A conta volta a ficar em aberto.' : 'Voltar este lançamento para a fila?' }}');">
+                                      data-confirm="{{ $filtro === 'feitos' ? 'Desfazer a conciliação? A conta volta a ficar em aberto.' : 'Voltar este lançamento para a fila?' }}">
                                     @csrf
-                                    <button class="btn btn-sm btn-outline-secondary">{{ $filtro === 'feitos' ? 'Desfazer' : 'Voltar para a fila' }}</button>
+                                    <button class="dropdown-item"><i class="bi bi-arrow-counterclockwise me-2" aria-hidden="true"></i>{{ $filtro === 'feitos' ? 'Desfazer a conciliação' : 'Voltar para a fila' }}</button>
                                 </form>
-                            @endif
-                        </div>
-                    </td>
-                </tr>
-                @empty
-                <tr><td colspan="5" class="text-center text-muted py-4">
-                    @if($contas->isEmpty())
-                        Ligue uma conta para o extrato começar a chegar.
-                    @elseif($filtro === 'conferir')
-                        Nada para confirmar agora.
-                    @elseif($filtro === 'sem')
-                        Nenhum lançamento sem sugestão.
-                    @else
-                        Nada aqui ainda.
-                    @endif
-                </td></tr>
-                @endforelse
-            </tbody>
-        </table>
-    </div>
+                            </li>
+                        @endif
+                    </ul>
+                </div>
+            </div>
+        </li>
+        @empty
+        <li>
+            <x-erp.empty-state icon="check2-circle"
+                :title="$contas->isEmpty() ? 'O extrato aparece aqui' : ['conferir' => 'Nada para confirmar agora', 'sem' => 'Nenhum lançamento sem sugestão', 'feitos' => 'Nada conciliado ainda', 'ignorados' => 'Nada ignorado'][$filtro]"
+                :description="$contas->isEmpty() ? 'Ligue uma conta para o extrato começar a chegar.' : ($lado ? 'Não há ' . ($lado === 'entradas' ? 'entradas' : 'saídas') . ' nesta aba. Veja em Tudo.' : 'Quando o banco mandar lançamento novo, ele aparece aqui.')" />
+        </li>
+        @endforelse
+    </ul>
     @if($lancamentos->hasPages())
-        <div class="p-3">{{ $lancamentos->links() }}</div>
+        <div class="p-3 border-top">{{ $lancamentos->links() }}</div>
     @endif
+</section>
 </div>
+
+{{-- ---------------- Ligar a uma conta já cadastrada ---------------- --}}
+@if($filtro === 'sem')
+<div class="modal fade" id="modalEscolher" tabindex="-1" aria-labelledby="modalEscolherTitulo" aria-hidden="true">
+    <div class="modal-dialog">
+        <form method="POST" action="" class="modal-content" id="formEscolher">
+            @csrf
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalEscolherTitulo">Ligar a uma conta já cadastrada</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted small mb-3" id="escolherResumo"></p>
+                <label class="form-label" for="escolher-titulo">Qual conta é este lançamento?</label>
+                <select id="escolher-titulo" name="titulo_id" class="form-select" required>
+                    <option value="">Escolha…</option>
+                    <optgroup label="Contas a receber em aberto" data-lado="receber">
+                        @foreach($abertasReceber as $o)
+                            <option value="{{ $o->id }}">{{ $o->vencimento?->format('d/m') }} · {{ $brl($o->valor) }} · {{ \Illuminate\Support\Str::limit($quem($o) . ' — ' . $o->descricao, 70) }}</option>
+                        @endforeach
+                    </optgroup>
+                    <optgroup label="Contas a pagar em aberto" data-lado="pagar">
+                        @foreach($abertasPagar as $o)
+                            <option value="{{ $o->id }}">{{ $o->vencimento?->format('d/m') }} · {{ $brl($o->valor) }} · {{ \Illuminate\Support\Str::limit($quem($o) . ' — ' . $o->descricao, 70) }}</option>
+                        @endforeach
+                    </optgroup>
+                </select>
+                <div class="form-text">A conta é baixada com a data e o valor do banco. Dá para desfazer na aba Conciliados.</div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button class="btn btn-success">Conciliar</button>
+            </div>
+        </form>
+    </div>
 </div>
+@push('scripts')
+<script>
+document.getElementById('modalEscolher')?.addEventListener('show.bs.modal', function (e) {
+    const b = e.relatedTarget;
+    if (!b) return;
+    document.getElementById('formEscolher').action = b.dataset.acao;
+    document.getElementById('escolherResumo').textContent = b.dataset.resumo;
+    const sel = document.getElementById('escolher-titulo');
+    sel.value = '';
+    // só o lado do lançamento: entrada liga em conta a receber, saída em conta a pagar
+    sel.querySelectorAll('optgroup').forEach(g => { g.hidden = g.dataset.lado !== b.dataset.lado; g.disabled = g.hidden; });
+});
+</script>
+@endpush
+@endif
 
 {{-- ---------------- Lançar despesa a partir do extrato ---------------- --}}
 @if($filtro === 'sem')
@@ -537,14 +572,6 @@ function alternarNovo(sel) {
 }
 document.querySelectorAll('#modalLancar select[data-novo]').forEach(sel => sel.addEventListener('change', () => alternarNovo(sel)));
 
-// Na lista da linha, "Cadastrar uma despesa nova agora" abre a janela daquela saída.
-document.querySelectorAll('select[name="titulo_id"]').forEach(sel => {
-    sel.addEventListener('change', () => {
-        if (sel.value !== '__nova') return;
-        sel.value = '';
-        sel.closest('td').querySelector('.btn-lancar')?.click();
-    });
-});
 </script>
 @endpush
 @endif
@@ -631,12 +658,87 @@ document.querySelectorAll('select[name="titulo_id"]').forEach(sel => {
 
 @push('styles')
 <style>
+    /* Open Finance — só o que o erp.css ainda não tem. Tudo com as variáveis do sistema. */
+    .of-rotulo { font-size: .8rem; font-weight: 600; letter-spacing: .03em; color: var(--text-secondary); }
+    .of-apoio { font-size: .8125rem; color: var(--text-muted); }
+    .of-erro { font-size: .8125rem; color: var(--danger-text); }
+    .of-entrada { color: var(--success-text); font-weight: 600; }
+    .of-saida { color: var(--danger-text); font-weight: 600; }
+    .of-conta-num { font-variant-numeric: tabular-nums; font-weight: 600; margin-left: .25rem; opacity: .8; }
+
+    /* Painel: uma faixa dividida, não quatro cartões soltos */
+    .of-painel { display: grid; grid-template-columns: 1.3fr 1fr 1fr 1.3fr; }
+    .of-painel-item { padding: 1rem 1.25rem; border-left: 1px solid var(--border); color: inherit; text-decoration: none; min-width: 0; }
+    .of-painel-item:first-child { border-left: 0; }
+    .of-painel-link { transition: background-color .15s ease-out; }
+    .of-painel-link:hover { background: var(--bg-table-head); color: inherit; }
+    .of-painel .of-valor { font-size: 1.5rem; font-weight: 800; line-height: 1.2; font-variant-numeric: tabular-nums; margin: .15rem 0; }
+    .of-mes { font-size: .875rem; font-variant-numeric: tabular-nums; margin-top: .15rem; }
+
+    /* Contas */
+    .of-conta { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1.2fr) auto; gap: 1rem; align-items: center; padding: 1rem 1.25rem; border-top: 1px solid var(--border); }
+    .of-conta:first-child { border-top: 0; }
+    .of-conta-nome { font-weight: 600; }
+    .of-conta-acoes { display: flex; flex-wrap: wrap; gap: .5rem; justify-content: flex-end; }
+    .of-cartoes { border-top: 1px solid var(--border-light); background: var(--bg-table-head); }
+    .of-cartoes > summary { padding: .6rem 1.25rem; cursor: pointer; font-size: .875rem; font-weight: 600; list-style-position: inside; }
+    .of-cartoes > summary .of-apoio { font-weight: 400; }
+    .of-cartoes-lista { list-style: none; margin: 0; padding: 0 1.25rem .5rem; }
+    .of-cartoes-lista li { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .6rem 0; border-top: 1px solid var(--border); font-size: .875rem; }
+
+    /* Barra de abas e filtros */
+    .of-barra { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .75rem; margin-bottom: .75rem; }
+    .of-filtros { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
+    .of-abas .nav-link { padding: .4rem .85rem; font-size: .875rem; font-weight: 600; color: var(--text-secondary); }
+    .of-abas .nav-link.active { color: var(--text-on-dark, #fff); }
+
+    /* Fila: uma linha = data · o que veio do banco · valor · para onde vai · ações */
+    .of-fila { list-style: none; margin: 0; padding: 0; }
+    .of-linha { display: grid; grid-template-columns: 4.5rem minmax(0, 1.5fr) 8.5rem minmax(0, 1.3fr) auto; gap: 1rem; align-items: center; padding: .85rem 1.25rem; border-top: 1px solid var(--border-light); font-size: .875rem; }
+    .of-linha:first-child { border-top: 0; }
+    .of-linha:hover { background: var(--bg-table-head); }
+    .of-data { font-variant-numeric: tabular-nums; color: var(--text-secondary); white-space: nowrap; }
+    .of-ano { color: var(--text-muted); }
+    .of-descricao { font-weight: 500; color: var(--text-primary); overflow-wrap: anywhere; }
+    .of-valor-linha { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .of-destino { min-width: 0; overflow-wrap: anywhere; }
+    .of-acoes { display: flex; gap: .5rem; align-items: center; justify-content: flex-end; flex-wrap: nowrap; }
+    .of-fila .empty-state, .erp-card > .empty-state { padding: 2.5rem 1.25rem; }
+
+    /* Lista de bancos com busca (janela Ligar uma conta) */
     .banco-busca { position: relative; }
     .banco-lista { position: absolute; z-index: 1060; left: 0; right: 0; top: calc(100% + 4px); max-height: 260px; overflow-y: auto;
-        background: var(--bs-body-bg, #fff); border: 1px solid var(--bs-border-color, #dee2e6); border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,.12); }
-    .banco-lista li { padding: 8px 12px; cursor: pointer; }
-    .banco-lista li[role="option"]:hover, .banco-lista li.ativo { background: rgba(79, 70, 229, .10); }
+        background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: 0 8px 24px rgba(15, 23, 42, .12); }
+    .banco-lista li { padding: .5rem .75rem; cursor: pointer; }
+    .banco-lista li[role="option"]:hover, .banco-lista li.ativo { background: var(--primary-light); }
     .banco-lista li.banco-outro { cursor: default; font-size: .875rem; }
+
+    @media (max-width: 991.98px) {
+        .of-painel { grid-template-columns: 1fr 1fr; }
+        .of-painel-item:nth-child(odd) { border-left: 0; }
+        .of-painel-item:nth-child(n+3) { border-top: 1px solid var(--border); }
+        .of-conta { grid-template-columns: 1fr; gap: .6rem; }
+        .of-conta-acoes { justify-content: flex-start; }
+        /* Fila no celular: cada lançamento vira um bloco, com o valor no alto à direita */
+        .of-linha { grid-template-columns: 1fr auto; grid-template-areas: "banco valor" "destino destino" "acoes acoes"; gap: .5rem .75rem; padding: 1rem; }
+        .of-data { display: none; }
+        .of-banco { grid-area: banco; }
+        .of-banco .of-descricao::before { content: attr(data-quando) ' · '; color: var(--text-muted); font-weight: 400; }
+        .of-valor-linha { grid-area: valor; align-self: start; }
+        .of-destino { grid-area: destino; }
+        .of-acoes { grid-area: acoes; justify-content: flex-start; flex-wrap: wrap; }
+        .of-acoes .btn, .of-conta-acoes .btn, .of-filtros .btn { min-height: 44px; display: inline-flex; align-items: center; }
+        .of-barra { align-items: stretch; }
+        .of-abas { flex-wrap: nowrap; overflow-x: auto; }
+        .of-abas .nav-link { white-space: nowrap; min-height: 44px; display: flex; align-items: center; }
+    }
+    @media (max-width: 575.98px) {
+        .of-painel { grid-template-columns: 1fr; }
+        .of-painel-item { border-left: 0; border-top: 1px solid var(--border); }
+        .of-painel-item:first-child { border-top: 0; }
+        .of-cartoes-lista li { flex-direction: column; align-items: flex-start; gap: .4rem; }
+    }
+    @media (prefers-reduced-motion: reduce) { .of-painel-link { transition: none; } }
 </style>
 @endpush
 

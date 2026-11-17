@@ -633,7 +633,7 @@ class OpenFinanceTest extends TestCase
         $b = $this->lancamento($conta, 'debito', 70.00, '2026-11-06', ['contraparte_nome' => 'POSTO IPIRANGA', 'contraparte_documento' => '55666777000188']);
 
         $this->eu()->get(route('app.bancos.index', ['ver' => 'sem']))->assertOk()
-            ->assertSee('Cadastrar uma despesa nova agora')->assertSee('Cadastrar uma conta nova agora')->assertSee('Cadastrar um centro de custo novo agora');
+            ->assertSee('Ligar a uma conta a pagar já cadastrada')->assertSee('Cadastrar uma conta nova agora')->assertSee('Cadastrar um centro de custo novo agora');
 
         $this->eu()->post(route('app.bancos.lancamentos.lancar', $a), [
             'descricao' => 'Combustível', 'plano_conta_novo' => '  Combustível ', 'centro_custo_novo' => 'Entregas', 'lembrar' => 1,
@@ -756,7 +756,7 @@ class OpenFinanceTest extends TestCase
 
         $this->eu()->post(route('app.bancos.cartoes.alternar', $cartoes[0]));
         $this->assertTrue($cartoes[0]->fresh()->importar);
-        $this->eu()->get(route('app.bancos.index'))->assertOk()->assertSee('Cartão final 2524')->assertSee('Trazendo as compras')->assertSee('7012, 4714');
+        $this->eu()->get(route('app.bancos.index'))->assertOk()->assertSee('Cartão final 2524')->assertSee('1 trazendo as compras')->assertSee('7012, 4714');
     }
 
     public function test_compras_do_cartao_entram_e_credito_no_cartao_nao_vira_receita(): void

@@ -4,12 +4,7 @@
 
 @section('content')
 <div class="fade-in">
-<div class="page-header">
-    <div>
-        <h4><i class="bi bi-bank me-2"></i>Open Finance</h4>
-        <div class="subtitle">O extrato do seu banco direto no sistema</div>
-    </div>
-</div>
+<x-erp.page-header title="Open Finance" icon="bank" subtitle="O extrato do seu banco direto no sistema" />
 
 <div class="erp-card p-4" style="max-width: 760px;">
     <h5 class="mb-3">Ligue a conta do banco e pare de conferir extrato à mão</h5>
@@ -20,7 +15,7 @@
         <li>A autorização é feita por você, dentro do seu banco, e pode ser desligada quando quiser.</li>
     </ul>
     <div class="alert alert-info mb-0">
-        <i class="bi bi-info-circle me-1"></i>
+        <i class="bi bi-info-circle me-1" aria-hidden="true"></i>
         Esta função não faz parte do seu plano atual. Para ligar, fale com a IA365.
     </div>
 </div>
