@@ -10229,3 +10229,4 @@ Cada passada faz uma coisa por conta: (1) aguardando → `GET /account/{hash}`, 
 - **Validação:** `OpenFinanceTest` **38 testes, 261 conferências, todos ✅** (3 novos: saldo, painel, internet fora do ar).
 - **Plano de 6 etapas: feito.** Fora do plano e ainda não escrito: um lançamento para várias contas (e o contrário), conciliar sozinho sem clique, cruzamento pela linha digitável, aviso da Tecnospeed por webhook.
 - Suíte inteira: **422 testes, só as 2 falhas antigas**.
+- **Conferido com dado real (17/11):** o saldo da conta Itaú veio e aparece no painel e na linha da conta. O valor de `balance` veio IGUAL ao de `automaticallyInvestedBalance` → tudo indica que a aplicação automática já está DENTRO do saldo (não é um valor a mais); a tela mostra os dois sem somar. Cinco dos seis cartões vieram com limite 0 (a tela só mostra limite quando é maior que zero).

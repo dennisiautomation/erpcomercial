@@ -45,7 +45,7 @@
                     O banco ainda não informou.
                 @else
                     Informado pelo banco em {{ $painel['saldo_em']?->format('d/m H:i') }}
-                    @if($painel['saldo_aplicado'] > 0) · mais {{ $brl($painel['saldo_aplicado']) }} em aplicação automática @endif
+                    @if($painel['saldo_aplicado'] > 0) · {{ $brl($painel['saldo_aplicado']) }} em aplicação automática @endif
                 @endif
             </div>
         </div>
@@ -66,7 +66,7 @@
     </div>
     <div class="col-6 col-lg-3">
         <div class="erp-card p-3 h-100">
-            <div class="text-muted small">{{ ucfirst(now()->translatedFormat('F')) }} na conta</div>
+            <div class="text-muted small">{{ ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'][now()->month - 1] }} na conta</div>
             <div class="small mt-1"><span class="text-success fw-semibold">+ {{ $brl($painel['entradas_mes']) }}</span> entraram</div>
             <div class="small"><span class="text-danger fw-semibold">− {{ $brl($painel['saidas_mes']) }}</span> saíram</div>
             <div class="progress mt-2" style="height: 6px;" role="progressbar" aria-label="Conciliado no mês" aria-valuenow="{{ $pctMes }}" aria-valuemin="0" aria-valuemax="100">
@@ -156,7 +156,7 @@
                     </td>
                     <td class="text-muted small">
                         Cartão de crédito · não conta como conta extra
-                        @if($cc->limite_disponivel !== null)<div>Limite disponível <strong class="text-body">{{ $brl($cc->limite_disponivel) }}</strong>@if($cc->limite !== null) de {{ $brl($cc->limite) }}@endif</div>@endif
+                        @if($cc->limite !== null && (float) $cc->limite > 0)<div>Limite disponível <strong class="text-body">{{ $brl($cc->limite_disponivel) }}</strong>@if($cc->limite !== null) de {{ $brl($cc->limite) }}@endif</div>@endif
                     </td>
                     <td></td>
                     <td>

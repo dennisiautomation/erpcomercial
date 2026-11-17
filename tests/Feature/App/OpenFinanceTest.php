@@ -864,7 +864,7 @@ class OpenFinanceTest extends TestCase
         $this->lancamento($conta, 'debito', 50.00, $hoje, ['status' => 'removido']);
 
         $this->eu()->get(route('app.bancos.index'))->assertOk()
-            ->assertSee('Saldo nas contas')->assertSee('R$ 1.500,50')->assertSee('R$ 250,00 em aplicação automática')
+            ->assertSee('Saldo nas contas')->assertSee('R$ 1.500,50')->assertDontSee('November')->assertSee('R$ 250,00 em aplicação automática')
             ->assertSee('R$ 120,00 já com sugestão')
             ->assertSee('R$ 1.079,00 para classificar')                                // 80 da conta + 999 do cartão
             ->assertSee('+ R$ 300,00')->assertSee('− R$ 200,00')                       // só a conta: 120 + 80
