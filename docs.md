@@ -10249,3 +10249,16 @@ Cada passada faz uma coisa por conta: (1) aguardando → `GET /account/{hash}`, 
 ### Entradas e saídas separadas na fila (17/11/2026, pedido do Dennis)
 - Ao lado das abas, botões **Tudo · Entradas · Saídas** com a quantidade de cada um na aba atual (`?lado=entradas|saidas`). O lado escolhido se mantém ao trocar de aba ou de conta/cartão, e "Confirmar os certos" só mexe no lado escolhido.
 - Validação: `OpenFinanceTest` 41 ✅ (313 conferências); suíte inteira 425 testes, só as 2 falhas antigas.
+
+### Revisão de design da tela Open Finance (17/11/2026, com a skill impeccable — pedido do Dennis)
+Refino dentro do padrão visual do ERP (`DESIGN.md`, `erp.css`), sem mudar regra de negócio nem rota. Conferido no computador (1600 px) e no celular (400 px).
+- **O que a revisão apontou:** (1) cada linha de "Sem sugestão" tinha três controles empilhados (duas listas + quadro com botão) — pesado, e no celular as listas viravam "Esco…" e o valor quebrava em duas linhas; (2) seis linhas de cartão com cinco botões roxos empurravam a conciliação, que é a tarefa principal, para fora da primeira tela; (3) fuga do padrão: título em `<h4>` solto, selos do Bootstrap em vez de `badge-status`, `confirm()` do navegador em vez de `data-confirm`, cor escrita à mão em vez das variáveis; (4) cada linha carregava a lista inteira de contas em aberto (até 300 opções por linha).
+- **O que mudou:**
+  - **Linha da fila = uma ação principal + menu "⋯".** Saída: "Lançar despesa" (ou "Lançar" de um clique quando já conhecida). Entrada: "Ligar a uma conta a receber". No menu: ligar a conta já cadastrada (abre uma janela só, `#modalEscolher`, com a lista — uma vez na página, não por linha), "É pagamento de fatura do" + cartões, Ignorar / Desfazer.
+  - **Fila deixou de ser tabela:** lista em grade (`.of-linha`): data · o que veio do banco · valor · para onde vai · ações. No celular cada lançamento vira um bloco com o valor no alto à direita; sem rolagem lateral; botões com 44 px.
+  - **Cartões recolhidos** sob a conta ("6 cartões de crédito · 1 trazendo as compras"), cada um com um interruptor "Trazer as compras" no lugar do botão roxo.
+  - **Painel em uma faixa dividida** em vez de quatro cartões soltos; números com algarismos alinhados.
+  - **Conta:** nome, banco, dono, situação, último extrato e saldo num bloco; ações secundárias (Buscar cartões, Desconectar) no menu "⋯".
+  - Padrão do sistema: `<x-erp.page-header>`, `<x-erp.empty-state>`, `badge-status`, `data-confirm`, variáveis de cor.
+- **Não mudou:** janelas "Ligar uma conta" e "Lançar despesa" (já estavam no padrão), convite (só o cabeçalho), quadros do admin e cadastro de fornecedor.
+- Validação: `OpenFinanceTest` 41 ✅ (313 conferências); suíte inteira com as 2 falhas antigas; sem erro de JavaScript no console.

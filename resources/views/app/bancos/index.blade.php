@@ -326,7 +326,7 @@
                         </form>
                     @endif
                     @if($p)
-                        <button type="button" class="btn btn-sm {{ $p['origem'] === 'regra' ? 'btn-outline-secondary' : 'btn-erp btn-erp-primary' }} btn-lancar"
+                        <button type="button" class="btn btn-sm {{ $p['origem'] === 'regra' ? 'btn-outline-secondary' : 'btn-outline-primary' }} btn-lancar"
                                 data-bs-toggle="modal" data-bs-target="#modalLancar"
                                 data-acao="{{ route('app.bancos.lancamentos.lancar', $l) }}"
                                 data-resumo="{{ $resumo }}"
@@ -336,7 +336,7 @@
                             {{ $p['origem'] === 'regra' ? 'Ajustar' : 'Lançar despesa' }}
                         </button>
                     @elseif(! $l->cartao)
-                        <button type="button" class="btn btn-sm btn-erp btn-erp-primary" {{ $temAbertas ? '' : 'disabled' }}
+                        <button type="button" class="btn btn-sm btn-outline-primary" {{ $temAbertas ? '' : 'disabled' }}
                                 data-bs-toggle="modal" data-bs-target="#modalEscolher"
                                 data-acao="{{ route('app.bancos.lancamentos.confirmar', $l) }}" data-resumo="{{ $resumo }}" data-lado="receber">
                             Ligar a uma conta a receber
