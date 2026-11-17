@@ -2,6 +2,7 @@
 
 namespace App\Services\LojaOnline;
 
+use App\Models\LojaOnline;
 use Illuminate\Support\Str;
 
 /**
@@ -28,6 +29,32 @@ class ModelosLoja
         'nunito' => ['Nunito (amigável)', "'Nunito', system-ui, sans-serif", 'Nunito:wght@400;600;700;800'],
         'sistema' => ['Do aparelho (mais rápida)', "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif", ''],
     ];
+
+    /**
+     * Fontes que só entram com um modelo exclusivo (17/11/2026). A vitrine sabe
+     * desenhá-las sempre (TemaCss lê todasAsFontes); o editor só as oferece à loja
+     * que tem o modelo.
+     */
+    public const FONTES_EXCLUSIVAS = [
+        'gilda' => ['Gilda Display (Miss Merlinda)', "'Gilda Display', 'Didot', Georgia, serif", 'Gilda+Display'],
+    ];
+
+    /** @return array<string, array{0: string, 1: string, 2: string}> */
+    public static function todasAsFontes(): array
+    {
+        return self::FONTES + self::FONTES_EXCLUSIVAS;
+    }
+
+    /** Fontes do seletor do editor desta loja: as públicas + as do modelo exclusivo dela. */
+    public static function fontesDaLoja(?LojaOnline $loja): array
+    {
+        $extras = [];
+        foreach ((array) (self::exclusivos()[$loja?->modelo_exclusivo]['fontes'] ?? []) as $chave) {
+            $extras[$chave] = self::FONTES_EXCLUSIVAS[$chave];
+        }
+
+        return self::FONTES + $extras;
+    }
 
     /** Opções de forma do tema (o editor e a validação leem daqui). */
     public const OPCOES_TEMA = [
@@ -62,6 +89,7 @@ class ModelosLoja
         'newsletter' => ['Convide a deixar o e-mail em troca de algo: "Receba 10% na primeira compra" converte muito mais que "Assine a newsletter". Os contatos ficam em Loja online → Promoções.', null],
         'video' => ['Um vídeo curto do YouTube mostrando o produto ou a loja. Até 1 minuto funciona melhor.', null],
         'redes' => ['Mostra os botões das redes sociais cadastradas em Loja online → Configurações.', null],
+        'lojas_fisicas' => ['Mostra as suas lojas físicas com endereço, "Como chegar" e WhatsApp. Os dados vêm do cadastro das lojas no ERP (Minhas Lojas): mudou lá, muda aqui.', null],
         'faixa' => ['Uma linha de aviso no meio da página: "Frete grátis acima de R$ 199", "Parcele em até 6x".', null],
     ];
 
@@ -227,6 +255,7 @@ class ModelosLoja
     public static function textosDeExemplo(): array
     {
         $textos = ['Título do banner'];
+        // Só os públicos: o texto do modelo exclusivo já é o da própria loja.
         foreach (self::todos() as $m) {
             foreach ($m['blocos'] as $b) {
                 if (! in_array($b['tipo'], ['banner', 'carrossel', 'banners'], true)) {
@@ -245,31 +274,83 @@ class ModelosLoja
         return array_values(array_unique($textos));
     }
 
+    /* ---------------------------------------------------------------- */
+    /*  Modelos exclusivos (17/11/2026)                                  */
+    /* ---------------------------------------------------------------- */
+
+    /**
+     * Modelos pagos por um cliente. NUNCA entram em todos(): só aparecem no editor
+     * da loja cuja coluna `lojas_online.modelo_exclusivo` tem a chave (quem grava
+     * é o admin). Cada um mora numa classe em Exclusivos/ e pode trazer fontes,
+     * blocos e imagens próprias.
+     *
+     * @return array<string, array>
+     */
+    public static function exclusivos(): array
+    {
+        return [
+            'merlinda' => Exclusivos\Merlinda::modelo(),
+        ];
+    }
+
+    /** Todos os modelos que a vitrine sabe desenhar (públicos + exclusivos). Uso interno: NUNCA para listar a uma loja. */
+    public static function catalogo(): array
+    {
+        return self::todos() + self::exclusivos();
+    }
+
+    /** O que ESTA loja pode escolher no editor: o exclusivo dela (primeiro) + os públicos. */
+    public static function paraLoja(?LojaOnline $loja): array
+    {
+        $chave = $loja?->modelo_exclusivo;
+        $exclusivo = $chave && isset(self::exclusivos()[$chave]) ? [$chave => self::exclusivos()[$chave]] : [];
+
+        return $exclusivo + self::todos();
+    }
+
+    public static function ehExclusivo(?string $modelo): bool
+    {
+        return $modelo !== null && isset(self::exclusivos()[$modelo]);
+    }
+
     public static function existe(?string $modelo): bool
     {
-        return $modelo !== null && isset(self::todos()[$modelo]);
+        return $modelo !== null && isset(self::catalogo()[$modelo]);
     }
 
     public static function tema(?string $modelo): array
     {
-        return (self::todos()[$modelo] ?? self::todos()[self::PADRAO])['tema'];
+        return (self::catalogo()[$modelo] ?? self::todos()[self::PADRAO])['tema'];
     }
 
-    /** Blocos do modelo, cada um com um id próprio. */
-    public static function blocos(?string $modelo): array
+    /**
+     * Blocos do modelo, cada um com um id próprio. O modelo exclusivo monta os
+     * dele para a loja (copia as imagens próprias para a pasta da loja).
+     */
+    public static function blocos(?string $modelo, ?LojaOnline $loja = null): array
     {
-        $blocos = (self::todos()[$modelo] ?? self::todos()[self::PADRAO])['blocos'];
+        if (self::ehExclusivo($modelo) && $loja && isset(self::exclusivos()[$modelo]['classe'])) {
+            $blocos = (self::exclusivos()[$modelo]['classe'])::blocos($loja);
+        } else {
+            $blocos = (self::catalogo()[$modelo] ?? self::todos()[self::PADRAO])['blocos'];
+        }
 
         // Passam pela mesma higiene do editor: o que sai daqui já está na forma em
         // que o editor grava (mesma ordem de chaves, opções como texto).
-        return self::limparBlocos(array_map(fn (array $b, int $i) => ['id' => 'b' . ($i + 1)] + $b, $blocos, array_keys($blocos)));
+        return self::limparBlocos(array_map(fn (array $b, int $i) => ['id' => 'b' . ($i + 1)] + $b, $blocos, array_keys($blocos)), [], $modelo);
     }
 
     /**
      * Cardápio de blocos do editor: tipo => rótulo, ícone, campos e valores iniciais.
      * Campo: [chave, rótulo, tipo de controle, opções?].
      */
-    public static function tiposDeBloco(): array
+    public static function tiposDeBloco(?string $modelo = null): array
+    {
+        return self::tiposPublicos() + (self::ehExclusivo($modelo) ? (self::exclusivos()[$modelo]['tipos'] ?? []) : []);
+    }
+
+    /** Blocos que toda loja tem. */
+    private static function tiposPublicos(): array
     {
         return [
             'banner' => [
@@ -428,9 +509,9 @@ class ModelosLoja
      * @param  array<int, mixed>  $blocos
      * @param  array<int, int>  $categoriasDaEmpresa
      */
-    public static function limparBlocos(array $blocos, array $categoriasDaEmpresa = []): array
+    public static function limparBlocos(array $blocos, array $categoriasDaEmpresa = [], ?string $modelo = null): array
     {
-        $tipos = self::tiposDeBloco();
+        $tipos = self::tiposDeBloco($modelo);
         $out = [];
 
         foreach (array_slice($blocos, 0, 30) as $bloco) {
@@ -555,7 +636,7 @@ class ModelosLoja
             }
         }
         foreach (['fonte_titulo', 'fonte_texto'] as $f) {
-            if (isset($tema[$f]) && isset(self::FONTES[$tema[$f]])) {
+            if (isset($tema[$f]) && isset(self::todasAsFontes()[$tema[$f]])) {
                 $out[$f] = $tema[$f];
             }
         }

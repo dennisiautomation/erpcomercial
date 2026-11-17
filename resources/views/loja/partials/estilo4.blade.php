@@ -175,4 +175,19 @@
   .lj-barra-compra{padding:.7rem 1rem calc(.7rem + env(safe-area-inset-bottom))}
 }
 @media (prefers-reduced-motion:reduce){.lj-galeria__pontos i,.lj-sanfona__topo i,.lj-galeria__acao{transition:none}}
+/* 17/11/2026: produtos de exemplo (só na prévia do modelo exclusivo) */
+.lj-selos .lj-selo--exemplo{background:var(--fundo);color:var(--texto);box-shadow:inset 0 0 0 1.5px currentColor}
+.lj-aviso-exemplo{display:flex;gap:.5rem;align-items:baseline;margin:0 0 1rem;padding:.6rem .85rem;border-radius:var(--raio);
+  background:var(--quadro);font-size:.88rem;color:var(--texto)}
+/* bloco "Nossas lojas" (base; o modelo exclusivo refina) */
+.lj-lojas__cabeca{margin-bottom:1.25rem}
+.lj-lojas__cabeca p{margin:.35rem 0 0;color:var(--texto-suave,inherit)}
+.lj-lojas__lista{list-style:none;margin:0;padding:0;display:grid;gap:1rem;grid-template-columns:repeat(auto-fill,minmax(240px,1fr))}
+.lj-loja{padding:1.1rem 1.2rem;border-radius:var(--raio);background:var(--quadro);position:relative}
+.lj-loja h3{margin:0 0 .15rem;font-size:1.15rem}
+.lj-loja p{margin:.3rem 0;font-size:.92rem}
+.lj-loja__n{font-size:.75rem;letter-spacing:.12em;opacity:.6}
+.lj-loja__cidade{text-transform:uppercase;letter-spacing:.08em;font-size:.75rem!important;font-weight:600}
+.lj-loja__acoes{display:flex;flex-wrap:wrap;gap:.4rem 1rem;margin-top:.7rem!important}
+.lj-loja__acoes a{color:inherit;font-weight:600;text-decoration:underline;text-underline-offset:3px}
 </style>

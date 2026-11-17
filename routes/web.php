@@ -192,6 +192,8 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
         ->name('empresas.loja-online.toggle');
     Route::post('/empresas/{empresa}/loja-online/dominio-no-ar', [Admin\LojaOnlineController::class, 'dominioNoAr'])
         ->name('empresas.loja-online.dominio-no-ar');
+    Route::post('/empresas/{empresa}/loja-online/modelo-exclusivo', [Admin\LojaOnlineController::class, 'modeloExclusivo'])
+        ->name('empresas.loja-online.modelo-exclusivo');
     Route::post('/empresas/{empresa}/loja-online', [Admin\LojaOnlineController::class, 'salvar'])
         ->name('empresas.loja-online.salvar');
     // Qual cartão o agente usa quando a empresa tem mais de um ligado (25/09/2026)

@@ -266,17 +266,17 @@ class LojaOnlineController extends Controller
             'loja' => $loja,
             'rascunho' => $loja->rascunhoEfetivo(),
             'temRascunho' => filled($loja->rascunho),
-            'modelos' => collect(ModelosLoja::todos())->map(fn ($m, $k) => [
-                'chave' => $k, 'nome' => $m['nome'], 'ramo' => $m['ramo'], 'descricao' => $m['descricao'], 'tema' => $m['tema'],
+            'modelos' => collect(ModelosLoja::paraLoja($loja))->map(fn ($m, $k) => [
+                'chave' => $k, 'nome' => $m['nome'], 'exclusivo' => ModelosLoja::ehExclusivo($k), 'ramo' => $m['ramo'], 'descricao' => $m['descricao'], 'tema' => $m['tema'],
                 'fontes' => TemaCss::fontesUrl($m['tema']), 'variaveis' => TemaCss::variaveis($m['tema']),
                 'banner' => collect($m['blocos'])->firstWhere('tipo', 'banner')['estilo'] ?? 'dividido',
                 'titulo' => collect($m['blocos'])->firstWhere('tipo', 'banner')['titulo']
                     ?? collect($m['blocos'])->firstWhere('tipo', 'carrossel')['lista'][0]['titulo'] ?? $m['nome'],
             ])->values(),
-            'tipos' => ModelosLoja::tiposDeBloco(),
-            'dicas' => ModelosLoja::DICAS,
+            'tipos' => ModelosLoja::tiposDeBloco($loja->modelo_exclusivo),
+            'dicas' => array_intersect_key(ModelosLoja::DICAS, ModelosLoja::tiposDeBloco($loja->modelo_exclusivo)),
             'exemplos' => ModelosLoja::textosDeExemplo(),
-            'fontes' => collect(ModelosLoja::FONTES)->map(fn ($f) => $f[0]),
+            'fontes' => collect(ModelosLoja::fontesDaLoja($loja))->map(fn ($f) => $f[0]),
             'opcoesTema' => ModelosLoja::OPCOES_TEMA,
             'cores' => ModelosLoja::CORES,
             'icones' => ModelosLoja::ICONES,
@@ -290,7 +290,7 @@ class LojaOnlineController extends Controller
     {
         $loja = $this->loja();
         $dados = $request->validate([
-            'modelo' => ['required', 'string', Rule::in(array_keys(ModelosLoja::todos()))],
+            'modelo' => ['required', 'string', Rule::in(array_keys(ModelosLoja::paraLoja($loja)))],
             'tema' => ['present', 'array'],
             'blocos' => ['present', 'array', 'max:30'],
         ]);
@@ -300,7 +300,7 @@ class LojaOnlineController extends Controller
         $loja->update(['rascunho' => [
             'modelo' => $dados['modelo'],
             'tema' => ModelosLoja::limparTema($dados['tema']),
-            'blocos' => ModelosLoja::limparBlocos($dados['blocos'], $categorias),
+            'blocos' => ModelosLoja::limparBlocos($dados['blocos'], $categorias, $loja->modelo_exclusivo),
         ]]);
 
         return response()->json(['ok' => true, 'rascunho' => $loja->fresh()->rascunhoEfetivo()]);
@@ -310,13 +310,13 @@ class LojaOnlineController extends Controller
     public function aplicarModelo(Request $request)
     {
         $loja = $this->loja();
-        $dados = $request->validate(['modelo' => ['required', 'string', Rule::in(array_keys(ModelosLoja::todos()))]]);
+        $dados = $request->validate(['modelo' => ['required', 'string', Rule::in(array_keys(ModelosLoja::paraLoja($loja)))]]);
 
         $logo = $loja->rascunhoEfetivo()['tema']['logo'] ?? '';
         $loja->update(['rascunho' => [
             'modelo' => $dados['modelo'],
             'tema' => array_filter(['logo' => $logo]),
-            'blocos' => ModelosLoja::blocos($dados['modelo']),
+            'blocos' => ModelosLoja::blocos($dados['modelo'], $loja),
         ]]);
 
         return response()->json(['ok' => true, 'rascunho' => $loja->fresh()->rascunhoEfetivo()]);

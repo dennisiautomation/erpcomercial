@@ -10386,3 +10386,62 @@ Mais: revisão de design da tela e fornecedor aceitando CPF.
 
 **Subida (11:41:59 → 11:42:00 BRT):** os 8 arquivos de `resources/views` conferidos iguais à `main` antes; guardados em `/home/ubuntu/erp-backups/pre-design-telas-20261117/arquivos/`; tar, `chown`, `view:cache`, USR2; md5 no ar = branch. Conferido renderizando como o admin real: editar empresa 5, 6 e 7 e Integrações 200 com a tela nova; a faixa mostrou "Configurado · produção | Chaves gravadas · aparece em 0 de 9 empresas | Ligado · 4 empresa(s) vinculada(s)" (MISS MERLINDA, DONA DOURO, N S BORBA e DK vinculadas pelo Dennis no caixa às 11:01–11:05; bloqueio automático desligado nas 4). Nenhum erro no log.
 **Rollback:** copiar `arquivos/` de volta, `view:cache`, USR2.
+
+## Modelo EXCLUSIVO da loja online — MISS MERLINDA (17/11/2026) — branch `loja-merlinda-17nov`
+
+**Pedido do Dennis (17/11):** a MISS MERLINDA (empresa 4) pagou o desenvolvimento da loja; ela não usa um dos 6 modelos públicos,
+tem um modelo só dela, que **não aparece para nenhum outro cliente**, já com o nome, a logo, as lojas físicas e banners preenchidos,
+produtos de exemplo enquanto ela marca os dela, e com o editor visual e todas as configurações funcionando.
+
+**Onde cada coisa vive: modelo exclusivo = classe em `app/Services/LojaOnline/Exclusivos/` (tema + página inicial + blocos e fontes
+próprios), visual em `resources/views/loja/modelos/{chave}.blade.php` (preso a `body[data-modelo=chave]`), imagens de partida em
+`resources/loja-modelos/{chave}/`; QUEM pode usar é a coluna `lojas_online.modelo_exclusivo`, que só o admin grava.**
+
+| Peça | Onde |
+|---|---|
+| Chave por loja | `lojas_online.modelo_exclusivo` (migration `2026_11_17_220000`, nulo = só públicos) |
+| Admin liga/tira | `/admin/empresas/{id}` → Integração → card Loja online → "Modelo exclusivo" (`Admin\LojaOnlineController::modeloExclusivo`, rota `admin.empresas.loja-online.modelo-exclusivo`) |
+| Lista pública | `ModelosLoja::todos()` — **continua só os 6**; o exclusivo NUNCA entra aqui |
+| O que a vitrine sabe desenhar | `ModelosLoja::catalogo()` = públicos + exclusivos (uso interno: tema, blocos, existe) |
+| O que a loja escolhe no editor | `ModelosLoja::paraLoja($loja)` = o exclusivo dela (primeiro) + os públicos; editor e validação (`salvarRascunho`, `aplicarModelo`) usam este |
+| Blocos e fontes do exclusivo | `tiposDeBloco($modeloExclusivo)`, `limparBlocos(..., $modeloExclusivo)`, `fontesDaLoja($loja)`; `FONTES_EXCLUSIVAS` (Gilda Display) — a vitrine desenha qualquer uma (`todasAsFontes`), o editor só oferece à dona |
+| Visual | `loja/modelos/merlinda.blade.php`, incluído no `layout` quando `$modeloLoja` (middleware) é exclusivo; `<body data-modelo="merlinda">` |
+
+**Ao ligar** (admin), `Merlinda::instalar`: copia as 18 imagens para `storage/app/public/loja-online/{empresa}/merlinda-*` (o editor troca
+como qualquer imagem da loja), grava `modelo`, logo, a página inicial publicada (9 blocos) e preenche **só as opções em branco**
+(WhatsApp do cadastro da empresa, texto do rodapé e da busca com as cidades das lojas ativas, favicon, imagem de compartilhar).
+**Ao tirar:** a loja volta ao modelo padrão, o exclusivo some do editor dela; a página publicada fica como está.
+
+**Bloco "Nossas lojas" (`lojas_fisicas`, só do exclusivo):** endereço, "Como chegar" (Google Maps) e WhatsApp de cada loja ATIVA vêm do
+cadastro das lojas no ERP — mudou em Minhas Lojas, muda na vitrine. "SN" não aparece.
+
+**Produtos de exemplo:** `Merlinda::exemplos` (8 peças, foto de banco de imagens, selo "Exemplo", sem carrinho nem favorito, link para a
+lista) entram nas fileiras de produtos **só para a casa (prévia/editor) e só enquanto `totalNaLoja() === 0`**. O público nunca vê:
+fora do ar a vitrine é 503; para pôr no ar é preciso ter produto marcado.
+
+**Fotos de partida:** banco de imagens livre (Unsplash, licença de uso comercial); trocar pelas fotos da loja no editor quando ela mandar.
+A logo foi recortada da imagem enviada pelo Dennis (fundo rosa removido) — `logo.png`, `logo-clara.png`, `favicon.png`.
+
+**Para outro cliente pagar um modelo:** nova classe em `Exclusivos/` com `modelo()` (`nome`, `ramo`, `descricao`, `classe`, `fontes`,
+`tema`, `blocos`, `tipos`), `blocos($loja)`, `instalar($loja)` e (opcional) `exemplos($loja)`; registrar em `ModelosLoja::exclusivos()`;
+visual em `loja/modelos/{chave}.blade.php`. Nada muda para as outras lojas.
+
+### Armadilhas
+- **121. Dica do editor vaza nome de bloco exclusivo:** `ModelosLoja::DICAS` é global; o editor manda `array_intersect_key(DICAS, tiposDeBloco(...))`.
+  Sem isso a outra loja via "lojas_fisicas" no HTML do editor (achado pelo roteiro, E05).
+- **122. Cópia do banco de produção em ambiente de teste:** `empresa_gateways` e `plataforma_configuracoes` são cifrados com a APP_KEY da
+  produção → "The MAC is invalid" (500) no painel e na vitrine. Na cópia, zerar esses campos (nenhum provedor é chamado no teste).
+- **123. `limparImagem` não aceita subpasta** (`loja-online/{empresa}/arquivo.ext`): por isso as imagens do modelo levam o prefixo `merlinda-` no nome.
+
+### Validação (17/11/2026, ambiente descartável `mm-*` na rede interna `ec-net`, sem internet: `mm-mysql` 10.213.80.12 com a cópia do
+banco de produção de 17/11 10:49 BRT, `mm-app` 10.213.80.13 = imagem de produção com `app config database resources routes` da worktree)
+- `scripts/validar-loja-merlinda-17nov.py`: **84 ✅ / 0 ❌** — admin libera e aplica (logo, 9 blocos, WhatsApp, cidades, 18 imagens), recusa
+  modelo inventado e lojista na rota do admin; editor da MM lista o exclusivo, o bloco e a fonte; editor da DONA DOURO não vê nada e é recusado
+  (422) forçando o modelo ou o rascunho, e não grava o bloco exclusivo; trocar para modelo público e voltar; cor + bloco novo no rascunho,
+  prévia, publicar; vitrine com folha própria, Gilda, logo, 3 capas, 8 exemplos marcados, as 6 lojas com WhatsApp do cadastro; 503 para o
+  público e para dono de outra empresa; marcar produtos pela tela some com os exemplos; pôr no ar; público vê o visual e nunca exemplo;
+  produtos, carrinho, política, favoritos e página do produto; 14 telas do painel; salvar seção sem apagar o que o modelo preencheu; tirar e
+  religar o exclusivo; nenhum erro no `laravel.log`.
+- `scripts/loja-merlinda-capturas.mjs`: computador 1366 e celular 390 sem rolagem lateral e sem erro de JavaScript; editor mostrando o modelo.
+- `tests/Feature/App/LojaModeloExclusivoTest.php` (4 testes) + phpunit inteiro.
+- **Não validado:** compra paga (ela só tem "combinar"), aparelho real.

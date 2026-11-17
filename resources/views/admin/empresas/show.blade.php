@@ -591,6 +591,25 @@
                                 </div>
                             </form>
                             <form method="POST" action="{{ route('admin.empresas.loja-online.dominio-no-ar', $empresa) }}" id="lojaDominioNoAr">@csrf</form>
+                            <hr>
+                            {{-- Modelo exclusivo (17/11/2026): modelo pago pelo cliente; só esta loja enxerga --}}
+                            <form method="POST" action="{{ route('admin.empresas.loja-online.modelo-exclusivo', $empresa) }}" class="row g-3 align-items-end"
+                                  data-confirm="Aplicar o modelo escolhido? A página inicial, a logo e os textos de partida desta loja passam a ser os do modelo (o que estava publicado é substituído).">
+                                @csrf
+                                <div class="col-md-6">
+                                    <label for="lojaModeloExclusivo" class="form-label small fw-semibold">Modelo exclusivo <span class="text-muted fw-normal">(pago pelo cliente)</span></label>
+                                    <select name="modelo_exclusivo" id="lojaModeloExclusivo" class="form-select form-select-sm">
+                                        <option value="">Nenhum — só os modelos públicos</option>
+                                        @foreach(\App\Services\LojaOnline\ModelosLoja::exclusivos() as $chaveExcl => $modeloExcl)
+                                            <option value="{{ $chaveExcl }}" @selected($lojaOnline->modelo_exclusivo === $chaveExcl)>{{ $modeloExcl['nome'] }}</option>
+                                        @endforeach
+                                    </select>
+                                    <div class="form-text">Aparece só no editor desta loja, nunca para os outros clientes. Ao escolher, a loja já recebe o modelo com logo, banners e textos.</div>
+                                </div>
+                                <div class="col-md-3">
+                                    <button type="submit" class="btn btn-sm btn-outline-primary"><i class="bi bi-stars me-1"></i> Salvar modelo</button>
+                                </div>
+                            </form>
                         @endif
                     </div>
                 </div>

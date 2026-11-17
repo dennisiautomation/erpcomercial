@@ -41,6 +41,7 @@ class LojaOnlineMiddleware
         }
 
         $tema = $ctx->rascunho ? $loja->rascunhoEfetivo()['tema'] : $loja->temaEfetivo();
+        $modeloLoja = $ctx->rascunho ? $loja->rascunhoEfetivo()['modelo'] : $loja->modelo;
 
         View::share([
             'ctx' => $ctx,
@@ -49,6 +50,8 @@ class LojaOnlineMiddleware
             'temaEstilo' => TemaCss::estilo($tema),
             'temaFontes' => TemaCss::fontesUrl($tema),
             'temaAtributos' => TemaCss::atributos($tema),
+            // 17/11/2026: modelo em uso — o modelo exclusivo carrega o visual próprio (loja/modelos/{chave})
+            'modeloLoja' => \App\Services\LojaOnline\ModelosLoja::ehExclusivo($modeloLoja) ? $modeloLoja : null,
             // 15/11/2026: conta do comprador logada nesta loja (ou null)
             'contaLoja' => $loja->opcao('conta_cliente') ? \App\Models\LojaConta::atual($loja) : null,
         ]);

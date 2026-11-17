@@ -37,9 +37,10 @@
 @include('loja.partials.estilo2')
 @include('loja.partials.estilo3')
 @include('loja.partials.estilo4')
+@if(($modeloLoja ?? null) && view()->exists('loja.modelos.' . $modeloLoja))@include('loja.modelos.' . $modeloLoja)@endif
 @stack('estilo')
 </head>
-<body {!! $temaAtributos !!} data-pagina="@yield('pagina', 'loja')">
+<body {!! $temaAtributos !!} @if($modeloLoja ?? null) data-modelo="{{ $modeloLoja }}" @endif data-pagina="@yield('pagina', 'loja')">
 <a class="lj-pular" href="#conteudo">Pular para o conteúdo</a>
 @if($ctx->rascunho)
     <div class="lj-previa">Prévia do editor — o público ainda não vê estas mudanças.</div>

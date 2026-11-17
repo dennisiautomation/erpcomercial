@@ -84,7 +84,7 @@ class TemaCss
     /** @return array<string, string> variável CSS => valor */
     public static function variaveis(array $tema): array
     {
-        $fontes = ModelosLoja::FONTES;
+        $fontes = ModelosLoja::todasAsFontes();
 
         return [
             '--marca' => $tema['cor_primaria'],
@@ -103,7 +103,7 @@ class TemaCss
             '--fonte-titulo' => $fontes[$tema['fonte_titulo']][1] ?? $fontes['sistema'][1],
             '--fonte-texto' => $fontes[$tema['fonte_texto']][1] ?? $fontes['sistema'][1],
             // Preço: fontes de alto contraste (Bodoni) leem mal em números pequenos — o preço usa a de texto.
-            '--fonte-preco' => $fontes[$tema['fonte_titulo'] === 'bodoni' ? $tema['fonte_texto'] : $tema['fonte_titulo']][1] ?? $fontes['sistema'][1],
+            '--fonte-preco' => $fontes[in_array($tema['fonte_titulo'], ['bodoni', 'gilda'], true) ? $tema['fonte_texto'] : $tema['fonte_titulo']][1] ?? $fontes['sistema'][1],
             '--raio' => ((int) $tema['raio']) . 'px',
             '--raio-botao' => match ($tema['botao']) {
                 'reto' => '0px', 'pilula' => '999px', default => min(12, max(6, (int) $tema['raio'])) . 'px',
@@ -126,7 +126,7 @@ class TemaCss
     {
         $familias = [];
         foreach (array_unique([$tema['fonte_titulo'], $tema['fonte_texto']]) as $f) {
-            $param = ModelosLoja::FONTES[$f][2] ?? '';
+            $param = ModelosLoja::todasAsFontes()[$f][2] ?? '';
             if ($param !== '') {
                 $familias[] = 'family=' . $param;
             }

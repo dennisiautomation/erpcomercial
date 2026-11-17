@@ -93,6 +93,47 @@ class LojaOnlineController extends Controller
             ->with('abrir_integracao', true);
     }
 
+    /**
+     * Modelo exclusivo (17/11/2026): a PLATAFORMA dá a uma loja um modelo pago por
+     * ela. Ao ligar, o modelo é aplicado (logo, página inicial com as imagens, opções
+     * em branco preenchidas). Ao tirar, a loja volta ao modelo padrão e o modelo
+     * some do editor dela — a página inicial publicada continua como está.
+     */
+    public function modeloExclusivo(Request $request, Empresa $empresa): RedirectResponse
+    {
+        abort_unless($request->user()->is_admin, 403);
+
+        $loja = LojaOnline::daEmpresa($empresa->id);
+        abort_unless($loja, 404);
+
+        $dados = $request->validate([
+            'modelo_exclusivo' => ['nullable', 'string', Rule::in(array_keys(ModelosLoja::exclusivos()))],
+        ]);
+        $novo = $dados['modelo_exclusivo'] ?? null;
+        $antigo = $loja->modelo_exclusivo;
+
+        if ($novo === $antigo) {
+            return redirect()->route('admin.empresas.show', $empresa)->with('success', 'Nada mudou no modelo exclusivo.')->with('abrir_integracao', true);
+        }
+
+        $loja->update(['modelo_exclusivo' => $novo]);
+
+        if ($novo) {
+            $classe = ModelosLoja::exclusivos()[$novo]['classe'];
+            $classe::instalar($loja->fresh());
+            $mensagem = 'Modelo exclusivo "' . ModelosLoja::exclusivos()[$novo]['nome'] . '" aplicado: logo, página inicial e textos de partida já estão na loja. Só esta loja vê este modelo.';
+        } else {
+            $mudar = ['rascunho' => null];
+            if (ModelosLoja::ehExclusivo($loja->modelo)) {
+                $mudar['modelo'] = ModelosLoja::PADRAO;
+            }
+            $loja->update($mudar);
+            $mensagem = 'Modelo exclusivo retirado: a loja voltou ao modelo padrão e ele não aparece mais no editor dela.';
+        }
+
+        return redirect()->route('admin.empresas.show', $empresa)->with('success', $mensagem)->with('abrir_integracao', true);
+    }
+
     /** A equipe emitiu o certificado do domínio do cliente: marca "no ar" (ou desfaz). */
     public function dominioNoAr(Request $request, Empresa $empresa): RedirectResponse
     {

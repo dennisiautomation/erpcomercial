@@ -15,6 +15,9 @@
             </div>
         @endif
     </div>
+    @if($bloco['exemplo'] ?? false)
+        <p class="lj-aviso-exemplo"><i class="bi bi-eye" aria-hidden="true"></i> Produtos de exemplo, só na prévia: somem sozinhos quando você marcar os seus em <strong>Loja online → Produtos</strong>.</p>
+    @endif
     @if($bloco['produtos']->isEmpty())
         <div class="lj-vazio">Esta fileira está vazia: nenhum produto da loja se encaixa em “{{ ['destaques' => 'marcados como destaque', 'novidades' => 'os mais novos', 'promocoes' => 'em promoção', 'categoria' => 'da categoria escolhida', 'todos' => 'todos'][$bloco['origem'] ?? 'novidades'] ?? '' }}”. O público não vê fileira vazia.</div>
     @else

@@ -42,12 +42,27 @@ class VitrineController extends Controller
         $mosaico = null;
         $comFoto = null;
         $proximoProduto = 0;
+        // 17/11/2026: modelo exclusivo com produtos de exemplo — só para a casa (prévia/editor) e só
+        // enquanto nenhum produto real está marcado. O público nunca vê (loja fora do ar = 503; no ar = tem produto).
+        $modeloEx = \App\Services\LojaOnline\ModelosLoja::exclusivos()[$this->ctx->rascunho ? $loja->rascunhoEfetivo()['modelo'] : $loja->modelo]['classe'] ?? null;
+        $exemplos = $modeloEx && ($this->ctx->previa || $this->ctx->rascunho) && $catalogo->totalNaLoja() === 0
+            ? $modeloEx::exemplos($loja) : null;
         foreach ($blocos as $bloco) {
             if (($bloco['tipo'] ?? '') === 'vitrine') {
                 $bloco['produtos'] = $catalogo->fileira((string) ($bloco['origem'] ?? 'novidades'),
                     isset($bloco['categoria_id']) ? (int) $bloco['categoria_id'] : null, (int) ($bloco['quantidade'] ?? 8));
+                if ($bloco['produtos']->isEmpty() && $exemplos) {
+                    $bloco['produtos'] = ($bloco['origem'] ?? '') === 'destaques' ? $exemplos->reverse()->values() : $exemplos;
+                    $bloco['exemplo'] = true;
+                }
                 if ($bloco['produtos']->isEmpty() && ! $this->ctx->rascunho) {
                     continue; // fileira vazia não aparece para o público
+                }
+            } elseif (($bloco['tipo'] ?? '') === 'lojas_fisicas') {
+                // Nossas lojas: endereço e WhatsApp vêm do cadastro das lojas no ERP (um lugar só)
+                $bloco['unidades'] = \App\Services\LojaOnline\Exclusivos\Merlinda::unidades($loja);
+                if ($bloco['unidades']->isEmpty()) {
+                    continue;
                 }
             } elseif (($bloco['tipo'] ?? '') === 'categorias') {
                 $bloco['categorias'] = $categorias;

@@ -259,7 +259,7 @@
             ]);
             lista.appendChild(el('button', {type: 'button', class: 'ed-modelo', 'aria-pressed': m.chave === estado.modelo ? 'true' : 'false', onclick: function () { trocarModelo(m); }}, [
                 amostra,
-                el('div', {class: 'fw-semibold', text: m.nome + (m.chave === estado.modelo ? ' — em uso' : '')}),
+                el('div', {class: 'fw-semibold', text: m.nome + (m.exclusivo ? ' · exclusivo da sua loja' : '') + (m.chave === estado.modelo ? ' — em uso' : '')}),
                 el('div', {class: 'small text-muted', text: m.ramo + '. ' + m.descricao})
             ]));
         });

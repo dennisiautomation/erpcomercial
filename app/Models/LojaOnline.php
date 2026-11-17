@@ -25,7 +25,7 @@ class LojaOnline extends Model
     protected $fillable = [
         'empresa_id', 'ativo', 'publicada', 'slug', 'dominio', 'dominio_status', 'dominio_obs', 'dominio_conferido_em', 'nome',
         'unidade_id', 'estoque_id', 'vendedor_id',
-        'modelo', 'tema', 'blocos', 'rascunho', 'config', 'publicada_em',
+        'modelo', 'modelo_exclusivo', 'tema', 'blocos', 'rascunho', 'config', 'publicada_em',
     ];
 
     /** Opções da loja com o valor de fábrica (o que não está gravado vale isto). */
@@ -145,7 +145,7 @@ class LojaOnline extends Model
     /** Blocos da página inicial (publicados). Loja nova usa os do modelo. */
     public function blocosEfetivos(): array
     {
-        return $this->blocos ?: ModelosLoja::blocos($this->modelo);
+        return $this->blocos ?: ModelosLoja::blocos($this->modelo, $this);
     }
 
     /**

@@ -10,12 +10,15 @@
             @endif
         </a>
         <div class="lj-selos">
+            @if($p['exemplo'] ?? false)<span class="lj-selo lj-selo--exemplo">Exemplo</span>@endif
             @if($p['promocao'] && $p['normal'] > 0)<span class="lj-selo">-{{ max(1, (int) round((1 - $p['preco'] / $p['normal']) * 100)) }}%</span>@endif
             @if(! $p['disponivel'])<span class="lj-selo lj-selo--fim">Esgotado</span>
             @elseif($p['novo'] && ! $p['promocao'])<span class="lj-selo lj-selo--novo">Novo</span>@endif
             @if($p['frete_gratis'] && $p['disponivel'])<span class="lj-selo lj-selo--frete">Frete grátis</span>@endif
         </div>
+        @unless($p['exemplo'] ?? false)
         <button type="button" class="lj-fav" data-lj-fav="{{ $p['id'] }}" aria-pressed="false" aria-label="Guardar {{ $p['nome'] }} nos favoritos"><i class="bi bi-heart" aria-hidden="true"></i></button>
+        @endunless
         @if($p['grade'] ?? false)
             {{-- produto com grade: tamanho/cor se escolhe na página --}}
             <div class="lj-card__add"><a class="lj-mais" href="{{ $ctx->url($p['caminho']) }}" aria-label="Ver as opções de {{ $p['nome'] }}"><i class="bi bi-sliders" aria-hidden="true"></i><span>Ver opções</span></a></div>
