@@ -7668,6 +7668,12 @@ da troca de peça paga no cartão; cancelar os 2 vales de teste da STILO se o De
 ### Próximos passos da STILO
 - **Gersen:** a integração da STILO lê as vendas do Gestão Click. Quando as lojas passarem a vender pelo ERP, trocar para a
   integração ERPIA365 (como a DONA DOURO), senão o Gersen para de ver as vendas.
+  - ✅ **Feito em 19/11/2026:** o Gersen da STILO lê o ERP (integração ERPIA365 ativada 08:23 BRT, re-sync de 01/11). A diferença
+    reclamada (R$ 18,6 mil) eram 3 vendedoras (Maisa, Andressa, Thuany) **inativas no Gersen** (saíram da empresa), sem vínculo e
+    puladas; vinculadas sem reativar + re-sync → 03–19/11 bate dia a dia. Telas conferidas: ERP › Vendas (todas as lojas,
+    01–19/11) 2.531 / R$ 205.258,05 × Gersen 2.527 / R$ 205.069,55 — resto = R$ 128,50 de gerente/dono (ignorados de propósito)
+    + 1 venda do dia ainda não sincronizada. O Gersen conta só `concluida` (devolvida fica fora). Detalhe no docs.md do Gersen,
+    branch `docs/stilo-erpia365-vendedoras-19nov`.
 - Avisar a contabilidade da NFC-e nº 1 autorizada (25/07) que saiu do banco e continua na SEFAZ.
 - Outlet e Barroso estão com estoque 0: se forem operar pelo ERP, importar o saldo delas da mesma coleta (com delta).
 - Scripts da coleta/importação em `scripts/stilo-gestaoclick/` (README).
