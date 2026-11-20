@@ -135,7 +135,7 @@ class EmpresaController extends Controller
 
         // Aba Treinamento: quem da empresa assistiu cada vídeo ativo
         $treinamentos = Treinamento::where('ativo', true)
-            ->whereNotNull('arquivo')->orderBy('ordem')->orderBy('id')->get();
+            ->whereNotNull('arquivo')->orderByRaw("secao = 'erp' desc")->orderBy('secao')->orderBy('ordem')->orderBy('id')->get();
 
         return view('admin.empresas.show', compact('empresa', 'treinamentos'));
     }

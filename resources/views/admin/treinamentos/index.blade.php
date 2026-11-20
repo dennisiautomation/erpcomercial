@@ -16,6 +16,7 @@
                 <tr>
                     <th>Ordem</th>
                     <th>Título</th>
+                    <th>Seção</th>
                     <th class="text-end">Tamanho</th>
                     <th>Perfis</th>
                     <th class="text-center">Status</th>
@@ -33,6 +34,7 @@
                                 <div class="small text-muted">{{ \Illuminate\Support\Str::limit($treinamento->descricao, 90) }}</div>
                             @endif
                         </td>
+                        <td><span class="badge bg-light text-dark border">{{ $treinamento->secaoNome() }}</span></td>
                         <td class="text-end">{{ number_format($treinamento->tamanho / 1048576, 1, ',', '.') }} MB</td>
                         <td>
                             <span class="badge bg-light text-dark border">Dono</span>

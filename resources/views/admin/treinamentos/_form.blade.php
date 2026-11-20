@@ -4,11 +4,20 @@
     <div class="card-header"><h6 class="mb-0">Informações Basicas</h6></div>
     <div class="card-body">
         <div class="row g-3">
-            <div class="col-md-6">
+            <div class="col-md-5">
                 <label for="titulo" class="form-label">Título <span class="text-danger">*</span></label>
                 <input type="text" class="form-control @error('titulo') is-invalid @enderror"
                        id="titulo" name="titulo" value="{{ old('titulo', $t?->titulo) }}" required>
                 @error('titulo') <div class="invalid-feedback">{{ $message }}</div> @enderror
+            </div>
+            <div class="col-md-3">
+                <label for="secao" class="form-label">Seção</label>
+                <select class="form-select @error('secao') is-invalid @enderror" id="secao" name="secao">
+                    @foreach(\App\Models\Treinamento::SECOES as $chave => $nome)
+                        <option value="{{ $chave }}" @selected(old('secao', $t?->secao ?? 'erp') === $chave)>{{ $nome }}</option>
+                    @endforeach
+                </select>
+                @error('secao') <div class="invalid-feedback">{{ $message }}</div> @enderror
             </div>
             <div class="col-md-2">
                 <label for="ordem" class="form-label">Ordem <span class="text-danger">*</span></label>
@@ -25,8 +34,8 @@
                 </div>
             </div>
             <div class="col-12">
-                <label class="form-label mb-1">Quem vê este video <span class="text-danger">*</span></label>
-                <div class="form-text mt-0 mb-2">Administrador, Dono e Gerente veem todos os videos.</div>
+                <label class="form-label mb-1">Quem mais vê este vídeo</label>
+                <div class="form-text mt-0 mb-2">Administrador, Dono e Gerente veem todos os vídeos. Sem nenhum marcado, só eles veem.</div>
                 @php($marcados = old('perfis', $t?->perfis ?? array_map(fn ($p) => $p->value, \App\Models\Treinamento::PERFIS)))
                 <div class="d-flex flex-wrap gap-3">
                     @foreach(\App\Models\Treinamento::PERFIS as $perfil)

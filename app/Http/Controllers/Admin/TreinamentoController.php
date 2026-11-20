@@ -21,9 +21,9 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
  */
 class TreinamentoController extends Controller
 {
-    private const PASTA = 'treinamentos';
+    public const PASTA = 'treinamentos';
 
-    private const EXTENSOES = ['mp4', 'webm', 'm4v', 'mov'];
+    public const EXTENSOES = ['mp4', 'webm', 'm4v', 'mov'];
 
     /** Teto do pedaço: o nginx do host (fora da imagem) aceita 50M por request. */
     private const PEDACO_MAX = 40 * 1024 * 1024;
@@ -36,7 +36,7 @@ class TreinamentoController extends Controller
         abort_unless($request->user()->is_admin, 403);
 
         $treinamentos = Treinamento::withCount('usuariosConcluidos')
-            ->orderBy('ordem')->orderBy('id')->get();
+            ->orderByRaw("secao = 'erp' desc")->orderBy('secao')->orderBy('ordem')->orderBy('id')->get();
 
         return view('admin.treinamentos.index', compact('treinamentos'));
     }
@@ -213,10 +213,11 @@ class TreinamentoController extends Controller
     {
         $dados = [
             'titulo'    => $validated['titulo'],
+            'secao'     => $validated['secao'] ?? 'erp',
             'descricao' => $validated['descricao'] ?? null,
             'ordem'     => $validated['ordem'],
             'ativo'     => $request->boolean('ativo'),
-            'perfis'    => array_values($validated['perfis']),
+            'perfis'    => array_values($validated['perfis'] ?? []),
         ];
 
         if (! empty($validated['arquivo'])) {
@@ -242,7 +243,9 @@ class TreinamentoController extends Controller
             'titulo'    => ['required', 'string', 'max:255'],
             'descricao' => ['nullable', 'string'],
             'ordem'     => ['required', 'integer', 'min:0'],
-            'perfis'    => ['required', 'array', 'min:1'],
+            'secao'     => ['nullable', 'in:' . implode(',', array_keys(Treinamento::SECOES))],
+            // Nenhum marcado = só admin da empresa, dono e gerente (ex.: curso da loja online).
+            'perfis'    => ['nullable', 'array'],
             'perfis.*'  => ['in:' . implode(',', array_map(fn ($p) => $p->value, Treinamento::PERFIS))],
             // Só o nome que o `upload` devolveu — nunca um caminho vindo do navegador.
             // `bail`: a closure só roda se o regex passou (com "../x" o Storage lançaria

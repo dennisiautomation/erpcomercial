@@ -21,8 +21,23 @@ class Treinamento extends Model
         Perfil::Consulta,
     ];
 
+    /**
+     * Seções da tela de Treinamento (20/11/2026), na ordem em que aparecem.
+     * O curso da loja online fica na mesma tela, em bloco próprio.
+     */
+    public const SECOES = [
+        'erp' => 'Sistema',
+        'loja_online' => 'Loja online',
+    ];
+
+    public function secaoNome(): string
+    {
+        return self::SECOES[$this->secao] ?? self::SECOES['erp'];
+    }
+
     protected $fillable = [
         'titulo',
+        'secao',
         'descricao',
         'arquivo',
         'tamanho',
@@ -68,7 +83,7 @@ class Treinamento extends Model
             $query->whereJsonContains('perfis', self::perfilDe($user));
         }
 
-        return $query->orderBy('ordem')->orderBy('id');
+        return $query->orderByRaw("secao = 'erp' desc")->orderBy('secao')->orderBy('ordem')->orderBy('id');
     }
 
     /** Usado no acompanhamento do admin: o vídeo é do perfil deste usuário? */

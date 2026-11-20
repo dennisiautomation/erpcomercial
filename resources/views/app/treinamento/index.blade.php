@@ -38,7 +38,15 @@
         <div class="card shadow-sm">
             <div class="card-header"><h6 class="mb-0">Vídeos</h6></div>
             <div class="list-group list-group-flush" id="treinoLista">
+                @php $secaoAtual = null; $variasSecoes = $treinamentos->pluck('secao')->unique()->count() > 1; @endphp
                 @foreach($treinamentos as $treinamento)
+                    @if($variasSecoes && $treinamento->secao !== $secaoAtual)
+                        @php $secaoAtual = $treinamento->secao; $daSecao = $treinamentos->where('secao', $secaoAtual); @endphp
+                        <div class="list-group-item bg-body-tertiary d-flex justify-content-between align-items-center py-2" data-treino-secao="{{ $secaoAtual }}">
+                            <span class="fw-semibold small text-uppercase">{{ $treinamento->secaoNome() }}</span>
+                            <span class="small text-muted">{{ $daSecao->filter(fn ($x) => isset($concluidos[$x->id]))->count() }} de {{ $daSecao->count() }}</span>
+                        </div>
+                    @endif
                     <button type="button" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center gap-2"
                             data-id="{{ $treinamento->id }}"
                             data-titulo="{{ $treinamento->titulo }}"
