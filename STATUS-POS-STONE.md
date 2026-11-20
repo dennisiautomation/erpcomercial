@@ -1,82 +1,91 @@
 # Status dos projetos — maquininha Stone (JL Expresso e IA365)
 
-Atualizado em **17/11/2026**. Este arquivo é o mesmo nos três repositórios.
+Atualizado em **20/11/2026**. Este arquivo é o mesmo nos três repositórios.
 
 | Projeto | Repositório | Branch atual | Situação |
 |---|---|---|---|
-| JL Passagens (app) | `dennisiautomation/APP-STONE-JL` | `stone-homologacao` | 1.2.2 recusada (guia não chegou ao portal); 1.2.3 reenviada em 17/11 com arquivos conferidos |
-| IA365 Vendas (app) | `dennisiautomation/APP-IA365-STONE` | `stone-homologacao` | 1.0.0 recusada (APK não chegou ao portal); 1.0.1 reenviada em 17/11 com arquivos conferidos |
-| ERP Comercial (backend) | `dennisiautomation/erpcomercial` | `feature/pos-stone-app` | API da maquininha no ar na homologação; não está em produção |
+| JL Passagens (app) | `dennisiautomation/APP-STONE-JL` | `stone-homologacao` | 1.2.3 aprovada para piloto em 19/11, **mas não abre em máquina real**; **1.2.4 enviada à Stone em 20/11** (aguardando) |
+| IA365 Vendas (app) | `dennisiautomation/APP-IA365-STONE` | `stone-homologacao` | **1.0.1 aprovada para piloto em 19/11, funcionando no piloto** |
+| ERP Comercial (backend) | `dennisiautomation/erpcomercial` | `feature/pos-stone-app` | API da maquininha no ar na homologação **e em produção** |
+
+## Como a Stone publica uma versão (Central de Ajuda, conferido em 20/11)
+
+1. **Versionamento** (Partner Hub › Integração › Homologações › Nova Homologação › SDK Android › escolher o app): toda versão
+   nova passa pela Stone, mesmo com o app só em piloto. No versionamento a análise é só do time de QA: assinar o APK com os
+   fabricantes, testar download e instalação nos POS e distribuir. Não há outro caminho: o POS só instala APK assinado pela Stone.
+2. **Aprovado para piloto:** o piloto já é o ambiente de **produção da Stone**, com alcance restrito aos Stone Codes que a gente
+   inclui ("1 Cliente +", pede CNPJ). A versão nova precisa ser incluída de novo no piloto depois de aprovada.
+3. **Rollout:** obrigatório depois do piloto; libera para todos os clientes do app. Não fazer às sextas (suporte só em dias
+   úteis, 9h–18h). Depois do rollout, novos clientes entram por Integração › Ativação de Produto.
+4. Depois de incluir no piloto ou fazer rollout: ~10 min para o download ficar disponível; o POS procura atualização em até
+   3 h, ou na hora se reiniciar com Wi-Fi.
 
 ## JL Passagens — app de venda de passagens
 
-- **Versão:** 1.2.3 (versionCode 6), pacote `br.com.jlexpresso.passagens.pos`, integração Deeplink.
-- **Homologação Stone:** enviada em 14/11/2026 pelo Partner Hub (parceiro iAutomation Consultoria). Prazo de resposta: até 5 dias úteis.
-- **Testes do roteiro (10/11, Positivo D400):** crédito negado R$ 0,51 e R$ 0,55, crédito aprovado R$ 5,00, débito aprovado R$ 80,00 e os dois cancelamentos. Parcelado não se aplica. PIX não executado.
+- **Versão em análise:** 1.2.4 (versionCode 7), pacote `br.com.jlexpresso.passagens.pos`, Deeplink. Enviada em 20/11 por
+  Versionamento; roteiro e Teste 001 refeitos; APK, roteiro e guia baixados de volta do armazenamento da Stone e conferidos.
+- **Defeito da 1.2.3 (20/11):** na Sunmi P2-B do piloto o app abria em tela branca e fechava. O APK release (R8 em modo
+  completo) quebrava no início ("Missing type parameter", Gson) e a venda também falharia ("Class cannot be cast to
+  ParameterizedType", Retrofit). O roteiro de 10/11 foi feito com o build `positivo`, sem R8; o APK release nunca tinha sido
+  aberto num aparelho. Correção na 1.2.4: `android.enableR8.fullMode=false` + regras de keep. Testado no emulador com o APK
+  exato enviado: abre, login, trechos, viagens e mapa de poltronas (pagamento só na maquininha).
+- **Regra nova:** antes de qualquer envio à Stone, abrir o APK release exato num emulador ou aparelho.
+- **Piloto:** CNPJ 29.284.757/0001-36, Stone Code 633980167 (Sunmi P2-B). Quando a 1.2.4 for aprovada, incluir de novo no
+  piloto, reiniciar a P2-B e testar com `JL-TESTE`.
+- **Servidores:** o mesmo APK usa `app.jlexpresso.com` (produção, ainda 404 no módulo) e cai para `passagens.jlexpresso.com`
+  (teste). Decisão do Dennis: o JL usa o teste por enquanto.
 - **Vídeo:** https://youtu.be/bfNX3Z_PLR4 (não listado).
-- **Servidores:** o mesmo APK usa `app.jlexpresso.com` (produção) e cai para `passagens.jlexpresso.com` (teste) enquanto a produção não tiver o módulo. Código `JL-TESTE` força o teste.
-- **Hoje:** a produção ainda não tem o módulo de passagens, então o app usa o servidor de teste.
-- **Documentação:** `README.md`, `docs.md` (seção 17) e `docs/stone/homologacao/`.
+- **Documentação:** `docs.md` (seção 17), `docs/stone/homologacao/evidencias/RESULTADOS-2026-11-10.md`.
 
 Falta:
-1. Resposta da Stone. Se pedirem correção: versionCode 6 e reenvio em Homologação › Versionamento.
-2. Publicar o módulo de passagens em `app.jlexpresso.com` (branch `feat/passagens` do backend `jlexpessoencomendas`).
-3. Conferir se a chave da API de produção é a mesma do teste.
-4. Horário de atendimento e suporte técnico no Fale Conosco (vazios no backend).
-5. Manter o servidor de teste e o usuário de teste no ar enquanto a Stone avalia.
-6. A `main` deste repositório é antiga; o código atual está em `stone-homologacao`.
+1. Aprovação da 1.2.4 pela Stone e teste na P2-B (abrir, venda pequena, cancelamento).
+2. Rollout (não às sextas; freezes da Stone 21/11–04/12 e 21/12–03/01).
+3. Publicar o módulo de passagens em `app.jlexpresso.com` quando o Dennis decidir.
+4. A `main` deste repositório é antiga; o código atual está em `stone-homologacao`.
 
 ## IA365 Vendas — app do ERP na maquininha
 
-- **Versão:** 1.0.1 (versionCode 2), pacote `br.com.ia365.vendas.pos`, integração Deeplink.
-- **Funções:** venda (PDV), pedido, caixa, clientes, e o pedido de balcão/cafeteria (nome ou mesa, cobrado depois).
-- **Servidores (16/11):** o release (APK da Stone) tenta `erp.ia365.com.br` e cai para `homolog-erp.ia365.com.br` se a produção responder 404 ou 422 no login, igual ao JL; faixa "SERVIDOR DE TESTE" na homologação. Maquininha de teste (`positivo`) → só homologação; emulador (`debug`) → cópia local. Decisão do Dennis: produção só depois de a Stone aprovar.
-- **Homologação Stone:** enviada em 16/11/2026 pelo Partner Hub (nova aplicação, 1.0.0 build 1, APK assinado com `release.jks`). Status: "Aguardando aprovação do time de integrações". Prazo: até 5 dias úteis.
-- **Roteiro (16/11, Gertec GPOS730):** 002 e 003 negados como esperado; 004 crédito R$ 5,00 e 006 crédito 2x R$ 100,00 aprovados; 008 débito R$ 80,00 aprovado; 005, 007 e 009 cancelamentos aprovados. PIX (010) não feito: desabilitado no terminal de sandbox (não obrigatório).
+- **Versão no ar:** 1.0.1 (versionCode 2), aprovada para piloto em 19/11, pacote `br.com.ia365.vendas.pos`, Deeplink.
+- **Piloto:** Stone Code 633980167 (Sunmi P2-B). Vendas reais nº 30 e 31 em produção (empresa 1 ia365, loja Dennis Canteli).
+- **Recibo espaçado na P2-B (20/11):** a P2-B põe espaço grande em volta de cada item de impressão. Corrigido **no servidor**
+  (ERP `PosCupomService::compactar`, em produção desde 20/11): o recibo vai em ~6 blocos, letra média, TOTAL numa linha,
+  quebra por palavra. Vale para a 1.0.1, sem reenvio. A 1.0.2 do app (mesma correção no app) **não foi enviada**.
+- **Servidores:** tenta `erp.ia365.com.br`; cai para `homolog-erp.ia365.com.br` só com 404/422 no login.
+- **NFC-e:** a loja Dennis Canteli não tem Configurações da Loja salvas (cupom automático no cartão desligado) e o fiscal da
+  empresa 1 está em homologação; por isso a venda sai com RECIBO. Decisão do Dennis.
 - **Vídeo:** https://youtube.com/shorts/jvsAmtstm0M (não listado).
-- **Teste na homologação do ERP:** usuário `stone.teste@cafe.demo` (gerente, Café Demo / loja Café Paulista; senha no `local.properties`), produtos TESTE STONE (ids 177–182).
-- **Suporte no app:** (11) 98802-7022 (telefone e WhatsApp), suporte@ia365.com.br.
-- **Documentação:** `README.md`, `docs/REQUISITOS.md` e `docs/stone/homologacao/` (evidências, `RESULTADOS-2026-11-16.md`, roteiro e guia em PDF, scripts, `ROTEIRO-VIDEO.md`).
+- **Documentação:** `README.md`, `docs/REQUISITOS.md`, `docs/stone/homologacao/` (`RESULTADOS-2026-11-16.md`).
 
 Falta:
-1. Resposta da Stone. Se pedirem correção: versionCode 2 e reenvio em Homologação › Versionamento.
-2. Backup de `release.jks` e `keystore.properties` (sem eles não dá para atualizar o app na Stone).
-3. Publicar a API em produção depois da aprovação: o mesmo APK passa a usar a produção sozinho.
-4. Atualizar a Positivo D400, que ainda está com o APK antigo (servidor local).
+1. Rodar o piloto por alguns dias (vendas, cancelamento, fechamento de caixa) e depois o rollout.
+2. Backup de `release.jks` e `keystore.properties`.
+3. Se quiser o recibo idêntico ao da Stone: imprimir como imagem (exige versão nova do app).
 
 ## ERP Comercial — backend da maquininha
 
-- **API:** `api/integracao/pos/v1`, na branch `feature/pos-stone-app`.
-- **Homologação:** no ar em `https://homolog-erp.ia365.com.br` desde 14/11/2026.
-- **Produção:** `https://erp.ia365.com.br` ainda responde 404 nessas rotas.
-- **Documentação:** `docs.md`, blocos "Atualização 14/11/2026" e "Atualização 16/11/2026" dentro de "App POS Stone".
+- **API:** `api/integracao/pos/v1`, branch `feature/pos-stone-app`; no ar em homologação e em produção.
+- **20/11:** correção do recibo aplicada em produção por `docker cp` com ordem do Dennis (rollback em
+  `/home/ubuntu/erp-backups/pos-cupom-20nov/`); ver `docs.md`, "Atualização 20/11/2026".
+- **Atenção no próximo deploy:** o código em produção não bate com nenhuma branch (290 arquivos copiados por cima da imagem e
+  `CheckPermission.php` alterado sem commit em `/home/ubuntu/apps/erp-producao-17nov`). Build pelo git sem conferir isso
+  desfaz alterações que estão no ar.
 
-Falta:
-1. Merge da `main` de 14/11 (formas de pagamento configuráveis por empresa) na branch. O POS ainda usa as quatro formas fixas; esse encaixe precisa ser conferido.
-2. Rodar PHPUnit e o roteiro de validação (não rodados em 14/11).
-3. Deploy em produção com as migrations `pos_*`.
-
-**Lição de 17/11 (as duas recusas):** a barra verde do Partner Hub não garante que o arquivo subiu. O guia do JL 1.2.2 e o
-APK do IA365 1.0.0 não existiam no armazenamento da Stone. Nos reenvios, cada arquivo foi baixado de volta do
-armazenamento e comparado com o original antes de clicar em Enviar.
-
-## Maquininhas de teste (Stone Code de teste 206192723)
+## Maquininhas
 
 | Terminal | Serial | Situação |
 |---|---|---|
-| Positivo D400 | 4AK459T1G | Ativada. JL Passagens 1.2.2; IA365 Vendas antigo. No Partner Hub o serial está digitado `4ak129t1g`, sem impacto |
-| Gertec GPOS730 | 6801132650000263 | Ativada em 14/11 após recadastro do modelo (estava como GPOS700X). JL Passagens 1.2.2 e IA365 Vendas 1.0.0 (build positivo de 16/11). PIX desabilitado no sandbox |
-| Sunmi P2 | PB09218474721 | Vinculado no Partner Hub; não usado nesta rodada |
+| Positivo D400 (teste) | 4AK459T1G | IA365 Vendas 1.0.2 de teste (build positivo) logado na homologação; imprime colado |
+| Gertec GPOS730 (teste) | 6801132650000263 | JL e IA365 em builds de teste; imprime colado; PIX desabilitado no sandbox |
+| Sunmi P2-B (comercial, piloto) | PB09218474721 | Stone Code 633980167. IA365 1.0.1 ok; JL 1.2.3 não abre (aguarda 1.2.4). Sem USB/adb |
 
 Dicas que custaram tempo:
-- A Stone cancela o pagamento após ~20 s sem cartão; o cancelamento às vezes pede a senha administrativa do terminal.
-- Ativação no sandbox: usar Wi-Fi com dados móveis desligados; pelo chip o servidor recusa a conexão.
-- "Unprocessable entity" na ativação: cadastro do terminal errado na Stone. Recadastrar pelo formulário "Adicionar novo meio de captura ao STONECODE de teste".
-- `adb` não lista o terminal com o Chrome aberto: desmarcar "Discover USB devices" em `chrome://inspect/#devices` e reconectar.
-- A GPOS730 aceita o APK assinado com a chave debug da Positivo.
+- A Stone cancela o pagamento após ~20 s sem cartão.
+- A barra verde do Partner Hub não garante o upload: baixar cada arquivo do armazenamento e comparar antes de Enviar.
+- Com bateria baixa (D400 a 1–2%) a impressora não imprime, mas o app da Stone responde "SUCCESS".
+- `adb` não lista o terminal com o Chrome aberto: desmarcar "Discover USB devices" em `chrome://inspect/#devices`.
 
 ## Fora dos repositórios (backup à parte)
 
-- `release.jks` e `keystore.properties` do JL Passagens — sem a chave não dá para atualizar o app na Stone.
-- `local.properties` dos dois apps (URLs, chave da API, Stone Code, usuários de teste).
-- Chave debug da Positivo (`positivo/`), APKs gerados (`dist/`) e o vídeo de demonstração.
+- `release.jks` e `keystore.properties` dos dois apps — sem a chave não dá para atualizar o app na Stone.
+- `local.properties` dos dois apps (URLs, chaves, Stone Code, usuários de teste).
+- Chave debug da Positivo (`positivo/`), APKs gerados (`dist/`) e os vídeos.
