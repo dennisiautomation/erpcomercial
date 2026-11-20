@@ -606,15 +606,6 @@ html.js .rv.in{opacity:1;transform:none}
   </div>
 </section>
 
-<section class="prova">
-  {{-- Números reais de uso (banco de produção, 30 dias até 14/11/2026). Atualizar ou retirar antes de publicar. --}}
-  <div class="proof">
-    <div><b class="num"><span data-count="14">14</span> lojas</b><span>de duas redes de Teresina já operam no sistema</span></div>
-    <div><b class="num"><span data-count="7900">7.900</span>+</b><span>vendas passaram por elas nos últimos 30 dias</span></div>
-    <div><b class="num"><span data-count="54">54</span> pessoas</b><span>usam todo dia: dono, gerente, caixa e vendedor</span></div>
-  </div>
-</section>
-
 <section class="sec vid" id="video">
   <div class="wrap">
     <div class="sec__head">
@@ -622,8 +613,8 @@ html.js .rv.in{opacity:1;transform:none}
       <h2 class="d2">Veja o sistema sendo usado nas suas lojas.</h2>
     </div>
     <div class="vid__box">
-      <video id="vd" preload="none" playsinline controls poster="{{ asset('site/redes/video-capa.jpg') }}?v=20nov" width="1280" height="720">
-        <source src="{{ asset('site/redes/erp-redes.mp4') }}?v=20nov" type="video/mp4">
+      <video id="vd" preload="none" playsinline controls poster="{{ asset('site/redes/video-capa.jpg') }}?v=20nov2" width="1280" height="720">
+        <source src="{{ asset('site/redes/erp-redes.mp4') }}?v=20nov2" type="video/mp4">
       </video>
       <button class="vid__play" id="vdPlay" type="button" aria-label="Assistir ao vídeo de 44 segundos">
         <span class="vid__tri" aria-hidden="true"></span><span>Assistir · 44 s</span>
