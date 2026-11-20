@@ -10516,3 +10516,12 @@ Produção em 20/11 (consulta só de leitura): os 3 planos ativos têm TODAS as 
 
 ### Para subir em produção (só com ordem do Dennis)
 Build com rollback marcado + `migrate` (1 migration: coluna `empresas.origem_cadastro` e tabela `cadastros_site`). A inicial troca para a página nova com a chave desligada; a Landing V2 segue em `?visual=v2`. Conferir o SMTP antes de ligar a chave.
+
+### EM PRODUÇÃO 20/11/2026 11:23 BRT (ordem do Dennis: "Sim, subir", com a chave desligada)
+- **Antes:** os 10 arquivos alterados conferidos iguais à `main` no container (md5) e os 20 novos inexistentes; `/` = Landing V2, `/redes` e `/teste-gratis` 404; nenhuma migration pendente.
+- **Backup:** `/home/ubuntu/erp-backups/pre-site-autocontratacao-20261120/` — `erp_comercial-20261120.sql.gz` (109 tabelas), `arquivos/` (os 10 antigos), `lista.txt` (os 30 que subiram), `deploy.log`. Foto: `erp-com-app:pre-site-autocontratacao-20261120`.
+- **Subida (11:23:13 → 11:23:17 BRT), sem rebuild:** tar dos 30 arquivos de `app/ database/ resources/ routes/ public/` (`68e0be1`), `chown`, `php -l`, `migrate --force` (`2026_11_20_120000`), `route:cache` + `view:cache` como www-data, USR2, `queue:restart`.
+- **Depois:** md5 no ar = branch (30/30); `/` 200 com a página nova, 4 "Sob consulta", nenhum preço de plano e nenhum link de teste grátis; vídeo `?v=20nov2` baixa; `/redes` 200; `?visual=v2` 200; `/teste-gratis` → 302 para `/#demo`; login 200; API da maquininha 422 sem dados; chave desligada; 9 empresas com origem `admin`, nenhuma bloqueada (EB GESTÃO, teste vencido, continua entrando); dono da DONA DOURO em painel, produtos, funcionários e Meu Plano 200; admin em Planos 200 com o quadro da chave. Nenhum erro novo no log.
+- **Rollback:** `migrate:rollback --step=1` com os arquivos novos no lugar; copiar `arquivos/` de volta; apagar os 20 novos da `lista.txt`; `route:cache`, `view:cache`, USR2. Ou voltar o container para a foto.
+- **Antes de LIGAR a chave:** (1) provar um cadastro real de ponta a ponta — o e-mail sai pelo SMTP da Hostinger com remetente `no-reply@iautomation.com.br`, não provado; (2) o aviso interno de cadastro novo vai para esse mesmo `no-reply` (`mail.from.address`), igual ao pedido de demonstração: definir um endereço que alguém leia; (3) decidir a composição dos planos e a cobrança pelo Inter.
+- A `main` ainda NÃO tem esta branch (sem merge e sem push): produção = `main` + `68e0be1`.
