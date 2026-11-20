@@ -10525,3 +10525,9 @@ Build com rollback marcado + `migrate` (1 migration: coluna `empresas.origem_cad
 - **Rollback:** `migrate:rollback --step=1` com os arquivos novos no lugar; copiar `arquivos/` de volta; apagar os 20 novos da `lista.txt`; `route:cache`, `view:cache`, USR2. Ou voltar o container para a foto.
 - **Antes de LIGAR a chave:** (1) provar um cadastro real de ponta a ponta — o e-mail sai pelo SMTP da Hostinger com remetente `no-reply@iautomation.com.br`, não provado; (2) o aviso interno de cadastro novo vai para esse mesmo `no-reply` (`mail.from.address`), igual ao pedido de demonstração: definir um endereço que alguém leia; (3) decidir a composição dos planos e a cobrança pelo Inter.
 - **`main` = GitHub = produção** desde 20/11 (avanço direto da `site-autocontratacao-20nov` + push, ordem do Dennis).
+
+### E-mail do aviso de cadastro novo, configurável no painel (20/11/2026) — branch `site-email-aviso-20nov`
+- **Pedido do Dennis:** "deixa isso no painel para configurar". O aviso "Novo teste grátis pelo site" ia para `mail.from.address` (`no-reply@iautomation.com.br`), que ninguém lê.
+- **Onde:** Admin → Planos, no quadro "Contratação pelo site": campo **"E-mail que recebe o aviso de cadastro novo"** + Salvar. Grava em `plataforma_configuracoes.site_contratacao_email_aviso` (`ContratacaoSite::emailAviso()`); vazio = volta ao remetente do sistema, e a tela avisa isso. Rota `admin.planos.contratacao-site.email`, só admin.
+- **Não mudou:** o pedido de demonstração do site continua indo para `mail.from.address` com o cliente em cópia.
+- **Validação:** `TesteGratisTest` agora 9 testes / 117 conferências ✅ (teste novo: grava, recusa e-mail inválido, o aviso do cadastro sai para o endereço gravado, apagar volta ao padrão); tela conferida no navegador em 1366 e 390 px (grava, recusa, mostra).

@@ -42,6 +42,39 @@ class ContratacaoSite
         }
     }
 
+    /** Chave do e-mail que recebe o aviso interno de cada cadastro novo (Admin → Planos). */
+    public const CHAVE_EMAIL_AVISO = 'site_contratacao_email_aviso';
+
+    /**
+     * Para onde vai o aviso "novo teste grátis pelo site". O endereço gravado no painel
+     * manda; sem ele, cai no remetente do sistema (`mail.from.address`), como era antes.
+     */
+    public static function emailAviso(): ?string
+    {
+        try {
+            $v = PlataformaConfiguracao::get(self::CHAVE_EMAIL_AVISO);
+        } catch (\Throwable) {
+            $v = null;
+        }
+
+        return $v ?: (config('mail.from.address') ?: null);
+    }
+
+    /** O que está gravado no painel (vazio = usando o remetente do sistema). */
+    public static function emailAvisoGravado(): ?string
+    {
+        try {
+            return PlataformaConfiguracao::get(self::CHAVE_EMAIL_AVISO);
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    public static function definirEmailAviso(?string $email): void
+    {
+        PlataformaConfiguracao::set(self::CHAVE_EMAIL_AVISO, $email ? mb_strtolower(trim($email)) : null);
+    }
+
     public static function definir(bool $ativa): void
     {
         PlataformaConfiguracao::set(self::CHAVE, $ativa ? '1' : '0');

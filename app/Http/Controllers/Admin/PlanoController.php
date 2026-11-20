@@ -18,7 +18,27 @@ class PlanoController extends Controller
         $contratacaoSite = \App\Services\Plataforma\ContratacaoSite::ativa();
         $cadastrosSite = \App\Models\Empresa::withoutGlobalScopes()->where('origem_cadastro', 'site')->count();
 
-        return view('admin.planos.index', compact('planos', 'contratacaoSite', 'cadastrosSite'));
+        $emailAviso = \App\Services\Plataforma\ContratacaoSite::emailAvisoGravado();
+        $emailAvisoPadrao = config('mail.from.address');
+
+        return view('admin.planos.index', compact('planos', 'contratacaoSite', 'cadastrosSite', 'emailAviso', 'emailAvisoPadrao'));
+    }
+
+    /** E-mail que recebe o aviso de cada cadastro novo feito pelo site (vazio = remetente do sistema). */
+    public function contratacaoSiteEmail(Request $request): RedirectResponse
+    {
+        abort_unless($request->user()->is_admin, 403);
+
+        $data = $request->validate(
+            ['email_aviso' => ['nullable', 'email', 'max:160']],
+            ['email_aviso.email' => 'Digite um e-mail válido para receber o aviso.'],
+        );
+
+        \App\Services\Plataforma\ContratacaoSite::definirEmailAviso($data['email_aviso'] ?? null);
+
+        return back()->with('success', empty($data['email_aviso'])
+            ? 'E-mail do aviso apagado: o aviso de cadastro novo volta a ir para o remetente do sistema.'
+            : 'Pronto: o aviso de cada cadastro novo pelo site vai para ' . mb_strtolower(trim($data['email_aviso'])) . '.');
     }
 
     /**

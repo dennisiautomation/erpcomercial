@@ -35,6 +35,27 @@
             </button>
         </form>
     </div>
+    <div class="card-footer bg-transparent">
+        <form method="POST" action="{{ route('admin.planos.contratacao-site.email') }}" class="row g-2 align-items-end">
+            @csrf
+            <div class="col-md-6">
+                <label for="email_aviso" class="form-label fw-semibold mb-1">E-mail que recebe o aviso de cadastro novo</label>
+                <input type="email" class="form-control @error('email_aviso') is-invalid @enderror" id="email_aviso" name="email_aviso"
+                       value="{{ old('email_aviso', $emailAviso) }}" placeholder="voce@ia365.com.br" maxlength="160" autocomplete="off">
+                @error('email_aviso')<div class="invalid-feedback">{{ $message }}</div>@enderror
+            </div>
+            <div class="col-md-auto">
+                <button type="submit" class="btn btn-outline-primary">Salvar e-mail</button>
+            </div>
+            <div class="col-12 text-muted small">
+                @if($emailAviso)
+                    Cada empresa que confirmar o cadastro pelo site gera um aviso para este endereço.
+                @else
+                    Nenhum e-mail gravado: o aviso está indo para o remetente do sistema ({{ $emailAvisoPadrao ?: 'não configurado' }}), que normalmente ninguém lê.
+                @endif
+            </div>
+        </form>
+    </div>
 </div>
 
 <div class="card shadow-sm">

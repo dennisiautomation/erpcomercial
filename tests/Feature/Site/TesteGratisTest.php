@@ -203,6 +203,28 @@ class TesteGratisTest extends TestCase
         $this->assertFalse($empresa->fresh()->limiteDoPlanoBarra('usuarios'));
     }
 
+    public function test_aviso_de_cadastro_novo_vai_para_o_email_gravado_no_painel(): void
+    {
+        ContratacaoSite::definir(true);
+        $admin = User::factory()->create(['is_admin' => true, 'empresa_id' => null]);
+
+        $this->post(route('admin.planos.contratacao-site.email'), ['email_aviso' => 'x@y.com'])->assertRedirect(route('login'));
+        $this->actingAs($admin)->post(route('admin.planos.contratacao-site.email'), ['email_aviso' => 'nao-e-email'])->assertSessionHasErrors('email_aviso');
+        $this->assertSame(config('mail.from.address'), ContratacaoSite::emailAviso()); // sem nada gravado: remetente do sistema
+
+        $this->actingAs($admin)->post(route('admin.planos.contratacao-site.email'), ['email_aviso' => 'Comercial@IA365.com.br'])->assertRedirect();
+        $this->assertSame('comercial@ia365.com.br', ContratacaoSite::emailAviso());
+        $this->actingAs($admin)->get(route('admin.planos.index'))->assertOk()->assertSee('comercial@ia365.com.br');
+        auth()->logout();
+
+        $this->get($this->cadastrar());
+        Mail::assertSent(NovoCadastroSite::class, fn ($m) => $m->hasTo('comercial@ia365.com.br'));
+
+        // apagar volta ao remetente do sistema
+        $this->actingAs($admin)->post(route('admin.planos.contratacao-site.email'), ['email_aviso' => ''])->assertRedirect();
+        $this->assertSame(config('mail.from.address'), ContratacaoSite::emailAviso());
+    }
+
     public function test_so_admin_liga_a_chave(): void
     {
         $this->post(route('admin.planos.contratacao-site'), ['ativa' => 1])->assertRedirect(route('login'));

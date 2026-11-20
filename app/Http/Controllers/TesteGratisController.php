@@ -175,7 +175,7 @@ class TesteGratisController extends Controller
 
         // Avisa a IA365 (falha de e-mail não derruba o cadastro que já deu certo).
         try {
-            if ($destino = config('mail.from.address')) {
+            if ($destino = ContratacaoSite::emailAviso()) {
                 Mail::to($destino)->send(new NovoCadastroSite($user->empresa, $user));
             }
         } catch (\Throwable $e) {
