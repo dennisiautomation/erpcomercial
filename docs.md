@@ -6186,6 +6186,35 @@ Dennis, pelo rito do topo). App Android (`app-pdv-stone`, `e5ea0b2`) segue só l
 - **Ainda pendente para produção:** os itens do bloco de 14/11 (merge da `main` com formas de pagamento configuráveis,
   PHPUnit, deploy com migrations `pos_*`).
 
+**Atualização 20/11/2026 — recibo espaçado na maquininha comercial (aplicado em PRODUÇÃO por ordem do Dennis):**
+- **Pedido:** no piloto (Stone Code 633980167, **Sunmi P2-B**, S/N PB09218474721, app 1.0.1 aprovado em 19/11) o recibo
+  da venda nº 30 (R$ 7,90, empresa 1 ia365, loja 6 Dennis Canteli) saiu com ~meio metro e o TOTAL quebrado em "R$ 7" / ",90".
+- **Causa:** o app da Stone na P2-B põe um espaço grande em volta de CADA item do `PRINTABLE_CONTENT`; o cupom ia em ~35
+  itens. GPOS730 e D400 não fazem isso (testado por adb: os dois imprimem colado). Fonte grande cabe 15 colunas (GPOS730),
+  17 (D400), ~16 (P2-B); o `par()` contava 21.
+- **O que mudou (`PosCupomService`, só servidor — vale para o APK 1.0.1 já aprovado, sem reenvio à Stone):**
+  `compactar()` no fim de `venda()`, `pedido()` e `fechamentoCaixa()` junta linhas seguidas do mesmo alinhamento/tamanho num
+  item com "\n"; fonte `p` vira `m` (sumia na D400/P2-B); divisor vira texto médio dentro do bloco; título centralizado no
+  meio de bloco à esquerda é centralizado com espaços; linha > 32 colunas quebra por palavra. `par()` em fonte grande usa
+  `colunas/2 - 1` (15) e, se não couber, sai na média. Recibo de 1 produto: ~35 itens → 6.
+- **Impacto:** só o JSON de cupom da API do POS (venda, reimpressão, pedido, fechamento de caixa). Nenhuma tela web, rota,
+  migration, cron ou integração fiscal. Recibo da NFC-e (QR) continua em item próprio.
+- **Validação:** `php -l` no container; cupom das vendas 451374 (nº 30) e 451382 (nº 31) gerado com a classe nova renomeada
+  antes de trocar (só leitura); depois da troca `/login` 200 e `POST api/integracao/pos/v1/auth/login` 422 (normal sem
+  corpo); venda real nº 31 e reimpressão conferidas no papel da P2-B (compacto, TOTAL inteiro, sem palavra cortada).
+  **Não** rodou a rotina completa do `validar.sh`: a produção tem 290 arquivos por cima da imagem e
+  `CheckPermission.php` alterado sem commit — build pelo git perderia isso (ver nota abaixo).
+- **Como foi aplicado:** `docker cp` do arquivo para `erp-com-app:/var/www/app/Services/Pos/PosCupomService.php` + `kill -USR2`
+  no master do php-fpm (opcache com `validate_timestamps=Off`). 08:52 BRT (11:52 UTC) a 1ª versão, ~09:05 BRT a 2ª.
+- **Rollback:** arquivo anterior em `/home/ubuntu/erp-backups/pos-cupom-20nov/PosCupomService.php.antes` (md5 5d0775cd…);
+  copiar de volta para o mesmo caminho no container e dar `kill -USR2` no master do php-fpm.
+- **Atenção para o próximo deploy:** o código no ar NÃO bate com nenhuma branch (290 arquivos por `tar` sobre a imagem e
+  `app/Http/Middleware/CheckPermission.php` editado em `/home/ubuntu/apps/erp-producao-17nov` sem commit). Um build a partir
+  do git sem conferir isso desfaz alterações que estão no ar.
+- **Venda nº 30 sem NFC-e:** a loja 6 tem fiscal ativo com `emite_nfce`, mas **não tem `configuracoes_loja`** (cupom automático
+  no cartão desligado → "Emitir NFC-e" vem desmarcado no app) e o ambiente fiscal das 4 lojas da empresa 1 é `homologacao`.
+  Nada foi alterado; é decisão do Dennis.
+
 ## Armadilhas conhecidas
 
 1. **EmpresaScope recursão**: `auth()->user()` dentro do scope chama User model que tem o scope → loop infinito. Scopes têm flag `static $applying`. Não remover.

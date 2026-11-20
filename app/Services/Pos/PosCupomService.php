@@ -184,7 +184,7 @@ class PosCupomService
         $l[] = $this->texto('Documento gerado eletronicamente | ' . $quando->format('d/m/Y H:i:s'), 'centro', 'p');
         $l[] = $this->texto('TROCA: V' . $venda->id, 'centro', 'p');
 
-        return $l;
+        return $this->compactar($l);
     }
 
     /**
@@ -269,7 +269,7 @@ class PosCupomService
             $l[] = $this->texto('Assinatura do cliente', 'centro', 'p');
         }
 
-        return $l;
+        return $this->compactar($l);
     }
 
     public function fechamentoCaixa(Caixa $caixa, array $resumo, ?User $operador): array
@@ -315,7 +315,7 @@ class PosCupomService
         $l[] = $this->texto(str_repeat('_', $this->colunas - 4), 'centro', 'p');
         $l[] = $this->texto('Assinatura do operador', 'centro', 'p');
 
-        return $l;
+        return $this->compactar($l);
     }
 
     // ─── Blocos ───
@@ -364,6 +364,93 @@ class PosCupomService
         return $l;
     }
 
+    /**
+     * Junta linhas seguidas do mesmo alinhamento/tamanho num item só ("\n") — 20/11/2026.
+     * Na Sunmi P2-B (maquininha comercial do piloto) o app da Stone põe um espaço grande em volta de CADA item:
+     * o recibo de 1 produto saía com ~meio metro. Feito aqui (servidor) para valer já no app 1.0.1 aprovado, sem
+     * reenviar APK. Também: fonte pequena vira média (sumia na D400/P2-B) e o divisor vira texto médio, para entrar
+     * no bloco vizinho (o tipo "line" da Stone é um item à parte).
+     */
+    private function compactar(array $linhas): array
+    {
+        $out = [];
+        foreach ($linhas as $l) {
+            $ultimo = array_key_last($out);
+            $anterior = $ultimo !== null && ($out[$ultimo]['t'] ?? '') === 'texto' ? $out[$ultimo] : null;
+            if (($l['t'] ?? '') === 'linha') {
+                // o divisor tem a largura toda: entra no bloco médio anterior, qualquer que seja o alinhamento
+                $l = $this->texto(str_repeat('-', $this->colunas), $anterior && $anterior['s'] === 'm' ? $anterior['a'] : 'esq', 'm');
+            }
+            if (($l['t'] ?? '') !== 'texto') {
+                $out[] = $l; // QR Code: sempre sozinho
+
+                continue;
+            }
+            if ($l['s'] === 'p') {
+                $l['s'] = 'm';
+            }
+            if ($l['v'] === '') {
+                $l['v'] = ' ';
+            }
+            if ($l['s'] === 'm') {
+                // quebra por palavra (a P2-B cortava "Ergonômi" / "ca")
+                $l['v'] = implode("\n", array_map(
+                    fn ($x) => $this->quebrar($x),
+                    explode("\n", $l['v'])
+                ));
+                // título centralizado no meio de um bloco à esquerda: centraliza com espaços e fica no bloco
+                if ($l['a'] === 'centro' && $anterior && $anterior['a'] === 'esq' && $anterior['s'] === 'm') {
+                    $l['v'] = implode("\n", array_map(
+                        fn ($x) => str_repeat(' ', max(0, intdiv($this->colunas - mb_strlen($x), 2))) . $x,
+                        explode("\n", $l['v'])
+                    ));
+                    $l['a'] = 'esq';
+                }
+            }
+            if ($ultimo !== null && ($out[$ultimo]['t'] ?? '') === 'texto'
+                && $out[$ultimo]['a'] === $l['a'] && $out[$ultimo]['s'] === $l['s']) {
+                $out[$ultimo]['v'] .= "\n" . $l['v'];
+            } else {
+                $out[] = $l;
+            }
+        }
+
+        return $out;
+    }
+
+    /** Quebra uma linha longa em palavras na largura da bobina (palavra maior que a linha é cortada). */
+    private function quebrar(string $linha): string
+    {
+        if (mb_strlen($linha) <= $this->colunas) {
+            return $linha;
+        }
+        $saida = [];
+        $atual = '';
+        foreach (preg_split('/ +/', trim($linha)) as $palavra) {
+            while (mb_strlen($palavra) > $this->colunas) {
+                if ($atual !== '') {
+                    $saida[] = $atual;
+                    $atual = '';
+                }
+                $saida[] = mb_substr($palavra, 0, $this->colunas);
+                $palavra = mb_substr($palavra, $this->colunas);
+            }
+            if ($atual === '') {
+                $atual = $palavra;
+            } elseif (mb_strlen($atual) + 1 + mb_strlen($palavra) <= $this->colunas) {
+                $atual .= ' ' . $palavra;
+            } else {
+                $saida[] = $atual;
+                $atual = $palavra;
+            }
+        }
+        if ($atual !== '') {
+            $saida[] = $atual;
+        }
+
+        return implode("\n", $saida);
+    }
+
     // ─── Primitivas ───
 
     private function texto(string $v, string $a = 'esq', string $s = 'm'): array
@@ -376,10 +463,17 @@ class PosCupomService
         return ['t' => 'linha'];
     }
 
-    /** Rótulo à esquerda e valor à direita na mesma linha (fonte média). */
+    /**
+     * Rótulo à esquerda e valor à direita na mesma linha (fonte média).
+     * Fonte grande: ~15 caracteres em 32 colunas (GPOS730 15, D400 17, P2-B 16; medido em 20/11/2026 — antes contava
+     * 21 e o TOTAL quebrava em "R$ 7" / ",90"). Se não couber, sai inteiro na fonte média.
+     */
     private function par(string $rotulo, string $valor, string $s = 'm'): array
     {
-        $cols = $s === 'g' ? intdiv($this->colunas * 2, 3) : $this->colunas;
+        if ($s === 'g' && mb_strlen($rotulo) + 1 + mb_strlen($valor) > intdiv($this->colunas, 2) - 1) {
+            $s = 'm';
+        }
+        $cols = $s === 'g' ? intdiv($this->colunas, 2) - 1 : $this->colunas;
         $espaco = $cols - mb_strlen($rotulo) - mb_strlen($valor);
         if ($espaco < 1) {
             $rotulo = mb_substr($rotulo, 0, max(1, $cols - mb_strlen($valor) - 1));
