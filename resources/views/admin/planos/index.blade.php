@@ -10,7 +10,7 @@
 </x-erp.page-header>
 
 {{-- Contratação pelo site (20/11/2026): uma chave só para preços + teste grátis --}}
-<div class="card shadow-sm mb-3">
+<div class="erp-card mb-3">
     <div class="card-body d-flex flex-wrap align-items-center gap-3">
         <div class="flex-grow-1" style="min-width:260px">
             <div class="fw-semibold">
@@ -35,7 +35,7 @@
             </button>
         </form>
     </div>
-    <div class="card-footer bg-transparent">
+    <div class="card-footer bg-transparent" style="padding: 1.25rem">
         <div class="fw-semibold mb-1" id="avisoTitulo">Quem recebe o aviso de cadastro novo</div>
         @if($emailsAviso)
             <ul class="list-unstyled d-flex flex-wrap gap-2 mb-2" aria-labelledby="avisoTitulo">
@@ -76,7 +76,7 @@
 </div>
 
 {{-- Cobrança de quem assina pelo sistema (20/11/2026) --}}
-<div class="card shadow-sm mb-3" data-quadro-cobranca-assinatura>
+<div class="erp-card mb-3" data-quadro-cobranca-assinatura>
     <div class="card-body">
         <div class="fw-semibold mb-1">
             Cobrança de quem assina pelo sistema
@@ -93,7 +93,7 @@
         <form method="POST" action="{{ route('admin.planos.contratacao-site.cobranca') }}" class="row g-3 align-items-end">
             @csrf
             <div class="col-sm-4 col-lg-3">
-                <label for="cob_tolerancia" class="form-label">Bloquear após quantos dias de atraso</label>
+                <label for="cob_tolerancia" class="form-label">Dias de atraso até bloquear</label>
                 <input type="number" min="0" max="60" class="form-control @error('tolerancia') is-invalid @enderror" id="cob_tolerancia" name="tolerancia"
                        value="{{ old('tolerancia', $cobranca['tolerancia']) }}" required>
                 @error('tolerancia')<div class="invalid-feedback">{{ $message }}</div>@enderror
@@ -143,14 +143,14 @@
                     <tr>
                         <td>{{ $plano->ordem }}</td>
                         <td class="fw-semibold">{{ $plano->nome }}</td>
-                        <td><code>{{ $plano->slug }}</code></td>
+                        <td class="text-muted small">{{ $plano->slug }}</td>
                         <td class="text-end">R$ {{ number_format($plano->preco_mensal, 2, ',', '.') }}</td>
                         <td class="text-end">R$ {{ number_format($plano->preco_anual, 2, ',', '.') }}</td>
                         <td class="text-center">{{ $plano->max_unidades }}</td>
                         <td class="text-center">{{ $plano->max_usuarios }}</td>
                         <td class="text-center">{{ number_format($plano->max_produtos, 0, ',', '.') }}</td>
                         <td class="text-center">{{ number_format($plano->max_notas_mes, 0, ',', '.') }}</td>
-                        <td class="text-center">
+                        <td style="min-width: 15rem">
                             @php
                                 $features = [
                                     'PDV' => $plano->pdv_habilitado,
@@ -165,7 +165,7 @@
                                 ];
                             @endphp
                             @foreach($features as $label => $enabled)
-                                <span class="badge {{ $enabled ? 'bg-success' : 'bg-secondary' }} me-1" title="{{ $label }}">
+                                <span class="badge {{ $enabled ? 'bg-success' : 'bg-secondary' }} me-1 mb-1" title="{{ $label }}">
                                     {{ $label }}
                                 </span>
                             @endforeach

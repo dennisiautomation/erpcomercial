@@ -96,7 +96,7 @@ class TreinamentoController extends Controller
         $treinamento->delete();
 
         return redirect()->route('admin.treinamentos.index')
-            ->with('success', 'Treinamento excluido com sucesso.');
+            ->with('success', 'Treinamento excluído com sucesso.');
     }
 
     /**

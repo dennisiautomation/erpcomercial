@@ -1,7 +1,7 @@
 @php $t = $treinamento ?? null; @endphp
 
 <div class="card shadow-sm mb-4">
-    <div class="card-header"><h6 class="mb-0">Informações Basicas</h6></div>
+    <div class="card-header"><h6 class="mb-0">Informações básicas</h6></div>
     <div class="card-body">
         <div class="row g-3">
             <div class="col-md-5">
@@ -60,7 +60,7 @@
 </div>
 
 <div class="card shadow-sm mb-4">
-    <div class="card-header"><h6 class="mb-0">Video</h6></div>
+    <div class="card-header"><h6 class="mb-0">Vídeo</h6></div>
     <div class="card-body">
         @if($t?->arquivo)
             <video src="{{ route('admin.treinamentos.video', $t) }}" controls preload="metadata"
@@ -68,13 +68,13 @@
         @endif
 
         <label for="videoArquivo" class="form-label">
-            {{ $t?->arquivo ? 'Trocar o video' : 'Arquivo do video' }}
+            {{ $t?->arquivo ? 'Trocar o video' : 'Arquivo do vídeo' }}
             @unless($t?->arquivo) <span class="text-danger">*</span> @endunless
         </label>
         <input type="file" class="form-control @error('arquivo') is-invalid @enderror" id="videoArquivo"
                accept=".mp4,.webm,.m4v,.mov,video/mp4,video/webm,video/quicktime">
         @error('arquivo') <div class="invalid-feedback">{{ $message }}</div> @enderror
-        <div class="form-text">MP4, WEBM, M4V ou MOV. O video é enviado em partes de {{ (int) ($pedaco / 1048576) }} MB, sem limite de tamanho do arquivo — pode ser um vídeo de 1 GB ou mais.</div>
+        <div class="form-text">MP4, WEBM, M4V ou MOV. O vídeo é enviado em partes de {{ (int) ($pedaco / 1048576) }} MB, sem limite de tamanho do arquivo — pode ser um vídeo de 1 GB ou mais.</div>
         <input type="hidden" name="arquivo" id="videoNome" value="{{ old('arquivo') }}">
 
         <div class="mt-3 d-none" id="videoProgresso">

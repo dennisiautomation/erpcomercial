@@ -1,3 +1,52 @@
+@if($empresa->veioDoSite())
+{{-- Empresa que veio do site (20/11/2026): teste encerrado, com o mesmo visual do acesso suspenso --}}
+@php
+    $podeVerAss = \App\Services\Plataforma\FaturasPlataforma::podeVer(auth()->user());
+    $pendenteAss = \App\Services\Plataforma\AssinaturaSite::primeiraFatura($empresa);
+@endphp
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste encerrado - ERP Comercial</title>
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet" integrity="sha384-XGjxtQfXaH2tnPFa9x+ruJTuLE3Aa6LhHSWRr1XeTyhezb4abCG4ccI5AkVDxqC+" crossorigin="anonymous">
+    @include('auth.partials.bloqueio-estilo')
+</head>
+<body>
+    <div class="wrapper">
+        <div class="card-suspenso" data-expirado-assinar>
+            <div class="icone aviso"><i class="bi bi-hourglass-bottom"></i></div>
+            @if($pendenteAss)
+                <h1>Falta só o pagamento</h1>
+                <p class="sub">A primeira mensalidade de <strong>{{ $empresa->nome_fantasia ?: $empresa->razao_social }}</strong> está em aberto. O acesso volta sozinho assim que o pagamento é confirmado.</p>
+            @else
+                <h1>Seu teste grátis terminou</h1>
+                <p class="sub">Os dados de <strong>{{ $empresa->nome_fantasia ?: $empresa->razao_social }}</strong> continuam guardados. Assine por PIX, boleto ou cartão e volte a usar assim que o pagamento for confirmado.</p>
+            @endif
+
+            <div class="acoes">
+                @if(! $podeVerAss)
+                    <p class="sub" style="margin:0">Avise o responsável pela loja: a assinatura é feita pelo dono, pelo gerente ou pelo financeiro.</p>
+                @elseif($pendenteAss)
+                    <a href="{{ route('app.faturas.index') }}" class="btn-bloqueio" data-expirado-pagar><i class="bi bi-receipt"></i> Ver a fatura e pagar</a>
+                @else
+                    <a href="{{ route('app.assinatura.index') }}" class="btn-bloqueio" data-expirado-assinar-botao><i class="bi bi-patch-check"></i> Assinar agora</a>
+                @endif
+            </div>
+
+            <p class="contato">Dúvidas, fale com a IA365:<br><a href="mailto:dcanteli@ia365.com.br">dcanteli@ia365.com.br</a></p>
+
+            <form method="POST" action="{{ route('logout') }}">
+                @csrf
+                <button type="submit" class="btn-sair"><i class="bi bi-box-arrow-right"></i> Sair</button>
+            </form>
+        </div>
+    </div>
+</body>
+</html>
+@else
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -7,11 +56,12 @@
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet" integrity="sha384-XGjxtQfXaH2tnPFa9x+ruJTuLE3Aa6LhHSWRr1XeTyhezb4abCG4ccI5AkVDxqC+" crossorigin="anonymous">
+    <link href="{{ asset('css/erp.css') }}?v={{ @filemtime(public_path('css/erp.css')) }}" rel="stylesheet">
     <style>
         body { background-color: #f1f5f9; }
         .pricing-card { transition: transform 0.2s; border-radius: 1rem; }
         .pricing-card:hover { transform: translateY(-4px); }
-        .pricing-card.popular { border: 2px solid #0d6efd; }
+        .pricing-card.popular { border: 2px solid var(--primary); }
     </style>
 </head>
 <body>
@@ -27,29 +77,6 @@
             </p>
         </div>
 
-        @if($empresa->veioDoSite())
-            @php
-                $podeVerAss = \App\Services\Plataforma\FaturasPlataforma::podeVer(auth()->user());
-                $pendenteAss = \App\Services\Plataforma\AssinaturaSite::primeiraFatura($empresa);
-            @endphp
-            <div class="row justify-content-center mb-5" data-expirado-assinar>
-                <div class="col-md-7 col-lg-5">
-                    <div class="card shadow-sm" style="border-radius:1rem">
-                        <div class="card-body text-center p-4">
-                            @if(! $podeVerAss)
-                                <p class="mb-0">Avise o responsável pela loja: a assinatura é feita pelo dono, pelo gerente ou pelo financeiro.</p>
-                            @elseif($pendenteAss)
-                                <p class="mb-3">A primeira mensalidade está em aberto. Assim que o pagamento é confirmado, o acesso volta sozinho.</p>
-                                <a href="{{ route('app.faturas.index') }}" class="btn btn-primary btn-lg w-100" data-expirado-pagar>Ver a fatura e pagar</a>
-                            @else
-                                <p class="mb-3">Seus dados continuam guardados. Assine por PIX, boleto ou cartão e volte a usar na hora em que o pagamento for confirmado.</p>
-                                <a href="{{ route('app.assinatura.index') }}" class="btn btn-primary btn-lg w-100" data-expirado-assinar-botao>Assinar agora</a>
-                            @endif
-                        </div>
-                    </div>
-                </div>
-            </div>
-        @else
         {{-- Plan Cards --}}
         <div class="row g-4 justify-content-center mb-5">
             @foreach($planos as $plano)
@@ -65,7 +92,7 @@
                             <p class="text-muted small">{{ $plano->descricao }}</p>
                             <div class="my-4">
                                 <span class="display-5 fw-bold">R$ {{ number_format($plano->preco_mensal, 0, ',', '.') }}</span>
-                                <span class="text-muted">/mes</span>
+                                <span class="text-muted">/mês</span>
                             </div>
                             <p class="text-muted small mb-4">
                                 ou R$ {{ number_format($plano->preco_anual, 0, ',', '.') }}/ano
@@ -76,7 +103,7 @@
                                 <li class="mb-2"><i class="bi bi-building me-2 text-primary"></i>{{ $plano->max_unidades >= 999 ? 'Ilimitadas' : $plano->max_unidades }} unidades</li>
                                 <li class="mb-2"><i class="bi bi-people me-2 text-primary"></i>{{ $plano->max_usuarios >= 999 ? 'Ilimitados' : $plano->max_usuarios }} usuários</li>
                                 <li class="mb-2"><i class="bi bi-box me-2 text-primary"></i>{{ $plano->max_produtos >= 999999 ? 'Ilimitados' : number_format($plano->max_produtos, 0, ',', '.') }} produtos</li>
-                                <li class="mb-2"><i class="bi bi-file-earmark-text me-2 text-primary"></i>{{ $plano->max_notas_mes >= 999999 ? 'Ilimitadas' : number_format($plano->max_notas_mes, 0, ',', '.') }} notas/mes</li>
+                                <li class="mb-2"><i class="bi bi-file-earmark-text me-2 text-primary"></i>{{ $plano->max_notas_mes >= 999999 ? 'Ilimitadas' : number_format($plano->max_notas_mes, 0, ',', '.') }} notas/mês</li>
                             </ul>
 
                             @php
@@ -84,9 +111,9 @@
                                     'PDV' => $plano->pdv_habilitado,
                                     'Fiscal' => $plano->fiscal_habilitado,
                                     'Multilojas' => $plano->multilojas_habilitado,
-                                    'Ordens de Servico' => $plano->os_habilitado,
+                                    'Ordens de Serviço' => $plano->os_habilitado,
                                     'Contratos' => $plano->contratos_habilitado,
-                                    'Conciliacao' => $plano->conciliacao_habilitada,
+                                    'Conciliação' => $plano->conciliacao_habilitada,
                                     'DRE' => $plano->dre_habilitado,
                                     'Boletos' => $plano->boletos_habilitado,
                                     'API' => $plano->api_habilitada,
@@ -114,7 +141,6 @@
                 </div>
             @endforeach
         </div>
-        @endif
 
         {{-- Contact --}}
         <div class="text-center">
@@ -134,3 +160,4 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
 </body>
 </html>
+@endif

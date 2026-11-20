@@ -7,43 +7,7 @@
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet" integrity="sha384-XGjxtQfXaH2tnPFa9x+ruJTuLE3Aa6LhHSWRr1XeTyhezb4abCG4ccI5AkVDxqC+" crossorigin="anonymous">
-    <style>
-        * { box-sizing: border-box; }
-        body {
-            margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
-            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-            background: linear-gradient(135deg, #0f172a 0%, #1e293b 40%, #0f172a 100%);
-            position: relative;
-        }
-        .wrapper { position: relative; z-index: 1; width: 100%; max-width: 520px; padding: 1rem; }
-        .card-suspenso {
-            background: rgba(255,255,255,0.07); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
-            border: 1px solid rgba(255,255,255,0.1); border-radius: 1.25rem; padding: 2.5rem 2rem 2rem;
-            box-shadow: 0 24px 48px rgba(0,0,0,0.4); text-align: center;
-        }
-        .icone {
-            width: 72px; height: 72px; border-radius: 1.1rem; margin: 0 auto 1.25rem;
-            background: linear-gradient(135deg, #dc2626, #ef4444);
-            display: flex; align-items: center; justify-content: center;
-            box-shadow: 0 8px 24px rgba(220,38,38,0.35);
-        }
-        .icone i { font-size: 2rem; color: #fff; }
-        h1 { font-size: 1.4rem; font-weight: 700; color: #f1f5f9; margin: 0 0 0.5rem; }
-        p.sub { color: #94a3b8; font-size: 0.95rem; margin: 0 0 1.5rem; line-height: 1.7; }
-        .faturas {
-            background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08);
-            border-radius: 0.75rem; padding: 1rem 1.25rem; margin-bottom: 1.5rem; text-align: left;
-        }
-        .faturas .item { display: flex; justify-content: space-between; padding: 0.4rem 0; color: #cbd5e1; font-size: 0.9rem; }
-        .faturas .item + .item { border-top: 1px solid rgba(255,255,255,0.06); }
-        .contato { color: #94a3b8; font-size: 0.85rem; margin-bottom: 1.5rem; }
-        .contato a { color: #60a5fa; text-decoration: none; }
-        .btn-sair {
-            background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); color: #e2e8f0;
-            padding: 0.6rem 2rem; border-radius: 0.6rem; font-weight: 600; font-size: 0.9rem; cursor: pointer;
-        }
-        .btn-sair:hover { background: rgba(255,255,255,0.14); color: #fff; }
-    </style>
+    @include('auth.partials.bloqueio-estilo')
 </head>
 <body>
     <div class="wrapper">
@@ -51,46 +15,43 @@
             <div class="icone"><i class="bi bi-lock-fill"></i></div>
             <h1>Acesso temporariamente suspenso</h1>
             <p class="sub">
-                O acesso da empresa <strong style="color:#e2e8f0;">{{ $empresa->nome_fantasia ?: $empresa->razao_social }}</strong>
+                O acesso da empresa <strong>{{ $empresa->nome_fantasia ?: $empresa->razao_social }}</strong>
                 ao ERP Comercial está suspenso por pendência financeira junto à IA365.
             </p>
 
-            @if(\App\Services\Plataforma\FaturasPlataforma::podeVer(auth()->user()) && $faturas->isNotEmpty())
+            @php $podeVerFat = \App\Services\Plataforma\FaturasPlataforma::podeVer(auth()->user()); @endphp
+            @if($podeVerFat && $faturas->isNotEmpty())
                 <div class="faturas">
-                    <div style="color:#94a3b8;font-size:0.8rem;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.5rem;">
-                        Pendências em aberto
-                    </div>
+                    <div class="rotulo">Pendências em aberto</div>
                     @foreach($faturas as $fatura)
                         <div class="item">
-                            <span>{{ $fatura->descricao ?: 'Mensalidade ' . $fatura->competencia }}</span>
-                            <span>
+                            <div>{{ $fatura->descricao ?: 'Mensalidade ' . $fatura->competencia }}</div>
+                            <div class="valor">
                                 <strong>R$ {{ number_format($fatura->valor, 2, ',', '.') }}</strong>
-                                <small style="color:#f87171;"> · {{ $fatura->isVencida() ? 'venceu' : 'vence' }} {{ $fatura->vencimento->format('d/m/Y') }}</small>
-                            </span>
-                        </div>
-                        @if($fatura->link)
-                            <div style="padding:0 0 0.6rem;">
-                                <a href="{{ $fatura->link }}" target="_blank" rel="noopener" data-pagar-fatura
-                                   style="display:block;text-align:center;background:#2563eb;color:#fff;font-weight:600;font-size:0.9rem;padding:0.55rem;border-radius:0.5rem;text-decoration:none;">
-                                    Pagar agora (PIX ou boleto)
-                                </a>
+                                <small>{{ $fatura->isVencida() ? 'venceu em' : 'vence em' }} {{ $fatura->vencimento->format('d/m/Y') }}</small>
                             </div>
-                        @endif
+                        </div>
                     @endforeach
                 </div>
-            @endif
-
-            @if($empresa->veioDoSite() && \App\Services\Plataforma\FaturasPlataforma::podeVer(auth()->user()))
-                <div style="padding:0 0 1.2rem;">
-                    <a href="{{ route('app.faturas.index') }}" data-suspenso-faturas
-                       style="display:block;text-align:center;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);color:#e2e8f0;font-weight:600;font-size:0.9rem;padding:0.55rem;border-radius:0.5rem;text-decoration:none;">
-                        Pagar com cartão ou gerar boleto
-                    </a>
+                <div class="acoes">
+                    @php $comLink = $faturas->firstWhere('link', '!=', null); @endphp
+                    @if($comLink)
+                        <a href="{{ $comLink->link }}" target="_blank" rel="noopener" class="btn-bloqueio" data-pagar-fatura>
+                            <i class="bi bi-box-arrow-up-right"></i> Pagar agora por PIX ou boleto
+                        </a>
+                    @endif
+                    @if($empresa->veioDoSite())
+                        <a href="{{ route('app.faturas.index') }}" class="{{ $comLink ? 'btn-bloqueio-sec' : 'btn-bloqueio' }}" data-suspenso-faturas>
+                            <i class="bi bi-receipt"></i> Ver as faturas: cartão, boleto e PIX
+                        </a>
+                    @endif
                 </div>
+            @elseif(! $podeVerFat)
+                <p class="sub">Avise o responsável pela loja.</p>
             @endif
 
             <p class="contato">
-                O acesso volta sozinho assim que o banco confirma o pagamento. Dúvidas, fale com a IA365:<br>
+                O acesso volta sozinho assim que o pagamento é confirmado. Dúvidas, fale com a IA365:<br>
                 <a href="mailto:dcanteli@ia365.com.br">dcanteli@ia365.com.br</a>
             </p>
 

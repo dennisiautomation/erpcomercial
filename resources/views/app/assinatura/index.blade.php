@@ -13,9 +13,9 @@
 
 <div class="row g-3">
     <div class="col-lg-5">
-        <div class="card shadow-sm h-100" data-assinatura-resumo>
+        <div class="erp-card h-100" data-assinatura-resumo>
             <div class="card-body">
-                <div class="text-muted small text-uppercase">Seu plano</div>
+                <div class="text-muted small">Seu plano</div>
                 <div class="fs-4 fw-semibold">{{ $plano?->nome ?? 'Plano' }}</div>
                 <div class="my-3">
                     <span class="display-6 fw-bold" data-assinatura-valor>R$ {{ number_format($valor, 2, ',', '.') }}</span>
@@ -43,22 +43,22 @@
     </div>
 
     <div class="col-lg-7">
-        <form method="POST" action="{{ route('app.assinatura.assinar') }}" class="card shadow-sm h-100" id="formAssinar" data-assinatura-form>
+        <form method="POST" action="{{ route('app.assinatura.assinar') }}" class="erp-card h-100 d-flex flex-column" id="formAssinar" data-assinatura-form>
             @csrf
             <div class="card-body">
                 <fieldset @disabled(! $ligada)>
                     <legend class="fs-6 fw-semibold mb-3">Como você quer pagar?</legend>
 
-                    <label class="d-flex gap-3 align-items-start border rounded p-3 mb-2" style="cursor:pointer">
-                        <input class="form-check-input mt-1 flex-shrink-0" type="radio" name="forma" value="pix" @checked(old('forma', 'pix') === 'pix') required>
+                    <label class="erp-opcao">
+                        <input class="form-check-input" type="radio" name="forma" value="pix" @checked(old('forma', 'pix') === 'pix') required>
                         <span>
                             <span class="fw-semibold d-block"><i class="bi bi-qr-code me-1"></i> PIX</span>
                             <span class="small text-muted">Todo mês o código PIX chega aqui no sistema e no e-mail. A baixa é na hora.</span>
                         </span>
                     </label>
 
-                    <label class="d-flex gap-3 align-items-start border rounded p-3 mb-2" style="cursor:pointer">
-                        <input class="form-check-input mt-1 flex-shrink-0" type="radio" name="forma" value="boleto" @checked(old('forma') === 'boleto')>
+                    <label class="erp-opcao">
+                        <input class="form-check-input" type="radio" name="forma" value="boleto" @checked(old('forma') === 'boleto')>
                         <span>
                             <span class="fw-semibold d-block"><i class="bi bi-upc me-1"></i> Boleto</span>
                             <span class="small text-muted">Todo mês o boleto chega aqui no sistema e no e-mail. O banco leva até 2 dias úteis para confirmar.</span>
@@ -66,8 +66,8 @@
                     </label>
 
                     @if($cartao)
-                        <label class="d-flex gap-3 align-items-start border rounded p-3 mb-2" style="cursor:pointer">
-                            <input class="form-check-input mt-1 flex-shrink-0" type="radio" name="forma" value="cartao" @checked(old('forma') === 'cartao')>
+                        <label class="erp-opcao">
+                            <input class="form-check-input" type="radio" name="forma" value="cartao" @checked(old('forma') === 'cartao')>
                             <span>
                                 <span class="fw-semibold d-block"><i class="bi bi-credit-card me-1"></i> Cartão de crédito</span>
                                 <span class="small text-muted">Você paga agora pela InfinitePay. Nos meses seguintes, o link do cartão chega aqui no sistema e no e-mail: não é débito automático. Se preferir, a mesma fatura pode ser paga por PIX ou boleto.</span>
@@ -76,9 +76,9 @@
                     @endif
                 </fieldset>
             </div>
-            <div class="card-footer bg-transparent d-flex flex-wrap gap-2 justify-content-end">
-                <a href="{{ route('app.dashboard') }}" class="btn btn-outline-secondary">Agora não</a>
-                <button type="submit" class="btn btn-primary" id="btnAssinar" @disabled(! $ligada) data-assinatura-enviar>Assinar agora</button>
+            <div class="card-footer bg-transparent d-flex flex-wrap gap-2 justify-content-end mt-auto p-3">
+                <a href="{{ route('app.dashboard') }}" class="btn btn-outline-secondary btn-toque">Agora não</a>
+                <button type="submit" class="btn btn-primary btn-toque" id="btnAssinar" @disabled(! $ligada) data-assinatura-enviar>Assinar agora</button>
             </div>
         </form>
     </div>

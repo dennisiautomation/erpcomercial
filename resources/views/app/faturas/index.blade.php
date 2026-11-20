@@ -10,7 +10,7 @@
     <div class="alert alert-info d-flex flex-wrap align-items-center gap-2" data-faturas-assinar>
         <i class="bi bi-hourglass-split"></i>
         <div class="flex-grow-1" style="min-width:12rem"><strong>Você ainda não assinou.</strong> Escolha como pagar a mensalidade: PIX, boleto ou cartão.</div>
-        <a href="{{ route('app.assinatura.index') }}" class="btn btn-sm btn-primary">Assinar agora</a>
+        <a href="{{ route('app.assinatura.index') }}" class="btn btn-primary btn-toque flex-shrink-0">Assinar agora</a>
     </div>
 @elseif($abertas->isEmpty())
     <div class="alert alert-success d-flex align-items-center gap-2" data-faturas-em-dia>
@@ -22,11 +22,11 @@
         @foreach($abertas as $f)
             @php $badge = $f->statusBadge(); $dias = $f->diasParaVencer(); @endphp
             <div class="col-lg-6">
-                <div class="card shadow-sm h-100 border-{{ $badge['cor'] }}" data-fatura-aberta="{{ $f->id }}">
-                    <div class="card-body">
+                <div class="erp-card h-100 {{ $dias < 0 ? 'border-danger' : '' }}" data-fatura-aberta="{{ $f->id }}">
+                    <div class="card-body d-flex flex-column h-100">
                         <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
-                            <div>
-                                <div class="fw-semibold">{{ $f->titulo() }}</div>
+                            <div class="min-w-0">
+                                <h2 class="h6 fw-semibold mb-1">{{ $f->titulo() }}</h2>
                                 <div class="small text-muted">
                                     @if($dias < 0) Venceu em {{ $f->vencimento->format('d/m/Y') }}
                                     @elseif($dias === 0) Vence hoje
@@ -34,59 +34,57 @@
                                     @endif
                                 </div>
                             </div>
-                            <span class="badge text-bg-{{ $badge['cor'] }}">{{ $badge['label'] }}</span>
+                            <span class="badge text-bg-{{ $badge['cor'] }} flex-shrink-0">{{ $badge['label'] }}</span>
                         </div>
                         <div class="fs-3 fw-bold mb-3" data-fatura-valor>R$ {{ number_format((float) $f->valor, 2, ',', '.') }}</div>
 
                         @if($f->link)
-                            <a href="{{ $f->link }}" target="_blank" rel="noopener" class="btn btn-primary w-100 mb-2" data-fatura-link>
-                                <i class="bi bi-box-arrow-up-right me-1"></i> Ver fatura: PIX, boleto e nota fiscal
+                            <a href="{{ $f->link }}" target="_blank" rel="noopener" class="btn btn-primary btn-toque w-100 mb-2" data-fatura-link>
+                                <i class="bi bi-box-arrow-up-right me-2"></i> Ver fatura: PIX, boleto e nota fiscal
                             </a>
                         @endif
-                        <div class="d-flex flex-wrap gap-2">
+                        <div class="erp-acoes" data-fatura-acoes>
                             @if($f->pix_copia_cola)
-                                <button type="button" class="btn btn-outline-secondary btn-sm flex-fill" data-copiar="{{ $f->pix_copia_cola }}" data-fatura-pix>
-                                    <i class="bi bi-qr-code me-1"></i> Copiar o PIX copia e cola
+                                <button type="button" class="btn btn-outline-secondary" data-copiar="{{ $f->pix_copia_cola }}" data-fatura-pix>
+                                    <i class="bi bi-qr-code me-2"></i> Copiar PIX
                                 </button>
                             @endif
                             @if($f->linha_digitavel)
-                                <button type="button" class="btn btn-outline-secondary btn-sm flex-fill" data-copiar="{{ $f->linha_digitavel }}" data-fatura-boleto>
-                                    <i class="bi bi-upc me-1"></i> Copiar a linha do boleto
+                                <button type="button" class="btn btn-outline-secondary" data-copiar="{{ $f->linha_digitavel }}" data-fatura-boleto>
+                                    <i class="bi bi-upc me-2"></i> Copiar boleto
                                 </button>
                             @endif
-                        </div>
-                        @if($assinaturaSite)
-                            <div class="d-flex flex-wrap gap-2 mt-2" data-fatura-acoes>
+                            @if($assinaturaSite)
                                 @if($cartao)
-                                    <form method="POST" action="{{ route('app.faturas.cartao', $f->id) }}" class="flex-fill">
+                                    <form method="POST" action="{{ route('app.faturas.cartao', $f->id) }}">
                                         @csrf
-                                        <button type="submit" class="btn btn-outline-primary btn-sm w-100" data-fatura-cartao>
-                                            <i class="bi bi-credit-card me-1"></i> Pagar com cartão
+                                        <button type="submit" class="btn btn-outline-secondary" data-fatura-cartao>
+                                            <i class="bi bi-credit-card me-2"></i> Pagar com cartão
                                         </button>
                                     </form>
                                 @endif
                                 @if($f->doCaixa() && ! $f->linha_digitavel)
-                                    <form method="POST" action="{{ route('app.faturas.emitir', $f->id) }}" class="flex-fill">
+                                    <form method="POST" action="{{ route('app.faturas.emitir', $f->id) }}">
                                         @csrf <input type="hidden" name="tipo" value="boleto">
-                                        <button type="submit" class="btn btn-outline-secondary btn-sm w-100" data-fatura-gerar-boleto>
-                                            <i class="bi bi-upc me-1"></i> Gerar boleto
+                                        <button type="submit" class="btn btn-outline-secondary" data-fatura-gerar-boleto>
+                                            <i class="bi bi-upc me-2"></i> Gerar boleto
                                         </button>
                                     </form>
                                 @endif
                                 @if($f->doCaixa() && ! $f->pix_copia_cola)
-                                    <form method="POST" action="{{ route('app.faturas.emitir', $f->id) }}" class="flex-fill">
+                                    <form method="POST" action="{{ route('app.faturas.emitir', $f->id) }}">
                                         @csrf <input type="hidden" name="tipo" value="pix">
-                                        <button type="submit" class="btn btn-outline-secondary btn-sm w-100" data-fatura-gerar-pix>
-                                            <i class="bi bi-qr-code me-1"></i> Gerar PIX
+                                        <button type="submit" class="btn btn-outline-secondary" data-fatura-gerar-pix>
+                                            <i class="bi bi-qr-code me-2"></i> Gerar PIX
                                         </button>
                                     </form>
                                 @endif
-                            </div>
-                        @endif
+                            @endif
+                        </div>
                         @if(! $f->link && ! $f->pix_copia_cola && ! $f->linha_digitavel)
-                            <p class="small text-muted mb-0">Para pagar esta fatura, fale com a IA365: <a href="mailto:dcanteli@ia365.com.br">dcanteli@ia365.com.br</a>.</p>
+                            <p class="small text-muted mb-0 mt-3">Para pagar esta fatura, fale com a IA365: <a href="mailto:dcanteli@ia365.com.br">dcanteli@ia365.com.br</a>.</p>
                         @else
-                            <p class="small text-muted mb-0 mt-2">A baixa é automática: assim que o banco confirma o pagamento, a fatura some daqui.</p>
+                            <p class="small text-muted mb-0 mt-3">A baixa é automática: assim que o pagamento é confirmado, a fatura sai desta lista.</p>
                         @endif
                     </div>
                 </div>
@@ -99,25 +97,19 @@
     @if($pagas->isEmpty())
         <p class="text-muted small mb-0">Ainda não há fatura paga registrada aqui.</p>
     @else
-        <div class="table-responsive">
-            <table class="table table-sm align-middle mb-0" data-faturas-pagas>
-                <thead><tr><th>Fatura</th><th class="d-none d-sm-table-cell">Vencimento</th><th>Pago em</th><th class="text-end">Valor</th><th></th></tr></thead>
-                <tbody>
-                @foreach($pagas as $f)
-                    <tr>
-                        <td>{{ $f->titulo() }}</td>
-                        <td class="d-none d-sm-table-cell">{{ $f->vencimento->format('d/m/Y') }}</td>
-                        <td>{{ $f->pago_em?->format('d/m/Y') ?? '—' }}</td>
-                        <td class="text-end">R$ {{ number_format((float) $f->valor, 2, ',', '.') }}</td>
-                        <td class="text-end">
-                            @if($f->link)
-                                <a href="{{ $f->link }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary">{{ $f->tem_nota ? 'Recibo e nota' : 'Ver' }}</a>
-                            @endif
-                        </td>
-                    </tr>
-                @endforeach
-                </tbody>
-            </table>
+        <div data-faturas-pagas>
+            @foreach($pagas as $f)
+                <div class="erp-linha">
+                    <div class="erp-linha-principal">
+                        <div class="fw-semibold">{{ $f->titulo() }}</div>
+                        <div class="small text-muted">Paga em {{ $f->pago_em?->format('d/m/Y') ?? '—' }} · vencimento {{ $f->vencimento->format('d/m/Y') }}</div>
+                    </div>
+                    <div class="fw-semibold text-nowrap">R$ {{ number_format((float) $f->valor, 2, ',', '.') }}</div>
+                    @if($f->link)
+                        <a href="{{ $f->link }}" target="_blank" rel="noopener" class="btn btn-outline-secondary btn-toque">{{ $f->tem_nota ? 'Recibo e nota' : 'Ver recibo' }}</a>
+                    @endif
+                </div>
+            @endforeach
         </div>
     @endif
 </x-erp.card>

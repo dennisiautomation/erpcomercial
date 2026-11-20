@@ -12,7 +12,7 @@
     <!-- Bootstrap Icons -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet" integrity="sha384-XGjxtQfXaH2tnPFa9x+ruJTuLE3Aa6LhHSWRr1XeTyhezb4abCG4ccI5AkVDxqC+" crossorigin="anonymous">
     <!-- ERP Design System -->
-    <link href="{{ asset('css/erp.css') }}" rel="stylesheet">
+    <link href="{{ asset('css/erp.css') }}?v={{ @filemtime(public_path('css/erp.css')) }}" rel="stylesheet">
 
     {{-- PWA: manifest + ícones (instalar o ERP como aplicativo) --}}
     <x-erp.pwa-head />
