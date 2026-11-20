@@ -10465,3 +10465,54 @@ banco de produção de 17/11 10:49 BRT, `mm-app` 10.213.80.13 = imagem de produ�
   `view:cache`, USR2. A linha da loja volta com o JSON do backup (modelo `vitrine`, sem blocos).
 - Falta: a loja trocar as fotos de banco de imagens pelas dela, criar categorias e foto nos produtos, marcar produtos e pôr no ar;
   ligar PIX/cartão se quiser receber online; conferir o número do WhatsApp (o cadastro tem 10 dígitos, sem o 9).
+
+
+## Site novo como página inicial + autocontratação com teste grátis (20/11/2026) — branch `site-autocontratacao-20nov`
+
+**Pedido do Dennis (20/11):** a página de `homolog-erp.ia365.com.br` vira a página inicial de produção, por enquanto com os planos desligados ("sob consulta"), mas com a autocontratação com teste grátis já pronta para o dia em que ele ligar os planos. Cobrança: não será pelo Asaas, será pelo Inter (integração do caixa.ia365) — **fica para depois, não foi feita**.
+
+**Onde está:** branch `site-autocontratacao-20nov`, saída da `main` (`2e3c0ef`) + a página nova e o vídeo de 20/11 trazidos da `homolog-cafeteria-14nov` (`fc40f20`). SÓ na homologação. **NÃO está em produção.**
+
+### Uma chave liga tudo
+`plataforma_configuracoes.site_contratacao_ativa` — **Admin → Planos → "Contratação pelo site"** (nasce desligada). Regra em `App\Services\Plataforma\ContratacaoSite`.
+
+| | Desligada (padrão) | Ligada |
+|---|---|---|
+| Página inicial (`site.redes`) | nenhum preço: topo "Valor fechado pelo número de lojas", quadro "Sob consulta", planos "Sob consulta" com botão "Pedir proposta" (vai ao formulário) | "A partir de R$ (menor plano ativo)", preços dos planos e botão "Testar grátis por N dias" |
+| `/teste-gratis` | volta para a página inicial (`#demo`) | formulário de cadastro |
+
+Os preços e os dias de teste vêm do cadastro de Planos (só os ativos). O **vídeo** continua falando "a partir de R$ 590 por mês" nos dois casos (refazer gasta crédito de voz).
+
+### Fluxo do teste grátis
+1. `GET /teste-gratis?plano=slug` → `TesteGratisController::create` (view `site/teste-gratis`, base `site/_teste-base`): plano, acesso (nome, e-mail, WhatsApp, senha) e empresa (CNPJ validado, regime, razão social, nome da loja, endereço com ViaCEP).
+2. `POST /teste-gratis` (limite `throttle:12,10,teste-gratis`, isca contra robô) grava o pedido em **`cadastros_site`** (dados cifrados, senha já com hash, token só em hash) e manda o e-mail `ConfirmarCadastroSite`. **Nenhuma empresa é criada aqui.** E-mail ou CNPJ que já é cliente é recusado com orientação.
+3. `GET /teste-gratis/confirmar/{token}` (vale 48 h) → `ContratacaoSite::confirmar` cria, numa transação com trava, a **empresa** (`origem_cadastro='site'`, `em_trial`, `trial_fim = hoje + dias_trial do plano`), a loja **Matriz** e o **dono**; entra logado direto no painel; avisa a IA365 por e-mail (`NovoCadastroSite`, para `mail.from.address`). Link usado de novo, vencido ou inválido mostra aviso e não cria nada.
+
+### Fim do teste
+- `empresas.origem_cadastro`: `admin` (todas as existentes e as criadas pelo admin) ou `site`.
+- **Só para origem `site`:** teste vencido sem assinatura/cobrança ativa → `CheckSuspensao` manda TODAS as telas para `app.plano-expirado` (exceto a própria, Faturas e sair). "+30 dias" do admin (`estenderTrial`) libera na hora. Empresas de origem `admin` continuam como antes (teste vencido não bloqueia o sistema inteiro).
+- A tela de plano expirado agora leva ao WhatsApp da IA365 (antes era `mailto:`). Não há pagamento on-line: a contratação depois do teste é com a equipe até a cobrança pelo Inter existir.
+- **Só para origem `site`:** limite de **usuários** (`FuncionarioController::store`) e de **produtos** (`ProdutoController::store`) do plano barra o cadastro (`Empresa::limiteDoPlanoBarra`).
+
+### Conferência dos planos (pedido do Dennis) — o que funciona e o que não
+| Item do plano | Situação em 20/11 |
+|---|---|
+| Fiscal, OS, Contratos, Conciliação, DRE, Boletos, Multilojas | funcionam: sem a função, a rota responde 403. **O menu não esconde o item** (a pessoa clica e leva o 403) |
+| PDV, API Externa | **não têm efeito nenhum**: nenhuma rota confere |
+| Open Finance (função + nº de contas) | funciona (17/11) |
+| Limite de lojas | funciona para todos (tela Minhas Lojas) |
+| Limite de usuários e de produtos | antes não era cobrado em lugar nenhum; agora só para quem veio do site. Importação por planilha e entrada por NF-e não conferem o limite de produtos |
+| Limite de notas por mês | **não é cobrado em lugar nenhum** |
+| Loja online, cafeteria, grade, maquininha, atendente de IA, fiado | **não fazem parte do plano**: são chaves por empresa, ligadas pelo admin |
+| Teste grátis vencido | só bloqueava as rotas `plano:`; agora bloqueia tudo para quem veio do site |
+
+Produção em 20/11 (consulta só de leitura): os 3 planos ativos têm TODAS as funções marcadas (só mudam os limites); STILO usa 8 lojas/34 usuários num plano de 3/15, MISS MERLINDA 21 usuários num de 15, DK 782 produtos num de 500, N S BORBA está sem plano (não consegue criar loja nova). Por isso os limites NÃO foram ligados para clientes existentes. **Decisões que aguardam o Dennis:** (1) quais itens entram na composição do plano (loja online, maquininha, IA...), (2) menu esconder o que o plano não tem, (3) limites para clientes atuais, (4) limite de notas.
+
+### Validação
+- `tests/Feature/Site/TesteGratisTest.php`: 8 testes, 102 conferências ✅ (chave, sob consulta, cadastro só após confirmar, recusas, link vencido, bloqueio só de origem site, limites, só admin liga).
+- Suíte inteira: 438 testes, só as 2 antigas (`LoginTest::test_oito_senhas_erradas_travam_o_email`, `PdvTest::test_caixa_fechamento_calculates_correctly`).
+- `scripts/validar-autocontratacao-20nov.browser.mjs`: 37 ✅ / 0 ❌ no navegador (computador e celular), cadastro de ponta a ponta lendo o link do e-mail no log, teste vencido e extensão. Ambiente descartável `ac-app` (rede ec-net, banco `erp_autocontratacao` no ec-mysql, imagem `erp-caf-app` com a worktree montada; reiniciar o container depois de mudar PHP, o opcache não revalida).
+- **Não provado:** e-mail saindo pelo SMTP real (a homologação grava e-mail em log: o link de confirmação fica em `storage/logs`); ViaCEP no navegador de teste.
+
+### Para subir em produção (só com ordem do Dennis)
+Build com rollback marcado + `migrate` (1 migration: coluna `empresas.origem_cadastro` e tabela `cadastros_site`). A inicial troca para a página nova com a chave desligada; a Landing V2 segue em `?visual=v2`. Conferir o SMTP antes de ligar a chave.

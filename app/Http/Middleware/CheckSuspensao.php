@@ -27,6 +27,16 @@ class CheckSuspensao
             return redirect()->route('acesso-suspenso');
         }
 
+        // Autocontratação (20/11/2026): empresa que se cadastrou SOZINHA pelo site e cujo teste
+        // grátis venceu (sem assinatura nem cobrança ativa) fica com o sistema inteiro parado na
+        // tela de plano. Empresas criadas pelo admin (todas as anteriores) não entram nesta regra.
+        if ($user && ! $user->is_admin && $user->empresa
+            && $user->empresa->testeDoSiteVencido()
+            && ! session()->has('acesso_como_admin_id')
+            && ! $request->routeIs('app.plano-expirado', 'app.faturas.*', 'logout')) {
+            return redirect()->route('app.plano-expirado');
+        }
+
         return $next($request);
     }
 }

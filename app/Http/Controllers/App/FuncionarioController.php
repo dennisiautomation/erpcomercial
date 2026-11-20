@@ -66,6 +66,11 @@ class FuncionarioController extends Controller
     {
         $this->authorize('manage', User::class);
 
+        if ($request->user()->empresa?->limiteDoPlanoBarra('usuarios')) {
+            return redirect()->route('app.funcionarios.index')
+                ->with('warning', 'Você chegou ao limite de usuários do seu plano. Para cadastrar mais, mude de plano em Meu Plano ou fale com a nossa equipe.');
+        }
+
         $validated = $request->validate([
             'name'                => 'required|string|max:255',
             'email'               => [

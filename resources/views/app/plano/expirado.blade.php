@@ -82,7 +82,7 @@
                             </ul>
                         </div>
                         <div class="card-footer bg-transparent border-0 text-center pb-4">
-                            <a href="mailto:contato@ia365.com.br?subject=Assinatura {{ $plano->nome }}&body=Empresa: {{ $empresa->razao_social }}"
+                            <a href="https://wa.me/5511917120940?text={{ rawurlencode('Quero contratar o plano ' . $plano->nome . ' do ERP Comercial. Empresa: ' . $empresa->razao_social) }}" target="_blank" rel="noopener"
                                class="btn {{ $plano->slug === 'profissional' ? 'btn-primary' : 'btn-outline-primary' }} btn-lg w-100">
                                 Assinar {{ $plano->nome }}
                             </a>

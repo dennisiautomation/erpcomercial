@@ -12,6 +12,16 @@ use Illuminate\Support\Facades\Route;
 /* ------------------------------------------------------------------ */
 
 Route::get('/', [\App\Http\Controllers\SiteController::class, 'index'])->name('site.home');
+Route::get('/redes', [\App\Http\Controllers\SiteController::class, 'redes'])->name('site.redes');
+
+// Teste grátis pelo site (autocontratação, 20/11/2026). Só responde com a chave
+// "Contratação pelo site" ligada em Admin → Planos; desligada, volta para a página inicial.
+Route::get('/teste-gratis', [\App\Http\Controllers\TesteGratisController::class, 'create'])->name('site.teste.create');
+Route::post('/teste-gratis', [\App\Http\Controllers\TesteGratisController::class, 'store'])
+    ->middleware('throttle:12,10,teste-gratis')->name('site.teste.store');
+Route::get('/teste-gratis/enviado', [\App\Http\Controllers\TesteGratisController::class, 'enviado'])->name('site.teste.enviado');
+Route::get('/teste-gratis/confirmar/{token}', [\App\Http\Controllers\TesteGratisController::class, 'confirmar'])
+    ->middleware('throttle:20,1,teste-confirmar')->name('site.teste.confirmar');
 Route::post('/agendar-demonstracao', [\App\Http\Controllers\SiteController::class, 'storeDemo'])
     ->middleware('throttle:10,1')
     ->name('site.demo.store');
@@ -215,6 +225,7 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
     Route::resource('empresas', Admin\EmpresaController::class);
     Route::resource('empresas.unidades', Admin\UnidadeController::class)->shallow();
     Route::resource('usuarios', Admin\UsuarioController::class);
+    Route::post('/planos/contratacao-site', [Admin\PlanoController::class, 'contratacaoSite'])->name('planos.contratacao-site');
     Route::resource('planos', Admin\PlanoController::class)->except(['show']);
     // Treinamento (19/10/2026): vídeo chega em pedaços pelo `upload`
     Route::post('/treinamentos/upload', [Admin\TreinamentoController::class, 'upload'])->name('treinamentos.upload');

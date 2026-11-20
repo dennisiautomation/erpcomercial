@@ -15,8 +15,26 @@ class PlanoController extends Controller
         abort_unless($request->user()->is_admin, 403);
 
         $planos = Plano::orderBy('ordem')->get();
+        $contratacaoSite = \App\Services\Plataforma\ContratacaoSite::ativa();
+        $cadastrosSite = \App\Models\Empresa::withoutGlobalScopes()->where('origem_cadastro', 'site')->count();
 
-        return view('admin.planos.index', compact('planos'));
+        return view('admin.planos.index', compact('planos', 'contratacaoSite', 'cadastrosSite'));
+    }
+
+    /**
+     * Liga/desliga a contratação pelo site (20/11/2026): preços na página inicial e o
+     * cadastro de teste grátis em /teste-gratis. Desligada, o site mostra "Sob consulta".
+     */
+    public function contratacaoSite(Request $request): RedirectResponse
+    {
+        abort_unless($request->user()->is_admin, 403);
+
+        $ligar = $request->boolean('ativa');
+        \App\Services\Plataforma\ContratacaoSite::definir($ligar);
+
+        return back()->with('success', $ligar
+            ? 'Contratação pelo site LIGADA: a página inicial mostra os preços e o botão de teste grátis.'
+            : 'Contratação pelo site DESLIGADA: a página inicial mostra os planos como "Sob consulta".');
     }
 
     public function create(Request $request): View

@@ -262,6 +262,29 @@ class Empresa extends Model
         return $this->assinatura_fim && $this->assinatura_fim->gte(Carbon::today());
     }
 
+    /** A pessoa se cadastrou sozinha pelo site (teste grátis)? Ver ContratacaoSite. */
+    public function veioDoSite(): bool
+    {
+        return $this->origem_cadastro === 'site';
+    }
+
+    /** Veio do site e o teste acabou sem virar cliente: sistema inteiro bloqueado. */
+    public function testeDoSiteVencido(): bool
+    {
+        return $this->veioDoSite() && ! $this->isAssinaturaAtiva();
+    }
+
+    /**
+     * O limite do plano BARRA o cadastro? Só para empresa que veio do site (20/11/2026):
+     * as criadas pelo admin têm contrato fechado à mão e várias já passam do limite do
+     * plano cadastrado — para elas nada muda até o Dennis decidir.
+     * Recursos: usuarios, produtos.
+     */
+    public function limiteDoPlanoBarra(string $resource): bool
+    {
+        return $this->veioDoSite() && $this->limiteAtingido($resource);
+    }
+
     /** Cobrança direta (sem gateway) configurada pelo admin da IA365? */
     public function temCobrancaDireta(): bool
     {

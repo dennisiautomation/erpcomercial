@@ -9,6 +9,34 @@
         </a>
 </x-erp.page-header>
 
+{{-- Contratação pelo site (20/11/2026): uma chave só para preços + teste grátis --}}
+<div class="card shadow-sm mb-3">
+    <div class="card-body d-flex flex-wrap align-items-center gap-3">
+        <div class="flex-grow-1" style="min-width:260px">
+            <div class="fw-semibold">
+                Contratação pelo site
+                <span class="badge {{ $contratacaoSite ? 'bg-success' : 'bg-secondary' }} ms-1">{{ $contratacaoSite ? 'Ligada' : 'Desligada' }}</span>
+            </div>
+            <div class="text-muted small">
+                @if($contratacaoSite)
+                    A página inicial mostra os preços dos planos ativos e o botão "Testar grátis". Quem se cadastra confirma o e-mail e entra em teste pelos dias do plano.
+                @else
+                    A página inicial mostra os planos como "Sob consulta", sem preço, e o cadastro de teste grátis fica fechado.
+                @endif
+                Empresas que já se cadastraram pelo site: {{ $cadastrosSite }}.
+            </div>
+        </div>
+        <form method="POST" action="{{ route('admin.planos.contratacao-site') }}"
+              onsubmit="return confirm('{{ $contratacaoSite ? 'Desligar a contratação pelo site? Os preços somem da página inicial e o cadastro de teste grátis fecha.' : 'Ligar a contratação pelo site? Os preços aparecem na página inicial e qualquer pessoa poderá criar uma conta de teste grátis.' }}')">
+            @csrf
+            <input type="hidden" name="ativa" value="{{ $contratacaoSite ? 0 : 1 }}">
+            <button type="submit" class="btn {{ $contratacaoSite ? 'btn-outline-secondary' : 'btn-primary' }}">
+                {{ $contratacaoSite ? 'Desligar' : 'Ligar contratação pelo site' }}
+            </button>
+        </form>
+    </div>
+</div>
+
 <div class="card shadow-sm">
     <div class="table-responsive">
         <table class="table table-hover align-middle mb-0">

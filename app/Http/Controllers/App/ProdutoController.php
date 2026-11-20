@@ -138,6 +138,11 @@ class ProdutoController extends Controller
                 ->with('warning', 'Seu usuário não está vinculado a uma empresa. Produtos pertencem a uma empresa — acesse com um usuário da empresa para cadastrar.');
         }
 
+        if (auth()->user()->empresa->limiteDoPlanoBarra('produtos')) {
+            return redirect()->route('app.produtos.index')
+                ->with('warning', 'Você chegou ao limite de produtos do seu plano. Para cadastrar mais, mude de plano em Meu Plano ou fale com a nossa equipe.');
+        }
+
         $this->validarLojaOnline($request);
 
         $validated = $request->validate([
