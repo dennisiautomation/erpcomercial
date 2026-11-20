@@ -208,6 +208,16 @@ class ProdutoController extends Controller
             'atalho_pdv'             => 'nullable|boolean',
         ]);
 
+        // Duplo envio (duplo clique no salvar): o mesmo usuário mandando o mesmo nome de
+        // produto de novo em 10 s é o mesmo cadastro — o segundo não grava. Cache::add é
+        // atômico, então vale também para os dois envios chegando no mesmo segundo.
+        $chaveEnvio = 'produto-store:' . auth()->user()->empresa_id . ':' . auth()->id() . ':'
+            . md5(mb_strtolower(trim($validated['descricao'])));
+        if (! \Illuminate\Support\Facades\Cache::add($chaveEnvio, 1, 10)) {
+            return redirect()->route('app.produtos.index')
+                ->with('success', 'Produto cadastrado com sucesso! O segundo clique em salvar foi ignorado.');
+        }
+
         // Preço no Cartão (form) vale para as duas modalidades; os campos
         // individuais seguem aceitos para import/integracões.
         $precoCartao  = $validated['preco_cartao'] ?? null;

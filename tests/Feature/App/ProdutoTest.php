@@ -52,6 +52,36 @@ class ProdutoTest extends TestCase
         ]);
     }
 
+    public function test_segundo_envio_seguido_do_mesmo_produto_nao_duplica(): void
+    {
+        // Duplo clique no "Salvar Produto" (chamado da Stilo Vinte, 20/11/2026): o segundo
+        // envio chegava com o preço 100× e gravava outro produto.
+        $dono = $this->createUser($this->empresa, $this->unidade, 'dono');
+        $dados = ['descricao' => 'Vestido Cetim Perolado', 'unidade_medida' => 'UN', 'preco_custo' => 75];
+
+        $this->actingAsUser($dono, $this->unidade)
+            ->post(route('app.produtos.store'), $dados + ['preco_venda' => 165.00])
+            ->assertRedirect(route('app.produtos.index'));
+        $this->actingAsUser($dono, $this->unidade)
+            ->post(route('app.produtos.store'), $dados + ['preco_venda' => 16500.00])
+            ->assertRedirect(route('app.produtos.index'))
+            ->assertSessionHas('success');
+
+        $this->assertSame(1, Produto::withoutGlobalScopes()->where('descricao', 'Vestido Cetim Perolado')->count());
+        $this->assertEquals(165.00, Produto::withoutGlobalScopes()->where('descricao', 'Vestido Cetim Perolado')->value('preco_venda'));
+
+        // Outro produto logo em seguida grava normalmente
+        $this->actingAsUser($dono, $this->unidade)
+            ->post(route('app.produtos.store'), ['descricao' => 'Saia Tule', 'unidade_medida' => 'UN', 'preco_venda' => 77]);
+        $this->assertDatabaseHas('produtos', ['descricao' => 'Saia Tule']);
+
+        // Passados os 10 segundos, o mesmo nome volta a ser aceito (produto de mesmo nome é permitido)
+        $this->travel(11)->seconds();
+        $this->actingAsUser($dono, $this->unidade)
+            ->post(route('app.produtos.store'), $dados + ['preco_venda' => 165.00]);
+        $this->assertSame(2, Produto::withoutGlobalScopes()->where('descricao', 'Vestido Cetim Perolado')->count());
+    }
+
     public function test_produto_requires_descricao_and_preco_venda(): void
     {
         $dono = $this->createUser($this->empresa, $this->unidade, 'dono');

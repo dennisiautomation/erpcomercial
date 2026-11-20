@@ -31,8 +31,12 @@ const ERP = {
     },
 
     // "1.500,00" → 1500.00 (para cálculos e envio ao servidor)
+    // Valor que JÁ está em decimal ("88.00", como fica o campo depois do 1º envio) passa
+    // intacto: sem isso um segundo envio lia o ponto como milhar e gravava 100× (20/11/2026).
     moneyToDecimal(v) {
-        const n = parseFloat(String(v).replace(/\./g, '').replace(',', '.'));
+        const s = String(v).trim();
+        if (!s.includes(',') && /^\d+\.\d{1,2}$/.test(s)) return parseFloat(s);
+        const n = parseFloat(s.replace(/\./g, '').replace(',', '.'));
         return isNaN(n) ? 0 : n;
     },
 
@@ -762,6 +766,49 @@ const ERP = {
         }, true);
     },
 
+    // ─── UM ENVIO SÓ POR FORMULÁRIO ─────────────────────────
+    // Formulário POST que já foi enviado recusa o segundo envio (duplo clique, Enter + clique)
+    // enquanto a página não troca. Precisa ser o PRIMEIRO listener de submit (antes das
+    // máscaras): o botão desabilitado pelo initSubmitLoading é só o primeiro do formulário,
+    // e telas com mais de um botão de salvar (cadastro de produto) enviavam duas vezes.
+    initEnvioUnico() {
+        const TRAVA_MS = 10000;
+        const vale = (form) => form.matches?.('form')
+            && (form.getAttribute('method') || 'get').toLowerCase() === 'post'
+            && form.dataset.erpNoLoading !== '1'
+            && form.target !== '_blank';
+
+        document.addEventListener('submit', (e) => {
+            const form = e.target;
+            if (!vale(form) || form.dataset.erpEnviando !== '1') return;
+            e.preventDefault();
+            e.stopImmediatePropagation();
+        }, true);
+
+        // Só marca depois de todos os outros listeners: envio cancelado (validação da tela,
+        // confirmação, formulário por AJAX) não trava nada.
+        window.addEventListener('submit', (e) => {
+            const form = e.target;
+            if (e.defaultPrevented || !vale(form)) return;
+            form.dataset.erpEnviando = '1';
+            // Os outros botões de salvar ficam desabilitados só DEPOIS de o navegador montar
+            // o envio (botão desabilitado na hora perde o name/value).
+            const botoes = [...form.querySelectorAll('button[type="submit"]:not([data-no-loading])')];
+            setTimeout(() => botoes.forEach(b => { if (!b.disabled) { b.disabled = true; b.dataset.erpTravado = '1'; } }), 0);
+            setTimeout(() => {
+                delete form.dataset.erpEnviando;
+                botoes.forEach(b => { if (b.dataset.erpTravado === '1') { b.disabled = false; delete b.dataset.erpTravado; } });
+            }, TRAVA_MS);
+        });
+
+        // Voltar do navegador devolve a página guardada: destrava
+        window.addEventListener('pageshow', (e) => {
+            if (!e.persisted) return;
+            document.querySelectorAll('form[data-erp-enviando]').forEach(f => delete f.dataset.erpEnviando);
+            document.querySelectorAll('button[data-erp-travado]').forEach(b => { b.disabled = false; delete b.dataset.erpTravado; });
+        });
+    },
+
     // ─── LOADING STATE EM SUBMIT ────────────────────────────
     initSubmitLoading() {
         document.addEventListener('submit', (e) => {
@@ -772,6 +819,25 @@ const ERP = {
 
             const btn = form.querySelector('button[type="submit"]:not([data-no-loading])');
             if (!btn || btn.disabled) return;
+
+            // O botão tocado não é o primeiro do formulário (ex.: "Salvar Produto" na etapa 3,
+            // com o "salvar rápido" escondido na etapa 1): o aviso de "salvando" vai NELE — antes
+            // ia para o botão escondido e a pessoa, sem ver reação, tocava de novo (20/11/2026).
+            // Desabilita só depois de o navegador montar o envio (senão perde o name/value).
+            const tocado = e.submitter;
+            if (tocado && tocado !== btn && tocado.matches?.('button[type="submit"]:not([data-no-loading])')) {
+                const html = tocado.innerHTML;
+                setTimeout(() => {
+                    const ic = tocado.querySelector('i.bi');
+                    if (ic) ic.className = 'spinner-border spinner-border-sm me-1';
+                    else tocado.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span>${html}`;
+                    tocado.disabled = true;
+                }, 0);
+                setTimeout(() => {
+                    if (document.body.contains(tocado)) { tocado.disabled = false; tocado.innerHTML = html; }
+                }, 10000);
+                return;
+            }
 
             const original = btn.innerHTML;
             const icon = btn.querySelector('i.bi');
@@ -794,6 +860,7 @@ const ERP = {
 
     // ─── INIT ALL ───────────────────────────────────────────
     init() {
+        this.initEnvioUnico(); // primeiro: barra o reenvio antes de qualquer outro listener
         this.initMasks();
         this.initCEP();
         this.initCNPJ();
