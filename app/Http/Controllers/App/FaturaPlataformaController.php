@@ -26,6 +26,10 @@ class FaturaPlataformaController extends Controller
             'empresa' => $empresa,
             'abertas' => $faturas->where('status', 'pendente')->sortBy('vencimento')->values(),
             'pagas' => $faturas->where('status', 'paga')->values(),
+            // Assinatura pelo sistema (20/11/2026): só para empresa que veio do site
+            'assinaturaSite' => \App\Services\Plataforma\AssinaturaSite::vale($empresa),
+            'podeAssinar' => \App\Services\Plataforma\AssinaturaSite::podeAssinar($empresa),
+            'cartao' => \App\Services\Plataforma\AssinaturaSite::vale($empresa) && \App\Services\Plataforma\AssinaturaSite::cartaoDisponivel(),
         ]);
     }
 }

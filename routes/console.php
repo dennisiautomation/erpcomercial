@@ -75,6 +75,12 @@ Schedule::command('fiscal:alertar-certificado')
     ->withoutOverlapping();
 
 // ──────────────────────────────────────────────────────────────────
+// Assinatura pelo sistema (20/11/2026): confere links de cartão em aberto e repete a baixa que o caixa.ia365 não recebeu.
+Schedule::command('plataforma:conferir-assinaturas')
+    ->everyTenMinutes()
+    ->withoutOverlapping()
+    ->name('conferir-assinaturas-plataforma');
+
 // Cobrança direta da plataforma (IA365 → clientes) — diário às 6h:
 // gera faturas do ciclo, avisa vencimentos e aplica bloqueio.
 // ──────────────────────────────────────────────────────────────────

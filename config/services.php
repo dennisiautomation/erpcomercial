@@ -90,6 +90,8 @@ return [
 
     'caixa_ia365' => [
         'token' => env('CAIXA_IA365_TOKEN', ''),
+        // ERP → caixa.ia365 (20/11/2026): "Assinar agora" pede a 1ª mensalidade lá. Vazio = desligado.
+        'url' => env('CAIXA_IA365_URL', ''),
     ],
 
 ];

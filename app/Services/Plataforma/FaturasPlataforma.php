@@ -143,6 +143,7 @@ class FaturasPlataforma
             $empresa->save();
         }
 
+        AssinaturaSite::aoPagar($empresa); // empresa do site em teste: a 1ª paga vira assinatura
         self::liberarSePossivel($empresa);
     }
 
@@ -226,6 +227,11 @@ class FaturasPlataforma
             $fatura->status = 'cancelada';
             $fatura->save();
             self::liberarSePossivel($empresa);
+        } elseif ($antes === 'paga' && $fatura->cartao_pago_em) {
+            // Paga no CARTÃO aqui e o caixa ainda diz "aberta": a baixa de lá não chegou. Continua paga
+            // e o pedido de baixa volta para a fila (plataforma:conferir-assinaturas).
+            $fatura->caixa_baixa_pendente = true;
+            $fatura->save();
         } else { // aberta
             if ($antes === 'paga' || $antes === 'cancelada') {
                 // Baixa desfeita no caixa (ou cobrança reaberta): volta a valer, e o "paga" pode ser avisado de novo.

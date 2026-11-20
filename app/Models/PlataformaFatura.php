@@ -43,6 +43,9 @@ class PlataformaFatura extends Model
             'gerada_automaticamente' => 'boolean',
             'tem_nota'               => 'boolean',
             'avisos'                 => 'array',
+            'cartao_gerado_em'       => 'datetime',
+            'cartao_pago_em'         => 'datetime',
+            'caixa_baixa_pendente'   => 'boolean',
         ];
     }
 

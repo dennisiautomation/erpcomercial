@@ -6,7 +6,13 @@
 <x-erp.page-header title="Faturas" icon="receipt" subtitle="As faturas do sistema emitidas pela IA365 para {{ $empresa->nome_fantasia ?: $empresa->razao_social }}" />
 
 
-@if($abertas->isEmpty())
+@if($podeAssinar)
+    <div class="alert alert-info d-flex flex-wrap align-items-center gap-2" data-faturas-assinar>
+        <i class="bi bi-hourglass-split"></i>
+        <div class="flex-grow-1" style="min-width:12rem"><strong>Você ainda não assinou.</strong> Escolha como pagar a mensalidade: PIX, boleto ou cartão.</div>
+        <a href="{{ route('app.assinatura.index') }}" class="btn btn-sm btn-primary">Assinar agora</a>
+    </div>
+@elseif($abertas->isEmpty())
     <div class="alert alert-success d-flex align-items-center gap-2" data-faturas-em-dia>
         <i class="bi bi-check-circle-fill"></i>
         <div><strong>Tudo em dia.</strong> Não há fatura em aberto.</div>
@@ -49,6 +55,34 @@
                                 </button>
                             @endif
                         </div>
+                        @if($assinaturaSite)
+                            <div class="d-flex flex-wrap gap-2 mt-2" data-fatura-acoes>
+                                @if($cartao)
+                                    <form method="POST" action="{{ route('app.faturas.cartao', $f->id) }}" class="flex-fill">
+                                        @csrf
+                                        <button type="submit" class="btn btn-outline-primary btn-sm w-100" data-fatura-cartao>
+                                            <i class="bi bi-credit-card me-1"></i> Pagar com cartão
+                                        </button>
+                                    </form>
+                                @endif
+                                @if($f->doCaixa() && ! $f->linha_digitavel)
+                                    <form method="POST" action="{{ route('app.faturas.emitir', $f->id) }}" class="flex-fill">
+                                        @csrf <input type="hidden" name="tipo" value="boleto">
+                                        <button type="submit" class="btn btn-outline-secondary btn-sm w-100" data-fatura-gerar-boleto>
+                                            <i class="bi bi-upc me-1"></i> Gerar boleto
+                                        </button>
+                                    </form>
+                                @endif
+                                @if($f->doCaixa() && ! $f->pix_copia_cola)
+                                    <form method="POST" action="{{ route('app.faturas.emitir', $f->id) }}" class="flex-fill">
+                                        @csrf <input type="hidden" name="tipo" value="pix">
+                                        <button type="submit" class="btn btn-outline-secondary btn-sm w-100" data-fatura-gerar-pix>
+                                            <i class="bi bi-qr-code me-1"></i> Gerar PIX
+                                        </button>
+                                    </form>
+                                @endif
+                            </div>
+                        @endif
                         @if(! $f->link && ! $f->pix_copia_cola && ! $f->linha_digitavel)
                             <p class="small text-muted mb-0">Para pagar esta fatura, fale com a IA365: <a href="mailto:dcanteli@ia365.com.br">dcanteli@ia365.com.br</a>.</p>
                         @else

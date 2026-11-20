@@ -10568,3 +10568,46 @@ Build com rollback marcado + `migrate` (1 migration: coluna `empresas.origem_cad
 - **Armadilha 118 — botão de salvar desabilitado na hora do `submit` perde o `name`/`value`:** o navegador monta os dados do envio DEPOIS do evento e pula botão desabilitado. Por isso o `quick_save=1` / `skip_fiscal=1` do cadastro de produto nunca chegaram ao servidor (nenhum código lê os dois). Para desabilitar o botão tocado, usar `setTimeout(…, 0)`.
 - **Depois da subida:** chamados `1dma4g` (100 min) e `09rox3` (20 min) CONCLUÍDOS 13:36 BRT no nome do Dennis; branch juntada na `main` por avanço direto e pushada (ordem do Dennis: "Sim, juntar") — **`main` = GitHub = produção**. Até 13:50 BRT a loja não tinha cadastrado produto novo: falta ver o primeiro cadastro real passar sem duplicar.
 - **Não feito:** o 500 quando o preço por forma passa de 99.999.999,99 (validação `preco_*` sem teto) continua possível digitando o valor à mão; produtos 6083–6085 e os demais duplicados antigos ficaram como a loja deixou (excluídos).
+
+## Assinatura pelo sistema: PIX e boleto (Inter, pelo caixa.ia365) e cartão (link da InfinitePay) (20/11/2026) — branch `assinatura-site-20nov`, NÃO está em produção
+
+**Pedido do Dennis (20/11):** quem se cadastra pelo site começa o teste pelos dias do plano; depois paga por PIX ou boleto (Inter, que já está no caixa.ia365) ou cartão (InfinitePay); pagou, entra no caixa com a recorrência; não pagou depois de X dias, bloqueia.
+
+**Onde cada coisa vive:** a cobrança (cliente, mensalidade, PIX/boleto do Inter e a recorrência) nasce e é baixada no caixa.ia365. O ERP guarda o teste, a tela "Assinar agora", o espelho da fatura, a faixa e o bloqueio.
+
+**Cartão — o que a InfinitePay NÃO faz:** a integração dela só cria link de pagamento avulso (`POST /links` + `POST /payment_check`); não existe débito automático mensal nem cartão guardado pela API (a "recorrência" dela vive só dentro do aplicativo). Por isso: cada fatura ganha um link de cartão; nos meses seguintes a empresa paga pelo botão "Pagar com cartão" da fatura. Débito automático de verdade pede outro provedor (sugerido ao Dennis: Pagar.me, da Stone) — **não feito**.
+
+**Só vale para empresa de origem `site`** (`Empresa::veioDoSite()`). As criadas pelo admin não mudam em nada: sem tela de assinar, sem botão de cartão, bloqueio como antes.
+
+**Fluxo**
+1. Em teste, a faixa "Período de avaliação" mostra **Assinar agora** para dono/gerente/admin/financeiro (`components/trial-banner`). Tela `/app/assinatura` (`App\AssinaturaController`, view `app/assinatura/index`): plano, valor (`planos.preco_mensal`), vencimento da 1ª mensalidade (= fim do teste; teste vencido = hoje) e a escolha PIX / boleto / cartão (cartão só aparece com a InfiniteTag da IA365 gravada).
+2. `AssinaturaSite::assinar` chama o caixa (`POST {CAIXA_IA365_URL}/api/erp/maquina/assinatura`, segredo `CAIXA_IA365_TOKEN`), espelha a fatura que volta (`FaturasPlataforma::receberDoCaixa`) e grava na empresa `assinatura_forma`, `assinatura_solicitada_em`, **bloqueio automático ligado** e a tolerância do admin. Cartão nasce com PIX de reserva e manda a pessoa direto para o link.
+3. 1ª mensalidade paga (banco → caixa → ERP, ou cartão) → `AssinaturaSite::aoPagar` (chamado em `FaturasPlataforma::baixar`): `assinatura_ativada_em`, `em_trial = false`. No caixa nasce a recorrência (12 meses + renovação sem fim) com PIX/boleto emitido 5 dias antes de cada vencimento; cada emissão chega aqui pelo espelho de sempre (sino + e-mail + faixa).
+4. Tela **Faturas**: além do que já tinha, "Pagar com cartão", "Gerar boleto" e "Gerar PIX" (o que faltar na fatura).
+
+**Bloqueio**
+- Teste vencido sem assinar: tudo cai em `/app/plano/expirado`, que agora tem **Assinar agora** (antes mandava para o WhatsApp); `app.assinatura.*` e `app.faturas.*` continuam abrindo.
+- Pediu a assinatura e não pagou: o acesso vale até vencimento + tolerância (`Empresa::primeiraMensalidadeNoPrazo`); depois bloqueia com "Ver a fatura e pagar".
+- Assinante com mensalidade em atraso além da tolerância: `plataforma:processar-cobrancas` (diário, já existia) suspende; a tela de acesso suspenso ganhou "Pagar com cartão ou gerar boleto" e a tela Faturas abre mesmo suspensa. Pagou, libera na hora.
+- A tolerância (X) e a InfiniteTag da IA365 ficam em **Admin → Planos → "Cobrança de quem assina pelo sistema"** (`site_assinatura_tolerancia_dias`, padrão 5; `site_assinatura_infinitepay_handle`, vazia = cartão desligado). A tolerância vale para quem assinar dali em diante; quem já assinou muda na ficha da empresa (`cobranca_tolerancia_dias`).
+
+**Cartão, por dentro**
+- `AssinaturaSite::linkCartao`: `order_nsu = fat{id}v{centavos}-{aleatório}`; reaproveita o link enquanto o valor for o mesmo. Aviso em `POST /api/integracao/v1/webhooks/infinitepay-plataforma/{token}` (token da plataforma, gerado sozinho em `site_assinatura_infinitepay_webhook_token`); volta da pessoa em `/app/faturas/cartao/retorno`.
+- O aviso da InfinitePay não é assinado: **só baixa com `payment_check` dizendo `paid` e valor ≥ o da fatura**. Baixa aqui (`forma_pagamento = 'cartão (InfinitePay)'`) e pede a baixa no caixa (`POST …/maquina/baixa`, que cancela o PIX/boleto). Caixa fora do ar → `plataforma_faturas.caixa_baixa_pendente` e a rotina `plataforma:conferir-assinaturas` (a cada 10 min) repete; a mesma rotina pergunta à InfinitePay pelos links gerados nos últimos 10 dias (aviso perdido).
+- Fatura paga no cartão não reabre se o caixa ainda disser "aberta" (`cartao_pago_em`).
+
+**Banco:** migration `2026_11_20_150000_assinatura_site` — `empresas.assinatura_forma/_solicitada_em/_ativada_em`; `plataforma_faturas.cartao_link/_nsu/_slug/_transaction_nsu/_gerado_em/_pago_em` e `caixa_baixa_pendente`. Tudo nulo/aditivo.
+
+**Configuração nova:** `CAIXA_IA365_URL` no `.env` (o ERP passa a CHAMAR o caixa; vazio = a tela avisa "a cobrança ainda não está ligada"). `CAIXA_IA365_TOKEN` é o mesmo de antes.
+
+**Mensagem ao cliente:** o motivo que o caixa devolve é escrito para a IA365 ("Ajustes → Banco (Inter)…") — vai para o log e NÃO para a tela (`AssinaturaSite::mensagemParaAEmpresa`). Só o cadastro incompleto para o boleto é traduzido para a empresa.
+
+**Validação**
+- `tests/Feature/Site/AssinaturaSiteTest.php` — 10 testes, 190+ verificações (caixa e InfinitePay simulados). Suíte inteira: 450 testes, só as 2 falhas antigas (`LoginTest::test_oito_senhas_erradas_travam_o_email`, `PdvTest::test_caixa_fechamento_calculates_correctly`).
+- `scripts/validar-assinatura-site-20nov.py` — ponta a ponta com o caixa de verdade (branch `feat/assinatura-erp-20nov`) em ambiente descartável: **29 ✅ / 0 ❌**. Ambiente: containers `as-app` (ERP), `as-mysql` (bancos `erp_assinatura` e `caixa_assinatura`; subir com `--innodb-use-native-aio=0`, armadilha 101) e `as-vector`; caixa em `next dev -H 10.213.80.1 -p 3999`; InfinitePay de mentira servida pelo próprio roteiro. O `tinker` do roteiro roda como `www-data` (como root ele cria o `laravel.log` e o site passa a dar 500).
+- Telas conferidas no navegador em 1280 e 390 px (sem rolagem lateral, sem erro de script).
+- **Não provado:** PIX/boleto reais do Inter por este caminho, link e aviso reais da InfinitePay (precisa da InfiniteTag da IA365 e do "checkout integrado" habilitado na conta), e-mail real das faturas da recorrência.
+
+**Para subir (só com ordem do Dennis):** 1) caixa.ia365 com a §18.76 (`prisma db push` + build; precisa de root); 2) ERP: migrate + `CAIXA_IA365_URL` no `.env` (do container do ERP o endereço público do próprio servidor pode não responder: `extra_hosts … host-gateway`); 3) Admin → Planos: tolerância e InfiniteTag; 4) só então ligar a chave "Contratação pelo site".
+
+**Pendências de decisão:** débito automático no cartão (outro provedor); plano anual (a tela só vende o mensal); empresa do site continua sem provisionamento na Focus NFe durante o teste.

@@ -21,7 +21,42 @@ class PlanoController extends Controller
         $emailsAviso = \App\Services\Plataforma\ContratacaoSite::emailsAvisoGravados();
         $emailAvisoPadrao = config('mail.from.address');
 
-        return view('admin.planos.index', compact('planos', 'contratacaoSite', 'cadastrosSite', 'emailsAviso', 'emailAvisoPadrao'));
+        $cobranca = [
+            'tolerancia' => \App\Services\Plataforma\AssinaturaSite::toleranciaDias(),
+            'handle' => \App\Services\Plataforma\AssinaturaSite::handle(),
+            'caixa' => \App\Services\Plataforma\AssinaturaSite::caixaConfigurado(),
+        ];
+
+        return view('admin.planos.index', compact('planos', 'contratacaoSite', 'cadastrosSite', 'emailsAviso', 'emailAvisoPadrao', 'cobranca'));
+    }
+
+    /**
+     * Cobrança de quem assina pelo sistema (20/11/2026): dias de tolerância antes do bloqueio
+     * e a InfiniteTag da IA365 para o pagamento por cartão (vazia = cartão desligado).
+     * A tolerância vale para quem assinar daqui em diante; quem já assinou muda na ficha da empresa.
+     */
+    public function contratacaoSiteCobranca(Request $request): RedirectResponse
+    {
+        abort_unless($request->user()->is_admin, 403);
+
+        $d = $request->validate([
+            'tolerancia' => ['required', 'integer', 'min:0', 'max:60'],
+            'handle' => ['nullable', 'string', 'max:80'],
+        ], [
+            'tolerancia.*' => 'Os dias de tolerância vão de 0 a 60.',
+        ]);
+
+        $servico = \App\Services\Plataforma\AssinaturaSite::class;
+        $handle = \App\Services\Pagamento\InfinitePayService::normalizarHandle($d['handle'] ?? '');
+        if ($handle !== '' && ! preg_match('/^[A-Za-z0-9._-]{2,60}$/', $handle)) {
+            return back()->withInput()->withErrors(['handle' => 'Confira a InfiniteTag: só letras, números, ponto, traço e sublinhado (sem o $).']);
+        }
+
+        $servico::definirTolerancia((int) $d['tolerancia']);
+        $servico::definirHandle($handle);
+
+        return back()->with('success', 'Cobrança da assinatura salva: bloqueio ' . ((int) $d['tolerancia'] === 0 ? 'no dia seguinte ao vencimento' : 'após ' . (int) $d['tolerancia'] . ' dia(s) de atraso')
+            . ($handle !== '' ? ', cartão pela InfinitePay ligado ($' . $handle . ').' : ', cartão desligado.'));
     }
 
     /**

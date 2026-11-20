@@ -75,6 +75,49 @@
     </div>
 </div>
 
+{{-- Cobrança de quem assina pelo sistema (20/11/2026) --}}
+<div class="card shadow-sm mb-3" data-quadro-cobranca-assinatura>
+    <div class="card-body">
+        <div class="fw-semibold mb-1">
+            Cobrança de quem assina pelo sistema
+            <span class="badge {{ $cobranca['caixa'] ? 'bg-success' : 'bg-secondary' }} ms-1">{{ $cobranca['caixa'] ? 'Ligada ao caixa.ia365' : 'Sem ligação com o caixa.ia365' }}</span>
+        </div>
+        <p class="text-muted small mb-3">
+            Quem veio do site clica em "Assinar agora" e escolhe PIX, boleto ou cartão. O PIX e o boleto saem pelo Inter, no caixa.ia365,
+            e depois do primeiro pagamento a mensalidade vira recorrente lá. No cartão, cada mensalidade ganha um link da InfinitePay
+            (a InfinitePay não faz débito automático).
+            @unless($cobranca['caixa'])
+                <strong>Falta configurar no servidor o endereço e o segredo do caixa.ia365: sem isso o botão "Assinar agora" avisa que a cobrança não está ligada.</strong>
+            @endunless
+        </p>
+        <form method="POST" action="{{ route('admin.planos.contratacao-site.cobranca') }}" class="row g-3 align-items-end">
+            @csrf
+            <div class="col-sm-4 col-lg-3">
+                <label for="cob_tolerancia" class="form-label">Bloquear após quantos dias de atraso</label>
+                <input type="number" min="0" max="60" class="form-control @error('tolerancia') is-invalid @enderror" id="cob_tolerancia" name="tolerancia"
+                       value="{{ old('tolerancia', $cobranca['tolerancia']) }}" required>
+                @error('tolerancia')<div class="invalid-feedback">{{ $message }}</div>@enderror
+            </div>
+            <div class="col-sm-8 col-lg-5">
+                <label for="cob_handle" class="form-label">InfiniteTag da IA365 para o cartão</label>
+                <div class="input-group">
+                    <span class="input-group-text">$</span>
+                    <input type="text" class="form-control @error('handle') is-invalid @enderror" id="cob_handle" name="handle"
+                           value="{{ old('handle', $cobranca['handle']) }}" placeholder="vazio = cartão desligado" autocomplete="off">
+                    @error('handle')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                </div>
+            </div>
+            <div class="col-lg-auto">
+                <button type="submit" class="btn btn-primary">Salvar</button>
+            </div>
+            <div class="col-12 text-muted small">
+                A tolerância vale para quem assinar daqui em diante. Para quem já assinou, mude na ficha da empresa.
+                Na InfinitePay, a conta precisa estar com o "checkout integrado" habilitado.
+            </div>
+        </form>
+    </div>
+</div>
+
 <div class="card shadow-sm">
     <div class="table-responsive">
         <table class="table table-hover align-middle mb-0">

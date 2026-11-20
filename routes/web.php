@@ -226,6 +226,7 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
     Route::resource('empresas.unidades', Admin\UnidadeController::class)->shallow();
     Route::resource('usuarios', Admin\UsuarioController::class);
     Route::post('/planos/contratacao-site', [Admin\PlanoController::class, 'contratacaoSite'])->name('planos.contratacao-site');
+    Route::post('/planos/contratacao-site/cobranca', [Admin\PlanoController::class, 'contratacaoSiteCobranca'])->name('planos.contratacao-site.cobranca');
     Route::post('/planos/contratacao-site/email', [Admin\PlanoController::class, 'contratacaoSiteEmail'])->name('planos.contratacao-site.email');
     Route::post('/planos/contratacao-site/email/remover', [Admin\PlanoController::class, 'contratacaoSiteEmailRemover'])->name('planos.contratacao-site.email.remover');
     Route::resource('planos', Admin\PlanoController::class)->except(['show']);
@@ -293,6 +294,12 @@ Route::middleware(['auth', 'suspensao', 'unidade', \App\Http\Middleware\Restring
 
     /* ------ Faturas do sistema (IA365 → esta loja); o filtro é por perfil, no controller ------ */
     Route::get('/faturas', [App\FaturaPlataformaController::class, 'index'])->name('faturas.index');
+    /* Assinatura pela própria empresa (20/11/2026) — só empresa que veio do site; filtro no controller */
+    Route::get('/faturas/cartao/retorno', [App\AssinaturaController::class, 'retornoCartao'])->name('faturas.cartao.retorno');
+    Route::post('/faturas/{fatura}/cartao', [App\AssinaturaController::class, 'cartao'])->name('faturas.cartao')->middleware('throttle:20,1');
+    Route::post('/faturas/{fatura}/emitir', [App\AssinaturaController::class, 'emitir'])->name('faturas.emitir')->middleware('throttle:10,1');
+    Route::get('/assinatura', [App\AssinaturaController::class, 'index'])->name('assinatura.index');
+    Route::post('/assinatura', [App\AssinaturaController::class, 'assinar'])->name('assinatura.assinar')->middleware('throttle:10,1');
 
     /* ------ Plano / Assinatura ------ */
     Route::get('/plano', [App\PlanoController::class, 'index'])->name('plano.index');
@@ -1144,6 +1151,11 @@ Route::post('/api/integracao/v1/webhooks/sicredi/pix', [\App\Http\Controllers\We
 // herdar a isenção de CSRF (mesma razão do Sicredi acima).
 Route::post('/api/integracao/v1/webhooks/asaas', [\App\Http\Controllers\Webhook\AsaasWebhookController::class, 'handle'])
     ->name('webhooks.asaas');
+
+// Webhook InfinitePay da PLATAFORMA (20/11/2026) — fatura do sistema paga no cartão. SEM Bearer:
+// o token da plataforma vai no caminho e o aviso é reconfirmado em payment_check.
+Route::post('/api/integracao/v1/webhooks/infinitepay-plataforma/{token}', [\App\Http\Controllers\Webhook\InfinitePayPlataformaWebhookController::class, 'handle'])
+    ->middleware('throttle:120,1')->name('webhooks.infinitepay-plataforma');
 
 // Webhook InfinitePay (25/09/2026) — SEM Bearer; o token da empresa vai no
 // caminho e todo aviso é reconfirmado em payment_check (o aviso não é assinado).

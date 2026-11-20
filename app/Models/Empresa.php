@@ -88,6 +88,8 @@ class Empresa extends Model
             'cobranca_bloqueio_automatico'  => 'boolean',
             'cobranca_suspensa_em'          => 'datetime',
             'caixa_vinculado_em'            => 'datetime',
+            'assinatura_solicitada_em'      => 'datetime',
+            'assinatura_ativada_em'         => 'datetime',
             'exige_documento_cadastro'      => 'boolean',
             'vendedor_apenas_pdv'           => 'boolean',
             'pdv_vendedores_da_loja'        => 'boolean',
@@ -259,7 +261,25 @@ class Empresa extends Model
             return true;
         }
 
+        // Assinou pelo sistema (20/11/2026): com a 1ª mensalidade paga, vale enquanto não for suspensa
+        // por atraso; antes disso, vale enquanto a 1ª mensalidade estiver dentro do prazo + tolerância.
+        if ($this->assinatura_ativada_em) {
+            return $this->cobranca_suspensa_em === null;
+        }
+        if ($this->assinatura_solicitada_em && $this->primeiraMensalidadeNoPrazo()) {
+            return true;
+        }
+
         return $this->assinatura_fim && $this->assinatura_fim->gte(Carbon::today());
+    }
+
+    /** Pediu a assinatura e a 1ª mensalidade ainda não passou do vencimento + tolerância. */
+    public function primeiraMensalidadeNoPrazo(): bool
+    {
+        $limite = Carbon::today()->subDays((int) ($this->cobranca_tolerancia_dias ?? 0));
+
+        return PlataformaFatura::where('empresa_id', $this->id)->where('status', 'pendente')
+            ->whereDate('vencimento', '>=', $limite)->exists();
     }
 
     /** A pessoa se cadastrou sozinha pelo site (teste grátis)? Ver ContratacaoSite. */

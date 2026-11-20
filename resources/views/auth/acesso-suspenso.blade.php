@@ -80,6 +80,15 @@
                 </div>
             @endif
 
+            @if($empresa->veioDoSite() && \App\Services\Plataforma\FaturasPlataforma::podeVer(auth()->user()))
+                <div style="padding:0 0 1.2rem;">
+                    <a href="{{ route('app.faturas.index') }}" data-suspenso-faturas
+                       style="display:block;text-align:center;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);color:#e2e8f0;font-weight:600;font-size:0.9rem;padding:0.55rem;border-radius:0.5rem;text-decoration:none;">
+                        Pagar com cartão ou gerar boleto
+                    </a>
+                </div>
+            @endif
+
             <p class="contato">
                 O acesso volta sozinho assim que o banco confirma o pagamento. Dúvidas, fale com a IA365:<br>
                 <a href="mailto:dcanteli@ia365.com.br">dcanteli@ia365.com.br</a>

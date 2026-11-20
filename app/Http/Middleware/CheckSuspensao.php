@@ -22,8 +22,11 @@ class CheckSuspensao
         // Admin da plataforma em "acesso como" entra mesmo com a empresa
         // suspensa — é justamente quando ele precisa inspecionar (o banner
         // do layout sinaliza a suspensão).
+        // Empresa que veio do site (20/11/2026) segue abrindo as faturas mesmo suspensa: é lá que
+        // ela paga por cartão ou gera o boleto. As demais não mudam.
         if ($user && ! $user->is_admin && $user->empresa && $user->empresa->estaSuspensa()
-            && ! session()->has('acesso_como_admin_id')) {
+            && ! session()->has('acesso_como_admin_id')
+            && ! ($user->empresa->veioDoSite() && $request->routeIs('app.faturas.*', 'logout'))) {
             return redirect()->route('acesso-suspenso');
         }
 
@@ -33,7 +36,7 @@ class CheckSuspensao
         if ($user && ! $user->is_admin && $user->empresa
             && $user->empresa->testeDoSiteVencido()
             && ! session()->has('acesso_como_admin_id')
-            && ! $request->routeIs('app.plano-expirado', 'app.faturas.*', 'logout')) {
+            && ! $request->routeIs('app.plano-expirado', 'app.faturas.*', 'app.assinatura.*', 'logout')) {
             return redirect()->route('app.plano-expirado');
         }
 

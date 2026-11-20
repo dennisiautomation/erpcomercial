@@ -27,6 +27,29 @@
             </p>
         </div>
 
+        @if($empresa->veioDoSite())
+            @php
+                $podeVerAss = \App\Services\Plataforma\FaturasPlataforma::podeVer(auth()->user());
+                $pendenteAss = \App\Services\Plataforma\AssinaturaSite::primeiraFatura($empresa);
+            @endphp
+            <div class="row justify-content-center mb-5" data-expirado-assinar>
+                <div class="col-md-7 col-lg-5">
+                    <div class="card shadow-sm" style="border-radius:1rem">
+                        <div class="card-body text-center p-4">
+                            @if(! $podeVerAss)
+                                <p class="mb-0">Avise o responsável pela loja: a assinatura é feita pelo dono, pelo gerente ou pelo financeiro.</p>
+                            @elseif($pendenteAss)
+                                <p class="mb-3">A primeira mensalidade está em aberto. Assim que o pagamento é confirmado, o acesso volta sozinho.</p>
+                                <a href="{{ route('app.faturas.index') }}" class="btn btn-primary btn-lg w-100" data-expirado-pagar>Ver a fatura e pagar</a>
+                            @else
+                                <p class="mb-3">Seus dados continuam guardados. Assine por PIX, boleto ou cartão e volte a usar na hora em que o pagamento for confirmado.</p>
+                                <a href="{{ route('app.assinatura.index') }}" class="btn btn-primary btn-lg w-100" data-expirado-assinar-botao>Assinar agora</a>
+                            @endif
+                        </div>
+                    </div>
+                </div>
+            </div>
+        @else
         {{-- Plan Cards --}}
         <div class="row g-4 justify-content-center mb-5">
             @foreach($planos as $plano)
@@ -91,6 +114,7 @@
                 </div>
             @endforeach
         </div>
+        @endif
 
         {{-- Contact --}}
         <div class="text-center">
