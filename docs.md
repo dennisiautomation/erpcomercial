@@ -10640,3 +10640,5 @@ Build com rollback marcado + `migrate` (1 migration: coluna `empresas.origem_cad
 **Subida:** sem rebuild, em duas levas (treinamento: 8 arquivos + migrate; telas: 10 arquivos). Rollback: `/home/ubuntu/erp-backups/pre-treinamento-secao-20261120/` e `/home/ubuntu/erp-backups/pre-telas-padronizadas-20261120/` (cada um com `arquivos-antes.tar`). Testes: Site + Treinamento 21 ✅ (351 verificações). A homologação (`erp-caf-app`) ficou na versão da assinatura (8695ecf), sem estas duas levas.
 
 **Achado, não corrigido:** `empresas.plano` é ENUM (`basico`, `profissional`, `enterprise`). Se um plano ATIVO tiver outro slug, o cadastro pelo site (`ContratacaoSite::confirmar`) quebra com erro 500 ao gravar a empresa. Hoje os planos ativos cabem; conferir antes de criar plano novo e ligar a chave do site.
+
+**Depois da subida (20/11):** as duas branches foram juntadas na `main` por avanço direto e pushadas (ordem do Dennis: "Sim, juntar") — `main` = GitHub = produção. No caixa, a branch `feat/assinatura-erp-20nov` (5d77eca) foi pushada, sem merge: ela só entra no ar com `sudo bash /home/ubuntu/deploy-caixa-assinatura-erp.sh`.
