@@ -18,27 +18,69 @@ class PlanoController extends Controller
         $contratacaoSite = \App\Services\Plataforma\ContratacaoSite::ativa();
         $cadastrosSite = \App\Models\Empresa::withoutGlobalScopes()->where('origem_cadastro', 'site')->count();
 
-        $emailAviso = \App\Services\Plataforma\ContratacaoSite::emailAvisoGravado();
+        $emailsAviso = \App\Services\Plataforma\ContratacaoSite::emailsAvisoGravados();
         $emailAvisoPadrao = config('mail.from.address');
 
-        return view('admin.planos.index', compact('planos', 'contratacaoSite', 'cadastrosSite', 'emailAviso', 'emailAvisoPadrao'));
+        return view('admin.planos.index', compact('planos', 'contratacaoSite', 'cadastrosSite', 'emailsAviso', 'emailAvisoPadrao'));
     }
 
-    /** E-mail que recebe o aviso de cada cadastro novo feito pelo site (vazio = remetente do sistema). */
+    /**
+     * Inclui um ou vários e-mails (separados por vírgula) na lista de quem recebe o aviso de
+     * cada cadastro novo feito pelo site. Os que já estavam continuam.
+     */
     public function contratacaoSiteEmail(Request $request): RedirectResponse
     {
         abort_unless($request->user()->is_admin, 403);
 
-        $data = $request->validate(
-            ['email_aviso' => ['nullable', 'email', 'max:160']],
-            ['email_aviso.email' => 'Digite um e-mail válido para receber o aviso.'],
-        );
+        $servico = \App\Services\Plataforma\ContratacaoSite::class;
+        $novos = $servico::separar((string) $request->input('email_aviso'));
 
-        \App\Services\Plataforma\ContratacaoSite::definirEmailAviso($data['email_aviso'] ?? null);
+        if (! $novos) {
+            return back()->withErrors(['email_aviso' => 'Digite pelo menos um e-mail para incluir.']);
+        }
 
-        return back()->with('success', empty($data['email_aviso'])
-            ? 'E-mail do aviso apagado: o aviso de cadastro novo volta a ir para o remetente do sistema.'
-            : 'Pronto: o aviso de cada cadastro novo pelo site vai para ' . mb_strtolower(trim($data['email_aviso'])) . '.');
+        $ruins = array_filter($novos, fn ($e) => mb_strlen($e) > 160 || ! filter_var($e, FILTER_VALIDATE_EMAIL));
+        if ($ruins) {
+            return back()->withInput()->withErrors([
+                'email_aviso' => 'Confira ' . (count($ruins) > 1 ? 'estes endereços' : 'este endereço') . ': ' . implode(', ', $ruins) . '. Nada foi incluído.',
+            ]);
+        }
+
+        $atuais = $servico::emailsAvisoGravados();
+        $incluir = array_values(array_diff($novos, $atuais));
+
+        if (! $incluir) {
+            return back()->with('warning', count($novos) > 1 ? 'Esses e-mails já estavam na lista.' : 'Esse e-mail já estava na lista.');
+        }
+
+        if (count($atuais) + count($incluir) > $servico::MAX_EMAILS_AVISO) {
+            return back()->withInput()->withErrors([
+                'email_aviso' => 'A lista aceita até ' . $servico::MAX_EMAILS_AVISO . ' e-mails. Remova algum antes de incluir.',
+            ]);
+        }
+
+        $servico::definirEmailsAviso(array_merge($atuais, $incluir));
+
+        return back()->with('success', (count($incluir) > 1 ? 'Incluídos: ' : 'Incluído: ') . implode(', ', $incluir) . '.');
+    }
+
+    /** Tira UM e-mail da lista do aviso. Os outros continuam. */
+    public function contratacaoSiteEmailRemover(Request $request): RedirectResponse
+    {
+        abort_unless($request->user()->is_admin, 403);
+
+        $servico = \App\Services\Plataforma\ContratacaoSite::class;
+        $alvo = mb_strtolower(trim((string) $request->input('email')));
+        $atuais = $servico::emailsAvisoGravados();
+
+        if (! in_array($alvo, $atuais, true)) {
+            return back()->with('warning', 'Esse e-mail não está mais na lista.');
+        }
+
+        $servico::definirEmailsAviso(array_values(array_diff($atuais, [$alvo])));
+
+        return back()->with('success', 'Removido: ' . $alvo . '.' . (count($atuais) === 1
+            ? ' A lista ficou vazia: o aviso volta a ir para o remetente do sistema.' : ''));
     }
 
     /**

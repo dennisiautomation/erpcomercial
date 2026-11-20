@@ -42,37 +42,63 @@ class ContratacaoSite
         }
     }
 
-    /** Chave do e-mail que recebe o aviso interno de cada cadastro novo (Admin → Planos). */
+    /** Chave dos e-mails que recebem o aviso interno de cada cadastro novo (Admin → Planos). */
     public const CHAVE_EMAIL_AVISO = 'site_contratacao_email_aviso';
 
+    /** Quantos endereços o painel aceita. */
+    public const MAX_EMAILS_AVISO = 10;
+
     /**
-     * Para onde vai o aviso "novo teste grátis pelo site". O endereço gravado no painel
-     * manda; sem ele, cai no remetente do sistema (`mail.from.address`), como era antes.
+     * Os endereços gravados no painel (um ou vários; no banco ficam separados por vírgula).
+     * Lista vazia = nada gravado.
+     *
+     * @return list<string>
      */
-    public static function emailAviso(): ?string
+    public static function emailsAvisoGravados(): array
     {
         try {
-            $v = PlataformaConfiguracao::get(self::CHAVE_EMAIL_AVISO);
+            $v = (string) PlataformaConfiguracao::get(self::CHAVE_EMAIL_AVISO, '');
         } catch (\Throwable) {
-            $v = null;
+            return [];
         }
 
-        return $v ?: (config('mail.from.address') ?: null);
+        return self::separar($v);
     }
 
-    /** O que está gravado no painel (vazio = usando o remetente do sistema). */
-    public static function emailAvisoGravado(): ?string
+    /**
+     * Para onde vai o aviso "novo teste grátis pelo site": os endereços do painel; sem nenhum,
+     * cai no remetente do sistema (`mail.from.address`), como era antes.
+     *
+     * @return list<string>
+     */
+    public static function emailsAviso(): array
     {
-        try {
-            return PlataformaConfiguracao::get(self::CHAVE_EMAIL_AVISO);
-        } catch (\Throwable) {
-            return null;
+        $gravados = self::emailsAvisoGravados();
+        if ($gravados) {
+            return $gravados;
         }
+
+        return ($padrao = config('mail.from.address')) ? [$padrao] : [];
     }
 
-    public static function definirEmailAviso(?string $email): void
+    /** @param list<string> $emails */
+    public static function definirEmailsAviso(array $emails): void
     {
-        PlataformaConfiguracao::set(self::CHAVE_EMAIL_AVISO, $email ? mb_strtolower(trim($email)) : null);
+        $emails = self::separar(implode(',', $emails));
+        PlataformaConfiguracao::set(self::CHAVE_EMAIL_AVISO, $emails ? implode(',', $emails) : null);
+    }
+
+    /**
+     * "a@x.com, B@x.com; a@x.com" → ['a@x.com', 'b@x.com'] (minúsculas, sem repetir, na ordem).
+     * Aceita vírgula, ponto e vírgula, espaço e quebra de linha como separador.
+     *
+     * @return list<string>
+     */
+    public static function separar(string $texto): array
+    {
+        $partes = preg_split('/[\s,;]+/', mb_strtolower(trim($texto)), -1, PREG_SPLIT_NO_EMPTY) ?: [];
+
+        return array_values(array_unique($partes));
     }
 
     public static function definir(bool $ativa): void

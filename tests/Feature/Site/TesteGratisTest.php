@@ -203,26 +203,55 @@ class TesteGratisTest extends TestCase
         $this->assertFalse($empresa->fresh()->limiteDoPlanoBarra('usuarios'));
     }
 
-    public function test_aviso_de_cadastro_novo_vai_para_o_email_gravado_no_painel(): void
+    public function test_aviso_de_cadastro_novo_vai_para_os_emails_do_painel_incluir_e_remover(): void
     {
         ContratacaoSite::definir(true);
         $admin = User::factory()->create(['is_admin' => true, 'empresa_id' => null]);
+        $incluir = route('admin.planos.contratacao-site.email');
+        $remover = route('admin.planos.contratacao-site.email.remover');
 
-        $this->post(route('admin.planos.contratacao-site.email'), ['email_aviso' => 'x@y.com'])->assertRedirect(route('login'));
-        $this->actingAs($admin)->post(route('admin.planos.contratacao-site.email'), ['email_aviso' => 'nao-e-email'])->assertSessionHasErrors('email_aviso');
-        $this->assertSame(config('mail.from.address'), ContratacaoSite::emailAviso()); // sem nada gravado: remetente do sistema
+        // só admin; sem nada gravado vale o remetente do sistema
+        $this->post($incluir, ['email_aviso' => 'x@y.com'])->assertRedirect(route('login'));
+        $this->post($remover, ['email' => 'x@y.com'])->assertRedirect(route('login'));
+        $this->assertSame([config('mail.from.address')], ContratacaoSite::emailsAviso());
 
-        $this->actingAs($admin)->post(route('admin.planos.contratacao-site.email'), ['email_aviso' => 'Comercial@IA365.com.br'])->assertRedirect();
-        $this->assertSame('comercial@ia365.com.br', ContratacaoSite::emailAviso());
-        $this->actingAs($admin)->get(route('admin.planos.index'))->assertOk()->assertSee('comercial@ia365.com.br');
+        // inválido no meio: nada é incluído
+        $this->actingAs($admin)->post($incluir, ['email_aviso' => 'a@ia365.com.br, nao-e-email'])->assertSessionHasErrors('email_aviso');
+        $this->actingAs($admin)->post($incluir, ['email_aviso' => '  '])->assertSessionHasErrors('email_aviso');
+        $this->assertSame([], ContratacaoSite::emailsAvisoGravados());
+
+        // valor antigo (um endereço só, gravado em 20/11) continua valendo e o novo é SOMADO
+        ContratacaoSite::definirEmailsAviso(['dono@ia365.com.br']);
+        $this->actingAs($admin)->post($incluir, ['email_aviso' => 'Comercial@IA365.com.br; suporte@ia365.com.br, dono@ia365.com.br'])->assertSessionHasNoErrors();
+        $this->assertSame(['dono@ia365.com.br', 'comercial@ia365.com.br', 'suporte@ia365.com.br'], ContratacaoSite::emailsAviso());
+
+        // repetido avisa e não duplica
+        $this->actingAs($admin)->post($incluir, ['email_aviso' => 'suporte@ia365.com.br'])->assertSessionHas('warning');
+        $this->assertCount(3, ContratacaoSite::emailsAvisoGravados());
+
+        $this->actingAs($admin)->get(route('admin.planos.index'))->assertOk()
+            ->assertSee('dono@ia365.com.br')->assertSee('comercial@ia365.com.br')->assertSee('suporte@ia365.com.br');
+
+        // remove um: os outros ficam
+        $this->actingAs($admin)->post($remover, ['email' => 'comercial@ia365.com.br'])->assertSessionHas('success');
+        $this->assertSame(['dono@ia365.com.br', 'suporte@ia365.com.br'], ContratacaoSite::emailsAvisoGravados());
+        $this->actingAs($admin)->post($remover, ['email' => 'comercial@ia365.com.br'])->assertSessionHas('warning');
+
+        // limite da lista
+        $muitos = implode(',', array_map(fn ($n) => "p{$n}@ia365.com.br", range(1, 9)));
+        $this->actingAs($admin)->post($incluir, ['email_aviso' => $muitos])->assertSessionHasErrors('email_aviso');
+        $this->assertCount(2, ContratacaoSite::emailsAvisoGravados());
         auth()->logout();
 
+        // o aviso do cadastro sai para todos da lista
         $this->get($this->cadastrar());
-        Mail::assertSent(NovoCadastroSite::class, fn ($m) => $m->hasTo('comercial@ia365.com.br'));
+        Mail::assertSent(NovoCadastroSite::class, fn ($m) => $m->hasTo('dono@ia365.com.br') && $m->hasTo('suporte@ia365.com.br') && ! $m->hasTo('comercial@ia365.com.br'));
 
-        // apagar volta ao remetente do sistema
-        $this->actingAs($admin)->post(route('admin.planos.contratacao-site.email'), ['email_aviso' => ''])->assertRedirect();
-        $this->assertSame(config('mail.from.address'), ContratacaoSite::emailAviso());
+        // lista vazia volta ao remetente do sistema
+        $this->actingAs($admin)->post($remover, ['email' => 'dono@ia365.com.br']);
+        $this->actingAs($admin)->post($remover, ['email' => 'suporte@ia365.com.br']);
+        $this->assertSame([], ContratacaoSite::emailsAvisoGravados());
+        $this->assertSame([config('mail.from.address')], ContratacaoSite::emailsAviso());
     }
 
     public function test_so_admin_liga_a_chave(): void

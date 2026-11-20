@@ -36,23 +36,40 @@
         </form>
     </div>
     <div class="card-footer bg-transparent">
-        <form method="POST" action="{{ route('admin.planos.contratacao-site.email') }}" class="row g-2 align-items-end">
+        <div class="fw-semibold mb-1" id="avisoTitulo">Quem recebe o aviso de cadastro novo</div>
+        @if($emailsAviso)
+            <ul class="list-unstyled d-flex flex-wrap gap-2 mb-2" aria-labelledby="avisoTitulo">
+                @foreach($emailsAviso as $e)
+                    <li class="d-inline-flex align-items-center border rounded-pill ps-3 pe-1 py-1 bg-white">
+                        <span class="me-1" style="word-break:break-all">{{ $e }}</span>
+                        <form method="POST" action="{{ route('admin.planos.contratacao-site.email.remover') }}" class="d-inline"
+                              data-confirm="Remover {{ $e }} da lista? Esse endereço deixa de receber o aviso de cadastro novo.">
+                            @csrf
+                            <input type="hidden" name="email" value="{{ $e }}">
+                            <button type="submit" class="btn btn-sm btn-link text-danger p-1 lh-1" style="min-width:32px;min-height:32px"
+                                    aria-label="Remover {{ $e }}" title="Remover {{ $e }}"><i class="bi bi-x-lg"></i></button>
+                        </form>
+                    </li>
+                @endforeach
+            </ul>
+        @else
+            <p class="text-muted small mb-2">
+                Nenhum e-mail na lista: o aviso está indo para o remetente do sistema ({{ $emailAvisoPadrao ?: 'não configurado' }}), que normalmente ninguém lê.
+            </p>
+        @endif
+        <form method="POST" action="{{ route('admin.planos.contratacao-site.email') }}" class="row g-2 align-items-start">
             @csrf
             <div class="col-md-6">
-                <label for="email_aviso" class="form-label fw-semibold mb-1">E-mail que recebe o aviso de cadastro novo</label>
-                <input type="email" class="form-control @error('email_aviso') is-invalid @enderror" id="email_aviso" name="email_aviso"
-                       value="{{ old('email_aviso', $emailAviso) }}" placeholder="voce@ia365.com.br" maxlength="160" autocomplete="off">
+                <label for="email_aviso" class="visually-hidden">E-mail para incluir</label>
+                <input type="text" inputmode="email" class="form-control @error('email_aviso') is-invalid @enderror" id="email_aviso" name="email_aviso"
+                       value="{{ old('email_aviso') }}" placeholder="novo@empresa.com.br" autocomplete="off" aria-describedby="avisoAjuda">
                 @error('email_aviso')<div class="invalid-feedback">{{ $message }}</div>@enderror
             </div>
             <div class="col-md-auto">
-                <button type="submit" class="btn btn-outline-primary">Salvar e-mail</button>
+                <button type="submit" class="btn btn-outline-primary"><i class="bi bi-plus-lg me-1"></i>Incluir</button>
             </div>
-            <div class="col-12 text-muted small">
-                @if($emailAviso)
-                    Cada empresa que confirmar o cadastro pelo site gera um aviso para este endereço.
-                @else
-                    Nenhum e-mail gravado: o aviso está indo para o remetente do sistema ({{ $emailAvisoPadrao ?: 'não configurado' }}), que normalmente ninguém lê.
-                @endif
+            <div class="col-12 text-muted small" id="avisoAjuda">
+                Para incluir vários de uma vez, separe por vírgula. Todos da lista recebem um aviso a cada empresa que confirmar o cadastro pelo site.
             </div>
         </form>
     </div>

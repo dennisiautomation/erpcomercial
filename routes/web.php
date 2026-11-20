@@ -227,6 +227,7 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
     Route::resource('usuarios', Admin\UsuarioController::class);
     Route::post('/planos/contratacao-site', [Admin\PlanoController::class, 'contratacaoSite'])->name('planos.contratacao-site');
     Route::post('/planos/contratacao-site/email', [Admin\PlanoController::class, 'contratacaoSiteEmail'])->name('planos.contratacao-site.email');
+    Route::post('/planos/contratacao-site/email/remover', [Admin\PlanoController::class, 'contratacaoSiteEmailRemover'])->name('planos.contratacao-site.email.remover');
     Route::resource('planos', Admin\PlanoController::class)->except(['show']);
     // Treinamento (19/10/2026): vídeo chega em pedaços pelo `upload`
     Route::post('/treinamentos/upload', [Admin\TreinamentoController::class, 'upload'])->name('treinamentos.upload');
