@@ -10642,3 +10642,5 @@ Build com rollback marcado + `migrate` (1 migration: coluna `empresas.origem_cad
 **Achado, não corrigido:** `empresas.plano` é ENUM (`basico`, `profissional`, `enterprise`). Se um plano ATIVO tiver outro slug, o cadastro pelo site (`ContratacaoSite::confirmar`) quebra com erro 500 ao gravar a empresa. Hoje os planos ativos cabem; conferir antes de criar plano novo e ligar a chave do site.
 
 **Depois da subida (20/11):** as duas branches foram juntadas na `main` por avanço direto e pushadas (ordem do Dennis: "Sim, juntar") — `main` = GitHub = produção. No caixa, a branch `feat/assinatura-erp-20nov` (5d77eca) foi pushada, sem merge: ela só entra no ar com `sudo bash /home/ubuntu/deploy-caixa-assinatura-erp.sh`.
+
+**Caixa.ia365 com a §18.76 no ar desde 20/11/2026 18:42 BRT** (o Dennis rodou o roteiro com sudo; imagem `28b478c8230a`, rollback `caixa-caixa-app:pre-assinatura-erp-20261120`). Conferido: ERP → caixa e caixa → ERP respondendo, rotas novas fechadas sem o segredo, coluna nova criada, 0 erro. A assinatura está completa nos dois lados; falta só o teste com dinheiro de verdade (empresa TESTE SITE IA365) e a InfiniteTag em Admin → Planos.
