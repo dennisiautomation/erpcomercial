@@ -10300,3 +10300,14 @@ Mais: revisão de design da tela e fornecedor aceitando CPF.
 6. A conta da Café Demo existe só na homologação: em produção cada cliente conecta a sua.
 
 **Loja online (dúvida do Dennis em 17/11):** é ligada cliente por cliente pela plataforma (Admin → Empresas → empresa → Integração, `lojas_online.ativo`) e depois publicada pelo lojista (`publicada`). Não está ligada ao plano e ainda não está em produção.
+
+
+## Vídeo do site refeito no estilo "texto em movimento" (20/11/2026)
+
+- **Pedido do Dennis:** o vídeo da página inicial nova (`/redes`) estava "meio lento e não tão bom quanto os outros". Foi refeito no mesmo estilo dos cinco vídeos de rede social aprovados (fala contínua, cada palavra entra na hora em que é falada, câmera correndo entre páginas com borrão, trilha com batida).
+- **O que mudou no projeto:** `public/site/redes/erp-redes.mp4` (agora 44,6 s, 1280×720, 30 quadros, 4,1 MB), a capa `public/site/redes/video-capa.jpg` (quadro do vídeo novo) e, em `resources/views/site/redes.blade.php`, o botão "Assistir · 44 s", o selo "Em 45 segundos" e `?v=20nov` no endereço do vídeo e da capa para o navegador não mostrar o antigo.
+- **Roteiro (voz Gabriel Reels, 20 páginas):** seis da tarde / quanto cada loja vendeu / venda no Centro com estoque, caixa e nota no mesmo segundo / todas as lojas no painel e no celular / faltou a peça, transfere na hora / o vendedor nem precisa de computador: o sistema é instalado na máquina da Stone, pelo aplicativo autorizado / loja virtual já vem pronta / atendente de inteligência artificial também, até de madrugada / a partir de R$ 590 por mês / a troca de sistema é com a gente / chame no WhatsApp.
+- **Regras de texto que valem para este vídeo:** "a partir de R$ 590 por mês" (nunca "para a rede toda"); Stone = vendedor sem computador, pelo aplicativo autorizado (não vender como "maquininha"); loja virtual e atendente de IA "já vêm prontos"; cor roxa/azul-marinho do sistema, sem o verde da VEx. Telas e números são exemplos desenhados.
+- **Fonte (fora do repositório, servidor sp1):** `/home/ubuntu/video-tutorial/social/kin-h/` é a base deitada 1920×1080 do estilo (motor `k.js`, estilo `k.css`, `montar.py`, `render.sh`); o vídeo fica em `kin-h/site/` (`cena.js`; saídas em `saida/erp-site-1080.mp4`, 60 quadros, e `saida/erp-site-720.mp4`, a cópia que está no projeto). Para refazer: `python3 montar.py voz site` (gasta crédito do ElevenLabs), `python3 montar.py dados site`, `./render.sh site` (um render de cada vez no sp1). A fonte do vídeo anterior continua em `/home/ubuntu/video-tutorial/redes2/`.
+- **Onde está:** nesta branch `homolog-cafeteria-14nov` e na homologação. NÃO está em produção nem na `main`; sobe junto com o site novo, quando o Dennis mandar.
+- **Pendências:** conferir a regra de uso da marca Stone (a máquina aparece com a palavra "stone" desenhada); o som foi conferido por medição de volume, não ouvido.
