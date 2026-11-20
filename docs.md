@@ -10618,3 +10618,25 @@ Build com rollback marcado + `migrate` (1 migration: coluna `empresas.origem_cad
 - **ERP → caixa:** `CAIXA_IA365_URL="http://caixa-app:3009"` no `.env` do container e `docker network connect caixa_default erp-com-app` (do container do ERP nem o endereço público nem a porta do host respondem). **Armadilha 119 — se o `erp-com-app` for RECRIADO, a ligação com a rede do caixa some:** rodar de novo `docker network connect caixa_default erp-com-app` (o roteiro do caixa grava o endereço também em `/root/erp/.env`).
 - **Caixa.ia365:** a §18.76 ainda NÃO está no ar (precisa de root). Roteiro pronto: `sudo bash /home/ubuntu/deploy-caixa-assinatura-erp.sh` (rollback etiquetado, cópia do banco, 14 conferências). Até ele rodar, "Assinar agora" responde "A fatura não voltou do financeiro" e nada é criado.
 - Faltam, do Dennis: rodar o roteiro do caixa; Admin → Planos (tolerância e InfiniteTag da IA365, com o "checkout integrado" habilitado na InfinitePay); testar com a empresa TESTE SITE IA365; só então ligar a chave do site. A `main` ainda não tem esta branch (juntar e subir ao GitHub só com ordem).
+
+## Treinamento com seções (curso da Loja online) + padronização visual das telas de assinatura (20/11/2026) — branch `treinamento-loja-telas-20nov` (sobre a `assinatura-site-20nov`), EM PRODUÇÃO 20/11 18:34 BRT
+
+**Pedido do Dennis (20/11):** incluir os treinamentos da loja virtual na mesma área de Treinamento, separados; e passar a skill impeccable nas telas ("botões diferentes, campos e layout sem padrão, quebrando o responsivo").
+
+**Treinamento por seção**
+- `treinamentos.secao` (migration `2026_11_20_190000`, padrão `erp`); `Treinamento::SECOES` = `erp` → "Sistema", `loja_online` → "Loja online". A tela `/app/treinamento` mostra um bloco por seção, com "assistidos de total" (o título do bloco só aparece quando a pessoa enxerga mais de uma seção). Admin → Treinamentos ganhou o campo Seção e a coluna.
+- Vídeo sem nenhum perfil marcado agora é aceito = só admin da empresa, dono e gerente veem (caso do curso da loja).
+- `php artisan treinamento:importar <arquivo> --titulo= --secao= --ordem=` publica um vídeo que já está no servidor (mesmo título + seção = troca o vídeo, não duplica). Rodar como `www-data`.
+- **Publicados em produção:** os 6 vídeos da pasta do Drive do Dennis (`Manual-ERP-IA365-14-1…6-Loja-Online`), ids 11–16, ordem 101–106: Configurar a loja, Produtos na loja, Editor visual, Página inicial, Acabamento, Loja no ar (261 MB; cópia em `/home/ubuntu/treinamentos-loja-online-20nov/`). Aparecem para dono/gerente de TODAS as empresas, mesmo com a loja online desligada.
+- Teste: `tests/Feature/App/TreinamentoSecaoTest.php` (2 testes, 27 verificações).
+
+**Padronização (impeccable: auditoria + acabamento, sem mudar a marca)** — fotos antes/depois em 1280 e 375 px de 10 telas, ambiente descartável.
+- `public/css/erp.css` ganhou 4 padrões reutilizáveis: `.erp-acoes` (ações de um cartão em 2 colunas, 1 no celular, a ímpar ocupa a linha), `.btn-toque` (altura de toque 44 px), `.erp-opcao` (escolha em cartão com estado marcado) e `.erp-linha` (linha de lista que empilha no celular). **O item ativo de `.list-group` passou a usar a cor do sistema** (era o azul padrão do Bootstrap — aparecia na lista de vídeos). O layout passou a pedir o `erp.css` com `?v=` da data do arquivo (o navegador não segura a versão velha).
+- **Faturas:** os 4 botões tinham 3 tamanhos e 31 px de altura; agora um principal + ações iguais. "Faturas pagas" deixou de ser tabela (no celular quebrava o título palavra por palavra e cortava o botão).
+- **Telas de bloqueio:** "teste encerrado" (empresa do site) e "acesso suspenso" tinham dois visuais (uma clara com o azul do Bootstrap, outra escura com outro azul). Agora dividem `auth/partials/bloqueio-estilo` (o mundo da tela de login, botões na cor do sistema). A página clara de planos continua só para empresa criada pelo admin, com a cor do sistema e os acentos corrigidos.
+- **Admin → Planos:** os dois quadros no mesmo cartão do sistema; selos de funções do plano em linha (a tabela tinha linhas de 230 px de altura); rótulo curto no campo da tolerância. **Admin → Treinamentos:** acentos.
+- Não mexido: botões de ícone de 31 px das tabelas do admin (padrão de todas as tabelas do sistema).
+
+**Subida:** sem rebuild, em duas levas (treinamento: 8 arquivos + migrate; telas: 10 arquivos). Rollback: `/home/ubuntu/erp-backups/pre-treinamento-secao-20261120/` e `/home/ubuntu/erp-backups/pre-telas-padronizadas-20261120/` (cada um com `arquivos-antes.tar`). Testes: Site + Treinamento 21 ✅ (351 verificações). A homologação (`erp-caf-app`) ficou na versão da assinatura (8695ecf), sem estas duas levas.
+
+**Achado, não corrigido:** `empresas.plano` é ENUM (`basico`, `profissional`, `enterprise`). Se um plano ATIVO tiver outro slug, o cadastro pelo site (`ContratacaoSite::confirmar`) quebra com erro 500 ao gravar a empresa. Hoje os planos ativos cabem; conferir antes de criar plano novo e ligar a chave do site.
