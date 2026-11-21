@@ -35,7 +35,7 @@ class ChamadoIa365
         $nomeEmpresa = $empresa ? trim(($empresa->nome_fantasia ?: $empresa->razao_social) . ' — CNPJ ' . $empresa->cnpj) : 'sem empresa (usuário da plataforma)';
 
         $contexto = collect([
-            'Aberto pelo agente de ajuda dentro do ERP Comercial (erp.ia365.com.br).',
+            'Aberto pelo agente de ajuda dentro do ERP Comercial (' . parse_url((string) config('app.url'), PHP_URL_HOST) . ').',
             'Empresa: ' . $nomeEmpresa . ($empresa ? ' (id ' . $empresa->id . ')' : ''),
             'Loja: ' . ($loja ?: '—'),
             'Usuário: ' . $user->name . ' <' . $user->email . '>, perfil ' . ($user->perfil?->value ?? $user->perfil),
