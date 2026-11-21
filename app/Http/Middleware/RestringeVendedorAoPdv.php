@@ -49,6 +49,7 @@ class RestringeVendedorAoPdv
         'app.fiado.receber',
         'app.fiado.recibo',
         'app.treinamento.*',
+        'app.ajuda.*', // agente de ajuda (21/11/2026)
     ];
 
     public function handle(Request $request, Closure $next): Response

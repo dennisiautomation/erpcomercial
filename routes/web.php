@@ -311,6 +311,12 @@ Route::middleware(['auth', 'suspensao', 'unidade', \App\Http\Middleware\Restring
     Route::get('/treinamento/{treinamento}/video', [App\TreinamentoController::class, 'video'])->name('treinamento.video');
     Route::post('/treinamento/{treinamento}/concluir', [App\TreinamentoController::class, 'concluir'])->name('treinamento.concluir');
 
+    // Agente de ajuda (botão "Ajuda" em todas as telas) — 21/11/2026
+    Route::get('/ajuda/conversa', [App\AjudaController::class, 'atual'])->name('ajuda.atual');
+    Route::post('/ajuda/nova', [App\AjudaController::class, 'nova'])->name('ajuda.nova');
+    Route::post('/ajuda/mensagem', [App\AjudaController::class, 'mensagem'])->middleware('throttle:20,1,ajuda-msg')->name('ajuda.mensagem');
+    Route::post('/ajuda/{conversa}/avaliar', [App\AjudaController::class, 'avaliar'])->whereNumber('conversa')->name('ajuda.avaliar');
+
     /* ------ Importação CSV ------ */
     Route::prefix('import')->name('import.')->group(function () {
         Route::post('/clientes', [App\ImportController::class, 'clientes'])->name('clientes')

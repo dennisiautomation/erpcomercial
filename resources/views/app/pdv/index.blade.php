@@ -876,6 +876,13 @@
         <i class="bi bi-play-btn"></i> Treinamento
     </a>
 
+    @if(config('ajuda.ativo'))
+        {{-- Agente de ajuda (21/11/2026): no PDV o botão fica aqui, não no canto (cobriria o Finalizar) --}}
+        <button type="button" class="topbar-fiscal" style="background:rgba(99,102,241,.18); color:var(--text-primary); border:0; cursor:pointer;" onclick="window.ERPAjuda && ERPAjuda.abrir()" title="Tirar dúvida ou relatar um problema">
+            <i class="bi bi-chat-dots"></i> Ajuda
+        </button>
+    @endif
+
     <div class="topbar-clock" id="clock">--:--:--</div>
 </div>
 
@@ -4615,5 +4622,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
 {{-- O aviso de "número trocado" morreu com o campo de número (11/09/2026): não
      existe mais número pedido pela tela para ser ocupado no meio do caminho. --}}
+<x-erp.ajuda-chat :flutuante="false" />
 </body>
 </html>

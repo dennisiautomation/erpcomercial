@@ -1552,5 +1552,6 @@
 
     {{-- PWA: convite de instalação + service worker --}}
     <x-erp.pwa-install />
+    <x-erp.ajuda-chat />
 </body>
 </html>
