@@ -350,21 +350,45 @@ class NotaFiscalController extends Controller
         try {
             $tipo = TipoNotaFiscal::from($request->tipo);
             $unidadeCfg = $config->unidade()->withoutGlobalScopes()->first();
-            $service = match ($tipo) {
-                TipoNotaFiscal::NFe  => NFeService::forUnidade($unidadeCfg),
-                TipoNotaFiscal::NFCe => NFCeService::forUnidade($unidadeCfg),
-                TipoNotaFiscal::NFSe => NFSeService::forUnidade($unidadeCfg),
-            };
-            $service->inutilizar($request->all(), $config);
+            $service = $tipo === TipoNotaFiscal::NFe
+                ? NFeService::forUnidade($unidadeCfg)
+                : NFCeService::forUnidade($unidadeCfg);
 
-            return redirect()
-                ->route('app.notas-fiscais.index')
-                ->with('success', 'Numeracao inutilizada com sucesso!');
+            // Antes passava $request->all() — o serviço espera (config, série, início, fim,
+            // justificativa) e o retorno nunca era olhado: falhava sempre, e se passasse
+            // diria "sucesso" com qualquer resposta (levantamento 21/11/2026).
+            $r = $service->inutilizar(
+                $config,
+                (int) $request->serie,
+                (int) $request->numero_inicial,
+                (int) $request->numero_final,
+                trim((string) $request->justificativa),
+            );
         } catch (\Throwable $e) {
             Log::error('Erro ao inutilizar', ['error' => $e->getMessage()]);
 
-            return back()->with('error', 'Erro ao inutilizar: ' . $e->getMessage());
+            return back()->withInput()->with('error', 'Não foi possível falar com a SEFAZ para inutilizar. Tente de novo em instantes.');
         }
+
+        $data = (array) ($r['data'] ?? []);
+        $status = strtolower((string) ($data['status'] ?? ''));
+        $faixa = $request->numero_inicial == $request->numero_final
+            ? 'o número ' . $request->numero_inicial
+            : 'os números ' . $request->numero_inicial . ' a ' . $request->numero_final;
+
+        if (($r['success'] ?? false) && in_array($status, ['autorizado', 'autorizada', 'inutilizado', 'inutilizada'], true)) {
+            Log::info('Numeração inutilizada', ['unidade' => $config->unidade_id, 'tipo' => $request->tipo, 'serie' => $request->serie, 'faixa' => $faixa, 'protocolo' => $data['protocolo_sefaz'] ?? $data['protocolo'] ?? null]);
+
+            return redirect()
+                ->route('app.notas-fiscais.index')
+                ->with('success', "SEFAZ confirmou: {$faixa} da série {$request->serie} foram inutilizados."
+                    . (! empty($data['protocolo_sefaz'] ?? $data['protocolo'] ?? null) ? ' Protocolo ' . ($data['protocolo_sefaz'] ?? $data['protocolo']) . '.' : ''));
+        }
+
+        $motivo = \App\Services\FocusNFe\ConfirmacaoCancelamento::mensagem($data) ?: (string) ($r['error'] ?? '');
+        Log::warning('Inutilização recusada', ['unidade' => $config->unidade_id, 'resposta' => $data, 'erro' => $r['error'] ?? null]);
+
+        return back()->withInput()->with('error', 'A SEFAZ não inutilizou a numeração' . ($motivo !== '' ? ': ' . $motivo : '. Confira série e números e tente de novo.'));
     }
 
     /* ------------------------------------------------------------------ */
@@ -420,14 +444,16 @@ class NotaFiscalController extends Controller
      * Armadilha 13: os services Focus exigem client com token — nunca app(...).
      * Usa a unidade da PRÓPRIA nota (cancelar da tela de outra unidade funciona).
      */
-    private function resolveService(TipoNotaFiscal $tipo, NotaFiscal $nota): NFeService|NFCeService|NFSeService
+    private function resolveService(TipoNotaFiscal $tipo, NotaFiscal $nota): NFeService|NFCeService|NFSeService|\App\Services\FocusNFe\NFSeDispatcher
     {
         $unidade = $nota->unidade()->withoutGlobalScopes()->first();
 
         return match ($tipo) {
             TipoNotaFiscal::NFe  => NFeService::forUnidade($unidade),
             TipoNotaFiscal::NFCe => NFCeService::forUnidade($unidade),
-            TipoNotaFiscal::NFSe => NFSeService::forUnidade($unidade),
+            // NFS-e: o despachante manda consulta/cancelamento para o padrão em que a nota
+            // nasceu (municipal ou Nacional). Antes ia sempre para o municipal (21/11/2026).
+            TipoNotaFiscal::NFSe => \App\Services\FocusNFe\NFSeDispatcher::forUnidade($unidade),
         };
     }
 }

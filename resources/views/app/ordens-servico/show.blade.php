@@ -301,7 +301,18 @@
                     </button>
                 @endif
 
-                @if(in_array($ordemServico->status, ['concluida', 'entregue']))
+                @php
+                    $vendaDaOs = $ordemServico->venda_id
+                        ? \App\Models\Venda::where('empresa_id', $ordemServico->empresa_id)->find($ordemServico->venda_id)
+                        : null;
+                    if ($vendaDaOs && $vendaDaOs->status?->value === 'cancelada') { $vendaDaOs = null; }
+                @endphp
+                @if($vendaDaOs)
+                    {{-- Uma OS vira uma venda só (21/11/2026) --}}
+                    <a href="{{ route('app.vendas.show', $vendaDaOs) }}" class="btn btn-outline-success">
+                        <i class="bi bi-receipt me-1"></i> Ver venda #{{ $vendaDaOs->numero }}
+                    </a>
+                @elseif(in_array($ordemServico->status, ['concluida', 'entregue']))
                     <form method="POST" action="{{ route('app.ordens-servico.converter-venda', $ordemServico) }}"
                           data-confirm="Converter esta OS em venda?">
                         @csrf

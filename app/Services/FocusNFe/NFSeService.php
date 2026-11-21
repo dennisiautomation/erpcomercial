@@ -183,48 +183,21 @@ class NFSeService
      */
     public function cancelar(NotaFiscal $nota, string $justificativa): NotaFiscal
     {
-        try {
-            Log::info('NFSe: Cancelando NFS-e', [
-                'ref' => $nota->focus_ref,
-                'justificativa' => $justificativa,
-            ]);
+        Log::info('NFSe: Cancelando', ['ref' => $nota->focus_ref]);
 
+        try {
             $response = $this->client->delete("/v2/nfse/{$nota->focus_ref}", [
                 'justificativa' => $justificativa,
             ]);
-
-            $data = $response->json();
-
-            if ($response->successful()) {
-                $nota->status = StatusNotaFiscal::Cancelada;
-                $nota->focus_status = $data['status'] ?? 'cancelado';
-                $nota->cancelamento_motivo = $justificativa;
-                $nota->cancelada_em = now();
-                $nota->save();
-
-                Log::info('NFSe: NFS-e cancelada com sucesso', ['ref' => $nota->focus_ref]);
-            } else {
-                $nota->focus_mensagem = $data['mensagem'] ?? 'Erro ao cancelar NFS-e';
-                if (is_array($nota->focus_mensagem)) {
-                    $nota->focus_mensagem = json_encode($nota->focus_mensagem);
-                }
-                $nota->save();
-
-                Log::warning('NFSe: Erro ao cancelar NFS-e', [
-                    'ref' => $nota->focus_ref,
-                    'response' => $data,
-                ]);
-            }
-
-            return $nota;
         } catch (\Throwable $e) {
-            Log::error('NFSe: Erro ao cancelar NFS-e', [
-                'ref' => $nota->focus_ref,
-                'error' => $e->getMessage(),
-            ]);
-
-            return $nota;
+            Log::error('NFSe: erro de comunicação ao cancelar', ['ref' => $nota->focus_ref, 'error' => $e->getMessage()]);
+            throw new \App\Exceptions\NotaFiscalCancelException(
+                'Não foi possível falar com a SEFAZ/prefeitura para cancelar. Tente de novo em instantes.', 0, $e
+            );
         }
+
+        // Só "cancelado" confirmado marca a nota (ver ConfirmacaoCancelamento).
+        return ConfirmacaoCancelamento::aplicar($response, $nota, $justificativa, 'NFS-e');
     }
 
     /**

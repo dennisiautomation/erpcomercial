@@ -178,46 +178,21 @@ class NFeService
      */
     public function cancelar(NotaFiscal $nota, string $justificativa): NotaFiscal
     {
-        try {
-            Log::info('NFe: Cancelando NF-e', [
-                'ref' => $nota->focus_ref,
-                'justificativa' => $justificativa,
-            ]);
+        Log::info('NFe: Cancelando', ['ref' => $nota->focus_ref]);
 
+        try {
             $response = $this->client->delete("/v2/nfe/{$nota->focus_ref}", [
                 'justificativa' => $justificativa,
             ]);
-
-            $data = $response->json();
-
-            if ($response->successful()) {
-                $nota->status = StatusNotaFiscal::Cancelada;
-                $nota->focus_status = $data['status'] ?? 'cancelado';
-                $nota->cancelamento_motivo = $justificativa;
-                $nota->cancelamento_protocolo = $data['protocolo'] ?? null;
-                $nota->cancelada_em = now();
-                $nota->save();
-
-                Log::info('NFe: NF-e cancelada com sucesso', ['ref' => $nota->focus_ref]);
-            } else {
-                $nota->focus_mensagem = $data['mensagem'] ?? 'Erro ao cancelar NF-e';
-                $nota->save();
-
-                Log::warning('NFe: Erro ao cancelar NF-e', [
-                    'ref' => $nota->focus_ref,
-                    'response' => $data,
-                ]);
-            }
-
-            return $nota;
         } catch (\Throwable $e) {
-            Log::error('NFe: Erro ao cancelar NF-e', [
-                'ref' => $nota->focus_ref,
-                'error' => $e->getMessage(),
-            ]);
-
-            return $nota;
+            Log::error('NFe: erro de comunicação ao cancelar', ['ref' => $nota->focus_ref, 'error' => $e->getMessage()]);
+            throw new \App\Exceptions\NotaFiscalCancelException(
+                'Não foi possível falar com a SEFAZ/prefeitura para cancelar. Tente de novo em instantes.', 0, $e
+            );
         }
+
+        // Só "cancelado" confirmado marca a nota (ver ConfirmacaoCancelamento).
+        return ConfirmacaoCancelamento::aplicar($response, $nota, $justificativa, 'NF-e');
     }
 
     /**

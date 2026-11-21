@@ -46,7 +46,10 @@ class ConsultarNotaFiscalJob implements ShouldQueue
             $service = match ($nota->tipo->value) {
                 'nfe' => new NFeService($client),
                 'nfce' => new NFCeService($client),
-                'nfse' => new NFSeService($client),
+                // NFS-e Nacional (ref "nfse-nac-…") consulta no endpoint nacional (21/11/2026)
+                'nfse' => str_starts_with((string) $nota->focus_ref, 'nfse-nac-')
+                    ? \App\Services\FocusNFe\NFSeNacionalService::forUnidade($unidade)
+                    : new NFSeService($client),
             };
 
             $service->consultar($nota);

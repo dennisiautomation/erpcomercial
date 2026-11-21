@@ -71,6 +71,8 @@ class FuncionarioController extends Controller
                 ->with('warning', 'Você chegou ao limite de usuários do seu plano. Para cadastrar mais, mude de plano em Meu Plano ou fale com a nossa equipe.');
         }
 
+        $this->barrarPerfilAcima($request->input('perfil'));
+
         $validated = $request->validate([
             'name'                => 'required|string|max:255',
             'email'               => [
@@ -124,6 +126,7 @@ class FuncionarioController extends Controller
     public function edit(User $funcionario)
     {
         $this->authorize('manage', User::class);
+        $this->barrarAlvoAcima($funcionario);
 
         $perfis = Perfil::cases();
         $unidades = Unidade::where('empresa_id', auth()->user()->empresa_id)
@@ -138,6 +141,7 @@ class FuncionarioController extends Controller
     public function update(Request $request, User $funcionario)
     {
         $this->authorize('manage', User::class);
+        $this->barrarAlvoAcima($funcionario);
 
         $validated = $request->validate([
             'name'                => 'required|string|max:255',
@@ -158,6 +162,8 @@ class FuncionarioController extends Controller
             'unidades.*'          => 'exists:unidades,id',
         ]);
 
+        $this->barrarPerfilAcima($validated['perfil'], $funcionario);
+
         $data = collect($validated)->except(['password', 'unidades'])->toArray();
         // Switch desmarcado não vem no POST: grava false, não "mantém".
         $data['pode_editar_produtos'] = $request->boolean('pode_editar_produtos');
@@ -176,6 +182,7 @@ class FuncionarioController extends Controller
     public function destroy(User $funcionario)
     {
         $this->authorize('manage', User::class);
+        $this->barrarAlvoAcima($funcionario);
 
         if ($funcionario->id === auth()->id()) {
             return redirect()->route('app.funcionarios.index')
@@ -186,6 +193,39 @@ class FuncionarioController extends Controller
 
         return redirect()->route('app.funcionarios.index')
             ->with('success', 'Funcionário desativado com sucesso!');
+    }
+
+    /**
+     * Perfis que esta tela dá (são os cartões dela). Dono e Administrador não se criam
+     * nem se dão por aqui — antes o servidor aceitava qualquer um e o gerente conseguia
+     * se promover ou criar um Dono mandando o campo na mão (levantamento 21/11/2026).
+     * Editar alguém mantendo o perfil que ele já tem continua valendo (o Dono edita o
+     * próprio cadastro sem virar outra coisa).
+     */
+    private const PERFIS_DA_TELA = ['gerente', 'vendedor', 'caixa', 'financeiro', 'consulta'];
+
+    private function barrarPerfilAcima(?string $perfil, ?User $alvo = null): void
+    {
+        $perfil = (string) $perfil;
+        $atual = $alvo ? ($alvo->perfil instanceof Perfil ? $alvo->perfil->value : (string) $alvo->perfil) : null;
+        if (in_array($perfil, self::PERFIS_DA_TELA, true) || ($alvo && $perfil === $atual) || auth()->user()->is_admin) {
+            return;
+        }
+        abort(403, 'Este perfil não pode ser dado por aqui. Dono e Administrador são definidos pela IA365.');
+    }
+
+    /** Gerente não edita nem desativa quem está acima dele (Dono, Administrador). */
+    private function barrarAlvoAcima(User $alvo): void
+    {
+        $eu = auth()->user();
+        if ($eu->is_admin || $eu->isAdmin() || $eu->isDono()) {
+            return;
+        }
+        $nivelAlvo = $alvo->perfil instanceof Perfil ? $alvo->perfil->nivel() : (Perfil::tryFrom((string) $alvo->perfil)?->nivel() ?? 0);
+        $nivelEu = $eu->perfil instanceof Perfil ? $eu->perfil->nivel() : 0;
+        if ($alvo->is_admin || $nivelAlvo > $nivelEu) {
+            abort(403, 'Só o Dono pode alterar este usuário.');
+        }
     }
 
     private function authorize(string $ability, string $model): void
