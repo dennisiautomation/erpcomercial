@@ -61,9 +61,9 @@ class FerramentasAjuda
                 ], ['busca']);
             }
             if ($this->pode('vendas')) {
-                $f[] = $this->def('consultar_venda', 'Abre uma venda da empresa pelo número (ou id): situação, total, pagamento, itens, nota ligada.', [
-                    'numero' => ['type' => 'string', 'description' => 'número da venda como aparece na tela'],
-                ], ['numero']);
+                $f[] = $this->def('consultar_venda', 'Abre uma venda da empresa: situação, total, pagamento, itens e nota ligada. Sem número (ou "ultima") traz as últimas vendas desta loja, as do próprio usuário primeiro — use quando a pessoa disser "a última venda", "a venda que acabei de fazer".', [
+                    'numero' => ['type' => 'string', 'description' => 'número da venda como aparece na tela; vazio ou "ultima" = últimas vendas'],
+                ]);
             }
             $f[] = $this->def('caixas_abertos', 'Mostra os caixas abertos agora nas lojas que o usuário enxerga e quem abriu. Útil para "PDV diz caixa fechado", "não consigo faturar".', []);
         }
@@ -129,6 +129,8 @@ class FerramentasAjuda
             $q->where('status', $a['situacao']);
         }
         $notas = $q->limit(10)->get();
+        $vendas = Venda::query()->where('empresa_id', $this->user->empresa_id)
+            ->whereIn('id', $notas->pluck('venda_id')->filter())->pluck('numero', 'id');
         if ($notas->isEmpty()) {
             return ['resultado' => 'Nenhuma nota encontrada com esse filtro.'];
         }
@@ -143,7 +145,7 @@ class FerramentasAjuda
             'valor' => (float) $n->valor_total,
             'criada_em' => $n->created_at?->timezone('America/Sao_Paulo')->format('d/m/Y H:i'),
             'mensagem' => Str::limit((string) $n->focus_mensagem, 300),
-            'venda_id' => $n->venda_id,
+            'numero_da_venda' => $n->venda_id ? ($vendas[$n->venda_id] ?? null) : null,
         ])->all()];
     }
 
@@ -209,7 +211,7 @@ class FerramentasAjuda
             'natureza_operacao' => $n->natureza_operacao,
             'loja' => $n->unidade()->value('nome'),
             'criada_em' => $n->created_at?->timezone('America/Sao_Paulo')->format('d/m/Y H:i'),
-            'venda' => $venda ? ['venda_id' => $venda->id, 'numero' => $venda->numero, 'tipo' => $venda->tipo ?? null] : null,
+            'venda' => $venda ? ['numero_da_venda' => $venda->numero, 'tipo' => $venda->tipo ?? null] : null,
             'cliente' => $cliente,
             'itens' => $itens,
             'eventos' => $eventos,
@@ -275,6 +277,27 @@ class FerramentasAjuda
     private function consultarVenda(string $numero): array
     {
         $numero = trim(ltrim($numero, '#'));
+        if ($numero === '' || in_array(mb_strtolower($numero), ['ultima', 'última', 'ultimas', 'últimas'], true)) {
+            $q = Venda::query()->where('empresa_id', $this->user->empresa_id)->latest('id');
+            if (session('unidade_id')) {
+                $q->where('unidade_id', session('unidade_id'));
+            }
+            $minhas = (clone $q)->where('vendedor_id', $this->user->id)->limit(3)->pluck('id');
+            $ids = $minhas->merge((clone $q)->limit(5)->pluck('id'))->unique()->take(5);
+            if ($ids->isEmpty()) {
+                return ['resultado' => 'Nenhuma venda nesta loja.'];
+            }
+            $ultima = $this->consultarVenda((string) Venda::query()->whereKey($ids->first())->value('numero'));
+
+            return [
+                'ultima_venda' => $ultima,
+                'outras_recentes' => Venda::query()->whereIn('id', $ids->slice(1))->latest('id')->get()->map(fn ($v) => [
+                    'numero' => $v->numero, 'total' => (float) $v->total,
+                    'situacao' => is_object($v->status) ? $v->status->value : $v->status,
+                    'data' => $v->created_at?->timezone('America/Sao_Paulo')->format('d/m/Y H:i'),
+                ])->all(),
+            ];
+        }
         $v = Venda::query()->where('empresa_id', $this->user->empresa_id)
             ->where(fn ($q) => $q->where('numero', $numero)->orWhere('id', ctype_digit($numero) ? (int) $numero : 0))
             ->orderByRaw('numero = ? desc', [$numero])
