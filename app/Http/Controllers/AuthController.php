@@ -62,6 +62,15 @@ class AuthController extends Controller
         }
         RateLimiter::clear($chaveEmail);
 
+        // Funcionário desativado não entra (antes só a API da maquininha conferia — 21/11/2026).
+        if (! Auth::user()->estaAtivo()) {
+            Auth::logout();
+
+            return back()
+                ->withInput($request->only('email'))
+                ->withErrors(['email' => 'Este acesso está desativado. Fale com o responsável da sua empresa.']);
+        }
+
         $request->session()->regenerate();
 
         return $this->redirectAfterLogin(Auth::user());

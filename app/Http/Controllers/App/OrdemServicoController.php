@@ -313,6 +313,12 @@ class OrdemServicoController extends Controller
             return back()->with('error', 'Apenas OS concluidas ou entregues podem ser convertidas em venda.');
         }
 
+        // Uma OS vira UMA venda (21/11/2026): antes a OS "entregue" seguia com o botão e
+        // nada impedia a 2ª conversão — venda, baixa de estoque e caixa em dobro.
+        if ($msg = $this->jaConvertida($ordemServico)) {
+            return back()->with('error', $msg);
+        }
+
         // A conversao baixa estoque: sem estoque de venda na loja nao ha onde
         // debitar as pecas — melhor barrar aqui do que gerar venda pela metade.
         $temProduto = $ordemServico->itens()->where('tipo', 'produto')->whereNotNull('produto_id')->exists();
@@ -329,7 +335,13 @@ class OrdemServicoController extends Controller
             return back()->with('error', 'Abra o caixa nesta loja antes de converter a OS: a venda entra no caixa, como no PDV.');
         }
 
+        try {
         $venda = DB::transaction(function () use ($ordemServico, $fp, $caixa, $caixaSvc) {
+            // Trava a linha da OS: dois cliques/abas ao mesmo tempo não convertem duas vezes.
+            $travada = OrdemServico::whereKey($ordemServico->id)->lockForUpdate()->first();
+            if ($msg = $this->jaConvertida($travada)) {
+                throw new \RuntimeException($msg);
+            }
             $ultimoNumero = Venda::where('empresa_id', session('empresa_id'))
                 ->max('numero') ?? 0;
 
@@ -378,13 +390,33 @@ class OrdemServicoController extends Controller
             // Entrada no caixa na forma escolhida (grava caixa_id na venda)
             $caixaSvc->lancarVenda($venda, $caixa, $venda->pagamento_detalhes, (int) auth()->id());
 
-            $ordemServico->update(['status' => 'entregue']);
+            $ordemServico->update(['status' => 'entregue', 'venda_id' => $venda->id]);
 
             return $venda;
         });
+        } catch (\RuntimeException $e) {
+            if (str_starts_with($e->getMessage(), 'Esta OS já virou')) {
+                return back()->with('error', $e->getMessage());
+            }
+            throw $e;
+        }
 
         return redirect()->route('app.vendas.show', $venda)
             ->with('success', 'Venda #' . $venda->numero . ' gerada a partir da OS #' . $ordemServico->numero . '.');
+    }
+
+    /** Mensagem se a OS já gerou venda (que não foi cancelada); null se pode converter. */
+    private function jaConvertida(?OrdemServico $os): ?string
+    {
+        if (! $os || ! $os->venda_id) {
+            return null;
+        }
+        $venda = Venda::withoutGlobalScopes()->where('empresa_id', $os->empresa_id)->find($os->venda_id);
+        if (! $venda || (is_object($venda->status) ? $venda->status->value : $venda->status) === 'cancelada') {
+            return null; // venda apagada ou cancelada: pode gerar de novo
+        }
+
+        return 'Esta OS já virou a venda #' . $venda->numero . '. Para refazer, cancele aquela venda antes.';
     }
 
     /**

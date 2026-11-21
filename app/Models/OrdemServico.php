@@ -26,6 +26,7 @@ class OrdemServico extends Model
         'defeito_relatado',
         'laudo_tecnico',
         'status',
+        'venda_id',
         'valor_produtos',
         'valor_servicos',
         'desconto',

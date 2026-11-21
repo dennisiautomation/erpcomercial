@@ -57,6 +57,11 @@ class NFSeNacionalService
     public function emitir(array $dadosServico, ConfiguracaoFiscal $config, ?Cliente $cliente = null): NotaFiscal
     {
         $dadosServico = $this->normalizarDados($dadosServico);
+        // A tela "Emitir NFS-e" não pede o código do serviço: vale o gravado na
+        // Configuração Fiscal da loja (igual à NFS-e municipal). Antes toda emissão
+        // Nacional parava em "Informe o código do serviço…" (21/11/2026).
+        $dadosServico['item_lista_servico'] = $dadosServico['item_lista_servico'] ?? ($config->nfse_item_lista_servico ?: null);
+        $dadosServico['codigo_servico_nacional'] = $dadosServico['codigo_servico_nacional'] ?? ($config->nfse_codigo_tributacao ?: null);
         $this->validarObrigatorios($dadosServico);
 
         $unidade = Unidade::with('empresa')->findOrFail($config->unidade_id);
@@ -171,33 +176,21 @@ class NFSeNacionalService
 
     public function cancelar(NotaFiscal $nota, string $justificativa): NotaFiscal
     {
+        Log::info('NFSeNacional: Cancelando', ['ref' => $nota->focus_ref]);
+
         try {
             $response = $this->client->delete("/v2/nfse_nacional/{$nota->focus_ref}", [
                 'justificativa' => $justificativa,
             ]);
-            $data = $response->json();
-
-            if ($response->successful()) {
-                $nota->status = StatusNotaFiscal::Cancelada;
-                $nota->focus_status = $data['status'] ?? 'cancelado';
-                $nota->cancelamento_motivo = $justificativa;
-                $nota->cancelada_em = now();
-                $nota->save();
-            } else {
-                $nota->focus_mensagem = is_array($data['mensagem'] ?? null)
-                    ? json_encode($data['mensagem'])
-                    : ($data['mensagem'] ?? 'Erro ao cancelar.');
-                $nota->save();
-            }
-
-            return $nota;
         } catch (\Throwable $e) {
-            Log::error('NFSeNacional: erro ao cancelar', [
-                'ref' => $nota->focus_ref,
-                'error' => $e->getMessage(),
-            ]);
-            return $nota;
+            Log::error('NFSeNacional: erro de comunicação ao cancelar', ['ref' => $nota->focus_ref, 'error' => $e->getMessage()]);
+            throw new \App\Exceptions\NotaFiscalCancelException(
+                'Não foi possível falar com a SEFAZ/prefeitura para cancelar. Tente de novo em instantes.', 0, $e
+            );
         }
+
+        // Só "cancelado" confirmado marca a nota (ver ConfirmacaoCancelamento).
+        return ConfirmacaoCancelamento::aplicar($response, $nota, $justificativa, 'NFS-e');
     }
 
     // ─── Helpers ───────────────────────────────────────────────────────
@@ -240,7 +233,7 @@ class NFSeNacionalService
 
         if (empty($dados['codigo_servico_nacional'] ?? $dados['item_lista_servico'] ?? null)) {
             throw new \App\Exceptions\NotaFiscalEmissaoException(
-                'Informe o código do serviço no padrão nacional (cServ) ou o item da lista LC 116.'
+                'Falta o código do serviço: grave o "Item LC 116" na Configuração Fiscal da loja, parte da NFS-e (o seu contador informa o código).'
             );
         }
     }

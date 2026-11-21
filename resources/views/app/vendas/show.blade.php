@@ -20,7 +20,7 @@
         </nav>
     </div>
     <div class="d-flex gap-2 flex-wrap">
-        @if($venda->status->value === 'concluída' && \App\Http\Middleware\CheckPermission::can(auth()->user()->perfil?->value ?? '', 'trocas', 'criar'))
+        @if($venda->status->value === 'concluida' && \App\Http\Middleware\CheckPermission::can(auth()->user()->perfil?->value ?? '', 'trocas', 'criar'))
             <a href="{{ route('app.trocas.create', ['venda' => $venda->id]) }}" class="btn btn-outline-warning" title="Devolver itens desta venda (sem levar nada agora). Para trocar por outro produto, use o PDV — F6.">
                 <i class="bi bi-arrow-repeat me-1"></i> Trocar / Devolver
             </a>

@@ -19,6 +19,18 @@ class CheckSuspensao
     {
         $user = $request->user();
 
+        // Funcionário desativado com sessão aberta (dura 7 dias) cai fora no próximo clique.
+        // Admin em "acessar como" entra como o usuário escolhido mesmo inativo, para inspecionar.
+        if ($user && ! $user->estaAtivo() && ! session()->has('acesso_como_admin_id')) {
+            \Illuminate\Support\Facades\Auth::logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            return $request->expectsJson()
+                ? response()->json(['message' => 'Este acesso está desativado.'], 401)
+                : redirect()->route('login')->withErrors(['email' => 'Este acesso está desativado. Fale com o responsável da sua empresa.']);
+        }
+
         // Admin da plataforma em "acesso como" entra mesmo com a empresa
         // suspensa — é justamente quando ele precisa inspecionar (o banner
         // do layout sinaliza a suspensão).

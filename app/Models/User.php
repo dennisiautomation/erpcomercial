@@ -122,6 +122,14 @@ class User extends Authenticatable
         return $this->perfil === Perfil::Gerente;
     }
 
+    /** Usuário ativo pode entrar no sistema (status 'ativo'; vazio conta como ativo — cadastros antigos). */
+    public function estaAtivo(): bool
+    {
+        $s = $this->status instanceof \BackedEnum ? $this->status->value : (string) $this->status;
+
+        return $s === '' || $s === 'ativo';
+    }
+
     public function hasPermission(string $modulo, string $acao): bool
     {
         if ($this->isAdmin() || $this->isDono()) {
