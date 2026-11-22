@@ -64,6 +64,7 @@ class Empresa extends Model
         'em_trial',
         'open_finance_contas_extras',
         'open_finance_ocultar',
+        'ajuda_modo',
         'status',
         'observacoes',
     ];
@@ -361,6 +362,21 @@ class Empresa extends Model
     public function openFinanceVisivel(): bool
     {
         return $this->openFinanceLiberado() || ! $this->open_finance_ocultar;
+    }
+
+    /**
+     * Assistente de ajuda (22/11/2026): a exceção desta empresa manda
+     * ('ligado'/'desligado'); sem exceção (null) segue a chave geral de
+     * Admin → Integrações. O interruptor do servidor fica em
+     * App\Services\Ajuda\AjudaLiberacao.
+     */
+    public function ajudaLigada(): bool
+    {
+        return match ($this->ajuda_modo) {
+            'ligado' => true,
+            'desligado' => false,
+            default => \App\Services\Ajuda\AjudaLiberacao::paraTodas(),
+        };
     }
 
     public function openFinanceContasUsadas(): int

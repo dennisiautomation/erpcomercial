@@ -1,7 +1,7 @@
-{{-- Agente de ajuda (21/11/2026): botão "Ajuda" + janela de conversa. Liga por AJUDA_ATIVO.
+{{-- Agente de ajuda (21/11/2026): botão "Ajuda" + janela de conversa. Liga por AJUDA_ATIVO + Admin → Integrações (todas) + exceção em Admin → Empresa (AjudaLiberacao).
      :flutuante="false" (PDV) = sem o botão do canto; a tela abre por ERPAjuda.abrir(). --}}
 @props(['flutuante' => true])
-@if (config('ajuda.ativo') && auth()->check())
+@if (auth()->check() && \App\Services\Ajuda\AjudaLiberacao::paraUsuario(auth()->user()))
 <style>
     .aj-botao {
         position: fixed; right: 20px; bottom: 20px; z-index: 100000;

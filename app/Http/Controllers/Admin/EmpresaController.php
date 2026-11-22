@@ -190,6 +190,7 @@ class EmpresaController extends Controller
             'status'            => ['required', 'string'],
             'observacoes'       => ['nullable', 'string'],
             'open_finance_contas_extras' => ['nullable', 'integer', 'min:0', 'max:999'],
+            'ajuda_modo'        => ['nullable', 'in:' . implode(',', \App\Services\Ajuda\AjudaLiberacao::MODOS)],
         ]);
 
         // Cobrança direta (só admins com acesso ao financeiro alteram)
@@ -261,6 +262,12 @@ class EmpresaController extends Controller
             $validated['open_finance_contas_extras'] = (int) $request->input('open_finance_contas_extras');
         } else {
             unset($validated['open_finance_contas_extras']);
+        }
+        // Assistente de ajuda (22/11/2026): vazio = segue o geral; só muda quando o campo veio na tela
+        if ($request->has('ajuda_modo')) {
+            $validated['ajuda_modo'] = ($validated['ajuda_modo'] ?? null) ?: null;
+        } else {
+            unset($validated['ajuda_modo']);
         }
         // Cafeteria (30/10/2026): só muda quando o campo veio na tela
         if ($request->has('usa_ficha_tecnica')) {

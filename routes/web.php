@@ -220,6 +220,8 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
         ->name('empresas.gateway-melhor-envio.desconectar');
     // Integrações da PLATAFORMA (credenciais da IA365, valem para todas as empresas) — 05/09/2026
     Route::get('/integracoes', [Admin\IntegracoesPlataformaController::class, 'index'])->name('integracoes.index');
+    Route::post('/integracoes/ajuda', [Admin\IntegracoesPlataformaController::class, 'storeAjuda'])
+        ->name('integracoes.ajuda.store');
     Route::post('/integracoes/melhor-envio', [Admin\IntegracoesPlataformaController::class, 'storeMelhorEnvio'])
         ->name('integracoes.melhor-envio.store');
     Route::resource('empresas', Admin\EmpresaController::class);

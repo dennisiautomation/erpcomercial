@@ -72,6 +72,19 @@ class IntegracoesPlataformaController extends Controller
         ]);
     }
 
+    /** Assistente de ajuda: ligado ou desligado para TODAS (22/11/2026); exceções ficam na empresa. */
+    public function storeAjuda(Request $request): RedirectResponse
+    {
+        abort_unless($request->user()->is_admin, 403);
+        $dados = $request->validate(['ajuda_todas' => ['required', 'in:0,1']]);
+
+        \App\Services\Ajuda\AjudaLiberacao::definirParaTodas($dados['ajuda_todas'] === '1');
+
+        return redirect()->route('admin.integracoes.index')->with('success', $dados['ajuda_todas'] === '1'
+            ? 'Assistente de ajuda ligado para todas as empresas (menos as marcadas "Desligado sempre").'
+            : 'Assistente de ajuda desligado para todas as empresas (menos as marcadas "Ligado sempre").');
+    }
+
     public function storeMelhorEnvio(Request $request): RedirectResponse
     {
         abort_unless($request->user()->is_admin, 403);

@@ -6,18 +6,26 @@ use App\Http\Controllers\Controller;
 use App\Models\AjudaConversa;
 use App\Models\AjudaMensagem;
 use App\Services\Ajuda\AgenteAjuda;
+use App\Services\Ajuda\AjudaLiberacao;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 
 /**
  * Botão "Ajuda" (todas as telas): conversa com o agente de ajuda.
  * Cada usuário só vê as PRÓPRIAS conversas (filtro por user_id em toda consulta).
  */
-class AjudaController extends Controller
+class AjudaController extends Controller implements HasMiddleware
 {
-    public function __construct()
+    /** Desligado no servidor, para todas ou para a empresa do usuário = 404 (22/11/2026). */
+    public static function middleware(): array
     {
-        abort_unless(config('ajuda.ativo'), 404);
+        return [new Middleware(function (Request $request, \Closure $next) {
+            abort_unless(AjudaLiberacao::paraUsuario($request->user()), 404);
+
+            return $next($request);
+        })];
     }
 
     /** Conversa em andamento (a última, se mexida nas últimas 12 h). */

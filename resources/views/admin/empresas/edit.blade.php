@@ -532,6 +532,44 @@
                 </div>
             </div>
 
+            {{-- Assistente de ajuda (22/11/2026): exceção desta empresa à chave geral de Admin → Integrações --}}
+            @php
+                $ajServidor = \App\Services\Ajuda\AjudaLiberacao::servidor();
+                $ajTodas = \App\Services\Ajuda\AjudaLiberacao::paraTodas();
+                $ajModo = old('ajuda_modo', $empresa->ajuda_modo);
+            @endphp
+            <div class="card section-card shadow-sm mb-4" id="sec-ajuda">
+                <div class="card-header d-flex align-items-start justify-content-between gap-2">
+                    <div>
+                        <h6 class="mb-0"><i class="bi bi-chat-dots me-2 text-primary"></i>Assistente de ajuda</h6>
+                        <p class="card-sub">Botão "Ajuda" que tira dúvidas e abre chamado</p>
+                    </div>
+                    @if($ajServidor && $empresa->ajudaLigada())
+                        <span class="badge rounded-pill text-bg-success">Ligado para esta empresa</span>
+                    @else
+                        <span class="badge rounded-pill text-bg-light border">Desligado para esta empresa</span>
+                    @endif
+                </div>
+                <div class="card-body">
+                    <div class="row g-3 align-items-end">
+                        <div class="col-md-6">
+                            <label for="ajuda_modo" class="form-label">Para esta empresa</label>
+                            <select class="form-select @error('ajuda_modo') is-invalid @enderror" id="ajuda_modo" name="ajuda_modo">
+                                <option value="" @selected(! $ajModo)>Segue o geral ({{ $ajTodas ? 'ligado' : 'desligado' }} para todas)</option>
+                                <option value="ligado" @selected($ajModo === 'ligado')>Ligado sempre</option>
+                                <option value="desligado" @selected($ajModo === 'desligado')>Desligado sempre</option>
+                            </select>
+                            @error('ajuda_modo') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                        </div>
+                    </div>
+                    <small class="text-muted d-block mt-3">
+                        <i class="bi bi-info-circle me-1"></i>
+                        A chave geral fica em <a href="{{ route('admin.integracoes.index') }}#ajuda">Admin → Integrações</a>.
+                        @unless($ajServidor) <strong>O servidor está sem o assistente (AJUDA_ATIVO): nada aparece, para nenhuma empresa.</strong> @endunless
+                    </small>
+                </div>
+            </div>
+
             {{-- Regras e recursos (antes "Cadastros"): cada chave com o efeito explicado ao lado --}}
             <div class="card section-card shadow-sm mb-4" id="sec-recursos">
                 <div class="card-header">

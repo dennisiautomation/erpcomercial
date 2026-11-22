@@ -30,6 +30,14 @@
                 . ' · ' . (clone $todasEmpresas)->whereNotNull('caixa_cliente_id')->count() . ' empresa(s) vinculada(s)',
             'link' => route('admin.financeiro.index'),
         ],
+        [
+            'icone' => 'chat-dots', 'nome' => 'Assistente de ajuda', 'onde' => 'Ligado/desligado para todas aqui; exceção em cada empresa',
+            'ok' => \App\Services\Ajuda\AjudaLiberacao::servidor() && \App\Services\Ajuda\AjudaLiberacao::paraTodas(),
+            'estado' => ! \App\Services\Ajuda\AjudaLiberacao::servidor() ? 'Sem AJUDA_ATIVO no servidor'
+                : ((\App\Services\Ajuda\AjudaLiberacao::paraTodas() ? 'Ligado para todas' : 'Desligado para todas')
+                    . ' · ' . (clone $todasEmpresas)->whereNotNull('ajuda_modo')->count() . ' exceção(ões)'),
+            'link' => '#ajuda',
+        ],
     ];
 @endphp
 <div class="plataforma-faixa mb-4" aria-label="Ligações da plataforma">
@@ -131,6 +139,53 @@
     <div class="card-footer small text-muted">
         <strong>Ativo</strong> = ligado e com credencial (o agente oferece) · <strong>Incompleto</strong> = ligado sem credencial ·
         <strong>Inativo</strong> = desligado · <strong>—</strong> = nunca configurado. Para mudar, abra a empresa → aba <em>Integração</em>.
+    </div>
+</div>
+
+{{-- Assistente de ajuda (22/11/2026): chave geral; a exceção de cada empresa fica em Admin → Empresa --}}
+@php
+    $ajServidor = \App\Services\Ajuda\AjudaLiberacao::servidor();
+    $ajTodas = \App\Services\Ajuda\AjudaLiberacao::paraTodas();
+    $ajExcecoes = \App\Models\Empresa::withoutGlobalScopes()->whereNotNull('ajuda_modo')
+        ->orderBy('nome_fantasia')->get(['id', 'nome_fantasia', 'razao_social', 'ajuda_modo']);
+@endphp
+<div class="card detail-card shadow-sm mb-4" id="ajuda">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h6 class="mb-0"><i class="bi bi-chat-dots me-1"></i> Assistente de ajuda</h6>
+        @if(! $ajServidor)
+            <span class="badge rounded-pill text-bg-light border">Desligado no servidor</span>
+        @elseif($ajTodas)
+            <span class="badge rounded-pill text-bg-success">Ligado para todas</span>
+        @else
+            <span class="badge rounded-pill text-bg-light border">Desligado para todas</span>
+        @endif
+    </div>
+    <div class="card-body">
+        <form method="POST" action="{{ route('admin.integracoes.ajuda.store') }}" class="d-flex flex-wrap gap-3 align-items-center">
+            @csrf
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="ajuda_todas" id="ajuda_todas_1" value="1" @checked($ajTodas)>
+                <label class="form-check-label" for="ajuda_todas_1"><strong>Ligado</strong> para todas as empresas</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="ajuda_todas" id="ajuda_todas_0" value="0" @checked(! $ajTodas)>
+                <label class="form-check-label" for="ajuda_todas_0"><strong>Desligado</strong> para todas as empresas</label>
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm">Salvar</button>
+        </form>
+        <p class="small text-muted mt-3 mb-2">
+            Para tirar ou colocar uma empresa só: Admin → Empresas → Editar → cartão "Assistente de ajuda".
+            @unless($ajServidor) <strong>O servidor está sem AJUDA_ATIVO: nada aparece, para nenhuma empresa.</strong> @endunless
+        </p>
+        @if($ajExcecoes->isNotEmpty())
+            <div class="small"><strong>Exceções:</strong>
+                @foreach($ajExcecoes as $ex)
+                    <a href="{{ route('admin.empresas.edit', $ex->id) }}#sec-ajuda" class="badge rounded-pill {{ $ex->ajuda_modo === 'ligado' ? 'text-bg-success' : 'text-bg-secondary' }} text-decoration-none">
+                        {{ $ex->nome_fantasia ?: $ex->razao_social }} · {{ $ex->ajuda_modo === 'ligado' ? 'ligado sempre' : 'desligado sempre' }}
+                    </a>
+                @endforeach
+            </div>
+        @endif
     </div>
 </div>
 
