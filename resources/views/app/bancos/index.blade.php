@@ -475,10 +475,24 @@ document.getElementById('modalEscolher')?.addEventListener('show.bs.modal', func
                 <div class="mb-3">
                     <div class="form-label mb-1">Favorecido</div>
                     <div id="lancar-favorecido-fixo" class="small"></div>
-                    <div id="lancar-fornecedor-bloco">
+                    {{-- 22/11/2026: escolher um fornecedor já cadastrado (busca por nome ou CPF/CNPJ) --}}
+                    <div class="position-relative mt-2">
+                        <label class="form-label small mb-1" for="lancar-fornecedor-busca">Fornecedor</label>
+                        <div class="input-group">
+                            <input id="lancar-fornecedor-busca" class="form-control" autocomplete="off" maxlength="250"
+                                   placeholder="Buscar fornecedor já cadastrado (nome ou CPF/CNPJ)"
+                                   data-autocomplete="{{ route('app.search.fornecedores') }}" data-autocomplete-target="lancar-fornecedor-id"
+                                   data-autocomplete-display="razao_social" data-autocomplete-focus>
+                            <button type="button" class="btn btn-outline-secondary" id="lancar-fornecedor-limpar" hidden
+                                    aria-label="Tirar o fornecedor escolhido"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
+                        </div>
+                        <input type="hidden" name="fornecedor_id" id="lancar-fornecedor-id">
+                        <div class="form-text" id="lancar-fornecedor-escolhido" hidden></div>
+                    </div>
+                    <div id="lancar-fornecedor-bloco" class="mt-2">
                         <div class="form-check form-switch">
                             <input class="form-check-input" type="checkbox" role="switch" id="lancar-fornecedor-chave">
-                            <label class="form-check-label" for="lancar-fornecedor-chave">Cadastrar como fornecedor agora</label>
+                            <label class="form-check-label" for="lancar-fornecedor-chave">Não está na lista: cadastrar como fornecedor agora</label>
                         </div>
                         <input id="lancar-fornecedor-nome" name="fornecedor_novo" class="form-control mt-2" maxlength="250" hidden disabled
                                aria-label="Nome do fornecedor">
@@ -537,15 +551,40 @@ document.getElementById('modalLancar')?.addEventListener('show.bs.modal', functi
     const jaEh = !!b.dataset.fornecedor;
     const chave = document.getElementById('lancar-fornecedor-chave');
     const nome = document.getElementById('lancar-fornecedor-nome');
-    document.getElementById('lancar-favorecido-fixo').textContent = (b.dataset.favorecido || 'Sem nome informado pelo banco')
-        + (jaEh ? ' — fornecedor já cadastrado' : '');
-    document.getElementById('lancar-fornecedor-bloco').hidden = jaEh;
+    document.getElementById('lancar-favorecido-fixo').textContent = 'No banco: ' + (b.dataset.favorecido || 'sem nome informado');
+    // já reconhecido: vem escolhido, mas dá para trocar
+    escolherFornecedor(jaEh ? b.dataset.fornecedor : '', jaEh ? (b.dataset.favorecido || '') : '');
     chave.checked = false;
     nome.value = b.dataset.favorecido || '';
     document.getElementById('lancar-fornecedor-ajuda').textContent = b.dataset.documento
         ? 'Entra com o CPF/CNPJ que o banco informou (' + b.dataset.documento + '). Endereço e telefone você completa depois em Cadastros → Fornecedores, se precisar.'
         : 'O banco não informou CPF/CNPJ: entra só com o nome. O resto você completa depois em Cadastros → Fornecedores.';
     alternarFornecedor();
+});
+
+// Fornecedor escolhido na busca: esconde "cadastrar novo"; sem escolha, volta a mostrar.
+function escolherFornecedor(id, nome) {
+    const campo = document.getElementById('lancar-fornecedor-id');
+    const busca = document.getElementById('lancar-fornecedor-busca');
+    campo.value = id || '';
+    busca.value = id ? nome : '';
+    busca.readOnly = !!id;
+    document.getElementById('lancar-fornecedor-limpar').hidden = !id;
+    const aviso = document.getElementById('lancar-fornecedor-escolhido');
+    aviso.hidden = !id;
+    aviso.textContent = id ? 'A despesa fica no nome deste fornecedor.' : '';
+    document.getElementById('lancar-fornecedor-bloco').hidden = !!id;
+    if (id) { document.getElementById('lancar-fornecedor-chave').checked = false; alternarFornecedor(); }
+}
+document.getElementById('lancar-fornecedor-busca')?.addEventListener('autocomplete-select', function () {
+    escolherFornecedor(document.getElementById('lancar-fornecedor-id').value, this.value);
+});
+document.getElementById('lancar-fornecedor-busca')?.addEventListener('input', function () {
+    document.getElementById('lancar-fornecedor-id').value = '';
+});
+document.getElementById('lancar-fornecedor-limpar')?.addEventListener('click', function () {
+    escolherFornecedor('', '');
+    document.getElementById('lancar-fornecedor-busca').focus();
 });
 
 function alternarFornecedor() {

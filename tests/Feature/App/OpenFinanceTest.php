@@ -677,7 +677,7 @@ class OpenFinanceTest extends TestCase
         $b = $this->lancamento($conta, 'debito', 300.00, '2026-11-18', ['contraparte_nome' => 'SANDERSON R SILVA', 'contraparte_documento' => '08239969488']);
         $semDoc = $this->lancamento($conta, 'debito', 49.90, '2026-11-18', ['descricao' => 'TARIFA PACOTE']);
 
-        $this->eu()->get(route('app.bancos.index', ['ver' => 'sem']))->assertOk()->assertSee('Cadastrar como fornecedor agora');
+        $this->eu()->get(route('app.bancos.index', ['ver' => 'sem']))->assertOk()->assertSee('cadastrar como fornecedor agora');
 
         $this->eu()->post(route('app.bancos.lancamentos.lancar', $a), ['fornecedor_novo' => 'Sanderson Ricardo', 'lembrar' => 1])->assertSessionHas('success');
 
@@ -704,6 +704,46 @@ class OpenFinanceTest extends TestCase
         $this->actingAsUser($dono, $this->unidade)->get(route('app.fornecedores.edit', $f))->assertOk();
         $this->actingAsUser($dono, $this->unidade)->post(route('app.fornecedores.store'), ['cpf_cnpj' => '11.222.333/0001-81', 'razao_social' => 'Sem endereço'])
             ->assertSessionHasErrors(['cep', 'logradouro', 'telefone']);
+    }
+
+    /** 22/11/2026 (Dennis): "aqui tem que ter a opção de selecionar fornecedor" — escolher um já cadastrado. */
+    public function test_escolhe_fornecedor_ja_cadastrado_e_o_sistema_lembra(): void
+    {
+        $this->liberar(1);
+        $conta = $this->conta();
+        $f = $this->createFornecedor($this->empresa, ['razao_social' => 'Shopee Marketplace']);
+        [$plano] = $this->classificacao();
+        $a = $this->lancamento($conta, 'debito', 516.02, '2026-11-21', ['contraparte_nome' => 'SHPP BRASIL INSTITUICAO DE PAGAMENTO', 'contraparte_documento' => '38372267000182']);
+        $b = $this->lancamento($conta, 'debito', 80.00, '2026-11-22', ['contraparte_nome' => 'SHPP BRASIL INSTITUICAO DE PAGAMENTO', 'contraparte_documento' => '38372267000182']);
+
+        $this->eu()->get(route('app.bancos.index', ['ver' => 'sem']))->assertOk()->assertSee('Buscar fornecedor já cadastrado');
+
+        $this->eu()->post(route('app.bancos.lancamentos.lancar', $a), [
+            'fornecedor_id' => $f->id, 'plano_conta_id' => $plano->id, 'lembrar' => 1,
+        ])->assertSessionHas('success');
+
+        $titulo = ContaPagar::withoutGlobalScopes()->firstOrFail();
+        $this->assertSame($f->id, $titulo->fornecedor_id);
+        $this->assertNull($titulo->favorecido_nome);
+        // não criou fornecedor novo pelo CNPJ do banco
+        $this->assertSame(1, \App\Models\Fornecedor::withoutGlobalScopes()->where('empresa_id', $this->empresa->id)->count());
+
+        // o próximo pagamento ao mesmo favorecido já vem com o fornecedor escolhido
+        $p = app(\App\Services\OpenFinance\ClassificadorLancamentos::class)->propor($b->fresh());
+        $this->assertSame($f->id, $p['fornecedor_id']);
+        $this->assertSame('Shopee Marketplace', $p['favorecido']);
+    }
+
+    public function test_fornecedor_de_outra_empresa_e_recusado_ao_lancar(): void
+    {
+        $this->liberar(1);
+        $conta = $this->conta();
+        [$outra] = $this->createTenant('2');
+        $alheio = $this->createFornecedor($outra);
+        $l = $this->lancamento($conta, 'debito', 10.00, '2026-11-05');
+
+        $this->eu()->post(route('app.bancos.lancamentos.lancar', $l), ['fornecedor_id' => $alheio->id])->assertSessionHasErrors('fornecedor_id');
+        $this->assertSame(0, ContaPagar::withoutGlobalScopes()->count());
     }
 
     public function test_plano_de_contas_de_outra_empresa_e_recusado_ao_lancar(): void

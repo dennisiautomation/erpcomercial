@@ -349,7 +349,10 @@ class BancoController extends Controller
             'plano_conta_novo' => 'nullable|string|min:2|max:100',
             'centro_custo_novo' => 'nullable|string|min:2|max:100',
             'fornecedor_novo' => 'nullable|string|min:2|max:250',
+            // 22/11/2026: escolher um fornecedor já cadastrado (só da própria empresa)
+            'fornecedor_id' => ['nullable', Rule::exists('fornecedores', 'id')->where('empresa_id', $empresa->id)],
         ], [
+            'fornecedor_id.exists' => 'Escolha um fornecedor da lista.',
             'fornecedor_novo.min' => 'Dê um nome para o fornecedor (ao menos 2 letras).',
             'plano_conta_novo.min' => 'Dê um nome para a conta nova (ao menos 2 letras).',
             'centro_custo_novo.min' => 'Dê um nome para o centro de custo novo (ao menos 2 letras).',
@@ -362,8 +365,8 @@ class BancoController extends Controller
             if (filled($dados['centro_custo_novo'] ?? null)) {
                 $dados['centro_custo_id'] = $this->classificador->centroDeCustoPeloNome($empresa->id, $dados['centro_custo_novo'])->id;
             }
-            if (filled($dados['fornecedor_novo'] ?? null)) {
-                $dados['fornecedor_id'] = $this->classificador->fornecedorSimples($lancamento, $dados['fornecedor_novo'])->id;
+            if (filled($dados['fornecedor_novo'] ?? null) && empty($dados['fornecedor_id'])) {
+                $dados['fornecedor_id'] =$this->classificador->fornecedorSimples($lancamento, $dados['fornecedor_novo'])->id;
             }
         }
 
