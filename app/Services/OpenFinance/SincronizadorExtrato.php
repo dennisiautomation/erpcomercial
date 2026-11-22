@@ -112,7 +112,7 @@ class SincronizadorExtrato
                 $cartao->update($limites + ['protocolo_pendente' => null, 'ultima_sincronizacao_em' => now(), 'ultimo_erro' => null]);
                 $this->conciliador->sugerirPendentes($conta->empresa_id);
 
-                return "{$novos} compra(s) nova(s)";
+                return "{$novos} compra(s) nova(s)" . ($this->noBanco ? " · {$this->noBanco} pendente(s) no banco" : '');
             }
 
             if ($forcar || ! $cartao->proxima_sincronizacao_em || $cartao->proxima_sincronizacao_em->isPast()) {
@@ -279,11 +279,20 @@ class SincronizadorExtrato
         return "{$novos} lançamento(s) novo(s), {$sugeridos} com sugestão";
     }
 
-    /** Grava só o que o banco já efetivou (POSTED), sem duplicar; devolve quantos são novos. */
+    /** Compras do cartão que vieram PENDING no último gravar() (fatura aberta). */
+    public int $noBanco = 0;
+
+    /**
+     * Grava o que o banco já efetivou (POSTED), sem duplicar; devolve quantos são novos.
+     * Cartão (22/11/2026): a compra da fatura aberta vem PENDING — fica como 'no_banco'
+     * (visível, fora da conciliação) e vira 'pendente' quando o banco mandar POSTED.
+     * PENDING da conta corrente continua de fora.
+     */
     public function gravar(ContaBancaria $conta, array $dados, ?CartaoCredito $cartao = null): int
     {
         $novos = 0;
         $vistos = [];
+        $this->noBanco = 0;
 
         foreach (['transaction', 'transactionDuplicated'] as $bloco) {
             foreach (['credit' => 'credito', 'debit' => 'debito'] as $chave => $tipo) {
@@ -292,18 +301,34 @@ class SincronizadorExtrato
                     if ($id !== '' && $cartao) {
                         $id = 'cc' . $cartao->final . ':' . $id;
                     }
-                    if ($id === '' || strtoupper((string) ($t['status'] ?? 'POSTED')) !== 'POSTED') {
+                    $situacao = strtoupper((string) ($t['status'] ?? 'POSTED'));
+                    $aberta = $cartao && $situacao === 'PENDING';
+                    if ($id === '' || ($situacao !== 'POSTED' && ! $aberta)) {
                         continue;
                     }
                     $vistos[] = $id;
 
+                    // No crédito quem interessa é quem pagou; no débito, quem recebeu.
+                    $creditoNoCartao = $cartao && $tipo === 'credito';
                     $existente = LancamentoBancario::withoutGlobalScopes()
                         ->where('conta_bancaria_id', $conta->id)->where('transaction_id', $id)->first();
 
                     if ($existente) {
+                        if ($existente->status === 'no_banco') {
+                            if ($aberta) {
+                                $this->noBanco++;
+                            } else {
+                                // O banco efetivou: entra na conciliação agora (conta como nova).
+                                $existente->update(['status' => 'pendente', 'data' => $t['date'] ?? $existente->data,
+                                    'valor' => abs((float) ($t['amount'] ?? $existente->valor)), 'bruto' => $t]);
+                                $novos++;
+                            }
+
+                            continue;
+                        }
                         // Voltou a aparecer depois de ter sumido: volta para a fila.
                         if ($existente->status === 'removido') {
-                            $existente->update(['status' => 'pendente']);
+                            $existente->update(['status' => $aberta && ! $creditoNoCartao ? 'no_banco' : 'pendente']);
                         }
                         if ($existente->sumiu_no_banco) {
                             $existente->update(['sumiu_no_banco' => false]);
@@ -312,12 +337,16 @@ class SincronizadorExtrato
                         continue;
                     }
 
-                    // No crédito quem interessa é quem pagou; no débito, quem recebeu.
                     $parte = (array) ($tipo === 'credito' ? ($t['participantPayer'] ?? []) : ($t['participantReceiver'] ?? []));
                     $doc = preg_replace('/\D/', '', (string) data_get($parte, 'documentNumber.value', ''));
+                    // Compra no cartão: a loja vem em creditCardMerchant (nome + CNPJ), não em participantReceiver.
+                    $loja = $cartao ? (array) ($t['creditCardMerchant'] ?? []) : [];
+                    if ($doc === '' && $loja) {
+                        $doc = preg_replace('/\D/', '', (string) ($loja['cpfCnpj'] ?? ''));
+                        $parte['name'] = ($parte['name'] ?? '') ?: ($loja['name'] ?? '');
+                    }
 
                     // No cartão, o crédito é pagamento de fatura ou estorno: abate o saldo do cartão, não é receita.
-                    $creditoNoCartao = $cartao && $tipo === 'credito';
 
                     LancamentoBancario::create([
                         'empresa_id' => $conta->empresa_id,
@@ -335,10 +364,14 @@ class SincronizadorExtrato
                         'contraparte_documento' => in_array(strlen($doc), [11, 14], true) ? $doc : null,
                         'linha_digitavel' => Str::limit(preg_replace('/\D/', '', (string) ($t['paymentDigitableLine'] ?? '')), 60, '') ?: null,
                         'bruto' => $t,
-                        'status' => $creditoNoCartao ? 'ignorado' : 'pendente',
+                        'status' => $creditoNoCartao ? 'ignorado' : ($aberta ? 'no_banco' : 'pendente'),
                         'sugestao_motivo' => $creditoNoCartao ? 'Pagamento de fatura ou estorno no cartão' : null,
                     ]);
-                    $novos += $creditoNoCartao ? 0 : 1;   // pagamento de fatura não é "compra nova"
+                    if ($aberta && ! $creditoNoCartao) {
+                        $this->noBanco++;
+                    } else {
+                        $novos += $creditoNoCartao ? 0 : 1;   // pagamento de fatura não é "compra nova"
+                    }
                 }
             }
         }
@@ -367,7 +400,7 @@ class SincronizadorExtrato
             ->whereBetween('data', [$inicio->toDateString(), $fim->toDateString()])
             ->whereNotIn('transaction_id', $vistos ?: ['-']);
 
-        (clone $base)->whereIn('status', ['pendente', 'sugerido'])->update([
+        (clone $base)->whereIn('status', ['pendente', 'sugerido', 'no_banco'])->update([
             'status' => 'removido',
             'sugestao_conta_receber_id' => null,
             'sugestao_conta_pagar_id' => null,

@@ -867,6 +867,91 @@ class OpenFinanceTest extends TestCase
         $this->assertSame('4200.10', $cartao->limite_disponivel);
     }
 
+    /** Compra do cartão como o Itaú manda (22/11/2026): sem participantReceiver, loja em creditCardMerchant. */
+    private function compraCartao(string $id, float $valor, string $data, string $status, array $extra = []): array
+    {
+        return $this->transacao($id, 'debit', $valor, $data, $extra + [
+            'description' => 'LOJA TESTE SAO PAULOBR', 'operationType' => 'PAGAMENTO', 'status' => $status,
+            'participantPayer' => null, 'participantReceiver' => null,
+            'creditCardMerchant' => ['cnae' => '7020400', 'cpfCnpj' => '62173620000180', 'category' => 'Services', 'name' => 'LOJA TESTE S.A.'],
+        ]);
+    }
+
+    private function respostaCartao(string $protocolo, array $debitos): void
+    {
+        $this->fakeTecnospeed([self::BASE . '/api/v1/statement/openfinance/' . $protocolo => Http::response(
+            ['statement' => ['uniqueId' => $protocolo, 'status' => 'SUCCESS', 'type' => 'credit_card'], 'transaction' => ['credit' => [], 'debit' => $debitos]]
+        )]);
+    }
+
+    public function test_compra_pendente_do_cartao_aparece_como_pendente_no_banco_e_nao_concilia(): void
+    {
+        $this->liberar(1);
+        $conta = $this->conta(['proxima_sincronizacao_em' => now()->addHours(3)]);
+        $this->cartao($conta, ['protocolo_pendente' => 'PROTP', 'protocolo_inicio' => '2026-08-22', 'protocolo_fim' => '2026-11-22']);
+        $this->respostaCartao('PROTP', [
+            $this->compraCartao('CPP', 119.99, '2026-11-16', 'PENDING'),
+            $this->compraCartao('CPF', 45.00, '2026-11-02', 'POSTED', ['description' => 'PADARIA EFETIVADA']),
+        ]);
+
+        $r = app(SincronizadorExtrato::class)->sincronizar($conta);
+        $this->assertStringContainsString('1 compra(s) nova(s)', $r);
+        $this->assertStringContainsString('1 pendente(s) no banco', $r);
+
+        $pend = LancamentoBancario::withoutGlobalScopes()->where('transaction_id', 'cc2524:CPP')->first();
+        $this->assertNotNull($pend);
+        $this->assertSame('no_banco', $pend->status);
+        $this->assertSame('LOJA TESTE S.A.', $pend->contraparte_nome);            // loja vem de creditCardMerchant
+        $this->assertSame('62173620000180', $pend->contraparte_documento);
+        $this->assertSame('pendente', LancamentoBancario::withoutGlobalScopes()->where('transaction_id', 'cc2524:CPF')->value('status'));
+
+        // não concilia nem vira despesa enquanto o banco não efetivar
+        $this->pagar(119.99, '2026-11-16');
+        app(ConciliadorSugestoes::class)->sugerirPendentes($this->empresa->id);
+        $this->assertSame('no_banco', $pend->fresh()->status);
+        $this->eu()->post(route('app.bancos.lancamentos.lancar', $pend), ['descricao' => 'Teste'])->assertSessionHas('error');
+        $this->assertSame('no_banco', $pend->fresh()->status);
+        $this->assertNull($pend->fresh()->conta_pagar_id);
+
+        // aparece na aba própria, não em "Sem sugestão"
+        $this->eu()->get(route('app.bancos.index', ['ver' => 'nobanco']))->assertOk()
+            ->assertSee('Pendentes no banco')->assertSee('LOJA TESTE SAO PAULOBR')->assertSee('o banco ainda não efetivou');
+        $this->eu()->get(route('app.bancos.index', ['ver' => 'sem']))->assertOk()->assertDontSee('LOJA TESTE SAO PAULOBR');
+    }
+
+    public function test_compra_pendente_vira_normal_quando_o_banco_efetiva(): void
+    {
+        $conta = $this->conta(['proxima_sincronizacao_em' => now()->addHours(3)]);
+        $cartao = $this->cartao($conta, ['protocolo_pendente' => 'PROT1P', 'protocolo_inicio' => '2026-08-22', 'protocolo_fim' => '2026-11-22']);
+        $this->respostaCartao('PROT1P', [$this->compraCartao('CPX', 80.00, '2026-11-16', 'PENDING')]);
+        $s = app(SincronizadorExtrato::class);
+        $s->sincronizar($conta);
+
+        $cartao->update(['protocolo_pendente' => 'PROT2P']);
+        $this->respostaCartao('PROT2P', [$this->compraCartao('CPX', 80.00, '2026-11-16', 'POSTED')]);
+        $this->assertStringContainsString('1 compra(s) nova(s)', $s->sincronizar($conta->fresh()));
+
+        $l = LancamentoBancario::withoutGlobalScopes()->where('transaction_id', 'cc2524:CPX')->get();
+        $this->assertCount(1, $l);                                               // não duplica
+        $this->assertSame('pendente', $l[0]->status);                            // agora entra na conciliação
+    }
+
+    public function test_compra_pendente_que_o_banco_troca_de_numero_ou_some_sai_da_lista(): void
+    {
+        $conta = $this->conta(['proxima_sincronizacao_em' => now()->addHours(3)]);
+        $cartao = $this->cartao($conta, ['protocolo_pendente' => 'PROTA', 'protocolo_inicio' => '2026-08-22', 'protocolo_fim' => '2026-11-22']);
+        $this->respostaCartao('PROTA', [$this->compraCartao('CPA', 80.00, '2026-11-16', 'PENDING')]);
+        $s = app(SincronizadorExtrato::class);
+        $s->sincronizar($conta);
+
+        $cartao->update(['protocolo_pendente' => 'PROTB']);
+        $this->respostaCartao('PROTB', [$this->compraCartao('CPB', 80.00, '2026-11-17', 'POSTED')]);
+        $s->sincronizar($conta->fresh());
+
+        $this->assertSame('removido', LancamentoBancario::withoutGlobalScopes()->where('transaction_id', 'cc2524:CPA')->value('status'));
+        $this->assertSame('pendente', LancamentoBancario::withoutGlobalScopes()->where('transaction_id', 'cc2524:CPB')->value('status'));
+    }
+
     public function test_compra_do_cartao_vira_despesa_com_forma_cartao_e_parcela_na_descricao(): void
     {
         $this->liberar(1);

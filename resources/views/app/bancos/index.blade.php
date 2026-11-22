@@ -13,6 +13,7 @@
     $abas = [
         'conferir' => ['Para confirmar', $totais['conferir']],
         'sem' => ['Sem sugestão', $totais['sem']],
+        'nobanco' => ['Pendentes no banco', $totais['nobanco']],
         'feitos' => ['Conciliados', $totais['feitos']],
         'ignorados' => ['Ignorados', $totais['ignorados']],
     ];
@@ -182,6 +183,7 @@
 <div class="of-barra">
     <ul class="nav nav-pills of-abas">
         @foreach($abas as $chave => [$rotulo, $qtd])
+            @continue($chave === 'nobanco' && ! $qtd && $filtro !== 'nobanco')
             <li class="nav-item">
                 <a class="nav-link {{ $filtro === $chave ? 'active' : '' }}" @if($filtro === $chave) aria-current="page" @endif
                    href="{{ route('app.bancos.index', array_filter(['ver' => $chave, 'conta' => $contaId, 'cartao' => $cartaoId, 'lado' => $lado])) }}">
@@ -273,6 +275,9 @@
                     @if($filtro === 'conferir')
                         <div class="of-apoio mt-1"><span class="badge-status ativa">Certo</span> {{ $l->sugestao_motivo }}</div>
                     @endif
+                @elseif($filtro === 'nobanco')
+                    <div><span class="badge-status pendente">Pendente no banco</span></div>
+                    <div class="of-apoio">Fatura aberta: o banco ainda não efetivou esta compra. Quando efetivar, ela vai para "Sem sugestão" para lançar.</div>
                 @elseif($filtro === 'ignorados')
                     <span class="of-apoio">{{ $l->sugestao_motivo ?: 'Ignorado por você' }}</span>
                 @elseif($titulo)
@@ -344,6 +349,7 @@
                     @endif
                 @endif
 
+                @if($filtro !== 'nobanco')
                 <div class="dropdown">
                     <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Mais ações deste lançamento">
                         <i class="bi bi-three-dots" aria-hidden="true"></i>
@@ -389,12 +395,13 @@
                         @endif
                     </ul>
                 </div>
+                @endif
             </div>
         </li>
         @empty
         <li>
             <x-erp.empty-state icon="check2-circle"
-                :title="$contas->isEmpty() ? 'O extrato aparece aqui' : ['conferir' => 'Nada para confirmar agora', 'sem' => 'Nenhum lançamento sem sugestão', 'feitos' => 'Nada conciliado ainda', 'ignorados' => 'Nada ignorado'][$filtro]"
+                :title="$contas->isEmpty() ? 'O extrato aparece aqui' : ['conferir' => 'Nada para confirmar agora', 'sem' => 'Nenhum lançamento sem sugestão', 'nobanco' => 'Nenhuma compra pendente no banco', 'feitos' => 'Nada conciliado ainda', 'ignorados' => 'Nada ignorado'][$filtro]"
                 :description="$contas->isEmpty() ? 'Ligue uma conta para o extrato começar a chegar.' : ($lado ? 'Não há ' . ($lado === 'entradas' ? 'entradas' : 'saídas') . ' nesta aba. Veja em Tudo.' : 'Quando o banco mandar lançamento novo, ele aparece aqui.')" />
         </li>
         @endforelse

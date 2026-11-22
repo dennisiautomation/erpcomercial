@@ -80,6 +80,9 @@ class ClassificadorLancamentos
         if ($l->ehCredito()) {
             throw new \DomainException('Só saídas do banco viram despesa por aqui.');
         }
+        if ($l->status === 'no_banco') {
+            throw new \DomainException('O banco ainda não efetivou esta compra. Quando efetivar, ela aparece em "Sem sugestão" para lançar.');
+        }
         if (! in_array($l->status, ['pendente', 'sugerido'], true)) {
             throw new \DomainException('Este lançamento já foi tratado.');
         }

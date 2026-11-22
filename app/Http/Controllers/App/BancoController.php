@@ -47,7 +47,7 @@ class BancoController extends Controller
             ->where('situacao', '!=', 'desconectada')
             ->with('unidade')->orderBy('apelido')->get();
 
-        $filtro = in_array($request->query('ver'), ['conferir', 'sem', 'feitos', 'ignorados'], true) ? $request->query('ver') : 'conferir';
+        $filtro = in_array($request->query('ver'), ['conferir', 'sem', 'nobanco', 'feitos', 'ignorados'], true) ? $request->query('ver') : 'conferir';
         $contaId = (int) $request->query('conta') ?: null;
         $cartaoId = (int) $request->query('cartao') ?: null;
         // Entradas e saídas separadas: 'entradas' = crédito, 'saidas' = débito, vazio = tudo.
@@ -59,7 +59,7 @@ class BancoController extends Controller
             ->when($cartaoId, fn ($q) => $q->where('cartao_credito_id', $cartaoId));
 
         // Quantos há de cada lado na aba atual (para os botões Entradas / Saídas).
-        $statusDaAba = ['conferir' => 'sugerido', 'sem' => 'pendente', 'feitos' => 'conciliado', 'ignorados' => 'ignorado'][$filtro];
+        $statusDaAba = ['conferir' => 'sugerido', 'sem' => 'pendente', 'nobanco' => 'no_banco', 'feitos' => 'conciliado', 'ignorados' => 'ignorado'][$filtro];
         $porLado = [
             'tudo' => (clone $base)->where('status', $statusDaAba)->count(),
             'entradas' => (clone $base)->where('status', $statusDaAba)->where('tipo', 'credito')->count(),
@@ -71,12 +71,13 @@ class BancoController extends Controller
         $totais = [
             'conferir' => (clone $base)->where('status', 'sugerido')->count(),
             'sem' => (clone $base)->where('status', 'pendente')->count(),
+            'nobanco' => (clone $base)->where('status', 'no_banco')->count(),
             'feitos' => (clone $base)->where('status', 'conciliado')->count(),
             'ignorados' => (clone $base)->where('status', 'ignorado')->count(),
             'certos' => (clone $base)->where('status', 'sugerido')->where('sugestao_confianca', '>=', LancamentoBancario::CONFIANCA_ALTA)->count(),
         ];
 
-        $status = ['conferir' => 'sugerido', 'sem' => 'pendente', 'feitos' => 'conciliado', 'ignorados' => 'ignorado'][$filtro];
+        $status = $statusDaAba;
 
         $lancamentos = (clone $base)->where('status', $status)
             ->with([
@@ -123,7 +124,7 @@ class BancoController extends Controller
             'entradas_mes' => (float) (clone $tudo)->whereNull('cartao_credito_id')->where('tipo', 'credito')->where('status', '!=', 'removido')->whereBetween('data', $mes)->sum('valor'),
             'saidas_mes' => (float) (clone $tudo)->whereNull('cartao_credito_id')->where('tipo', 'debito')->where('status', '!=', 'removido')->whereBetween('data', $mes)->sum('valor'),
             'feitos_mes' => (clone $tudo)->where('status', 'conciliado')->whereBetween('data', $mes)->count(),
-            'total_mes' => (clone $tudo)->whereNotIn('status', ['removido', 'ignorado'])->whereBetween('data', $mes)->count(),
+            'total_mes' => (clone $tudo)->whereNotIn('status', ['removido', 'ignorado', 'no_banco'])->whereBetween('data', $mes)->count(),
         ];
 
         return view('app.bancos.index', [
