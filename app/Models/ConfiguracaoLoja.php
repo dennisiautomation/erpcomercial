@@ -141,6 +141,30 @@ class ConfiguracaoLoja extends Model
         }
     }
 
+    /**
+     * Sem escolha do operador (nem "recibo" nem "cupom fiscal"), a venda sai com NFC-e?
+     * Regra única do PDV web e do app da maquininha (23/11/2026): `$fiscalLigado` é
+     * emissão fiscal ativa + emite NFC-e na unidade. Loja sem registro de configuração
+     * mantém o comportamento antigo (fiscal ligado = sempre NFC-e); com registro, vale a
+     * parametrização: cartão automático, CPF/cliente informado → fiscal, padrão de impressão.
+     *
+     * @param  string[]  $formas  códigos gravados das formas da venda (cartao_credito, pix...)
+     */
+    public function emiteNfceSemEscolha(bool $fiscalLigado, array $formas, bool $temDocumento): bool
+    {
+        if (! $fiscalLigado) {
+            return false;
+        }
+        if (! $this->exists) {
+            return true;
+        }
+        $temCartao = (bool) array_intersect($formas, ['cartao_credito', 'cartao_debito', 'credishop']);
+
+        return ($this->cupom_automatico_cartao && $temCartao)
+            || ($this->cpf_emite_fiscal && $temDocumento)
+            || $this->padrao_impressao === 'cupom_fiscal';
+    }
+
     public function precoBaseCartao(): bool
     {
         return ($this->preco_base ?? 'avista') === 'cartao';

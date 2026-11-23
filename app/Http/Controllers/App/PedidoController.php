@@ -111,6 +111,11 @@ class PedidoController extends Controller
             'itens.*.desconto_percentual' => 'nullable|numeric|min:0|max:100',
         ]);
 
+        // Desconto máximo da loja (23/11/2026): o pedido segue a mesma trava do PDV
+        if ($erro = $this->descontoAcimaDoMaximo($request, (int) session('unidade_id'))) {
+            return back()->withInput()->with('error', $erro);
+        }
+
         DB::transaction(function () use ($request) {
             $empresaId = session('empresa_id');
             $unidadeId = session('unidade_id');
@@ -353,8 +358,7 @@ class PedidoController extends Controller
         $mapa = ['' => $tabela->modalidadeDoCadastro($config)];
         // Toda condição possível (formas da empresa, prazos e valores antigos) → código → tabela (14/11/2026)
         foreach ($formasSvc->condicoesValidas($empresaId) as $condicao) {
-            $forma = $formasSvc->codigoDaCondicao($empresaId, $condicao) ?? 'boleto';
-            $mapa[$condicao] = $tabela->modalidadeDosPagamentos([$forma], $config);
+            $mapa[$condicao] = $tabela->modalidadeDaCondicao($config, (string) $condicao);
         }
 
         return $mapa;
@@ -385,6 +389,11 @@ class PedidoController extends Controller
             'itens.*.preco_unitario'  => 'required|numeric|min:0',
             'itens.*.desconto_percentual' => 'nullable|numeric|min:0|max:100',
         ]);
+
+        // Desconto máximo da loja (23/11/2026): o pedido segue a mesma trava do PDV
+        if ($erro = $this->descontoAcimaDoMaximo($request, (int) $pedido->unidade_id)) {
+            return back()->withInput()->with('error', $erro);
+        }
 
         DB::transaction(function () use ($request, $pedido) {
             $subtotal = 0;
@@ -449,6 +458,36 @@ class PedidoController extends Controller
 
         return redirect()->route('app.pedidos.show', $pedido)
             ->with('success', 'Pedido atualizado com sucesso!');
+    }
+
+    /**
+     * Desconto do pedido (itens + geral) acima do máximo da loja? Devolve a mensagem
+     * para o usuário, ou null. Mesma conta do store/update: desconto do item em % sobre
+     * preço × quantidade; geral em R$ ou % sobre o subtotal já com o desconto dos itens.
+     */
+    private function descontoAcimaDoMaximo(Request $request, int $unidadeId): ?string
+    {
+        $bruto = 0.0;
+        $descontoItens = 0.0;
+        foreach ($request->itens as $item) {
+            $linha = (float) $item['preco_unitario'] * (float) $item['quantidade'];
+            $desc = round($linha * ((float) ($item['desconto_percentual'] ?? 0) / 100), 2);
+            $bruto += $linha;
+            $descontoItens += $desc;
+        }
+        $subtotal = round($bruto - $descontoItens, 2);
+        $geral = $request->desconto_valor !== null && $request->desconto_valor !== ''
+            ? (float) $request->desconto_valor
+            : round($subtotal * ((float) ($request->desconto_percentual ?? 0) / 100), 2);
+
+        try {
+            \App\Models\ConfiguracaoLoja::daUnidade((int) session('empresa_id'), $unidadeId)
+                ->validarDesconto($bruto, $descontoItens + $geral);
+        } catch (\DomainException $e) {
+            return $e->getMessage();
+        }
+
+        return null;
     }
 
     public function updateStatus(Request $request, Pedido $pedido)

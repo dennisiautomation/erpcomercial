@@ -1069,14 +1069,13 @@ class PdvController extends Controller
 
             if ($escolhaOperador === 'recibo') {
                 $deveEmitirNfce = false;
-            } elseif ($escolhaOperador !== 'cupom_fiscal' && $deveEmitirNfce && $configLojaEmissao->exists) {
-                $formas = array_column($request->pagamentos, 'forma');
-                $temCartao = (bool) array_intersect($formas, ['cartao_credito', 'cartao_debito', 'credishop']);
-
-                $deveEmitirNfce =
-                    ($configLojaEmissao->cupom_automatico_cartao && $temCartao)
-                    || ($configLojaEmissao->cpf_emite_fiscal && ($request->cliente_id || $request->cpf_cnpj_nota))
-                    || $configLojaEmissao->padrao_impressao === 'cupom_fiscal';
+            } elseif ($escolhaOperador !== 'cupom_fiscal') {
+                // Regra única com o app da maquininha (ConfiguracaoLoja::emiteNfceSemEscolha)
+                $deveEmitirNfce = $configLojaEmissao->emiteNfceSemEscolha(
+                    (bool) $deveEmitirNfce,
+                    array_column($request->pagamentos, 'forma'),
+                    (bool) ($request->cliente_id || $request->cpf_cnpj_nota)
+                );
             }
 
             $nfceErro = null;

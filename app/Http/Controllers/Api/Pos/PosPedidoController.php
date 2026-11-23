@@ -8,6 +8,7 @@ use App\Http\Controllers\App\PedidoController;
 use App\Http\Controllers\Controller;
 use App\Models\Cliente;
 use App\Models\ConfiguracaoFiscal;
+use App\Models\ConfiguracaoLoja;
 use App\Models\PosEvento;
 use App\Models\PosOperacao;
 use App\Models\Pedido;
@@ -19,6 +20,7 @@ use App\Services\FocusNFe\NFCeService;
 use App\Services\Pos\PosCupomService;
 use App\Services\Pos\PosPermissoes;
 use App\Services\Pos\PosStone;
+use App\Services\TabelaPrecoService;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -29,9 +31,12 @@ use Illuminate\Support\Facades\Log;
  * Emissão de pedido no POS (vendedor tira o pedido no balcão ou na rua) e
  * recebimento do pedido no caixa com cobrança na Stone.
  *
- * Criar segue o PedidoController::store (numeração, itens, desconto); o preço
- * é o do cadastro — o POS não digita preço. Confirmar e faturar passam pelo
- * PedidoController (contas a receber, baixa de estoque, entrada no caixa).
+ * Criar segue o PedidoController::store (numeração, itens, desconto). O POS não
+ * digita preço: o item sai na tabela da CONDIÇÃO DE PAGAMENTO, como na tela do
+ * pedido (TabelaPrecoService::modalidadeDaCondicao), e o desconto respeita o
+ * máximo da loja (23/11/2026). Confirmar e faturar passam pelo PedidoController
+ * (contas a receber, baixa de estoque, entrada no caixa). Como na web, receber o
+ * pedido não muda o total: a forma só é registrada (sem juros nem desconto à vista).
  */
 class PosPedidoController extends Controller
 {
@@ -81,13 +86,21 @@ class PosPedidoController extends Controller
         }
 
         $produtos = Produto::withoutGlobalScopes()->where('empresa_id', $empresaId)->where('status', 'ativo')
-            ->whereIn('id', collect($request->itens)->pluck('produto_id'))->get()->keyBy('id');
+            ->whereIn('id', collect($request->itens)->pluck('produto_id'))
+            ->with('precos:id,produto_id,modalidade,valor')->get()->keyBy('id');
+
+        // Tabela de preço da condição de pagamento (a mesma da tela do pedido, 23/11/2026)
+        $configLoja = ConfiguracaoLoja::daUnidade($empresaId, (int) session('unidade_id'));
+        $tabelas = app(TabelaPrecoService::class);
+        $modalidade = $tabelas->modalidadeDaCondicao($configLoja, $request->condicao_pagamento);
 
         try {
-            $pedido = DB::transaction(function () use ($request, $empresaId, $produtos, $cliente, $user, $observacoes) {
+            $pedido = DB::transaction(function () use ($request, $empresaId, $produtos, $cliente, $user, $observacoes, $configLoja, $tabelas, $modalidade) {
                 $numero = (int) Pedido::withoutGlobalScopes()->where('empresa_id', $empresaId)->lockForUpdate()->max('numero') + 1;
 
                 $subtotal = 0.0;
+                $bruto = 0.0;
+                $descontoItens = 0.0;
                 $itens = [];
                 foreach ($request->itens as $item) {
                     $p = $produtos[$item['produto_id']] ?? null;
@@ -95,10 +108,12 @@ class PosPedidoController extends Controller
                         throw new \DomainException('Produto indisponível no pedido (id ' . $item['produto_id'] . ').');
                     }
                     $qtd = (float) $item['quantidade'];
-                    $preco = (float) $p->preco_venda;
+                    $preco = (float) $tabelas->precosDoProduto($p, $configLoja)[$modalidade];
                     $perc = (float) ($item['desconto_percentual'] ?? 0);
                     $desc = round($preco * $qtd * ($perc / 100), 2);
                     $total = round($preco * $qtd - $desc, 2);
+                    $bruto += $preco * $qtd;
+                    $descontoItens += $desc;
                     $itens[] = [
                         'produto_id' => $p->id,
                         'descricao' => $p->descricao,
@@ -112,6 +127,9 @@ class PosPedidoController extends Controller
                 }
 
                 $desconto = min(round((float) $request->input('desconto_valor', 0), 2), $subtotal);
+
+                // Desconto máximo da loja (itens + geral), o mesmo do PDV e da tela do pedido
+                $configLoja->validarDesconto($bruto, $descontoItens + $desconto);
 
                 $pedido = Pedido::create([
                     'empresa_id' => $empresaId,
@@ -313,14 +331,25 @@ class PosPedidoController extends Controller
         $op->update(['status' => 'concluida', 'venda_id' => $venda->id]);
         PosStone::marcarFinanceiro($venda);
 
+        // NFC-e (23/11/2026): "cupom fiscal" escolhido emite; "recibo" não emite; sem escolha
+        // vale a regra da loja, a mesma do PDV (ConfiguracaoLoja::emiteNfceSemEscolha).
         $nfceErro = null;
-        if ($request->input('documento') === 'cupom_fiscal') {
+        $config = ConfiguracaoFiscal::withoutGlobalScopes()->where('empresa_id', $venda->empresa_id)->where('unidade_id', $venda->unidade_id)->first();
+        $fiscalLigado = (bool) ($config?->emissao_fiscal_ativa && $config->emite_nfce);
+        $documento = $request->input('documento');
+        $emitir = $documento === 'cupom_fiscal'
+            || ($documento === null && ConfiguracaoLoja::daUnidade($venda->empresa_id, $venda->unidade_id)
+                ->emiteNfceSemEscolha($fiscalLigado, [$forma], (bool) ($venda->cliente_id || $venda->cpf_cnpj_nota)));
+        if ($emitir) {
             try {
-                $config = ConfiguracaoFiscal::withoutGlobalScopes()->where('empresa_id', $venda->empresa_id)->where('unidade_id', $venda->unidade_id)->first();
-                if (! $config?->emissao_fiscal_ativa || ! $config->emite_nfce) {
+                if (! $fiscalLigado) {
                     throw new \DomainException('Emissão de NFC-e não está ativa nesta loja.');
                 }
-                (new NFCeService(FocusNFeClient::fromConfig($config)))->emitir($venda->load(['itens.produto', 'cliente', 'empresa']), $config);
+                $nota = (new NFCeService(FocusNFeClient::fromConfig($config)))->emitir($venda->load(['itens.produto', 'cliente', 'empresa']), $config);
+                // Rejeição não lança exceção: volta a nota rejeitada (mesmo cuidado do PDV, DK 22/10)
+                if ($nota && $nota->status === \App\Enums\StatusNotaFiscal::Rejeitada) {
+                    $nfceErro = 'NFC-e rejeitada: ' . ($nota->focus_mensagem ?: 'sem detalhe da Focus');
+                }
             } catch (\Throwable $e) {
                 $nfceErro = $e->getMessage();
                 Log::error('[POS] NFC-e do pedido falhou', ['venda_id' => $venda->id, 'erro' => $nfceErro]);

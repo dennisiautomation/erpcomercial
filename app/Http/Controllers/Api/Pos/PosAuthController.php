@@ -169,6 +169,11 @@ class PosAuthController extends Controller
                 'emite_nfce' => (bool) ($fiscal?->emissao_fiscal_ativa && $fiscal?->emite_nfce),
                 'cpf_emite_fiscal' => (bool) $configLoja->cpf_emite_fiscal,
                 'cupom_automatico_cartao' => (bool) $configLoja->cupom_automatico_cartao,
+                // Desconto máximo da loja em % (23/11/2026): null = sem limite; 0 = loja sem desconto.
+                // Vale para itens + geral, na venda e no pedido; o servidor recusa acima disso
+                // (cotar/pedidos devolvem 422 com a mensagem) — aqui é só para o app avisar antes.
+                'desconto_max_percentual' => $configLoja->descontoMaximo(),
+                'padrao_impressao' => $configLoja->padrao_impressao,
                 // Formas de pagamento configuráveis (14/11): das quatro que a maquininha conhece,
                 // só as LIGADAS em Configurações da loja → Formas de pagamento, com o nome que a
                 // loja deu. O app esconde o botão da desligada; se mandar assim mesmo, cotar recusa.

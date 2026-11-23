@@ -433,4 +433,124 @@ class PosApiTest extends TestCase
         $this->assertSame(1, PosEvento::where('tipo', 'app_stone_pagamento_recusado')->count());
         $this->assertSame(1, PosEvento::where('tipo', 'login')->count());
     }
+
+    // ─── 23/11/2026: pedido do app nas regras do ERP ───
+
+    private function pedidoApp(string $token, array $extra = []): \Illuminate\Testing\TestResponse
+    {
+        return $this->api($token)->postJson(self::BASE . '/pedidos', array_merge([
+            'chave' => (string) \Illuminate\Support\Str::uuid(), 'confirmar' => true,
+            'itens' => [['produto_id' => $this->produto->id, 'quantidade' => 2]],
+        ], $extra));
+    }
+
+    public function test_pedido_no_app_sai_na_tabela_da_condicao_de_pagamento(): void
+    {
+        ConfiguracaoLoja::create([
+            'empresa_id' => $this->empresa->id, 'unidade_id' => $this->unidade->id, 'percentual_credito' => 10,
+        ]);
+        [, $token] = $this->prepararVenda('gerente');
+
+        $this->pedidoApp($token, ['condicao_pagamento' => 'cartao_credito'])->assertOk()
+            ->assertJsonPath('pedido.total', 110)->assertJsonPath('pedido.itens.0.preco_unitario', 55);
+        $this->pedidoApp($token, ['condicao_pagamento' => 'pix'])->assertOk()->assertJsonPath('pedido.total', 100);
+        $this->pedidoApp($token)->assertOk()->assertJsonPath('pedido.total', 100);
+    }
+
+    public function test_pedido_no_app_com_preco_do_cartao_da_desconto_no_pix(): void
+    {
+        // Loja que cadastra o preço do cartão: PIX leva o desconto à vista, como na tela do pedido
+        ConfiguracaoLoja::create([
+            'empresa_id' => $this->empresa->id, 'unidade_id' => $this->unidade->id,
+            'preco_base' => 'cartao', 'desconto_avista_percentual' => 10,
+        ]);
+        [, $token] = $this->prepararVenda('gerente');
+
+        $this->pedidoApp($token, ['condicao_pagamento' => 'pix'])->assertOk()->assertJsonPath('pedido.total', 90);
+        $this->pedidoApp($token, ['condicao_pagamento' => 'cartao_credito'])->assertOk()->assertJsonPath('pedido.total', 100);
+    }
+
+    public function test_pedido_no_app_respeita_desconto_maximo_da_loja(): void
+    {
+        ConfiguracaoLoja::create([
+            'empresa_id' => $this->empresa->id, 'unidade_id' => $this->unidade->id, 'desconto_max_percentual' => 10,
+        ]);
+        [, $token] = $this->prepararVenda('gerente');
+
+        $this->pedidoApp($token, ['desconto_valor' => 15])->assertStatus(422)
+            ->assertJsonPath('erro', 'Desconto acima do máximo permitido pela loja (10%).');
+        $this->pedidoApp($token, ['itens' => [['produto_id' => $this->produto->id, 'quantidade' => 2, 'desconto_percentual' => 20]]])
+            ->assertStatus(422);
+        $this->assertSame(0, Pedido::withoutGlobalScopes()->count());
+
+        // Dentro do limite (R$ 10 = 10%): grava
+        $this->pedidoApp($token, ['desconto_valor' => 10])->assertOk()->assertJsonPath('pedido.total', 90);
+
+        // A venda direta já seguia a mesma trava
+        $this->api($token)->postJson(self::BASE . '/vendas/cotar', $this->venda(['forma' => 'pix'], ['desconto_valor' => 15]))
+            ->assertStatus(422);
+    }
+
+    public function test_me_traz_desconto_maximo_da_loja(): void
+    {
+        [, $token] = $this->prepararVenda();
+        $this->api($token)->getJson(self::BASE . '/me')->assertJsonPath('regras.desconto_max_percentual', null);
+
+        ConfiguracaoLoja::create([
+            'empresa_id' => $this->empresa->id, 'unidade_id' => $this->unidade->id, 'desconto_max_percentual' => 7.5,
+        ]);
+        $this->api($token)->getJson(self::BASE . '/me')->assertJsonPath('regras.desconto_max_percentual', 7.5);
+    }
+
+    private function ligarNfce(array $configLoja): void
+    {
+        \Illuminate\Support\Facades\Bus::fake([\App\Jobs\BaixarXmlNotaJob::class]);
+        \App\Models\ConfiguracaoFiscal::withoutGlobalScopes()->create([
+            'empresa_id' => $this->empresa->id, 'unidade_id' => $this->unidade->id, 'ambiente' => 'homologacao',
+            'focus_token' => 'tok-pos', 'serie_nfe' => 1, 'serie_nfce' => 1, 'csc_nfce' => 'CSC', 'csc_id_nfce' => '1',
+            'emissao_fiscal_ativa' => true, 'emite_nfce' => true, 'tipo_cupom_pdv' => 'fiscal',
+        ]);
+        ConfiguracaoLoja::create(['empresa_id' => $this->empresa->id, 'unidade_id' => $this->unidade->id] + $configLoja);
+        \Illuminate\Support\Facades\Http::fake([
+            '*focusnfe.com.br/v2/nfce*' => \Illuminate\Support\Facades\Http::response([
+                'status' => 'erro_autorizacao', 'status_sefaz' => '778', 'mensagem_sefaz' => 'Rejeicao: NCM inexistente',
+            ], 200),
+        ]);
+    }
+
+    private function receberPedido(string $token, array $extra = []): \Illuminate\Testing\TestResponse
+    {
+        $this->produto->update(['ncm' => '61091000', 'cfop' => '5102']);
+        $id = $this->pedidoApp($token)->assertOk()->json('pedido.id');
+
+        return $this->api($token)->postJson(self::BASE . "/pedidos/{$id}/faturar", array_merge([
+            'chave' => (string) \Illuminate\Support\Str::uuid(),
+            'pagamento' => ['forma' => 'cartao_debito', 'stone' => ['atk' => 'DEB1', 'bandeira' => 'VISA', 'valor_centavos' => 10000]],
+        ], $extra));
+    }
+
+    public function test_receber_pedido_sem_escolha_segue_a_regra_da_loja_e_avisa_nfce_rejeitada(): void
+    {
+        $this->ligarNfce(['cupom_automatico_cartao' => true]);
+        [, $token] = $this->prepararVenda('gerente');
+
+        // Cartão + "cupom automático no cartão": emite sem o operador escolher; rejeição chega ao app
+        $r = $this->receberPedido($token)->assertOk()->assertJsonPath('venda.total', 100);
+        $this->assertSame('rejeitada', $r->json('nfce.status'));
+        $this->assertStringContainsString('NCM inexistente', (string) $r->json('nfce_erro'));
+        $this->assertSame(1, \App\Models\NotaFiscal::withoutGlobalScopes()->where('tipo', 'nfce')->count());
+
+        // "Recibo" escolhido pelo operador: não emite
+        $this->receberPedido($token, ['documento' => 'recibo'])->assertOk()->assertJsonPath('nfce', null);
+        $this->assertSame(1, \App\Models\NotaFiscal::withoutGlobalScopes()->where('tipo', 'nfce')->count());
+    }
+
+    public function test_receber_pedido_sem_escolha_na_loja_de_recibo_nao_emite(): void
+    {
+        $this->ligarNfce(['cupom_automatico_cartao' => false, 'cpf_emite_fiscal' => false, 'padrao_impressao' => 'recibo']);
+        [, $token] = $this->prepararVenda('gerente');
+
+        $this->receberPedido($token)->assertOk()->assertJsonPath('nfce', null)->assertJsonPath('nfce_erro', null);
+        $this->assertSame(0, \App\Models\NotaFiscal::withoutGlobalScopes()->count());
+    }
 }

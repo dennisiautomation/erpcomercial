@@ -325,6 +325,23 @@ class TabelaPrecoService
         return $config->precoBaseCartao() ? 'credito' : 'dinheiro_pix';
     }
 
+    /**
+     * Tabela de preço da CONDIÇÃO DE PAGAMENTO de um pedido (03/11/2026; regra única
+     * desde 23/11/2026 para o pedido da tela e o do app da maquininha). Sem condição =
+     * preço cadastrado; À vista/PIX = Dinheiro/PIX; cartão = tabela do cartão; prazo,
+     * boleto e condição desconhecida = preço cadastrado.
+     */
+    public function modalidadeDaCondicao(ConfiguracaoLoja $config, ?string $condicao): string
+    {
+        if ($condicao === null || $condicao === '') {
+            return $this->modalidadeDoCadastro($config);
+        }
+        $empresaId = (int) ($config->empresa_id ?: session('empresa_id'));
+        $forma = app(FormaPagamentoService::class)->codigoDaCondicao($empresaId, $condicao) ?? 'boleto';
+
+        return $this->modalidadeDosPagamentos([$forma], $config);
+    }
+
     /** A loja cobra por parte (cada forma paga a tabela dela)? */
     public function cobraPorParte(ConfiguracaoLoja $config): bool
     {

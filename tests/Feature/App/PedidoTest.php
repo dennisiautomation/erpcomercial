@@ -213,4 +213,39 @@ class PedidoTest extends TestCase
         $this->assertEquals(StatusPedido::Faturado, $pedido->fresh()->status);
         $this->assertEquals(40.0, SaldoEstoque::naUnidade($this->unidade->id, $produto->id));
     }
+
+    /** 23/11/2026: o pedido da tela respeita o desconto máximo da loja, como o PDV. */
+    public function test_pedido_acima_do_desconto_maximo_da_loja_nao_e_gravado(): void
+    {
+        \App\Models\ConfiguracaoLoja::create([
+            'empresa_id' => $this->empresa->id, 'unidade_id' => $this->unidade->id, 'desconto_max_percentual' => 10,
+        ]);
+        $vendedor = $this->createUser($this->empresa, $this->unidade, 'vendedor');
+        $cliente  = $this->createCliente($this->empresa);
+        $produto  = $this->createProduto($this->empresa, ['preco_venda' => 100.00]);
+        $pedido = fn (array $extra, float $percItem = 0) => array_merge([
+            'cliente_id' => $cliente->id, 'vendedor_id' => $vendedor->id, 'condicao_pagamento' => 'boleto',
+            'desconto_percentual' => 0, 'desconto_valor' => 0,
+            'itens' => [['produto_id' => $produto->id, 'quantidade' => 2, 'preco_unitario' => 100.00, 'desconto_percentual' => $percItem]],
+        ], $extra);
+
+        // 15% no geral (R$ 30 de R$ 200): barrado
+        $this->actingAsUser($vendedor, $this->unidade)->post(route('app.pedidos.store'), $pedido(['desconto_valor' => 30]))
+            ->assertSessionHas('error', 'Desconto acima do máximo permitido pela loja (10%).');
+        // 6% no item + 5% no geral = acima de 10%: barrado
+        $this->actingAsUser($vendedor, $this->unidade)->post(route('app.pedidos.store'), $pedido(['desconto_percentual' => 5, 'desconto_valor' => null], 6))
+            ->assertSessionHas('error');
+        $this->assertSame(0, Pedido::withoutGlobalScopes()->count());
+
+        // Dentro do limite (R$ 20 = 10%): grava
+        $this->actingAsUser($vendedor, $this->unidade)->post(route('app.pedidos.store'), $pedido(['desconto_valor' => 20]))
+            ->assertRedirect(route('app.pedidos.index'));
+        $criado = Pedido::withoutGlobalScopes()->first();
+        $this->assertEquals(180.00, (float) $criado->total);
+
+        // Editar para acima do limite: barrado, pedido intacto
+        $this->actingAsUser($vendedor, $this->unidade)->put(route('app.pedidos.update', $criado), $pedido(['desconto_valor' => 50]))
+            ->assertSessionHas('error');
+        $this->assertEquals(180.00, (float) $criado->fresh()->total);
+    }
 }

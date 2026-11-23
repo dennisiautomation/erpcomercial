@@ -6204,6 +6204,45 @@ Dennis, pelo rito do topo). App Android (`app-pdv-stone`, `e5ea0b2`) segue só l
 - **"E-mail ou senha não conferem" com cliente real na GPOS730 (~11:41):** as 3 tentativas foram só para a homologação (log do `erp-caf-app`; nenhuma na produção) — a GPOS730 está com o build `positivo`, que fala só com `homolog-erp`. Não é defeito: o APK **release** enviado à Stone tenta a produção primeiro e cai para a homologação só com 404/422, então, aprovado, os clientes reais entram sem reenvio. Para testar cliente real na maquininha, instalar o APK release (está no Mac do Dennis, `dist/`).
 - Tabela "qual APK fala com qual servidor" em `STATUS-POS-STONE.md`.
 
+### Pedido do app POS nas regras do ERP: tabela da condição, desconto máximo e NFC-e da loja (23/11/2026, branch `pos-pedido-regras-23nov`)
+
+**Pedido (Dennis, 23/11):** conferir se o desconto e o cupom fiscal do app da maquininha seguem as regras do ERP e corrigir.
+
+**Causa:** a venda direta do app (`vendas/cotar` + `vendas`) já passava pelo `PdvController::registrarVenda` e seguia tudo.
+O **pedido** do app (`PosPedidoController`) tinha regra própria: preço sempre `preco_venda` (sem tabela da condição de
+pagamento nem promoção), desconto sem o máximo da loja (aceitava até 100%) e, ao receber, NFC-e só com `documento=cupom_fiscal`
+— ignorava "cupom automático no cartão", "CPF → fiscal" e o padrão de impressão — e a NFC-e **rejeitada** (que volta sem
+exceção) passava como sucesso. O pedido da tela web também não aplicava o desconto máximo.
+
+**O que mudou:**
+- `TabelaPrecoService::modalidadeDaCondicao($config, $condicao)` — tabela de preço da condição do pedido, num lugar só.
+  `PedidoController::tabelaDaCondicao` (mapa da tela) passou a usá-la, sem mudar o resultado. Condição vazia ou desconhecida
+  = preço cadastrado.
+- `POST pedidos` do app: item na tabela da condição (`precosDoProduto(...)[modalidade]`, com promoção) e
+  `ConfiguracaoLoja::validarDesconto` sobre itens + geral → 422 com a mesma mensagem do PDV; nada é gravado.
+  **Como na web, receber o pedido não muda o total** (sem juros nem desconto à vista no recebimento — `PedidoController::faturar`).
+- `PedidoController::store/update` (tela): desconto máximo da loja (`descontoAcimaDoMaximo`) antes de gravar → volta com erro.
+- `ConfiguracaoLoja::emiteNfceSemEscolha($fiscalLigado, $formas, $temDocumento)` — regra única de "emite NFC-e sem o
+  operador escolher". O `PdvController` passou a chamá-la (mesmo comportamento) e o `pedidos/{id}/faturar` do app também:
+  `cupom_fiscal` emite, `recibo` não emite, **sem `documento` vale a regra da loja**. NFC-e rejeitada vira `nfce_erro`.
+- `GET /me` → `regras.desconto_max_percentual` (null = sem limite, 0 = sem desconto) e `regras.padrao_impressao`, para o app
+  avisar antes. **Falta no APK:** ler esses campos; até lá o operador vê o erro do servidor ao cotar/criar o pedido.
+
+**Impacto:** pedido do app pode sair com preço diferente do de antes quando a loja tem tabela por forma, preço do cartão ou
+promoção (passa a bater com a tela do pedido). Pedido da tela/app acima do desconto máximo passa a ser recusado. APK antigo
+que receba pedido sem mandar `documento` passa a emitir NFC-e quando a loja manda emitir. Sem migration, cron ou rota nova.
+Orçamento e pedido do agente IA não mudam.
+
+**Validação (23/11, banco descartável MySQL + pgvector, vendor de `apps/erp-main-teste`, mesmo composer.lock):**
+- PHPUnit completo: antes (main `adc804b`) 487 ✅ / 2 ❌; depois 494 ✅ / 2 ❌ — os 2 ❌ são os pré-existentes
+  (`PdvTest > caixa fechamento calculates correctly`, `LoginTest > oito senhas erradas travam o email`).
+  Os "warnings" do relatório são só a falta do `.env` no container de teste.
+- 7 testes novos (6 em `tests/Feature/Api/PosApiTest.php`, 1 em `tests/Feature/App/PedidoTest.php`). Rodados contra o
+  código da `main`: 6 ❌ (mostram o problema); o 7º (loja de recibo não emite) já passava.
+- Não rodou: app real na maquininha nem smoke de telas × perfis.
+
+**Deploy:** do Dennis, depois do merge na `main`. Sem migration. **Rollback:** imagem anterior.
+
 ## Armadilhas conhecidas
 
 1. **EmpresaScope recursão**: `auth()->user()` dentro do scope chama User model que tem o scope → loop infinito. Scopes têm flag `static $applying`. Não remover.
