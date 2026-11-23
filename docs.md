@@ -6241,7 +6241,13 @@ Orçamento e pedido do agente IA não mudam.
   código da `main`: 6 ❌ (mostram o problema); o 7º (loja de recibo não emite) já passava.
 - Não rodou: app real na maquininha nem smoke de telas × perfis.
 
-**Deploy:** do Dennis, depois do merge na `main`. Sem migration. **Rollback:** imagem anterior.
+**Deploy: EM PRODUÇÃO 23/11/2026 09:10 BRT** (ordem do Dennis), troca a quente dos 6 arquivos no `erp-com-app` +
+config/route/view:cache + USR2 — roteiro `/home/ubuntu/erp-backups/pre-pos-pedido-regras-20261123/deploy.sh`; antes conferiu
+produção = `main` `adc804b`; depois 6/6 arquivos = branch, `/login` 200, `pos/v1/me` sem token 401. Sem migration.
+Validação em produção (só leitura, `validar.php` na mesma pasta): 27 lojas, 358 condições (tabela nova = conta antiga da
+tela do pedido) e 540 combinações de NFC-e (regra nova = regra antiga do PDV) → **926 ✅ / 0 ❌**; 0 erro no log.
+**Rollback:** copiar `arquivos/` da pasta de volta para `/var/www` → config/route/view:cache → USR2; ou voltar o container
+para a foto `erp-com-app:pre-pos-pedido-regras-20261123`. Dump do banco na mesma pasta.
 
 ## Armadilhas conhecidas
 
