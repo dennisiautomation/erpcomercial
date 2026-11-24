@@ -89,7 +89,16 @@ class EntradaNFeController extends Controller
         $entrada->load(['itens.produto:id,descricao,codigo_interno,preco_custo,unidade_medida', 'fornecedor', 'estoque', 'concluidor:id,name']);
 
         if ($entrada->concluida()) {
-            return view('app.estoque.entradas-nfe.show', compact('entrada'));
+            // Devolução ao fornecedor (24/11/2026)
+            $devSvc = app(\App\Services\EntradaNFe\DevolucaoCompraService::class);
+            $entrada->load(['devolucoes.itens', 'devolucoes.user:id,name']);
+
+            return view('app.estoque.entradas-nfe.show', [
+                'entrada'        => $entrada,
+                'jaDevolvido'    => $devSvc->jaDevolvido($entrada),
+                'contasAbertas'  => $devSvc->contasEmAberto($entrada),
+                'podeFinanceiro' => CheckPermission::canUser(auth()->user(), 'financeiro', 'editar'),
+            ]);
         }
 
         $estoques = Estoque::withoutGlobalScopes()
@@ -141,6 +150,46 @@ class EntradaNFeController extends Controller
         $msg = 'Entrada lançada no estoque.';
         if ($entrada->contas_pagar_geradas > 0) {
             $msg .= " {$entrada->contas_pagar_geradas} conta(s) a pagar criada(s).";
+        }
+
+        return redirect()->route('app.entradas-nfe.show', $entrada)->with('success', $msg);
+    }
+
+    /**
+     * Devolução de compra ao fornecedor (24/11/2026, DK): tira do estoque e abate
+     * as contas a pagar da nota. Não emite nota (o documento, se houver, é anotado).
+     */
+    public function devolver(Request $request, NFeEntrada $entrada)
+    {
+        $request->validate([
+            'motivo'       => 'required|string|min:3|max:500',
+            'documento'    => 'nullable|string|max:60',
+            'quantidades'  => 'required|array',
+            'quantidades.*' => 'nullable|string|max:20',
+        ], [
+            'motivo.required' => 'Escreva o motivo da devolução.',
+            'motivo.min'      => 'Escreva o motivo da devolução.',
+        ]);
+
+        $svc = app(\App\Services\EntradaNFe\DevolucaoCompraService::class);
+        // Mexer em conta a pagar é do financeiro: sem a permissão, só devolve nota sem conta em aberto
+        if ($svc->contasEmAberto($entrada)->isNotEmpty() && ! CheckPermission::canUser(auth()->user(), 'financeiro', 'editar')) {
+            return back()->withInput()->with('error', 'Esta nota tem contas a pagar em aberto e a devolução abate o valor delas. Peça a quem cuida do financeiro (dono ou financeiro) para registrar a devolução.');
+        }
+
+        try {
+            $dev = $svc->devolver($entrada, (array) $request->input('quantidades', []), (string) $request->input('motivo'), $request->input('documento'), (int) auth()->id());
+        } catch (\InvalidArgumentException $e) {
+            return back()->withInput()->with('error', $e->getMessage());
+        }
+
+        $f = fn ($v) => 'R$ ' . number_format((float) $v, 2, ',', '.');
+        $msg = "Devolução nº {$dev->numero} registrada: {$f($dev->valor_total)} saíram do estoque.";
+        if ((float) $dev->valor_abatido > 0) {
+            $msg .= " Contas a pagar abatidas em {$f($dev->valor_abatido)}.";
+        }
+        if ((float) $dev->credito_fornecedor > 0) {
+            $msg .= " {$f($dev->credito_fornecedor)} já estavam pagos: ficam como crédito com o fornecedor.";
         }
 
         return redirect()->route('app.entradas-nfe.show', $entrada)->with('success', $msg);

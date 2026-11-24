@@ -22,7 +22,7 @@ class NFeEntrada extends Model
 
     protected $table = 'nfe_entradas';
 
-    protected $auditFields = ['status', 'estoque_id', 'fornecedor_id', 'atualizou_custo', 'contas_pagar_geradas'];
+    protected $auditFields = ['status', 'devolucao_situacao', 'estoque_id', 'fornecedor_id', 'atualizou_custo', 'contas_pagar_geradas'];
 
     protected $fillable = [
         'empresa_id',
@@ -42,6 +42,7 @@ class NFeEntrada extends Model
         'duplicatas',
         'xml_path',
         'status',
+        'devolucao_situacao',
         'atualizou_custo',
         'contas_pagar_geradas',
         'user_id',
@@ -64,6 +65,17 @@ class NFeEntrada extends Model
     public function concluida(): bool
     {
         return $this->status === 'concluida';
+    }
+
+    /** Devoluções ao fornecedor (24/11/2026). */
+    public function devolucoes(): HasMany
+    {
+        return $this->hasMany(NFeEntradaDevolucao::class, 'nfe_entrada_id')->orderBy('numero');
+    }
+
+    public function contasPagar(): HasMany
+    {
+        return $this->hasMany(ContaPagar::class, 'nfe_entrada_id');
     }
 
     public function itens(): HasMany

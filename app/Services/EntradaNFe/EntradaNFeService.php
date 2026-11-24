@@ -402,6 +402,7 @@ class EntradaNFeService
                 'empresa_id'     => $entrada->empresa_id,
                 'unidade_id'     => $entrada->unidade_id,
                 'fornecedor_id'  => $fornecedor?->id,
+                'nfe_entrada_id' => $entrada->id, // a devolução ao fornecedor acha as contas por aqui (24/11/2026)
                 'descricao'      => mb_substr("NF-e {$entrada->numero} — {$entrada->nome_emitente}", 0, 255),
                 'valor'          => $p['valor'],
                 'vencimento'     => Carbon::parse($p['vencimento'] ?: now()->addDays(30))->toDateString(),

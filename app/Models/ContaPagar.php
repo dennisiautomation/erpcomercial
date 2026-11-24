@@ -21,6 +21,7 @@ class ContaPagar extends Model
         'empresa_id',
         'unidade_id',
         'fornecedor_id',
+        'nfe_entrada_id',
         'funcionario_id',
         'favorecido_nome',
         'descricao',

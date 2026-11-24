@@ -7,10 +7,109 @@
 
 <x-erp.page-header title="NF-e nº {{ $entrada->numero }} — no estoque" icon="box-seam"
     subtitle="{{ $entrada->fornecedor?->razao_social ?? $entrada->nome_emitente }}">
+    @if($entrada->devolucao_situacao !== 'total')
+        <a href="#devolver" class="btn btn-outline-danger" data-bs-toggle="collapse" role="button" aria-expanded="{{ old('motivo') ? 'true' : 'false' }}" aria-controls="devolver">
+            <i class="bi bi-box-arrow-left me-1"></i> Devolver ao fornecedor
+        </a>
+    @endif
     <a href="{{ route('app.entradas-nfe.index') }}" class="btn btn-erp-outline">
         <i class="bi bi-arrow-left me-1"></i> Voltar
     </a>
 </x-erp.page-header>
+
+@if($entrada->devolucao_situacao)
+    <div class="alert {{ $entrada->devolucao_situacao === 'total' ? 'alert-secondary' : 'alert-warning' }} py-2 small">
+        <i class="bi bi-box-arrow-left me-1"></i>
+        <strong>{{ $entrada->devolucao_situacao === 'total' ? 'Nota devolvida ao fornecedor' : 'Nota devolvida em parte' }}</strong>
+        — veja as devoluções no fim da página.
+    </div>
+@endif
+
+{{-- Devolução de compra ao fornecedor (24/11/2026): sem emitir nota; estoque sai e as contas a pagar da nota são abatidas --}}
+@if($entrada->devolucao_situacao !== 'total')
+<div class="collapse {{ old('motivo') ? 'show' : '' }} mb-3" id="devolver">
+    <form method="POST" action="{{ route('app.entradas-nfe.devolver', $entrada) }}" class="erp-card border-danger-subtle"
+          data-confirm="Registrar a devolução? Os itens saem do estoque e as contas a pagar desta nota são abatidas.">
+        @csrf
+        <div class="card-body">
+            <h2 class="h6 mb-1"><i class="bi bi-box-arrow-left me-1"></i> Devolver ao fornecedor</h2>
+            <p class="small text-muted mb-3">
+                Informe quanto volta de cada item, na unidade da nota. O que voltar sai do estoque
+                <strong>{{ $entrada->estoque?->nome }}</strong> e o valor é tirado das contas a pagar desta nota que ainda estão em aberto.
+                O sistema não emite nota de devolução. A nota nova do fornecedor entra pelo caminho de sempre.
+            </p>
+            <div class="table-responsive mb-3">
+                <table class="table table-sm align-middle mb-0">
+                    <thead class="table-light small">
+                        <tr>
+                            <th>Item</th>
+                            <th class="text-end">Na nota</th>
+                            <th class="text-end">Já devolvido</th>
+                            <th class="text-end" style="width:11rem">Devolver agora</th>
+                        </tr>
+                    </thead>
+                    <tbody class="small">
+                        @foreach($entrada->itens as $item)
+                            @php $jaQtd = $jaDevolvido[$item->id]['qtd'] ?? 0; $resta = max(0, round((float) $item->quantidade - $jaQtd, 4)); @endphp
+                            <tr>
+                                <td>{{ $item->descricao }}
+                                    @if($item->acao === 'ignorar')<span class="text-muted">· não entrou no estoque</span>@endif
+                                </td>
+                                <td class="text-end">{{ $fmt($item->quantidade, 3) }} {{ $item->unidade_comercial }}</td>
+                                <td class="text-end">{{ $jaQtd > 0 ? $fmt($jaQtd, 3) : '—' }}</td>
+                                <td class="text-end">
+                                    @if($resta > 0)
+                                        <div class="input-group input-group-sm">
+                                            <input type="text" inputmode="decimal" class="form-control text-end" name="quantidades[{{ $item->id }}]"
+                                                   value="{{ old('quantidades.' . $item->id) }}" placeholder="0" data-resta="{{ $resta }}"
+                                                   aria-label="Devolver de {{ $item->descricao }}">
+                                            <span class="input-group-text">de {{ $fmt($resta, 3) }}</span>
+                                        </div>
+                                    @else
+                                        <span class="text-muted">devolvido</span>
+                                    @endif
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+            <button type="button" class="btn btn-link btn-sm px-0 mb-3" id="devolverTudo">Devolver tudo o que resta</button>
+            <div class="row g-2 mb-3">
+                <div class="col-md-8">
+                    <label class="form-label small fw-semibold" for="devMotivo">Motivo <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" id="devMotivo" name="motivo" maxlength="500" required
+                           value="{{ old('motivo') }}" placeholder="Ex.: mercadoria com defeito, o fornecedor vai mandar outra">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label small fw-semibold" for="devDocumento">Nota de devolução (opcional)</label>
+                    <input type="text" class="form-control" id="devDocumento" name="documento" maxlength="60"
+                           value="{{ old('documento') }}" placeholder="Número ou chave, se alguém emitiu">
+                </div>
+            </div>
+            <div class="small mb-3">
+                @if($contasAbertas->isNotEmpty())
+                    <i class="bi bi-cash-stack me-1"></i>
+                    Contas a pagar em aberto desta nota: <strong>{{ $contasAbertas->count() }}</strong>
+                    (R$ {{ $fmt($contasAbertas->sum(fn ($c) => (float) $c->valor - (float) $c->valor_pago)) }}).
+                    O valor devolvido sai delas, da última parcela para a primeira; a parcela que zerar fica cancelada.
+                    @unless($podeFinanceiro)
+                        <div class="text-danger mt-1">Só quem cuida do financeiro (dono ou financeiro) pode registrar esta devolução.</div>
+                    @endunless
+                @elseif($entrada->contas_pagar_geradas)
+                    <i class="bi bi-cash-stack me-1"></i>
+                    As contas a pagar desta nota já estão pagas: o valor devolvido fica como <strong>crédito com o fornecedor</strong> (anotado aqui; o caixa e o banco não mudam).
+                @else
+                    <i class="bi bi-info-circle me-1"></i> Esta nota não gerou contas a pagar no sistema: só o estoque muda.
+                @endif
+            </div>
+            <button type="submit" class="btn btn-danger" @disabled($contasAbertas->isNotEmpty() && ! $podeFinanceiro)>
+                <i class="bi bi-check-lg me-1"></i> Registrar devolução
+            </button>
+        </div>
+    </form>
+</div>
+@endif
 
 <div class="erp-card mb-3">
     <div class="card-body">
@@ -74,4 +173,50 @@
         </table>
     </div>
 </div>
+
+@if($entrada->devolucoes->isNotEmpty())
+<div class="erp-card mt-3">
+    <div class="card-body">
+        <h2 class="h6 mb-3"><i class="bi bi-box-arrow-left me-1"></i> Devoluções ao fornecedor</h2>
+        @foreach($entrada->devolucoes as $dev)
+            <div class="border rounded p-2 mb-2 small">
+                <div class="d-flex flex-wrap justify-content-between gap-2">
+                    <strong>Devolução nº {{ $dev->numero }} — R$ {{ $fmt($dev->valor_total) }}</strong>
+                    <span class="text-muted">{{ $dev->created_at?->timezone('America/Sao_Paulo')->format('d/m/Y H:i') }} · {{ $dev->user?->name }}</span>
+                </div>
+                <div>Motivo: {{ $dev->motivo }}</div>
+                @if($dev->documento)<div>Nota de devolução: <span class="font-monospace">{{ $dev->documento }}</span></div>@endif
+                <ul class="mb-1 ps-3">
+                    @foreach($dev->itens as $di)
+                        @php $it = $entrada->itens->firstWhere('id', $di->nfe_entrada_item_id); @endphp
+                        <li>{{ $it?->descricao }}: {{ $fmt($di->quantidade_nota, 3) }} {{ $it?->unidade_comercial }}
+                            @if((float) $di->quantidade_estoque > 0) (saíram {{ $fmt($di->quantidade_estoque, 3) }} do estoque) @endif
+                            — R$ {{ $fmt($di->valor) }}</li>
+                    @endforeach
+                </ul>
+                @if((float) $dev->valor_abatido > 0)
+                    <div>Contas a pagar abatidas: R$ {{ $fmt($dev->valor_abatido) }}
+                        @foreach((array) $dev->contas_ajustadas as $aj)
+                            <span class="text-muted">· parcela {{ $aj['parcela'] ?? '' }}: R$ {{ $fmt($aj['valor_antes']) }} → {{ ($aj['status_depois'] ?? '') === 'cancelada' ? 'cancelada' : 'R$ ' . $fmt($aj['valor_depois']) }}</span>
+                        @endforeach
+                    </div>
+                @endif
+                @if((float) $dev->credito_fornecedor > 0)
+                    <div class="text-warning-emphasis">Crédito com o fornecedor (já estava pago): R$ {{ $fmt($dev->credito_fornecedor) }}</div>
+                @endif
+            </div>
+        @endforeach
+    </div>
+</div>
+@endif
+
+@if($entrada->devolucao_situacao !== 'total')
+<script>
+document.getElementById('devolverTudo')?.addEventListener('click', function () {
+    document.querySelectorAll('#devolver input[data-resta]').forEach(function (i) {
+        i.value = String(i.dataset.resta).replace('.', ',');
+    });
+});
+</script>
+@endif
 @endsection

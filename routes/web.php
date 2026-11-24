@@ -580,6 +580,10 @@ Route::middleware(['auth', 'suspensao', 'unidade', \App\Http\Middleware\Restring
     Route::post('estoque/entradas-nfe/{entrada}/confirmar', [App\EntradaNFeController::class, 'confirmar'])
         ->name('entradas-nfe.confirmar')
         ->middleware('permission:estoque,criar');
+    // Devolução de compra ao fornecedor (24/11/2026): estoque sai + contas a pagar abatidas
+    Route::post('estoque/entradas-nfe/{entrada}/devolver', [App\EntradaNFeController::class, 'devolver'])
+        ->name('entradas-nfe.devolver')
+        ->middleware('permission:estoque,criar');
     Route::delete('estoque/entradas-nfe/{entrada}', [App\EntradaNFeController::class, 'destroy'])
         ->name('entradas-nfe.destroy')
         ->middleware('permission:estoque,criar');
