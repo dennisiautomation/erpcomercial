@@ -179,9 +179,11 @@
     <div class="card-body">
         <h2 class="h6 mb-3"><i class="bi bi-box-arrow-left me-1"></i> Devoluções ao fornecedor</h2>
         @foreach($entrada->devolucoes as $dev)
-            <div class="border rounded p-2 mb-2 small">
+            <div @class(['border rounded p-2 mb-2 small', 'bg-light text-muted' => $dev->estornada()])>
                 <div class="d-flex flex-wrap justify-content-between gap-2">
-                    <strong>Devolução nº {{ $dev->numero }} — R$ {{ $fmt($dev->valor_total) }}</strong>
+                    <strong>Devolução nº {{ $dev->numero }} — R$ {{ $fmt($dev->valor_total) }}
+                        @if($dev->estornada()) <span class="badge bg-secondary ms-1">estornada</span> @endif
+                    </strong>
                     <span class="text-muted">{{ $dev->created_at?->timezone('America/Sao_Paulo')->format('d/m/Y H:i') }} · {{ $dev->user?->name }}</span>
                 </div>
                 <div>Motivo: {{ $dev->motivo }}</div>
@@ -201,8 +203,32 @@
                         @endforeach
                     </div>
                 @endif
-                @if((float) $dev->credito_fornecedor > 0)
+                @if((float) $dev->credito_fornecedor > 0 && ! $dev->estornada())
                     <div class="text-warning-emphasis">Crédito com o fornecedor (já estava pago): R$ {{ $fmt($dev->credito_fornecedor) }}</div>
+                @endif
+                @if($dev->estornada())
+                    {{-- Estorno (24/11/2026) --}}
+                    <div class="mt-1"><i class="bi bi-arrow-counterclockwise me-1"></i>Estornada em
+                        {{ $dev->estornada_em->timezone('America/Sao_Paulo')->format('d/m/Y H:i') }} por {{ $dev->estornador?->name }}
+                        — {{ $dev->estorno_motivo }}. A mercadoria voltou ao estoque{{ ! empty($dev->contas_ajustadas) ? ' e as contas a pagar voltaram como estavam' : '' }}.</div>
+                @else
+                    <button class="btn btn-sm btn-outline-secondary mt-1" type="button" data-bs-toggle="collapse"
+                            data-bs-target="#estornar{{ $dev->id }}" aria-expanded="false" aria-controls="estornar{{ $dev->id }}">
+                        <i class="bi bi-arrow-counterclockwise me-1"></i> Estornar esta devolução
+                    </button>
+                    <div class="collapse mt-2" id="estornar{{ $dev->id }}">
+                        <form method="POST" action="{{ route('app.entradas-nfe.devolucoes.estornar', [$entrada, $dev->id]) }}"
+                              class="d-flex flex-wrap gap-2 align-items-end"
+                              data-confirm="Estornar a devolução nº {{ $dev->numero }}? A mercadoria volta ao estoque{{ ! empty($dev->contas_ajustadas) ? ' e as contas a pagar voltam como estavam' : '' }}.">
+                            @csrf
+                            <div class="flex-grow-1">
+                                <label class="form-label small mb-1" for="estMotivo{{ $dev->id }}">Motivo do estorno</label>
+                                <input type="text" class="form-control form-control-sm" id="estMotivo{{ $dev->id }}" name="estorno_motivo"
+                                       maxlength="500" required placeholder="Ex.: o fornecedor não aceitou a devolução">
+                            </div>
+                            <button type="submit" class="btn btn-sm btn-secondary">Confirmar estorno</button>
+                        </form>
+                    </div>
                 @endif
             </div>
         @endforeach

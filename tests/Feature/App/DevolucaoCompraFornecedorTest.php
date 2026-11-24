@@ -204,4 +204,85 @@ class DevolucaoCompraFornecedorTest extends TestCase
             ->assertOk()->assertSee('Nota devolvida em parte')->assertSee('Devolução nº 1')
             ->assertSee('Mercadoria com defeito, fornecedor manda outra');
     }
+
+    private function estornar(NFeEntrada $e, NFeEntradaDevolucao $d, string $motivo = 'Fornecedor não aceitou a devolução', $user = null)
+    {
+        return $this->actingAsUser($user ?? $this->dono, $this->unidade)
+            ->from(route('app.entradas-nfe.show', $e))
+            ->post(route('app.entradas-nfe.devolucoes.estornar', [$e, $d->id]), ['estorno_motivo' => $motivo]);
+    }
+
+    public function test_estorno_volta_estoque_e_contas_como_estavam(): void
+    {
+        $e = $this->entradaConcluida();
+        [$luva, $gaze] = $e->itens()->get()->all();
+        $this->devolver($e, [$luva->id => '1', $gaze->id => '20']); // R$ 300 + R$ 400 = 700
+        $c = $this->contas($e);
+        $this->assertEquals(['pendente', 'cancelada'], $c->pluck('status')->all());
+        $this->assertEquals(300.00, (float) $c[0]->valor);
+        $dev = NFeEntradaDevolucao::withoutGlobalScopes()->firstOrFail();
+
+        $this->estornar($e, $dev)->assertSessionHas('success');
+
+        $this->assertSame(20.0, $this->saldo($this->luva));
+        $this->assertSame(20.0, $this->saldo($this->gaze));
+        $c = $this->contas($e);
+        $this->assertEquals(['pendente', 'pendente'], $c->pluck('status')->all());
+        $this->assertEquals([500.00, 500.00], $c->map(fn ($x) => (float) $x->valor)->all());
+        $this->assertStringContainsString('Estorno da devolução nº 1', $c[1]->observacoes);
+        $dev->refresh();
+        $this->assertNotNull($dev->estornada_em);
+        $this->assertSame($this->dono->id, $dev->estornada_por);
+        $this->assertNull($e->fresh()->devolucao_situacao);
+        $this->assertDatabaseHas('estoque_movimentacoes', ['origem_tipo' => NFeEntradaDevolucao::class, 'origem_id' => $dev->id, 'tipo' => 'entrada', 'produto_id' => $this->gaze->id]);
+
+        // Estornada não conta: dá para devolver tudo de novo, e não estorna duas vezes
+        $this->estornar($e, $dev)->assertSessionHas('error');
+        $this->assertStringContainsString('já foi estornada', session('error'));
+        $this->devolver($e, [$luva->id => '2', $gaze->id => '20'])->assertSessionHas('success');
+        $this->assertSame('total', $e->fresh()->devolucao_situacao);
+        $this->assertEquals(['cancelada', 'cancelada'], $this->contas($e)->pluck('status')->all());
+    }
+
+    public function test_estorno_parado_se_a_parcela_mudou_depois(): void
+    {
+        $e = $this->entradaConcluida();
+        [$luva] = $e->itens()->get()->all();
+        $this->devolver($e, [$luva->id => '1']); // 2ª parcela 500 → 200
+        $this->contas($e)[1]->update(['status' => 'paga', 'valor_pago' => 200, 'pago_em' => now()]);
+        $dev = NFeEntradaDevolucao::withoutGlobalScopes()->firstOrFail();
+
+        $this->estornar($e, $dev)->assertSessionHas('error');
+        $this->assertStringContainsString('parcela 2', session('error'));
+        $this->assertSame(10.0, $this->saldo($this->luva), 'nada voltou ao estoque');
+        $this->assertNull($dev->fresh()->estornada_em);
+    }
+
+    public function test_estorno_pede_motivo_e_financeiro_quando_mexeu_em_conta(): void
+    {
+        $e = $this->entradaConcluida();
+        [$luva] = $e->itens()->get()->all();
+        $this->devolver($e, [$luva->id => '1']);
+        $dev = NFeEntradaDevolucao::withoutGlobalScopes()->firstOrFail();
+
+        $this->estornar($e, $dev, '')->assertSessionHasErrors('estorno_motivo');
+        $gerente = $this->createUser($this->empresa, $this->unidade, 'gerente');
+        $this->estornar($e, $dev, 'Fornecedor recusou', $gerente)->assertSessionHas('error');
+        $this->assertStringContainsString('financeiro', session('error'));
+        $this->assertNull($dev->fresh()->estornada_em);
+    }
+
+    public function test_tela_mostra_estornar_e_depois_a_marca(): void
+    {
+        $e = $this->entradaConcluida();
+        [$luva] = $e->itens()->get()->all();
+        $this->devolver($e, [$luva->id => '1']);
+        $this->actingAsUser($this->dono, $this->unidade)->get(route('app.entradas-nfe.show', $e))
+            ->assertOk()->assertSee('Estornar esta devolução')->assertSee('Confirmar estorno');
+
+        $this->estornar($e, NFeEntradaDevolucao::withoutGlobalScopes()->firstOrFail());
+        $this->actingAsUser($this->dono, $this->unidade)->get(route('app.entradas-nfe.show', $e))
+            ->assertOk()->assertSee('estornada')->assertSee('Fornecedor não aceitou a devolução')
+            ->assertDontSee('Estornar esta devolução')->assertDontSee('Nota devolvida em parte');
+    }
 }

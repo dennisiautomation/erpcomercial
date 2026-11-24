@@ -584,6 +584,10 @@ Route::middleware(['auth', 'suspensao', 'unidade', \App\Http\Middleware\Restring
     Route::post('estoque/entradas-nfe/{entrada}/devolver', [App\EntradaNFeController::class, 'devolver'])
         ->name('entradas-nfe.devolver')
         ->middleware('permission:estoque,criar');
+    Route::post('estoque/entradas-nfe/{entrada}/devolucoes/{devolucao}/estornar', [App\EntradaNFeController::class, 'estornarDevolucao'])
+        ->whereNumber('devolucao')
+        ->name('entradas-nfe.devolucoes.estornar')
+        ->middleware('permission:estoque,criar');
     Route::delete('estoque/entradas-nfe/{entrada}', [App\EntradaNFeController::class, 'destroy'])
         ->name('entradas-nfe.destroy')
         ->middleware('permission:estoque,criar');

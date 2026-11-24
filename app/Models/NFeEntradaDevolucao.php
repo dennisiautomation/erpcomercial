@@ -27,6 +27,9 @@ class NFeEntradaDevolucao extends Model
         'credito_fornecedor',
         'contas_ajustadas',
         'user_id',
+        'estornada_em',
+        'estornada_por',
+        'estorno_motivo',
     ];
 
     protected function casts(): array
@@ -36,6 +39,7 @@ class NFeEntradaDevolucao extends Model
             'valor_abatido'      => 'decimal:2',
             'credito_fornecedor' => 'decimal:2',
             'contas_ajustadas'   => 'array',
+            'estornada_em'       => 'datetime',
         ];
     }
 
@@ -52,5 +56,15 @@ class NFeEntradaDevolucao extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function estornador(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'estornada_por');
+    }
+
+    public function estornada(): bool
+    {
+        return $this->estornada_em !== null;
     }
 }

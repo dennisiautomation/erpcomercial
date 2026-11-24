@@ -91,7 +91,7 @@ class EntradaNFeController extends Controller
         if ($entrada->concluida()) {
             // Devolução ao fornecedor (24/11/2026)
             $devSvc = app(\App\Services\EntradaNFe\DevolucaoCompraService::class);
-            $entrada->load(['devolucoes.itens', 'devolucoes.user:id,name']);
+            $entrada->load(['devolucoes.itens', 'devolucoes.user:id,name', 'devolucoes.estornador:id,name']);
 
             return view('app.estoque.entradas-nfe.show', [
                 'entrada'        => $entrada,
@@ -193,6 +193,31 @@ class EntradaNFeController extends Controller
         }
 
         return redirect()->route('app.entradas-nfe.show', $entrada)->with('success', $msg);
+    }
+
+    /** Estorno da devolução ao fornecedor (24/11/2026): mercadoria volta ao estoque e as parcelas voltam como estavam. */
+    public function estornarDevolucao(Request $request, NFeEntrada $entrada, int $devolucao)
+    {
+        $request->validate(['estorno_motivo' => 'required|string|min:3|max:500'], [
+            'estorno_motivo.required' => 'Escreva o motivo do estorno.',
+            'estorno_motivo.min'      => 'Escreva o motivo do estorno.',
+        ]);
+        $dev = \App\Models\NFeEntradaDevolucao::withoutGlobalScopes()
+            ->where('nfe_entrada_id', $entrada->id)->findOrFail($devolucao);
+        if (! empty($dev->contas_ajustadas) && ! CheckPermission::canUser(auth()->user(), 'financeiro', 'editar')) {
+            return back()->with('error', 'Esta devolução abateu contas a pagar. Peça a quem cuida do financeiro (dono ou financeiro) para estornar.');
+        }
+
+        try {
+            app(\App\Services\EntradaNFe\DevolucaoCompraService::class)
+                ->estornar($dev, (string) $request->input('estorno_motivo'), (int) auth()->id());
+        } catch (\InvalidArgumentException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return redirect()->route('app.entradas-nfe.show', $entrada)
+            ->with('success', "Devolução nº {$dev->numero} estornada: a mercadoria voltou ao estoque"
+                . (! empty($dev->contas_ajustadas) ? ' e as contas a pagar voltaram como estavam.' : '.'));
     }
 
     /** Descarta um rascunho (a concluída é histórico de estoque e não sai). */

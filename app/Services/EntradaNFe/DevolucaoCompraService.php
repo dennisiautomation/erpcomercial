@@ -36,6 +36,7 @@ class DevolucaoCompraService
         return NFeEntradaDevolucaoItem::query()
             ->join('nfe_entrada_devolucoes as d', 'd.id', '=', 'nfe_entrada_devolucao_itens.devolucao_id')
             ->where('d.nfe_entrada_id', $entrada->id)
+            ->whereNull('d.estornada_em') // estornada não conta (24/11/2026)
             ->groupBy('nfe_entrada_item_id')
             ->selectRaw('nfe_entrada_item_id, SUM(quantidade_nota) as qtd, SUM(valor) as valor')
             ->get()
@@ -164,7 +165,7 @@ class DevolucaoCompraService
             $tudo = $itens->every(fn ($i) => ($jaDepois[$i->id]['qtd'] ?? 0) + 0.00005 >= (float) $i->quantidade);
             if ($tudo) {
                 $antes = (float) NFeEntradaDevolucao::withoutGlobalScopes()
-                    ->where('nfe_entrada_id', $entrada->id)->where('id', '<>', $devolucao->id)->sum('valor_total');
+                    ->where('nfe_entrada_id', $entrada->id)->where('id', '<>', $devolucao->id)->whereNull('estornada_em')->sum('valor_total');
                 $total = max(0, (float) $entrada->valor_total - $antes);
             }
             $total = round($total, 2);
@@ -181,6 +182,96 @@ class DevolucaoCompraService
             $entrada->update(['devolucao_situacao' => $tudo ? 'total' : 'parcial']);
 
             return $devolucao->fresh('itens');
+        });
+    }
+
+    /**
+     * Estorno da devolução (24/11/2026): desfaz o que devolver() fez — a mercadoria
+     * volta ao estoque (ENTRADA no mesmo estoque, origem a própria devolução) e cada
+     * parcela do contas a pagar volta ao valor/situação de antes. Se alguma parcela
+     * mudou depois da devolução (foi paga, editada, apagada), nada é estornado: o
+     * financeiro resolve aquela parcela primeiro. A devolução fica no histórico,
+     * marcada como estornada, e deixa de contar no "já devolvido".
+     *
+     * @throws \InvalidArgumentException com mensagem para o lojista
+     */
+    public function estornar(NFeEntradaDevolucao $devolucao, string $motivo, int $userId): NFeEntradaDevolucao
+    {
+        $motivo = trim($motivo);
+        if (mb_strlen($motivo) < 3) {
+            throw new \InvalidArgumentException('Escreva o motivo do estorno (ex.: "o fornecedor não aceitou a devolução").');
+        }
+
+        return DB::transaction(function () use ($devolucao, $motivo, $userId) {
+            $entrada = NFeEntrada::withoutGlobalScopes()->lockForUpdate()->findOrFail($devolucao->nfe_entrada_id);
+            $devolucao = NFeEntradaDevolucao::withoutGlobalScopes()->lockForUpdate()->findOrFail($devolucao->id);
+            if ($devolucao->estornada()) {
+                throw new \InvalidArgumentException("A devolução nº {$devolucao->numero} já foi estornada.");
+            }
+
+            // 1) Contas: só volta se cada parcela ainda está como a devolução deixou
+            $ajustes = (array) $devolucao->contas_ajustadas;
+            $contas = ContaPagar::withoutGlobalScopes()
+                ->whereIn('id', array_column($ajustes, 'id'))
+                ->lockForUpdate()->get()->keyBy('id');
+            foreach ($ajustes as $aj) {
+                $c = $contas->get($aj['id']);
+                $igual = $c && ! $c->trashed()
+                    && $c->status === $aj['status_depois']
+                    && abs((float) $c->valor - (float) $aj['valor_depois']) < 0.005;
+                if (! $igual) {
+                    $parcela = $aj['parcela'] ?? '?';
+                    throw new \InvalidArgumentException(
+                        "A parcela {$parcela} do contas a pagar desta nota mudou depois da devolução (foi paga, editada ou apagada). "
+                        . 'Acerte essa parcela no financeiro antes de estornar.'
+                    );
+                }
+            }
+
+            // 2) Estoque: volta o que saiu
+            foreach ($devolucao->itens()->get() as $di) {
+                if ((float) $di->quantidade_estoque <= 0 || ! $di->produto_id) {
+                    continue;
+                }
+                $item = NFeEntradaItem::find($di->nfe_entrada_item_id);
+                Produto::withoutGlobalScopes()->whereKey($di->produto_id)->lockForUpdate()->first();
+                SaldoEstoque::registrar(
+                    (int) $entrada->empresa_id, (int) $entrada->unidade_id, (int) $entrada->estoque_id,
+                    (int) $di->produto_id, 'entrada', (float) $di->quantidade_estoque, [
+                        'custo_unitario' => $item?->custoUnitarioEntrada() ?? 0,
+                        'origem_tipo'    => NFeEntradaDevolucao::class,
+                        'origem_id'      => $devolucao->id,
+                        'user_id'        => $userId,
+                        'observacoes'    => mb_substr("Estorno da devolução nº {$devolucao->numero} ao fornecedor — NF-e {$entrada->numero} — {$entrada->nome_emitente}", 0, 500),
+                    ]
+                );
+            }
+
+            // 3) Contas de volta como estavam
+            foreach ($ajustes as $aj) {
+                $c = $contas->get($aj['id']);
+                $c->update([
+                    'valor'       => $aj['valor_antes'],
+                    'status'      => $aj['status_antes'],
+                    'observacoes' => trim(($c->observacoes ? $c->observacoes . "\n" : '')
+                        . "Estorno da devolução nº {$devolucao->numero}: +R$ " . self::fmt((float) $aj['abatido'])),
+                ]);
+            }
+
+            $devolucao->update([
+                'estornada_em'   => now(),
+                'estornada_por'  => $userId,
+                'estorno_motivo' => mb_substr($motivo, 0, 500),
+            ]);
+
+            // Situação da entrada pelo que sobrou devolvido
+            $ja = $this->jaDevolvido($entrada);
+            $itens = $entrada->itens()->get();
+            $algum = array_sum(array_column($ja, 'qtd')) > 0.00005;
+            $tudo = $algum && $itens->every(fn ($i) => ($ja[$i->id]['qtd'] ?? 0) + 0.00005 >= (float) $i->quantidade);
+            $entrada->update(['devolucao_situacao' => $tudo ? 'total' : ($algum ? 'parcial' : null)]);
+
+            return $devolucao->fresh();
         });
     }
 
