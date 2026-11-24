@@ -146,6 +146,9 @@
                 <div class="modal-body">
                     {{-- Forma de pagamento (27/10/2026): a venda e a NFC-e saíam "a definir". --}}
                     <label class="form-label fw-semibold mb-1" for="faturarForma">Forma de pagamento <span class="text-danger">*</span></label>
+                    @php($dividirOld = (bool) old('dividir'))
+                    <input type="hidden" name="dividir" id="faturarDividir" value="{{ $dividirOld ? 1 : 0 }}">
+                    <div id="faturarUnicaBox">
                     <div class="row g-2 mb-2">
                         <div class="col">
                             <select name="forma_pagamento" id="faturarForma" class="form-select" required>
@@ -181,6 +184,51 @@
                                 @endif
                             @endforeach
                         </select>
+                    </div>
+                    <button type="button" class="btn btn-link btn-sm px-0 mb-2" id="faturarDividirAbrir">
+                        <i class="bi bi-plus-circle me-1"></i>Pagou em mais de uma forma? Dividir o pagamento
+                    </button>
+                    </div>{{-- /faturarUnicaBox --}}
+
+                    {{-- Pagamento em mais de uma forma (24/11/2026, DK): ex. R$ 500 em dinheiro + R$ 77,60 no PIX --}}
+                    @php($formasDividir = $formasFaturar->filter(fn ($fp) => $fp->codigoGravado() !== 'vale'))
+                    @php($linhasOld = array_values((array) old('pagamentos', [])))
+                    <div id="faturarDivididoBox" class="border rounded p-2 mb-2" style="{{ $dividirOld ? '' : 'display:none' }}">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="small fw-semibold">Pagamento dividido</span>
+                            <button type="button" class="btn btn-link btn-sm p-0" id="faturarDividirFechar">Voltar para uma forma só</button>
+                        </div>
+                        <div id="faturarLinhas"></div>
+                        <template id="faturarLinhaModelo">
+                            <div class="row g-2 mb-2 align-items-center" data-linha>
+                                <div class="col">
+                                    <select class="form-select form-select-sm" data-campo="forma" aria-label="Forma">
+                                        <option value="">Forma...</option>
+                                        @foreach($formasDividir as $fp)
+                                            <option value="{{ $fp->chave }}" data-forma="{{ $fp->codigoGravado() }}">{{ $fp->nome }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <div class="col-3" data-parcelas-box style="display:none">
+                                    <select class="form-select form-select-sm" data-campo="parcelas" aria-label="Parcelas">
+                                        @for($p = 1; $p <= 12; $p++)<option value="{{ $p }}">{{ $p }}x</option>@endfor
+                                    </select>
+                                </div>
+                                <div class="col-4">
+                                    <div class="input-group input-group-sm">
+                                        <span class="input-group-text">R$</span>
+                                        <input type="text" class="form-control text-end" data-campo="valor" inputmode="decimal" placeholder="0,00" autocomplete="off" aria-label="Valor">
+                                    </div>
+                                </div>
+                                <div class="col-auto">
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" data-remover title="Tirar esta forma" aria-label="Tirar esta forma"><i class="bi bi-x-lg"></i></button>
+                                </div>
+                            </div>
+                        </template>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <button type="button" class="btn btn-outline-primary btn-sm" id="faturarLinhaAdd"><i class="bi bi-plus-lg me-1"></i>Adicionar outra forma</button>
+                            <span class="small" id="faturarFalta" aria-live="polite"></span>
+                        </div>
                     </div>
                     <div class="small text-muted mb-3">
                         Valor da venda: <strong>R$ {{ number_format($pedido->total, 2, ',', '.') }}</strong> (total do pedido).
@@ -240,7 +288,7 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-info text-white"><i class="bi bi-check-lg me-1"></i> Faturar</button>
+                    <button type="submit" class="btn btn-info text-white" id="faturarEnviar"><i class="bi bi-check-lg me-1"></i> Faturar</button>
                 </div>
             </form>
         </div>
@@ -279,6 +327,95 @@
                 .catch(function () { info.textContent = 'Não consegui consultar agora.'; });
         });
         mostrar();
+
+        // Pagamento dividido (24/11/2026): as linhas viram pagamentos[i][forma|valor|parcelas]
+        var dividir = document.getElementById('faturarDividir');
+        var unicaBox = document.getElementById('faturarUnicaBox');
+        var divBox = document.getElementById('faturarDivididoBox');
+        var linhas = document.getElementById('faturarLinhas');
+        var modelo = document.getElementById('faturarLinhaModelo');
+        var faltaEl = document.getElementById('faturarFalta');
+        var enviar = document.getElementById('faturarEnviar');
+        var brl = function (v) { return v.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'}); };
+        function num(txt) {
+            var s = String(txt || '').replace(/[^\d,.-]/g, '');
+            if (s.indexOf(',') >= 0) s = s.replace(/\./g, '').replace(',', '.');
+            var n = parseFloat(s); return isNaN(n) ? 0 : n;
+        }
+        function renomear() {
+            linhas.querySelectorAll('[data-linha]').forEach(function (l, i) {
+                l.querySelectorAll('[data-campo]').forEach(function (c) { c.name = 'pagamentos[' + i + '][' + c.dataset.campo + ']'; });
+            });
+        }
+        function soma() {
+            var s = 0;
+            linhas.querySelectorAll('[data-campo="valor"]').forEach(function (c) { s += num(c.value); });
+            return Math.round(s * 100) / 100;
+        }
+        function conferir() {
+            if (dividir.value !== '1') { faltaEl.textContent = ''; enviar.disabled = false; return; }
+            linhas.querySelectorAll('[data-linha]').forEach(function (l) {
+                var sel = l.querySelector('[data-campo="forma"]'), o = sel.options[sel.selectedIndex];
+                l.querySelector('[data-parcelas-box]').style.display = (o && o.dataset.forma === 'cartao_credito') ? '' : 'none';
+            });
+            var dif = Math.round((total - soma()) * 100) / 100;
+            if (Math.abs(dif) < 0.01) {
+                faltaEl.className = 'small text-success fw-semibold';
+                faltaEl.textContent = 'Fechou ' + brl(total);
+            } else {
+                faltaEl.className = 'small text-danger fw-semibold';
+                faltaEl.textContent = dif > 0 ? 'Falta ' + brl(dif) : 'Passou ' + brl(-dif);
+            }
+            enviar.disabled = Math.abs(dif) >= 0.01;
+        }
+        function addLinha(dados) {
+            var l = modelo.content.firstElementChild.cloneNode(true);
+            if (dados) {
+                l.querySelector('[data-campo="forma"]').value = dados.forma || '';
+                l.querySelector('[data-campo="valor"]').value = dados.valor || '';
+                if (dados.parcelas) l.querySelector('[data-campo="parcelas"]').value = dados.parcelas;
+            }
+            linhas.appendChild(l);
+            renomear(); conferir();
+            return l;
+        }
+        linhas.addEventListener('input', conferir);
+        linhas.addEventListener('change', conferir);
+        linhas.addEventListener('click', function (e) {
+            var b = e.target.closest('[data-remover]');
+            if (!b) return;
+            if (linhas.querySelectorAll('[data-linha]').length <= 2) { b.closest('[data-linha]').querySelectorAll('input,select').forEach(function (c) { c.value = c.tagName === 'SELECT' && c.dataset.campo === 'parcelas' ? '1' : ''; }); }
+            else { b.closest('[data-linha]').remove(); }
+            renomear(); conferir();
+        });
+        document.getElementById('faturarLinhaAdd').addEventListener('click', function () {
+            if (linhas.querySelectorAll('[data-linha]').length >= 6) return;
+            var l = addLinha(), dif = Math.round((total - soma()) * 100) / 100;
+            if (dif > 0) l.querySelector('[data-campo="valor"]').value = dif.toFixed(2).replace('.', ',');
+            conferir();
+            l.querySelector('[data-campo="forma"]').focus();
+        });
+        function abrir(on) {
+            dividir.value = on ? '1' : '0';
+            unicaBox.style.display = on ? 'none' : '';
+            divBox.style.display = on ? '' : 'none';
+            forma.required = !on;
+            if (on && !linhas.children.length) {
+                var atual = codigo(forma) !== 'vale' ? forma.value : '';
+                addLinha({forma: atual}); addLinha();
+                linhas.querySelector('[data-campo="valor"]').focus();
+            }
+            if (!on) mostrar();
+            conferir();
+        }
+        document.getElementById('faturarDividirAbrir').addEventListener('click', function () { abrir(true); });
+        document.getElementById('faturarDividirFechar').addEventListener('click', function () { abrir(false); });
+        @if($dividirOld)
+            @foreach($linhasOld as $l)
+                addLinha(@json(['forma' => (string) ($l['forma'] ?? ''), 'valor' => (string) ($l['valor'] ?? ''), 'parcelas' => $l['parcelas'] ?? null]));
+            @endforeach
+            abrir(true);
+        @endif
     })();
     </script>
     @endif

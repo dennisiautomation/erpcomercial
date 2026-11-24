@@ -572,9 +572,13 @@ class PedidoController extends Controller
         $ativas = $formasSvc->ativas((int) $pedido->empresa_id);
         $chaves = $ativas->pluck('chave')->all();
         $chavesComplemento = $ativas->filter(fn ($f) => $f->codigoGravado() !== 'vale')->pluck('chave')->all();
+        // Pagamento em mais de uma forma (24/11/2026, DK: "R$ 500 em dinheiro e
+        // R$ 77,60 no PIX"): dividir=1 + linhas pagamentos[i][forma|valor|parcelas].
+        // Uma forma só segue exatamente o caminho de antes.
+        $dividir = $request->boolean('dividir');
         $request->validate([
             'documento'       => 'required|in:nenhum,recibo,cupom_fiscal,nota_fiscal',
-            'forma_pagamento' => ['required', \Illuminate\Validation\Rule::in($chaves)],
+            'forma_pagamento' => [\Illuminate\Validation\Rule::requiredIf(! $dividir), 'nullable', \Illuminate\Validation\Rule::in($chaves)],
             'parcelas'        => 'nullable|integer|min:1|max:24',
             'vale_codigo'     => 'nullable|string|max:20',
             // Complemento: o que o vale não cobrir (saldo menor que o total)
@@ -583,6 +587,16 @@ class PedidoController extends Controller
             'forma_pagamento.required' => 'Escolha a forma de pagamento.',
             'forma_pagamento.in'       => 'Esta forma de pagamento está desligada. Recarregue a tela.',
         ]);
+        $pagamentosDivididos = null;
+        if ($dividir) {
+            try {
+                $pagamentosDivididos = $this->pagamentosDivididos($request, $ativas, round((float) $pedido->total, 2));
+            } catch (\DomainException $e) {
+                return back()->withInput()->with('error', $e->getMessage());
+            }
+            // O primeiro pagamento faz o papel da "forma principal" daqui para baixo
+            $request->merge(['forma_pagamento' => $pagamentosDivididos[0]['forma_chave'], 'forma_complemento' => null, 'vale_codigo' => null]);
+        }
         $fpPrincipal = $ativas->firstWhere('chave', $request->forma_pagamento);
         $fpComplemento = $request->filled('forma_complemento') ? $ativas->firstWhere('chave', $request->forma_complemento) : null;
         if ($fpPrincipal->codigoGravado() === 'vale' && ! $request->filled('vale_codigo')) {
@@ -602,9 +616,16 @@ class PedidoController extends Controller
         // Fiado / direto com a loja (16/11/2026): pedido precisa de cliente e caber no limite
         $fpFiado = \App\Services\FiadoService::ehFiado($request->forma_pagamento) ? $fpPrincipal
             : (\App\Services\FiadoService::ehFiado($request->forma_complemento) ? $fpComplemento : null);
+        $valorFiado = round((float) $pedido->total, 2);
+        if ($pagamentosDivididos !== null) {
+            // Dividido: só a parte do fiado conta no limite do cliente
+            $linhasFiado = array_filter($pagamentosDivididos, fn ($p) => \App\Services\FiadoService::ehFiado($p['forma']));
+            $fpFiado = $linhasFiado ? $ativas->firstWhere('chave', reset($linhasFiado)['forma_chave']) : null;
+            $valorFiado = round(array_sum(array_column($linhasFiado, 'valor')), 2);
+        }
         if ($fpFiado) {
             try {
-                app(\App\Services\FiadoService::class)->validarVenda((int) $pedido->empresa_id, $pedido->cliente_id ? (int) $pedido->cliente_id : null, round((float) $pedido->total, 2), $fpFiado->nome);
+                app(\App\Services\FiadoService::class)->validarVenda((int) $pedido->empresa_id, $pedido->cliente_id ? (int) $pedido->cliente_id : null, $valorFiado, $fpFiado->nome);
             } catch (\DomainException $e) {
                 return back()->with('error', $e->getMessage());
             }
@@ -648,12 +669,14 @@ class PedidoController extends Controller
         }
 
         try {
-        $venda = DB::transaction(function () use ($pedido, $formaPagamento, $parcelas, $caixa, $caixaSvc, $request, $nomePrincipal, $nomeComplemento) {
+        $venda = DB::transaction(function () use ($pedido, $formaPagamento, $parcelas, $caixa, $caixaSvc, $request, $nomePrincipal, $nomeComplemento, $pagamentosDivididos) {
             // Pagamentos da venda. O total é o do pedido: a forma só é registrada
             // (não aplica desconto à vista nem juros — isso fica no orçamento/pedido).
             $total = round((float) $pedido->total, 2);
             $vale = null;
-            if ($formaPagamento === 'vale') {
+            if ($pagamentosDivididos !== null) {
+                $pagamentos = $pagamentosDivididos;
+            } elseif ($formaPagamento === 'vale') {
                 // Mesma regra do PDV: código desta empresa, ativo, na validade, com
                 // saldo — com lock, para dois caixas não gastarem o mesmo crédito.
                 $vale = \App\Models\Vale::withoutGlobalScopes()
@@ -880,6 +903,72 @@ class PedidoController extends Controller
      * pagas na hora. Sem conta (pedido confirmado pela API do agente), nasce
      * uma já paga, como na venda de balcão.
      */
+    /**
+     * Linhas do pagamento dividido (24/11/2026) → pagamentos da venda, no mesmo
+     * formato do PDV: [forma (código gravado), valor, parcelas?, forma_chave, forma_nome].
+     * A soma tem de fechar o total do pedido (não há troco nem acréscimo aqui: o
+     * preço já é o do pedido). Vale fica fora: ele tem o caminho próprio.
+     *
+     * @throws \DomainException com o texto para a tela
+     */
+    private function pagamentosDivididos(Request $request, \Illuminate\Support\Collection $ativas, float $total): array
+    {
+        $linhas = array_values(array_filter((array) $request->input('pagamentos', []), fn ($l) => is_array($l)
+            && (trim((string) ($l['forma'] ?? '')) !== '' || trim((string) ($l['valor'] ?? '')) !== '')));
+        if (count($linhas) < 2) {
+            throw new \DomainException('Para dividir o pagamento, informe pelo menos duas formas com valor.');
+        }
+        if (count($linhas) > 6) {
+            throw new \DomainException('No máximo 6 formas de pagamento na mesma venda.');
+        }
+
+        $pagamentos = [];
+        foreach ($linhas as $i => $l) {
+            $n = $i + 1;
+            $fp = $ativas->firstWhere('chave', (string) ($l['forma'] ?? ''));
+            if (! $fp) {
+                throw new \DomainException("Escolha a forma de pagamento da linha {$n} (ou ela foi desligada: recarregue a tela).");
+            }
+            $codigo = $fp->codigoGravado();
+            if ($codigo === 'vale') {
+                throw new \DomainException('Vale não entra no pagamento dividido: escolha "Vale" como forma única (o restante vai no complemento).');
+            }
+            $valor = round(self::valorDigitado($l['valor'] ?? null), 2);
+            if ($valor <= 0) {
+                throw new \DomainException("Informe o valor de {$fp->nome} (linha {$n}).");
+            }
+            $parcelas = $codigo === 'cartao_credito' ? min(24, max(1, (int) ($l['parcelas'] ?? 1))) : null;
+            $pagamentos[] = array_filter([
+                'forma'    => $codigo,
+                'valor'    => $valor,
+                'parcelas' => $parcelas,
+            ], fn ($v) => $v !== null) + ['forma_chave' => $fp->chave, 'forma_nome' => $fp->nome];
+        }
+
+        $soma = round(array_sum(array_column($pagamentos, 'valor')), 2);
+        if (abs($soma - $total) > 0.009) {
+            $fmt = fn (float $v) => 'R$ ' . number_format($v, 2, ',', '.');
+            throw new \DomainException('A soma das formas (' . $fmt($soma) . ') tem de ser igual ao total do pedido (' . $fmt($total) . ')'
+                . ($soma < $total ? ': falta ' . $fmt($total - $soma) . '.' : ': passou ' . $fmt($soma - $total) . '.'));
+        }
+
+        return $pagamentos;
+    }
+
+    /** "1.234,56", "1234,56", "1234.56" ou número → float. */
+    private static function valorDigitado(mixed $v): float
+    {
+        if (is_int($v) || is_float($v)) {
+            return (float) $v;
+        }
+        $s = preg_replace('/[^\d,.\-]/', '', (string) $v);
+        if (str_contains($s, ',')) {
+            $s = str_replace(['.', ','], ['', '.'], $s);
+        }
+
+        return is_numeric($s) ? (float) $s : 0.0;
+    }
+
     private function baixarContaReceberDoPedido(Pedido $pedido, Venda $venda, array $pagamentos): void
     {
         // A conta aberta na confirmação é aproveitada pelo 1º pagamento; os
