@@ -10860,7 +10860,7 @@ Build com rollback marcado + `migrate` (1 migration: coluna `empresas.origem_cad
 
 ---
 
-## Orçamento: desconto geral em UM campo (25/11/2026) — branch `orcamento-desconto-25nov`, EM PRODUÇÃO 25/11 11:24 BRT (falta levar à `main`/GitHub)
+## Orçamento: desconto geral em UM campo (25/11/2026) — branch `orcamento-desconto-25nov`, EM PRODUÇÃO 25/11 11:24 BRT; `main` = GitHub = produção
 
 **Pergunta do Dennis (tela da DK, acessando como Wellington):** "por que nesta tela tem dois descontos?". Não eram
 dois: "Desconto (%)" e "Desconto (R$)", lado a lado no Resumo Financeiro, eram o MESMO desconto geral com duas
@@ -10923,4 +10923,4 @@ continua salvando (os nomes dos campos são os mesmos).
   `--resolve erp.ia365.com.br:443:127.0.0.1` ou na 8091. Sempre `curl -m`.
 - **Rollback:** extrair `arquivos/` do backup por cima de `/var/www`, apagar
   `resources/views/app/orcamentos/_desconto.blade.php`, `view:cache` + USR2 no master do php-fpm.
-- **Falta:** levar a branch à `main` e ao GitHub (aguarda ordem); ambiente `od-*` ainda de pé (pode apagar).
+- **Git:** branch levada à `main` por avanço rápido e enviada ao GitHub em 25/11 (ordem do Dennis: "Sim, main e GitHub"). Ambiente `od-*` ainda de pé (pode apagar).
