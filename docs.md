@@ -10860,7 +10860,7 @@ Build com rollback marcado + `migrate` (1 migration: coluna `empresas.origem_cad
 
 ---
 
-## Orçamento: desconto geral em UM campo (25/11/2026) — branch `orcamento-desconto-25nov`, NÃO está em produção
+## Orçamento: desconto geral em UM campo (25/11/2026) — branch `orcamento-desconto-25nov`, EM PRODUÇÃO 25/11 11:24 BRT (falta levar à `main`/GitHub)
 
 **Pergunta do Dennis (tela da DK, acessando como Wellington):** "por que nesta tela tem dois descontos?". Não eram
 dois: "Desconto (%)" e "Desconto (R$)", lado a lado no Resumo Financeiro, eram o MESMO desconto geral com duas
@@ -10909,7 +10909,18 @@ continua salvando (os nomes dos campos são os mesmos).
   senão os cookies se misturam e um login derruba o outro (e o `goto` devolve 200 da tela de login).
 - `docker network create` sem `--subnet` falha aqui ("all predefined address pools have been fully subnetted").
 
-### Para levar à produção (quando o Dennis mandar)
-`docker tag` da imagem no ar antes; 5 arquivos (`OrcamentoController.php`, `_desconto.blade.php` novo,
-`_pagamento.blade.php`, `create.blade.php`, `edit.blade.php`) + `resources/ajuda/vendas.md`; sem migration;
-`view:cache` + recarregar o php-fpm. Rollback: voltar os 4 arquivos antigos e apagar `_desconto.blade.php`.
+### Deploy — EM PRODUÇÃO 25/11/2026 11:24 BRT (ordem do Dennis: "Sim, subir")
+- Antes: os 5 arquivos do container conferidos por md5 = `origin/main` (`1e051e2`); foto
+  `erp-com-app:pre-orcamento-desconto-20261125` (`docker commit` do container no ar) e backup em
+  `/home/ubuntu/erp-backups/pre-orcamento-desconto-20261125/` (`arquivos/`, `md5-antes.txt`, `lista.txt`).
+- `git archive HEAD <6 arquivos> | tar -x` no container (commit `49c7677`) → md5 conferido um a um → `chown www-data`
+  → `view:cache` como `www-data` → `php -l` nas 315 views compiladas e no controller (0 erro) → `kill -USR2 32`
+  (master do php-fpm; `opcache.validate_timestamps` é Off, sem isso nada muda). Sem migration.
+- Pós-deploy: `/login` 200 pelo nginx; telas renderizadas (só leitura, pelo tinker) como dono da DK (empresa 7) e da
+  DONA DOURO (empresa 5): novo orçamento com o campo novo, sem os dois campos antigos, com o aviso do PIX; editar o
+  orçamento 208 da DK abre certo. PDV e demais acessos dos clientes seguiram 200; nenhum erro novo no log.
+- ⚠️ `curl https://erp.ia365.com.br` de DENTRO do sp1 não responde (trava até o limite): testar com
+  `--resolve erp.ia365.com.br:443:127.0.0.1` ou na 8091. Sempre `curl -m`.
+- **Rollback:** extrair `arquivos/` do backup por cima de `/var/www`, apagar
+  `resources/views/app/orcamentos/_desconto.blade.php`, `view:cache` + USR2 no master do php-fpm.
+- **Falta:** levar a branch à `main` e ao GitHub (aguarda ordem); ambiente `od-*` ainda de pé (pode apagar).
