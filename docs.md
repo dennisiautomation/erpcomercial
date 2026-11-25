@@ -10856,3 +10856,60 @@ Build com rollback marcado + `migrate` (1 migration: coluna `empresas.origem_cad
 - **Pagamento misto:** não tem chamado no app.ia365 — o pedido veio por mensagem/áudio do cliente (conferido 24/11: nenhum outro chamado da DK nos últimos 5 dias).
 - **Vídeo tutorial** "Devolução de compra ao fornecedor" (devolver + estornar, 91,9 s, voz Speechify Adriana — ElevenLabs sem crédito até 29/11): `~/video-tutorial/erp-devolucao-compra/saida/devolucao-de-compra-ao-fornecedor.mp4` (1080p) e `-leve.mp4` (720p). Aprovado pelo Dennis; o envio ao cliente é do Dennis.
 - **Git:** branch `estorno-devolucao-compra-24nov` (= `pagamento-misto-pedido-24nov` + `devolucao-compra-24nov` + estorno + docs) levada à `main` por avanço rápido e enviada ao GitHub em 24/11 (ordem do Dennis: "alimente o docs.md e suba para o git") → **`main` = GitHub = produção** para essas três entregas.
+
+
+---
+
+## Orçamento: desconto geral em UM campo (25/11/2026) — branch `orcamento-desconto-25nov`, NÃO está em produção
+
+**Pergunta do Dennis (tela da DK, acessando como Wellington):** "por que nesta tela tem dois descontos?". Não eram
+dois: "Desconto (%)" e "Desconto (R$)", lado a lado no Resumo Financeiro, eram o MESMO desconto geral com duas
+formas de digitar. O que abate do total é sempre `orcamentos.desconto_valor`; `desconto_percentual` fica gravado só
+para a folha mostrar "Desconto (10%)". Pedido: "Sim, ajustar".
+
+**Onde cada desconto vive (são três, de naturezas diferentes):**
+- **Desc. (%) na linha do item** → `orcamento_itens.desconto_percentual/desconto_valor`; entra no subtotal.
+- **Desconto no orçamento** (geral) → `orcamentos.desconto_percentual/desconto_valor`; diminui o total.
+- **Desconto Dinheiro/PIX** → `orcamentos.desconto_avista_percentual`; só o quadro "Formas de pagamento" da folha
+  (`OrcamentoPagamentoService::simular`), **não muda o total**, e é calculado sobre os produtos já com o desconto
+  geral (os dois acumulam no à vista — conta mantida, agora escrita na tela).
+
+### O que mudou
+| Onde | O quê |
+|---|---|
+| `orcamentos/_desconto.blade.php` (novo, incluído em `create` e `edit`) | um campo "Desconto no orçamento" com a escolha **Em % / Em R$**; texto de ajuda ao vivo ("Diminui R$ 20,00 do total" / "Equivale a 15% do subtotal"). `desconto_percentual` e `desconto_valor` seguem no formulário como campos ocultos (nomes iguais; nenhuma coluna nova). `window.DescontoOrc.aplicar(subtotal)` devolve o desconto em R$ e é chamado pelo `calcularTotais()` das duas telas |
+| `OrcamentoController::descontoGeral()` (novo, usado em `store` e `update`) | com percentual > 0 o valor é **refeito no servidor** sobre o subtotal (antes confiava no valor do navegador); em R$ o desconto **nunca passa do subtotal** |
+| `orcamentos/_pagamento.blade.php` | frase sob o quadro: o desconto de Dinheiro/PIX aparece só no quadro da folha, não muda o TOTAL e é sobre o valor já com o desconto do orçamento |
+| `resources/ajuda/vendas.md` | passo 7 do "como fazer orçamento" com o campo novo |
+
+### Defeitos que isso fecha
+1. **% apagado deixava o R$ preso:** digitar 10% preenchia o R$; apagar o % não limpava o R$ e o desconto seguia valendo.
+2. **Total negativo:** a tela travava em zero, o servidor não — `desconto_valor=500` num subtotal de 200 gravava
+   total **−300** (confirmado no código de produção, item 7.1 do roteiro). Agora grava 200 e total 0.
+3. **Parecia haver dois descontos gerais** (a pergunta acima).
+
+Não muda: folha impressa, tela de ver o orçamento, conversão em pedido, PDV, orçamentos já gravados (abrir e
+salvar sem mexer dá o mesmo resultado — item 5.4). Formulário antigo aberto no navegador na hora do deploy
+continua salvando (os nomes dos campos são os mesmos).
+
+### Validação (25/11, ambiente descartável `od-*`: rede `od-net` 10.213.89.0/24, `od-mysql` + `od-vector`, `od-antes` = `main` na 8097, `od-app` = branch na 8098, banco novo com o seed demo)
+- `scripts/validar-orcamento-desconto-25nov.browser.mjs`: **35 ✅ / 0 ❌, 2 rodadas** — tela nova, % e R$, limites,
+  entrega sem desconto, quadro do PIX, editar (abre no tipo certo), envio direto ao servidor, antes × depois
+  (mesmo resultado nos descontos normais; mesmas telas 200), celular 390 px sem rolagem lateral, console sem erro.
+- Lint: `php -l` no controller e nas 355 views compiladas, 0 erro.
+- A suíte PHPUnit não rodou: a imagem de produção não traz o PHPUnit (`--no-dev`).
+
+### Armadilhas desta rodada
+- **A imagem `erp-com-app:latest` NÃO é o código que está no ar**: a produção recebe arquivos por tar em cima do
+  container. Ambiente de teste a partir da imagem precisa de `git archive origin/main | tar -x` por cima — e de
+  **reiniciar o `artisan serve`** (o opcache da imagem não relê arquivo trocado).
+- `mysql:8.0` com `--tmpfs /var/lib/mysql` não inicializa neste servidor; subir sem tmpfs e com `--innodb-use-native-aio=0`.
+- `migrate:fresh` exige o pgvector (host `vector`, banco `agente_busca`).
+- Roteiro de navegador com dois servidores no mesmo IP em portas diferentes: um contexto de navegador por servidor,
+  senão os cookies se misturam e um login derruba o outro (e o `goto` devolve 200 da tela de login).
+- `docker network create` sem `--subnet` falha aqui ("all predefined address pools have been fully subnetted").
+
+### Para levar à produção (quando o Dennis mandar)
+`docker tag` da imagem no ar antes; 5 arquivos (`OrcamentoController.php`, `_desconto.blade.php` novo,
+`_pagamento.blade.php`, `create.blade.php`, `edit.blade.php`) + `resources/ajuda/vendas.md`; sem migration;
+`view:cache` + recarregar o php-fpm. Rollback: voltar os 4 arquivos antigos e apagar `_desconto.blade.php`.

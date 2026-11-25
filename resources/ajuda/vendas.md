@@ -699,7 +699,7 @@ Quem pode: **Dono, Gerente, Vendedor e Caixa** (Consulta só vê).
 4. Clique **Adicionar Item** e busque produto ou serviço. Ajuste quantidade, preço e desconto (%) por item.
 5. Em **Observações**: "Observações Internas" (não aparecem para o cliente) e "Observações para o Cliente" (vem com o texto padrão da loja; marque "Imprimir as observações no orçamento" se quiser no papel).
 6. Opcional: **Condições de pagamento e entrega**, **Taxa de entrega (R$)** (desconto não incide sobre ela) e **"Formas de pagamento no orçamento impresso"** (Cartão em até Nx e Desconto Dinheiro/PIX).
-7. Desconto geral em % ou R$ no **Resumo Financeiro**.
+7. Desconto geral no **Resumo Financeiro**, campo **"Desconto no orçamento"**: escolha **Em %** ou **Em R$** e digite. É um desconto só, vale para o orçamento inteiro, não passa do subtotal dos itens e não incide sobre a taxa de entrega. O **Desconto Dinheiro/PIX** é outra coisa: aparece só no quadro de formas de pagamento da folha e não muda o TOTAL.
 8. **Salvar Orçamento**.
 
 O orçamento não baixa estoque nem entra no caixa.

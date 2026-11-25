@@ -189,24 +189,7 @@
                         <span class="text-muted">Subtotal dos Itens:</span>
                         <strong class="fs-5" id="subtotalDisplay">R$ 0,00</strong>
                     </div>
-                    <div class="row g-2 mb-3">
-                        <div class="col-6">
-                            <label for="descontoPerc" class="form-label small fw-semibold">Desconto (%)</label>
-                            <div class="input-group input-group-sm">
-                                <input type="number" name="desconto_percentual" id="descontoPerc"
-                                       class="form-control" step="0.01" min="0" max="100" value="{{ old('desconto_percentual', 0) }}">
-                                <span class="input-group-text">%</span>
-                            </div>
-                        </div>
-                        <div class="col-6">
-                            <label for="descontoValor" class="form-label small fw-semibold">Desconto (R$)</label>
-                            <div class="input-group input-group-sm">
-                                <span class="input-group-text">R$</span>
-                                <input type="number" name="desconto_valor" id="descontoValor"
-                                       class="form-control" step="0.01" min="0" value="{{ old('desconto_valor', 0) }}">
-                            </div>
-                        </div>
-                    </div>
+                    @include('app.orcamentos._desconto', ['descPercAtual' => 0, 'descValorAtual' => 0])
                     @include('app.orcamentos._pagamento', ['freteAtual' => 0])
                     <div class="d-flex justify-content-between align-items-center p-3 bg-success bg-opacity-10 rounded-3">
                         <span class="fs-5 fw-semibold">TOTAL:</span>
@@ -446,13 +429,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
         document.getElementById('subtotalDisplay').textContent = 'R$ ' + subtotal.toFixed(2).replace('.', ',');
 
-        const descPerc = parseFloat(document.getElementById('descontoPerc').value) || 0;
-        let descValor = parseFloat(document.getElementById('descontoValor').value) || 0;
-
-        if (descPerc > 0) {
-            descValor = subtotal * (descPerc / 100);
-            document.getElementById('descontoValor').value = descValor.toFixed(2);
-        }
+        // Desconto geral: um campo só (% ou R$), já limitado ao subtotal — ver _desconto.blade.php
+        const descValor = window.DescontoOrc.aplicar(subtotal);
 
         // Taxa de entrega soma no total; o quadro de pagamento usa os produtos sem ela
         const frete = Math.max(0, parseFloat(document.getElementById('freteValor').value) || 0);
@@ -463,12 +441,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     window.calcularTotaisOrc = calcularTotais;
-    document.getElementById('descontoPerc').addEventListener('input', calcularTotais);
-    document.getElementById('descontoValor').addEventListener('input', function() {
-        document.getElementById('descontoPerc').value = 0;
-        calcularTotais();
-    });
-
     document.getElementById('btnAddItem').addEventListener('click', () => addItemRow());
 
     // Rede de protecao: sem produto nem servico escolhido o item e um fantasma

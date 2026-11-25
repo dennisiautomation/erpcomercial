@@ -149,8 +149,7 @@ class OrcamentoController extends Controller
                 $subtotal += $totalItem;
             }
 
-            $descontoGeralPerc  = $request->desconto_percentual ?? 0;
-            $descontoGeralValor = $request->desconto_valor ?? round($subtotal * ($descontoGeralPerc / 100), 2);
+            [$descontoGeralPerc, $descontoGeralValor] = $this->descontoGeral($request, (float) $subtotal);
             // O frete soma no total; desconto nunca incide sobre ele
             $freteValor = round((float) ($request->frete_valor ?? 0), 2);
             $total = round($subtotal - $descontoGeralValor + $freteValor, 2);
@@ -259,6 +258,25 @@ class OrcamentoController extends Controller
         return view('app.orcamentos.edit', compact('orcamento', 'vendedores', 'produtos', 'servicos', 'condicoesPadrao', 'configLoja', 'parcelasPadrao', 'descontoAvistaPadrao', 'estoquesSaida'));
     }
 
+    /**
+     * Desconto geral do orçamento: [percentual, valor em R$].
+     *
+     * A tela tem UM campo (% ou R$). Com percentual, o valor é refeito aqui sobre o
+     * subtotal — não se confia no valor que veio do navegador. Em R$, o desconto
+     * nunca passa do subtotal (o total não fica negativo; a entrega não leva desconto).
+     */
+    private function descontoGeral(Request $request, float $subtotal): array
+    {
+        $subtotal = max(0.0, round($subtotal, 2));
+        $perc = max(0.0, min(100.0, (float) ($request->desconto_percentual ?? 0)));
+
+        if ($perc > 0) {
+            return [$perc, round($subtotal * $perc / 100, 2)];
+        }
+
+        return [0.0, min($subtotal, max(0.0, round((float) ($request->desconto_valor ?? 0), 2)))];
+    }
+
     public function update(Request $request, Orcamento $orcamento)
     {
         if ($orcamento->status === StatusOrcamento::Convertido) {
@@ -326,8 +344,7 @@ class OrcamentoController extends Controller
                 $subtotal += $totalItem;
             }
 
-            $descontoGeralPerc  = $request->desconto_percentual ?? 0;
-            $descontoGeralValor = $request->desconto_valor ?? round($subtotal * ($descontoGeralPerc / 100), 2);
+            [$descontoGeralPerc, $descontoGeralValor] = $this->descontoGeral($request, (float) $subtotal);
             // O frete soma no total; desconto nunca incide sobre ele
             $freteValor = round((float) ($request->frete_valor ?? 0), 2);
             $total = round($subtotal - $descontoGeralValor + $freteValor, 2);

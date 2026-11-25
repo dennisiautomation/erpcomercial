@@ -38,6 +38,7 @@
             </div>
         </div>
     </div>
+    <div class="form-text">O desconto de Dinheiro/PIX aparece só neste quadro da folha e não muda o TOTAL. É calculado sobre o valor já com o desconto do orçamento.</div>
     <div id="quadroPagamentoPrevia" class="small mt-2"></div>
 </div>
 
