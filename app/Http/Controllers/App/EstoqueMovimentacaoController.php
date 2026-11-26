@@ -93,7 +93,12 @@ class EstoqueMovimentacaoController extends Controller
             ->orderBy('nome')
             ->get(['id', 'nome', 'is_padrao']);
 
-        return view('app.estoque.movimentacoes.create', compact('produtos', 'estoques'));
+        // Saldo de cada produto em cada estoque desta loja: a tela mostra "No sistema: X"
+        // ao lado da quantidade — no Ajuste, o que se digita é a quantidade CONTADA.
+        $saldos = SaldoEstoque::porProdutoEEstoqueDaUnidade((int) session('unidade_id'), $produtos->pluck('id')->all());
+        $estoqueVendaId = SaldoEstoque::estoqueDeVendaId((int) session('unidade_id'));
+
+        return view('app.estoque.movimentacoes.create', compact('produtos', 'estoques', 'saldos', 'estoqueVendaId'));
     }
 
     public function store(Request $request)
@@ -102,7 +107,8 @@ class EstoqueMovimentacaoController extends Controller
             'tipo'                    => 'required|in:ajuste,perda,bonificacao,entrada',
             'itens'                   => 'required|array|min:1',
             'itens.*.produto_id'      => 'required|exists:produtos,id',
-            'itens.*.quantidade'      => 'required|numeric|min:0.001',
+            // Ajuste é BALANÇO: a quantidade é a contada e pode ser zero. Nos outros tipos, mínimo 0,001.
+            'itens.*.quantidade'      => 'required|numeric|min:' . ($request->input('tipo') === 'ajuste' ? '0' : '0.001'),
             'itens.*.custo_unitario'  => 'nullable|numeric|min:0',
             'estoque_id'              => 'nullable|exists:estoques,id',
             'observacoes'             => 'nullable|string|max:500',
@@ -115,6 +121,9 @@ class EstoqueMovimentacaoController extends Controller
             'responsavel.required_if' => 'Diga com quem a peça vai ficar.',
             'data_prevista_retorno.required_if' => 'Informe a data prevista de retorno.',
             'data_prevista_retorno.after_or_equal' => 'A data prevista de retorno não pode ser no passado.',
+            'itens.*.quantidade.min' => $request->input('tipo') === 'ajuste'
+                ? 'A quantidade contada não pode ser negativa.'
+                : 'A quantidade precisa ser maior que zero.',
         ]);
 
         // Só bonificação gera controle de retorno — nos outros tipos o bloco
@@ -145,7 +154,10 @@ class EstoqueMovimentacaoController extends Controller
         // empresa_id NULL e gravar por ele estourava (armadilha 25).
         $empresaId = Unidade::withoutGlobalScopes()->where('id', $unidadeId)->value('empresa_id');
 
-        DB::transaction(function () use ($validated, $comComodato, $estoqueId, $unidadeId, $empresaId) {
+        $gravadas = 0;
+        $semDiferenca = 0;
+
+        DB::transaction(function () use ($validated, $comComodato, $estoqueId, $unidadeId, $empresaId, &$gravadas, &$semDiferenca) {
             $tipo = TipoMovimentacaoEstoque::from($validated['tipo']);
 
             foreach ($validated['itens'] as $item) {
@@ -157,12 +169,26 @@ class EstoqueMovimentacaoController extends Controller
 
                 $quantidade = (float) $item['quantidade'];
 
-                // Determine stock change based on type
+                // Ajuste = balanço (26/11/2026): o digitado é a quantidade CONTADA e o saldo
+                // fica igual a ela — a diferença pode ser para mais ou para menos. Antes o
+                // Ajuste somava, igual à Entrada. Os outros tipos seguem somando/tirando.
                 $delta = match ($tipo) {
-                    TipoMovimentacaoEstoque::Entrada, TipoMovimentacaoEstoque::Ajuste => $quantidade,
+                    TipoMovimentacaoEstoque::Ajuste => round($quantidade - $estoqueAnterior, 3),
                     TipoMovimentacaoEstoque::Perda, TipoMovimentacaoEstoque::Bonificacao => -$quantidade,
                     default => $quantidade,
                 };
+
+                if ($tipo === TipoMovimentacaoEstoque::Ajuste) {
+                    // Contou o mesmo que o sistema mostra: não há o que registrar.
+                    if (abs($delta) < 0.0005) {
+                        $semDiferenca++;
+                        continue;
+                    }
+                    // Como nos demais ajustes do sistema (Estoque por Loja), a quantidade
+                    // gravada é a diferença; o sentido sai do saldo antes → depois.
+                    $quantidade = abs($delta);
+                }
+                $gravadas++;
 
                 $movimentacao = EstoqueMovimentacao::create([
                     'empresa_id'          => $empresaId,
@@ -199,12 +225,19 @@ class EstoqueMovimentacaoController extends Controller
             }
         });
 
-        $qtd = count($validated['itens']);
+        if ($gravadas === 0) {
+            return redirect()->route('app.movimentacoes.index')
+                ->with('info', 'O estoque já estava com a quantidade contada. Nada foi alterado.');
+        }
 
-        return redirect()->route('app.movimentacoes.index')
-            ->with('success', $qtd > 1
-                ? "{$qtd} movimentações registradas com sucesso!"
-                : 'Movimentacao registrada com sucesso!');
+        $mensagem = $gravadas > 1
+            ? "{$gravadas} movimentações registradas com sucesso!"
+            : 'Movimentação registrada com sucesso!';
+        if ($semDiferenca > 0) {
+            $mensagem .= " {$semDiferenca} produto(s) já estavam com a quantidade contada e não mudaram.";
+        }
+
+        return redirect()->route('app.movimentacoes.index')->with('success', $mensagem);
     }
 
     public function show(EstoqueMovimentacao $movimentacao)

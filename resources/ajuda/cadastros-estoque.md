@@ -775,7 +775,7 @@ Quem pode: Dono e Gerente. Vendedor e Consulta só consultam.
 1. **Estoque → Movimentações → Nova Movimentação**.
 2. Escolha o tipo:
    - **Entrada**: adiciona ao estoque (compras, recebimentos).
-   - **Ajuste**: correção de inventário — **adiciona** ao estoque.
+   - **Ajuste**: é o balanço — você digita a **quantidade contada** e o estoque fica igual a ela (para mais ou para menos; aceita zero).
    - **Perda**: tira do estoque (produtos danificados, vencidos ou extraviados).
    - **Bonificacao**: tira do estoque (saída para brindes ou amostras).
 3. Se a loja tem mais de um estoque, escolha **Em qual estoque**.
@@ -785,18 +785,21 @@ Quem pode: Dono e Gerente. Vendedor e Consulta só consultam.
 
 O lançamento vai para a loja selecionada no topo da tela. Movimentação registrada **não pode ser editada nem apagada** (fica para auditoria): para corrigir um lançamento errado, faça o lançamento contrário (ex.: Perda para desfazer uma Entrada a mais) explicando nas Observações.
 
-## O "Ajuste" só soma. Como deixar o estoque igual ao que contei?
-Palavras-chave: acertar estoque, corrigir saldo, estoque contado, inventario, diminuir estoque, ajuste negativo, zerar estoque, balanco
+## Como deixar o estoque igual ao que contei? (Ajuste / balanço)
+Palavras-chave: acertar estoque, corrigir saldo, estoque contado, inventario, diminuir estoque, ajuste negativo, zerar estoque, balanco, ajuste soma
 
-Parece defeito mas não é: na tela de **Nova Movimentação**, o tipo **Ajuste** sempre **adiciona** a quantidade digitada. Não existe ajuste negativo nessa tela.
+Use o tipo **Ajuste** em **Estoque → Movimentações → Nova Movimentação**. O Ajuste é o balanço: no campo **Quantidade contada** você digita o que contou na prateleira, e o estoque fica **igual** a esse número.
 
-Para acertar o saldo, faça a conta e escolha o tipo certo:
-- Contou **mais** do que o sistema mostra: lance **Ajuste** (ou Entrada) com a diferença. Ex.: sistema 10, contou 13 → Ajuste de 3.
-- Contou **menos**: lance **Perda** com a diferença. Ex.: sistema 10, contou 7 → Perda de 3, com observação "acerto de inventário".
+- A tela mostra ao lado "No sistema: X" e a diferença que será lançada ("entra 3" ou "sai 3").
+- Contou zero? Digite 0: o estoque zera.
+- Contou o mesmo que o sistema mostra: nada é registrado.
+- Na lista, o ajuste aparece com a diferença e a seta para cima ou para baixo.
 
-Jeito mais rápido, para empresas com Multilojas no plano (Dono ou Gerente): **Gestão → Estoque por Loja**. Ali você digita a **quantidade final** na célula do produto/loja e clica em salvar; o sistema calcula e registra o ajuste sozinho ("Ajuste manual (Estoque por Loja)"). Esse ajuste cai no estoque de venda da loja.
+Para **somar** mercadoria que chegou, o tipo certo é **Entrada**, não Ajuste. (Até 26/11/2026 o Ajuste somava a quantidade digitada; os ajustes antigos continuam no histórico como foram lançados.)
 
-Para inventário completo, imprima antes a **Contagem cega** (Relatórios → Contagem cega), conte, e depois lance as diferenças.
+Outro caminho, para empresas com Multilojas no plano (Dono ou Gerente): **Gestão → Estoque por Loja**, digitando a quantidade final na célula do produto/loja.
+
+Para inventário completo, imprima antes a **Contagem cega** (Relatórios → Contagem cega), conte, e depois lance o Ajuste com as quantidades contadas.
 
 ## Como usar mais de um estoque na mesma loja (depósito, vitrine, avaria)?
 Palavras-chave: varios estoques, deposito, vitrine, avaria, estoque da loja, criar estoque, estoque de venda, local de estoque

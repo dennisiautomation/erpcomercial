@@ -109,7 +109,10 @@
                 <span class="badge {{ $badgeClass }} rounded-pill px-3">{{ $mov->tipo->label() }}</span>
             </td>
             <td class="text-end">
-                @if(in_array($mov->tipo->value, ['entrada', 'devolucao', 'ajuste']))
+                {{-- Ajuste (balanço) e transferência podem ser para cima ou para baixo: vale o saldo antes → depois --}}
+                @if(in_array($mov->tipo->value, ['ajuste', 'transferencia'])
+                    ? (float) $mov->quantidade_posterior >= (float) $mov->quantidade_anterior
+                    : in_array($mov->tipo->value, ['entrada', 'devolucao']))
                     <span class="text-success fw-bold">
                         <i class="bi bi-arrow-up-short"></i>{{ number_format($mov->quantidade, 3, ',', '.') }}
                     </span>

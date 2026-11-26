@@ -10924,3 +10924,65 @@ continua salvando (os nomes dos campos são os mesmos).
 - **Rollback:** extrair `arquivos/` do backup por cima de `/var/www`, apagar
   `resources/views/app/orcamentos/_desconto.blade.php`, `view:cache` + USR2 no master do php-fpm.
 - **Git:** branch levada à `main` por avanço rápido e enviada ao GitHub em 25/11 (ordem do Dennis: "Sim, main e GitHub"). Ambiente `od-*` ainda de pé (pode apagar).
+
+
+---
+
+## Estoque: o Ajuste virou balanço (26/11/2026) — branch `ajuste-balanco-26nov`, EM PRODUÇÃO 26/11 12:54 BRT
+
+**Pergunta do Dennis (tela da DONA DOURO, Estoque → Movimentações):** "o ajuste me parece que está somando, não está
+ajustando; o que deveria somar é a entrada, o ajuste é o balanço, né". Era isso: em
+`EstoqueMovimentacaoController::store` Entrada e Ajuste faziam a mesma conta (saldo + quantidade digitada), e a própria
+tela dizia "Correção de inventário (adiciona ao estoque)". Pedido: "Sim, pode fazer" + "ajuste também os ajustes feitos
+hoje na Dona Douro".
+
+**Onde a regra vive:** `EstoqueMovimentacaoController::store` (a tela Nova Movimentação). O ajuste da tela Gestão →
+Estoque por Loja (`MultilojaController`) já era por quantidade final e não mudou.
+
+### O que mudou
+| Onde | O quê |
+|---|---|
+| `EstoqueMovimentacaoController::store` | no **Ajuste** a quantidade digitada é a **contada**: diferença = contada − saldo do estoque; grava `quantidade` = tamanho da diferença e `quantidade_posterior` = contada (mesmo formato do ajuste do Estoque por Loja). Aceita **zero** (mínimo 0; os outros tipos seguem com mínimo 0,001). Contada = saldo → **não grava nada** e avisa ("O estoque já estava com a quantidade contada"). Entrada, Perda e Bonificação iguais |
+| `EstoqueMovimentacaoController::create` | manda para a tela o saldo de cada produto por estoque da loja (`SaldoEstoque::porProdutoEEstoqueDaUnidade`) e o estoque de venda |
+| `movimentacoes/create.blade.php` | no Ajuste o campo vira "Quantidade contada", aparece a faixa "Ajuste é o balanço…" e, sob o campo, "No sistema: X · entra N / sai N / sem diferença" (acompanha o estoque escolhido). Texto lateral corrigido |
+| `movimentacoes/index.blade.php` | a seta do Ajuste (e da transferência) sai do saldo antes → depois; antes o Ajuste era sempre seta para cima |
+| `resources/ajuda/cadastros-estoque.md` | tópico "O Ajuste só soma…" trocado por "Como deixar o estoque igual ao que contei? (Ajuste / balanço)" |
+
+Não muda: histórico já gravado (ajustes antigos ficam como soma), relatório "Entradas e saídas do estoque" (já lia o
+sentido pelo saldo antes/depois), contagem cega, Estoque por Loja, PDV. Sem migration.
+
+### Validação
+- `tests/Feature/App/AjusteBalancoTest.php` (7 testes): na `main` **6 ❌ / 1 ✅** (o ✅ é a guarda "Entrada e Perda
+  continuam como antes"); na branch **7 ✅**; com `EstoqueTest` 12 ✅. Suíte inteira: 520, só as 2 falhas antigas
+  (`LoginTest::test_oito_senhas_erradas_travam_o_email`, `PdvTest::test_caixa_fechamento_calculates_correctly`).
+  Ambiente: `~/erp-validacao/misto-devolucao-24nov/suite.sh <checkout> [--filter …]`.
+- Navegador, na homologação (os 4 arquivos copiados para o `erp-caf-app`; antigos em
+  `erp-cafeteria-homolog/backups/pre-ajuste-balanco-26nov/`): `scripts/validar-ajuste-balanco-26nov.browser.mjs`
+  **13 ✅ / 0 ❌** — rótulo e mínimo por tipo, "No sistema"/"entra 3", ajuste para menos, repetido (não soma), para
+  mais, zero, 390 px sem rolagem lateral, nenhum erro de JS. Usuário e movimentações de teste apagados depois.
+
+### Deploy — EM PRODUÇÃO 26/11/2026 12:54 BRT
+- Antes: os 4 arquivos do container = `main` (`c1cc1d5`) por md5; foto `erp-com-app:pre-ajuste-balanco-20261126` e
+  backup em `/home/ubuntu/erp-backups/pre-ajuste-balanco-20261126/` (`arquivos/`, `lista.txt`, `md5-antes.txt`, `deploy.log`).
+- Troca a quente dos 4 arquivos → md5 conferido → `view:cache` como `www-data` → `php -l` nas 315 views e no
+  controller (0 erro) → `kill -USR2 32`. `/login` 200, nenhum erro novo no log.
+- Conferido em produção, só leitura, como o usuário da DONA DOURO: lista com as setas certas e a tela nova com
+  "Quantidade contada" e o saldo dos produtos.
+- **Rollback:** extrair `arquivos/` do backup por cima de `/var/www`, `view:cache` + USR2 no master do php-fpm.
+
+### DONA DOURO — ajustes de 26/11 refeitos como balanço (loja Matriz, estoque 15, lançados pelo Manoel Junior)
+Nada foi apagado nem editado: entrou **um Ajuste de correção por produto**, no nome do admin da plataforma, com a
+observação "Correção IA365 26/11: os ajustes de hoje foram lançados como soma…".
+| Produto | O que foi lançado hoje | Saldo errado | Conta refeita (ajuste = contado) | Correção |
+|---|---|---|---|---|
+| 737 BRINCO EAR CUFF MICRO ZIRCONIA DOURADO | Ajuste 4 com saldo 5 → 9 | 9 | contou 4 → **4** | mov. 37808: 9 → 4 |
+| 1493 BRINCO DETALHADO LISO TP DOURADO | Entradas 2, 2, 0,002 e 2 (→ 6,002); Ajuste 2 (→ 8,002); Ajuste 2 (→ 10,002); Entrada 1 (→ 11,002) | 11,002 | ajuste 2 → 2; ajuste 2 → 2; entrada 1 → **3** | mov. 37809: 11,002 → 3 |
+
+⚠️ No 1493 a conta foi refeita ao pé da letra; o que o Manoel tem na prateleira só ele sabe (as entradas repetidas e a
+de 0,002 parecem tentativas) — se não forem 3, ele lança um Ajuste com o que contar.
+Para desfazer a correção: lançar Ajuste com 9 (737) e 11,002 (1493).
+
+**Outras empresas (não mexido):** em 26/11 a empresa 4 também tem 2 ajustes; nos últimos 30 dias, fora a DONA DOURO,
+só a empresa 3 lançou Ajuste por esta tela (1).
+
+**Git:** branch `ajuste-balanco-26nov`, ainda **não** levada à `main` nem ao GitHub — produção está 4 arquivos à frente da `main`.

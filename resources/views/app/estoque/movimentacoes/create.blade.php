@@ -3,7 +3,7 @@
 @section('title', 'Nova Movimentação de Estoque')
 
 @section('content')
-<x-erp.page-header title="Nova Movimentação de Estoque" subtitle="Registre entradas, ajustes, perdas ou bonificacoes — varios itens de uma vez" icon="plus-circle">
+<x-erp.page-header title="Nova Movimentação de Estoque" subtitle="Registre entradas, ajustes, perdas ou bonificações — vários itens de uma vez" icon="plus-circle">
     <a href="{{ route('app.movimentacoes.index') }}" class="btn btn-erp-outline">
         <i class="bi bi-arrow-left me-1"></i> Voltar
     </a>
@@ -48,6 +48,11 @@
                 @error('tipo')
                     <div class="text-danger small mt-1">{{ $message }}</div>
                 @enderror
+                <div id="aviso-ajuste" class="alert alert-warning py-2 small mt-3 mb-0 d-none">
+                    <i class="bi bi-info-circle me-1"></i>
+                    <strong>Ajuste é o balanço:</strong> digite a quantidade que você <strong>contou</strong>.
+                    O estoque fica igual a ela, para mais ou para menos. Para somar o que chegou, use <strong>Entrada</strong>.
+                </div>
             </x-erp.form-section>
 
             {{-- Loja com um estoque só nem vê este bloco — a tela fica igual à de antes --}}
@@ -82,10 +87,14 @@
                     </button>
                 </div>
 
+                @if($errors->has('itens.*'))
+                    <div class="alert alert-danger py-2 small">{{ collect($errors->get('itens.*'))->flatten()->first() }}</div>
+                @endif
+
                 <div id="itens-container">
                     <div class="card bg-light border-0 mb-2 item-row" data-index="0">
                         <div class="card-body py-3">
-                            <div class="row g-3 align-items-center">
+                            <div class="row g-3 align-items-start">
                                 <div class="col-md-1 text-center">
                                     <span class="badge bg-primary rounded-pill item-number">1</span>
                                 </div>
@@ -96,15 +105,16 @@
                                     <div class="busca-produto" data-name="itens[0][produto_id]"></div>
                                 </div>
                                 <div class="col-md-2">
-                                    <label for="campo-itens-0-quantidade" class="form-label small fw-semibold text-muted">Quantidade</label>
+                                    <label for="campo-itens-0-quantidade" class="form-label small fw-semibold text-muted rotulo-quantidade">Quantidade</label>
                                     <input id="campo-itens-0-quantidade" type="number" name="itens[0][quantidade]" class="form-control" step="0.001" min="0.001" placeholder="0,000" required>
+                                    <div class="form-text saldo-linha"></div>
                                 </div>
                                 <div class="col-md-2">
                                     <label for="campo-itens-0-custo_unitario" class="form-label small fw-semibold text-muted">Custo Unit. (R$)</label>
                                     <input id="campo-itens-0-custo_unitario" type="number" name="itens[0][custo_unitario]" class="form-control" step="0.01" min="0" placeholder="0,00">
                                 </div>
-                                <div class="col-md-2 d-flex align-items-end">
-                                    <button type="button" class="btn btn-outline-danger btn-sm btn-remove-item" disabled>
+                                <div class="col-md-2 pt-md-4">
+                                    <button type="button" class="btn btn-outline-danger btn-sm btn-remove-item mt-md-2" disabled>
                                         <i class="bi bi-trash me-1"></i> Remover
                                     </button>
                                 </div>
@@ -209,7 +219,7 @@
             </div>
             <div class="mb-3">
                 <span class="badge bg-warning text-dark rounded-pill me-1">Ajuste</span>
-                <small class="text-muted">Correcao de inventario (adiciona ao estoque)</small>
+                <small class="text-muted">Balanço: você digita a quantidade contada e o estoque fica igual a ela</small>
             </div>
             <div class="mb-3">
                 <span class="badge bg-danger rounded-pill me-1">Perda</span>
@@ -230,6 +240,39 @@
 <script>
     let itemIndex = 1;
     const container = document.getElementById('itens-container');
+    // Saldo de cada produto em cada estoque desta loja (produto sem movimentação = 0)
+    const saldos = {!! json_encode((object) $saldos) !!};
+    const estoqueVendaId = {{ (int) $estoqueVendaId }};
+    const fmtQtd = n => Number(n).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 3 });
+    const tipoAtual = () => document.querySelector('input[name="tipo"]:checked')?.value;
+    const estoqueAtual = () => document.querySelector('select[name="estoque_id"]')?.value || estoqueVendaId;
+
+    /* Ajuste = balanço (26/11/2026): o campo vira "Quantidade contada", aceita zero, e a
+       linha mostra o que o sistema tem hoje e a diferença que será lançada. */
+    function atualizarLinha(linha) {
+        const ajuste = tipoAtual() === 'ajuste';
+        const qtd = linha.querySelector('input[name$="[quantidade]"]');
+        const info = linha.querySelector('.saldo-linha');
+        const pid = linha.querySelector('.produto-id')?.value;
+        linha.querySelector('.rotulo-quantidade').textContent = ajuste ? 'Quantidade contada' : 'Quantidade';
+        qtd.min = ajuste ? '0' : '0.001';
+        if (!pid) { info.textContent = ''; return; }
+        const atual = Number((saldos[pid] || {})[estoqueAtual()] || 0);
+        let texto = 'No sistema: ' + fmtQtd(atual);
+        if (ajuste && qtd.value !== '') {
+            const dif = Math.round((Number(qtd.value) - atual) * 1000) / 1000;
+            texto += dif === 0 ? ' · sem diferença' : ' · ' + (dif > 0 ? 'entra ' : 'sai ') + fmtQtd(Math.abs(dif));
+        }
+        info.textContent = texto;
+    }
+    function atualizarLinhas() {
+        document.getElementById('aviso-ajuste').classList.toggle('d-none', tipoAtual() !== 'ajuste');
+        container.querySelectorAll('.item-row').forEach(atualizarLinha);
+    }
+    container.addEventListener('input', e => {
+        if (e.target.matches('input[name$="[quantidade]"]')) atualizarLinha(e.target.closest('.item-row'));
+    });
+    document.querySelector('select[name="estoque_id"]')?.addEventListener('change', atualizarLinhas);
     // json_encode, não a diretiva json do Blade: ela separa o argumento nas vírgulas e quebra com a lista de campos
     const produtos = {!! json_encode($produtos->map->only(['id', 'descricao', 'codigo_interno', 'codigo_barras', 'sku'])->values(), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE) !!};
 
@@ -275,6 +318,7 @@
             texto.classList.remove('is-invalid');
             dica.textContent = 'Escolhido.';
             fechar();
+            atualizarLinha(alvo.closest('.item-row'));
             const qtd = alvo.closest('.item-row')?.querySelector('input[name$="[quantidade]"]');
             if (qtd) qtd.focus();
         }
@@ -285,6 +329,7 @@
         }
         function buscar() {
             hid.value = '';
+            atualizarLinha(alvo.closest('.item-row'));
             const termo = semAcento(texto.value.trim());
             if (termo.length < MIN_LETRAS) {
                 fechar();
@@ -366,7 +411,7 @@
         row.dataset.index = itemIndex;
         row.innerHTML = `
             <div class="card-body py-3">
-                <div class="row g-3 align-items-center">
+                <div class="row g-3 align-items-start">
                     <div class="col-md-1 text-center">
                         <span class="badge bg-primary rounded-pill item-number">${itemIndex + 1}</span>
                     </div>
@@ -375,15 +420,16 @@
                         <div class="busca-produto" data-name="itens[${itemIndex}][produto_id]"></div>
                     </div>
                     <div class="col-md-2">
-                        <label class="form-label small fw-semibold text-muted">Quantidade</label>
+                        <label class="form-label small fw-semibold text-muted rotulo-quantidade">Quantidade</label>
                         <input type="number" name="itens[${itemIndex}][quantidade]" class="form-control" step="0.001" min="0.001" placeholder="0,000" required>
+                        <div class="form-text saldo-linha"></div>
                     </div>
                     <div class="col-md-2">
                         <label class="form-label small fw-semibold text-muted">Custo Unit. (R$)</label>
                         <input type="number" name="itens[${itemIndex}][custo_unitario]" class="form-control" step="0.01" min="0" placeholder="0,00">
                     </div>
-                    <div class="col-md-2 d-flex align-items-end">
-                        <button type="button" class="btn btn-outline-danger btn-sm btn-remove-item">
+                    <div class="col-md-2 pt-md-4">
+                        <button type="button" class="btn btn-outline-danger btn-sm btn-remove-item mt-md-2">
                             <i class="bi bi-trash me-1"></i> Remover
                         </button>
                     </div>
@@ -392,6 +438,7 @@
         `;
         container.appendChild(row);
         montarBusca(row.querySelector('.busca-produto'));
+        atualizarLinha(row);
         row.querySelector('.produto-texto').focus();
         itemIndex++;
         updateRemoveButtons();
@@ -445,6 +492,8 @@
     }
 
     document.getElementById('tipo-cards').addEventListener('change', syncBlocoComodato);
+    document.getElementById('tipo-cards').addEventListener('change', atualizarLinhas);
+    atualizarLinhas();
     switchRetorno.addEventListener('change', syncCamposComodato);
     syncBlocoComodato();
 </script>
