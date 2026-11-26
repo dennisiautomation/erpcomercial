@@ -10928,7 +10928,7 @@ continua salvando (os nomes dos campos são os mesmos).
 
 ---
 
-## Estoque: o Ajuste virou balanço (26/11/2026) — branch `ajuste-balanco-26nov`, EM PRODUÇÃO 26/11 12:54 BRT
+## Estoque: o Ajuste virou balanço (26/11/2026) — branch `ajuste-balanco-26nov`, EM PRODUÇÃO 26/11 12:54 BRT; `main` = GitHub = produção
 
 **Pergunta do Dennis (tela da DONA DOURO, Estoque → Movimentações):** "o ajuste me parece que está somando, não está
 ajustando; o que deveria somar é a entrada, o ajuste é o balanço, né". Era isso: em
@@ -10985,4 +10985,4 @@ Para desfazer a correção: lançar Ajuste com 9 (737) e 11,002 (1493).
 **Outras empresas (não mexido):** em 26/11 a empresa 4 também tem 2 ajustes; nos últimos 30 dias, fora a DONA DOURO,
 só a empresa 3 lançou Ajuste por esta tela (1).
 
-**Git:** branch `ajuste-balanco-26nov`, ainda **não** levada à `main` nem ao GitHub — produção está 4 arquivos à frente da `main`.
+**Git:** branch `ajuste-balanco-26nov` levada à `main` por avanço rápido e enviada ao GitHub em 26/11 (ordem do Dennis: "Sim, main e GitHub") → `main` = GitHub = produção.
