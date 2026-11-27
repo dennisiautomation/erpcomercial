@@ -10991,7 +10991,7 @@ lançou Ajuste por esta tela (1).
 
 ---
 
-## Loja online de ATACADO + modelo exclusivo CELL MASTER (27/11/2026) — branch `loja-cellmaster-27nov`, NÃO está em produção
+## Loja online de ATACADO + modelo exclusivo CELL MASTER (27/11/2026) — branch `loja-cellmaster-27nov`, EM PRODUÇÃO 27/11 08:16 BRT (loja da empresa 6 fora do ar até ele publicar)
 
 **Pedido do Dennis (27/11):** loja online da N S BORBA SERVICOS (empresa 6, marca **Cell Master — vendas no atacado**, domínio
 `atacadocellmaster.com.br`) com layout só dela; aparecem os produtos que ele marcar; **mínimo de 6 peças no pedido inteiro**
@@ -11068,7 +11068,28 @@ O "Pedido mínimo (R$)" que já existia continua e é independente. Sem migratio
 - A imagem `erp-com-app:latest` sobe **fila e agendador** pelo entrypoint: ambiente com cópia do banco de produção só em rede
   `--internal` e com `MAIL_MAILER=log`.
 
-### Para subir (quando o Dennis mandar)
-Troca a quente dos arquivos da branch (sem migration), `view:cache` + `php -l` + USR2; depois aplicar o modelo na empresa 6
-pelo card do admin. A loja segue fora do ar até ele marcar os produtos e publicar.
+### Deploy — EM PRODUÇÃO 27/11/2026 08:16 BRT (ordem do Dennis: "Sim, subir")
+- Antes: os 12 arquivos alterados do container conferidos por md5 = `origin/main` (`bfbbe65`); os 8 novos não existiam. Backup em
+  `/home/ubuntu/erp-backups/pre-loja-cellmaster-20261127/` (`arquivos/` = os 12 antigos, `lista.txt`, `novos.txt`, `md5-antes.txt`,
+  `lojas_online-3.json` = a linha da loja antes). **Não há foto da imagem desta vez**: o `docker commit -q` falhou (o `-q` não
+  existe) e a cópia seguiu; o rollback é pelos arquivos.
+- `git archive HEAD <20 arquivos> | tar -x` no container (commit `86c4418`) → md5 dos 20 conferido → `chown www-data` →
+  `view:cache` como `www-data` → `php -l` nas 317 views e nos PHP da loja (0 erro) → `kill -USR2 32`. Sem migration.
+- Modelo aplicado na empresa 6 (loja id 3) pelo mesmo caminho do admin (`modelo_exclusivo` + `CellMaster::instalar`): modelo
+  `cellmaster`, logo, 7 blocos, WhatsApp (86) 99938-3892, `pecas_minimo = 6`, `preco_atacado = true`; os 5 arquivos do logo em
+  `loja-online/6/cellmaster-*` (dono acertado para `www-data`). **A loja segue fora do ar** (`publicada = 0`).
+- **"Combinar com a loja" desligado na loja 3** (`config.combinar = false`), a pedido do Dennis ("o pagamento depois não pegou
+  os códigos do Asaas e da InfinitePay"): o que ele viu foi a captura do ambiente de teste, onde os provedores estavam
+  desligados de propósito. Em produção `PagamentoLoja::meios` = PIX pelo **Asaas** e cartão pela **InfinitePay**; com o
+  combinar desligado ficam só os dois. O `instalar` do modelo NÃO desliga o combinar — foi ajuste da loja dele.
+- Conferido em produção, só leitura: **14 ✅ / 0 ❌** — público 503; prévia do dono com o modelo, o logo, a regra das 6 peças,
+  a faixa e os produtos de exemplo; carrinho e lista da prévia; Configurações (6 / atacado ligado) e editor (modelo e bloco);
+  MISS MERLINDA com o modelo dela, sem ver o Cell Master, com mínimo 0 e atacado desligado. `/login` 200, nenhum erro novo no log.
+- **Rollback:** extrair `arquivos/` do backup por cima de `/var/www`; apagar `app/Services/LojaOnline/Exclusivos/CellMaster.php`,
+  `resources/loja-modelos/cellmaster`, `resources/views/loja/modelos/cellmaster.blade.php` e
+  `resources/views/loja/blocos/atacado_passos.blade.php`; `view:cache` + USR2. A linha da loja volta com o JSON do backup
+  (modelo `vitrine`, `modelo_exclusivo` nulo, `config` nulo).
+- **Git:** só na branch (`main` e GitHub ainda sem esta entrega) — produção está à frente da `main` nestes 20 arquivos.
+- **Falta:** DNS do domínio (Registro.br, sem registro nenhum em 27/11) e depois o cadeado; o cliente marcar os produtos e publicar;
+  apagar o ambiente `cm-*`.
 
