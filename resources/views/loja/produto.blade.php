@@ -68,7 +68,7 @@
                 <div class="lj-produto__preco">
                     @if($p['promocao'])<s>R$ {{ number_format($p['normal'], 2, ',', '.') }}</s>@endif
                     <b>R$ {{ number_format($p['preco'], 2, ',', '.') }}</b>
-                    <span class="lj-preco-nota">à vista{{ $meios['pix'] ? ' no PIX' : '' }}</span>
+                    <span class="lj-preco-nota">{{ $loja->opcao('preco_atacado') ? 'preço de atacado' : 'à vista' . ($meios['pix'] ? ' no PIX' : '') }}</span>
                     @if($desconto)<span class="lj-economia">Você economiza R$ {{ number_format($p['normal'] - $p['preco'], 2, ',', '.') }}</span>@endif
                 </div>
                 <ul class="lj-formas">

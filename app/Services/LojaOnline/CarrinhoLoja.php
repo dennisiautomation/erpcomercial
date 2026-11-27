@@ -142,6 +142,22 @@ class CarrinhoLoja
         return $itens;
     }
 
+    /** Peças no carrinho (soma das quantidades de todos os itens). */
+    public static function pecas(Collection $itens): int
+    {
+        return (int) $itens->sum('quantidade');
+    }
+
+    /**
+     * Venda no atacado (27/11/2026): quantas peças faltam para o mínimo da loja
+     * (`lojas_online.config.pecas_minimo`, no PEDIDO INTEIRO — pode misturar produtos).
+     * 0 = pode fechar. Regra única: carrinho, sacola lateral, fechamento e gravação do pedido.
+     */
+    public static function faltamPecas(LojaOnline $loja, Collection $itens): int
+    {
+        return max(0, (int) $loja->opcao('pecas_minimo') - self::pecas($itens));
+    }
+
     public static function subtotal(Collection $itens): float
     {
         return round((float) $itens->sum('total'), 2);

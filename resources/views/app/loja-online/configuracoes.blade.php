@@ -56,6 +56,19 @@
                 @error('pedido_minimo') <div class="invalid-feedback">{{ $message }}</div> @enderror
                 <div class="form-text">0 = sem mínimo.</div>
             </div>
+            <div class="col-md-4">
+                <label for="pecas_minimo" class="form-label">Mínimo de peças por pedido</label>
+                <input type="number" inputmode="numeric" min="0" max="9999" step="1" name="pecas_minimo" id="pecas_minimo" class="form-control @error('pecas_minimo') is-invalid @enderror" value="{{ old('pecas_minimo', (int) $loja->opcao('pecas_minimo')) }}">
+                @error('pecas_minimo') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                <div class="form-text">Para venda no atacado: soma das peças do pedido inteiro, misturando produtos. 0 = sem mínimo.</div>
+            </div>
+            <div class="col-md-4 d-flex flex-column justify-content-center">
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" role="switch" name="preco_atacado" id="preco_atacado" value="1" @checked(old('preco_atacado', $loja->opcao('preco_atacado')))>
+                    <label class="form-check-label" for="preco_atacado">Vender pelo preço de atacado</label>
+                </div>
+                <div class="form-text">A loja online mostra e cobra o preço de atacado do cadastro do produto. Produto sem preço de atacado sai pelo preço normal.</div>
+            </div>
             <div class="col-md-4 d-flex flex-column justify-content-center">
                 <div class="form-check form-switch">
                     <input class="form-check-input" type="checkbox" role="switch" name="vender_sem_estoque" id="vender_sem_estoque" value="1" @checked(old('vender_sem_estoque', $loja->opcao('vender_sem_estoque')))>

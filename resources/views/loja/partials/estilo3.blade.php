@@ -94,6 +94,10 @@ body.lj-trava{overflow:hidden}
 .lj-gaveta__topo .lj-icone:hover{background:var(--quadro)}
 .lj-gaveta__corpo{flex:1;overflow:auto;padding:.5rem 1.25rem}
 .lj-gaveta__meta{padding:.8rem 1.25rem;background:var(--quadro);font-size:.9rem}
+/* atacado: mínimo de peças (27/11/2026) */
+.lj-pecas p{margin:0;font-size:.9rem}
+.lj-pecas[data-ok=nao] .lj-meta__barra i{background:var(--oferta)}
+aside .lj-pecas{margin-top:1rem;padding:.8rem .9rem;background:var(--quadro);border-radius:min(var(--raio),12px)}
 .lj-gaveta__pe{padding:1rem 1.25rem 1.25rem;border-top:1px solid var(--linha);display:grid;gap:.6rem}
 .lj-gaveta__total{display:flex;justify-content:space-between;align-items:baseline;font-size:1.05rem}
 .lj-gaveta__total strong{font-family:var(--fonte-preco);font-size:1.4rem;font-variant-numeric:tabular-nums}

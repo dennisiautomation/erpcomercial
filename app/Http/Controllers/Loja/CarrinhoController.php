@@ -98,6 +98,9 @@ class CarrinhoController extends Controller
             'subtotal' => CarrinhoLoja::subtotal($itens),
             'avisos' => $carrinho->avisos,
             'pedidoMinimo' => (float) $this->ctx->loja->opcao('pedido_minimo'),
+            'pecasMinimo' => (int) $this->ctx->loja->opcao('pecas_minimo'),
+            'pecas' => CarrinhoLoja::pecas($itens),
+            'faltamPecas' => CarrinhoLoja::faltamPecas($this->ctx->loja, $itens),
             'titulo' => 'Carrinho — ' . $this->ctx->loja->nome,
         ]);
     }
@@ -132,7 +135,9 @@ class CarrinhoController extends Controller
             return response()->json([
                 'ok' => $erro === null,
                 'erro' => $erro,
-                'aviso' => $carrinho->avisos[0] ?? null,
+                // Atacado: ao adicionar, o aviso já diz quantas peças faltam para o mínimo do pedido.
+                'aviso' => $carrinho->avisos[0] ?? (! $erro && ($faltam = CarrinhoLoja::faltamPecas($this->ctx->loja, $itens)) > 0
+                    ? 'Adicionado. ' . ($faltam === 1 ? 'Falta 1 peça' : "Faltam {$faltam} peças") . ' para o pedido mínimo.' : null),
                 'total' => $total,
                 'subtotal' => CarrinhoLoja::subtotal($itens),
                 // para o evento "adicionou ao carrinho" do rastreamento
@@ -162,6 +167,9 @@ class CarrinhoController extends Controller
             'frete_gratis_acima' => $promo['freteGratisAcima'],
             'falta_frete_gratis' => $promo['faltaFreteGratis'],
             'entrega' => (bool) $this->ctx->loja->opcao('entrega'),
+            'pecas_minimo' => (int) $this->ctx->loja->opcao('pecas_minimo'),
+            'pecas' => CarrinhoLoja::pecas($itens),
+            'faltam_pecas' => CarrinhoLoja::faltamPecas($this->ctx->loja, $itens),
         ]);
     }
 
@@ -211,6 +219,12 @@ class CarrinhoController extends Controller
         return response()->json($r);
     }
 
+    private static function avisoPecas(\App\Models\LojaOnline $loja, int $faltam): string
+    {
+        return 'Venda no atacado: o pedido mínimo é de ' . (int) $loja->opcao('pecas_minimo') . ' peças. '
+            . ($faltam === 1 ? 'Falta 1 peça' : "Faltam {$faltam} peças") . ' — pode misturar produtos.';
+    }
+
     public function finalizar()
     {
         [$catalogo, $carrinho] = $this->partes();
@@ -222,6 +236,9 @@ class CarrinhoController extends Controller
         $subtotal = CarrinhoLoja::subtotal($itens);
         if ($subtotal < (float) $loja->opcao('pedido_minimo')) {
             return redirect($this->ctx->url('carrinho'));
+        }
+        if (($faltam = CarrinhoLoja::faltamPecas($loja, $itens)) > 0) {
+            return redirect($this->ctx->url('carrinho'))->with('loja_erro', self::avisoPecas($loja, $faltam));
         }
 
         \App\Services\LojaOnline\MetricasLoja::contar($loja, 'fechamentos');
@@ -307,6 +324,10 @@ class CarrinhoController extends Controller
         }
         if (CarrinhoLoja::subtotal($itens) < (float) $loja->opcao('pedido_minimo')) {
             return redirect($this->ctx->url('carrinho'));
+        }
+        if (($faltam = CarrinhoLoja::faltamPecas($loja, $itens)) > 0) {
+            // Atacado: o mínimo de peças vale também para quem envia o fechamento direto, sem passar pela tela.
+            return redirect($this->ctx->url('carrinho'))->with('loja_erro', self::avisoPecas($loja, $faltam));
         }
 
         $conta = \App\Models\LojaConta::atual($loja);

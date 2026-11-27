@@ -110,6 +110,7 @@ class LojaOnlineController extends Controller
             'estoque_id' => ['nullable', Rule::exists('estoques', 'id')->where('empresa_id', $empresaId)],
             'vendedor_id' => ['nullable', Rule::exists('users', 'id')->where('empresa_id', $empresaId)],
             'pedido_minimo' => ['nullable', 'numeric', 'min:0', 'max:99999'],
+            'pecas_minimo' => ['nullable', 'integer', 'min:0', 'max:9999'],
             'whatsapp' => ['nullable', 'string', 'max:20'],
             'instagram' => ['nullable', 'string', 'max:60', 'regex:/^@?[A-Za-z0-9._]+$/'],
             'facebook' => ['nullable', 'string', 'max:60', 'regex:/^@?[A-Za-z0-9._-]+$/'],
@@ -133,7 +134,7 @@ class LojaOnlineController extends Controller
         }
 
         $config = $loja->config ?? [];
-        foreach (['vender_sem_estoque', 'mostrar_estoque', 'retirada', 'entrega', 'pix', 'cartao', 'combinar', 'whatsapp_flutuante'] as $chave) {
+        foreach (['vender_sem_estoque', 'mostrar_estoque', 'retirada', 'entrega', 'pix', 'cartao', 'combinar', 'whatsapp_flutuante', 'preco_atacado'] as $chave) {
             $config[$chave] = $request->boolean($chave);
         }
         if (! $config['retirada'] && ! $config['entrega']) {
@@ -143,6 +144,7 @@ class LojaOnlineController extends Controller
             $config[$chave] = trim((string) ($dados[$chave] ?? ''));
         }
         $config['pedido_minimo'] = round((float) ($dados['pedido_minimo'] ?? 0), 2);
+        $config['pecas_minimo'] = (int) ($dados['pecas_minimo'] ?? 0);
 
         $loja->update([
             'nome' => $dados['nome'],

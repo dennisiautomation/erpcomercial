@@ -108,13 +108,18 @@ class CatalogoLoja
         $atual = $tabela->precosDoProduto($produto, $this->config());
         $semPromo = $tabela->precosSemPromocao($produto, $this->config());
 
-        $preco = round((float) $atual['dinheiro_pix'], 2);
-        $normal = round((float) $semPromo['dinheiro_pix'], 2);
+        // Loja de atacado (27/11/2026, `config.preco_atacado`): vale o preço de atacado do cadastro em
+        // qualquer forma de pagamento — a mesma regra do cliente de atacado no PDV. Produto sem preço de
+        // atacado cai no preço base (TabelaPrecoService).
+        $atacado = (bool) $this->loja->opcao('preco_atacado');
+        $coluna = $atacado ? 'atacado' : 'dinheiro_pix';
+        $preco = round((float) $atual[$coluna], 2);
+        $normal = round((float) $semPromo[$coluna], 2);
 
         return [
             'preco' => $preco,
             'normal' => $normal,
-            'cartao' => round((float) $atual['credito'], 2),
+            'cartao' => $atacado ? $preco : round((float) $atual['credito'], 2),
             'promocao' => $preco < $normal - 0.004,
         ];
     }

@@ -115,6 +115,19 @@
                 meta.querySelector('p').textContent = j.falta_frete_gratis > 0 ? 'Faltam ' + LJ.moeda(j.falta_frete_gratis) + ' para o frete grátis.' : 'Você ganhou frete grátis.';
                 meta.querySelector('i').style.setProperty('--p', Math.min(100, Math.round(j.subtotal / j.frete_gratis_acima * 100)) + '%');
             } else meta.hidden = true;
+            // atacado: mínimo de peças no pedido inteiro
+            var pecas = gaveta.querySelector('[data-lj-gaveta-pecas]'), fim = gaveta.querySelector('[data-lj-gaveta-finalizar]');
+            if (pecas) {
+                var tem = j.pecas_minimo > 0 && j.itens.length;
+                pecas.hidden = !tem;
+                if (tem) {
+                    pecas.dataset.ok = j.faltam_pecas > 0 ? 'nao' : 'sim';
+                    pecas.querySelector('p').textContent = j.pecas + ' de ' + j.pecas_minimo + ' peças' + (j.faltam_pecas > 0
+                        ? ' — ' + (j.faltam_pecas === 1 ? 'falta 1 peça' : 'faltam ' + j.faltam_pecas + ' peças') + ' para fechar o pedido.' : ' — mínimo do atacado atingido.');
+                    pecas.querySelector('i').style.setProperty('--p', Math.min(100, Math.round(j.pecas / j.pecas_minimo * 100)) + '%');
+                }
+                if (fim) fim.hidden = tem && j.faltam_pecas > 0;
+            }
         };
         var carregar = function () {
             return fetch(gaveta.dataset.resumo, {headers: {'Accept': 'application/json'}, credentials: 'same-origin'}).then(function (r) { return r.json(); }).then(desenhar);

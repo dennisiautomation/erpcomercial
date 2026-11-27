@@ -153,10 +153,11 @@
 <dialog class="lj-gaveta lj-gaveta--dir" data-lj-gaveta aria-label="Sua sacola" data-resumo="{{ $ctx->caminho('carrinho/resumo') }}" data-atualizar="{{ $ctx->caminho('carrinho/atualizar') }}">
     <div class="lj-gaveta__topo"><strong>Sua sacola <span data-lj-gaveta-qtd></span></strong><button type="button" class="lj-icone" data-lj-x aria-label="Fechar a sacola"><i class="bi bi-x-lg" aria-hidden="true"></i></button></div>
     <div class="lj-gaveta__meta" data-lj-gaveta-meta hidden><p></p><div class="lj-meta__barra" aria-hidden="true"><i></i></div></div>
+    <div class="lj-gaveta__meta lj-pecas" data-lj-gaveta-pecas hidden><p></p><div class="lj-meta__barra" aria-hidden="true"><i></i></div></div>
     <div class="lj-gaveta__corpo" data-lj-gaveta-itens aria-live="polite"></div>
     <div class="lj-gaveta__pe">
         <div class="lj-gaveta__total"><span>Subtotal</span><strong data-lj-gaveta-total></strong></div>
-        <a class="lj-btn lj-btn--cheio" href="{{ $ctx->url('finalizar') }}">Finalizar compra</a>
+        <a class="lj-btn lj-btn--cheio" data-lj-gaveta-finalizar href="{{ $ctx->url('finalizar') }}">Finalizar compra</a>
         <a class="lj-btn lj-btn--linha lj-btn--cheio" href="{{ $ctx->url('carrinho') }}">Ver a sacola</a>
     </div>
 </dialog>

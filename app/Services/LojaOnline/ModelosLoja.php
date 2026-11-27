@@ -37,6 +37,7 @@ class ModelosLoja
      */
     public const FONTES_EXCLUSIVAS = [
         'gilda' => ['Gilda Display (Miss Merlinda)', "'Gilda Display', 'Didot', Georgia, serif", 'Gilda+Display'],
+        'jostforte' => ['Jost forte em itálico (Cell Master)', "'Jost', 'Futura', 'Century Gothic', system-ui, sans-serif", 'Jost:ital,wght@0,400..900;1,400..900'],
     ];
 
     /** @return array<string, array{0: string, 1: string, 2: string}> */
@@ -90,6 +91,7 @@ class ModelosLoja
         'video' => ['Um vídeo curto do YouTube mostrando o produto ou a loja. Até 1 minuto funciona melhor.', null],
         'redes' => ['Mostra os botões das redes sociais cadastradas em Loja online → Configurações.', null],
         'lojas_fisicas' => ['Mostra as suas lojas físicas com endereço, "Como chegar" e WhatsApp. Os dados vêm do cadastro das lojas no ERP (Minhas Lojas): mudou lá, muda aqui.', null],
+        'atacado_passos' => ['Explica a compra no atacado. O número grande é o mínimo de peças e vem de Loja online → Configurações; aqui você escreve os passos, em frases curtas.', null],
         'faixa' => ['Uma linha de aviso no meio da página: "Frete grátis acima de R$ 199", "Parcele em até 6x".', null],
     ];
 
@@ -290,6 +292,7 @@ class ModelosLoja
     {
         return [
             'merlinda' => Exclusivos\Merlinda::modelo(),
+            'cellmaster' => Exclusivos\CellMaster::modelo(),
         ];
     }
 

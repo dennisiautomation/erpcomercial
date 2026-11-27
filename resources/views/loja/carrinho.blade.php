@@ -75,9 +75,18 @@
                         <button class="lj-btn lj-btn--linha lj-btn--p" type="submit">Aplicar</button>
                     </form>
                 @endif
+                @if($pecasMinimo > 0)
+                    <div class="lj-pecas" data-lj-pecas data-ok="{{ $faltamPecas > 0 ? 'nao' : 'sim' }}">
+                        <p><strong>{{ $pecas }} de {{ $pecasMinimo }} peças</strong> @if($faltamPecas > 0) — {{ $faltamPecas === 1 ? 'falta 1 peça' : "faltam {$faltamPecas} peças" }} para fechar o pedido. Pode misturar produtos. @else — mínimo do atacado atingido. @endif </p>
+                        <div class="lj-meta__barra" aria-hidden="true"><i style="--p:{{ min(100, (int) round($pecas / $pecasMinimo * 100)) }}%"></i></div>
+                    </div>
+                @endif
                 @if($subtotal < $pedidoMinimo)
                     <div class="lj-aviso lj-aviso--nota" style="margin:1rem 0 0"><i class="bi bi-info-circle"></i><span>O pedido mínimo desta loja é de R$ {{ number_format($pedidoMinimo, 2, ',', '.') }}. Faltam R$ {{ number_format($pedidoMinimo - $subtotal, 2, ',', '.') }}.</span></div>
                     <span class="lj-btn lj-btn--cheio" aria-disabled="true" style="margin-top:1rem">Finalizar compra</span>
+                @elseif($faltamPecas > 0)
+                    <span class="lj-btn lj-btn--cheio" aria-disabled="true" style="margin-top:1rem">Finalizar compra</span>
+                    <a class="lj-btn lj-btn--linha lj-btn--cheio" style="margin-top:.6rem" href="{{ $ctx->url('produtos') }}">Escolher mais peças</a>
                 @else
                     <a class="lj-btn lj-btn--cheio" style="margin-top:1.2rem" href="{{ $ctx->url('finalizar') }}">Finalizar compra</a>
                 @endif

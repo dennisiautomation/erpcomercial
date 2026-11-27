@@ -10982,7 +10982,93 @@ observação "Correção IA365 26/11: os ajustes de hoje foram lançados como so
 de 0,002 parecem tentativas) — se não forem 3, ele lança um Ajuste com o que contar.
 Para desfazer a correção: lançar Ajuste com 9 (737) e 11,002 (1493).
 
-**Outras empresas (não mexido):** em 26/11 a empresa 4 também tem 2 ajustes; nos últimos 30 dias, fora a DONA DOURO,
-só a empresa 3 lançou Ajuste por esta tela (1).
+**Outras empresas (não mexido):** em 26/11 a empresa 4 (MISS MERLINDA) também tem 2 ajustes, mas eles vieram de Gestão →
+Estoque por Loja, que já era balanço — estão certos, nada a corrigir. Nos últimos 30 dias, fora a DONA DOURO, só a empresa 3
+lançou Ajuste por esta tela (1).
 
 **Git:** branch `ajuste-balanco-26nov` levada à `main` por avanço rápido e enviada ao GitHub em 26/11 (ordem do Dennis: "Sim, main e GitHub") → `main` = GitHub = produção.
+
+
+---
+
+## Loja online de ATACADO + modelo exclusivo CELL MASTER (27/11/2026) — branch `loja-cellmaster-27nov`, NÃO está em produção
+
+**Pedido do Dennis (27/11):** loja online da N S BORBA SERVICOS (empresa 6, marca **Cell Master — vendas no atacado**, domínio
+`atacadocellmaster.com.br`) com layout só dela; aparecem os produtos que ele marcar; **mínimo de 6 peças no pedido inteiro**
+("Pedido inteiro", pode misturar produtos); PIX e cartão InfinitePay e a entrega que ele já tem ligados.
+
+**Onde cada coisa vive: a REGRA do atacado é da loja (`lojas_online.config`: `pecas_minimo` e `preco_atacado`, as duas nascem
+desligadas e servem a qualquer loja); o VISUAL é o modelo exclusivo `cellmaster` (classe + folha de estilo + bloco próprio).
+O modelo só LIGA a regra ao ser aplicado, e só se a loja ainda não tiver decidido.**
+
+### O que encontrei na empresa 6 (produção, só leitura, 27/11)
+- Loja online id 3, slug `n-s-borba-servicos`: liberada pela plataforma, **fora do ar**, modelo `vitrine`, presa à loja 21
+  (CellMaster Personalização), domínio `www.atacadocellmaster.com.br` com situação `aguardando`.
+- 762 produtos, **nenhum marcado** para a loja online, 185 com foto. O catálogo é perfume árabe, miniaturas, body splash,
+  garrafas e copos térmicos, brindes — **não é acessório de celular**; o texto do modelo não cita ramo.
+- 837 preços na modalidade `atacado` (`produto_precos`). Provedores ligados: Asaas (PIX), InfinitePay (cartão), Uber Direct
+  (entrega local). Melhor Envio não está ligado: fora da área do Uber a loja mostra "combinar".
+- DNS: o domínio está no DNS do Registro.br **sem nenhum registro**. Precisa de `CNAME www → erp.ia365.com.br` **e**
+  `A @ → 177.104.137.179` (sem o segundo, o endereço sem `www` não abre). O cadeado é emitido à mão no servidor (a rotina
+  `loja-dominios-host.sh` continua não instalada) — depende de ordem do Dennis.
+
+### Regra do atacado (vale para qualquer loja que ligar)
+| Onde | O quê |
+|---|---|
+| `LojaOnline::CONFIG_PADRAO` | `pecas_minimo` (0 = sem mínimo) e `preco_atacado` (false) |
+| `CarrinhoLoja::pecas()` / `faltamPecas($loja, $itens)` | soma das quantidades do carrinho × mínimo da loja. **Regra única**: carrinho, sacola lateral, tela do fechamento e gravação do pedido |
+| `CarrinhoController` | `ver` manda `pecasMinimo/pecas/faltamPecas`; `resumo` (sacola) manda `pecas_minimo/pecas/faltam_pecas`; `finalizar` (GET) e `fechar` (POST) voltam ao carrinho com "Venda no atacado: o pedido mínimo é de N peças…"; `adicionar` devolve no aviso "Adicionado. Faltam N peças para o pedido mínimo." |
+| `loja/carrinho.blade.php`, `layout.blade.php`, `partials/extras2.blade.php`, `estilo3.blade.php` | contador "2 de 6 peças" com barra; abaixo do mínimo o "Finalizar compra" fica desligado no carrinho e some da sacola lateral (`data-lj-gaveta-pecas`, `data-lj-gaveta-finalizar`, `data-lj-pecas`) |
+| `CatalogoLoja::precos()` | com `preco_atacado` a vitrine, o carrinho e o pedido usam a coluna `atacado` do `TabelaPrecoService` (a mesma do cliente de atacado no PDV); produto sem preço de atacado sai pelo preço base; o preço do cartão fica igual (atacado não varia por forma). Promoção não mexe em atacado (regra que já existia) |
+| `loja/produto.blade.php` | a nota ao lado do preço diz "preço de atacado" em vez de "à vista no PIX" |
+| Loja online → Configurações | campos "Mínimo de peças por pedido" e "Vender pelo preço de atacado" (`LojaOnlineController::salvarConfiguracoes`) |
+
+O "Pedido mínimo (R$)" que já existia continua e é independente. Sem migration.
+
+### Modelo exclusivo `cellmaster`
+- `app/Services/LojaOnline/Exclusivos/CellMaster.php` (tema, página inicial, `instalar`, `exemplos`), registrado em
+  `ModelosLoja::exclusivos()`; fonte exclusiva `jostforte` (Jost 400–900 com itálico) em `FONTES_EXCLUSIVAS`.
+- Visual: `resources/views/loja/modelos/cellmaster.blade.php`, preso a `[data-modelo=cellmaster]` — preto e branco do logo, um
+  sinal (lima `#c8f31d`) só onde a regra do atacado fala, títulos em itálico caixa alta e o M do logo na capa.
+- Bloco exclusivo `atacado_passos` (`loja/blocos/atacado_passos.blade.php`, "Como comprar no atacado"): o número grande é o
+  `pecas_minimo` da loja — mudou em Configurações, muda na página. Dica em `ModelosLoja::DICAS`.
+- Arquivos em `resources/loja-modelos/cellmaster/` (logo claro/escuro, marca "M", favicon, imagem de compartilhar), recortados
+  do logo enviado pelo Dennis; copiados para `loja-online/{empresa}/cellmaster-*` na instalação.
+- **Sem foto de banco de imagens.** Na prévia, sem produto marcado, as fileiras mostram produtos DA PRÓPRIA EMPRESA que já têm
+  foto, no preço que a loja vai praticar, com o selo "Exemplo" (`CellMaster::exemplos`). O público nunca vê exemplo.
+- `instalar`: modelo, logo, 7 blocos (faixa, capa, como comprar, categorias, novidades, destaques, dúvidas), WhatsApp da loja de
+  origem, textos de busca e rodapé **só onde está em branco**, e `pecas_minimo = 6` + `preco_atacado = true` **só se a chave ainda
+  não existe** no `config` (quem desligou continua desligado).
+- Aplicar: `/admin/empresas/6` → Integração → card Loja online → "Modelo exclusivo" → Cell Master Atacado.
+
+### Validação (27/11)
+- `tests/Feature/App/LojaAtacadoTest.php` (7 testes): na `main` **7 ❌**, na branch **7 ✅**; com `LojaModeloExclusivoTest` e
+  `LojaOnlineTest`, 36 ✅. Suíte inteira: 527, só as 2 falhas antigas (`LoginTest::test_oito_senhas_erradas_travam_o_email`,
+  `PdvTest::test_caixa_fechamento_calculates_correctly`). Ambiente: `~/erp-validacao/misto-devolucao-24nov/suite.sh`.
+- Navegador, ambiente descartável `cm-*` (rede interna `cm-net` 10.213.91.0/24, sem internet; `cm-mysql` com a cópia do banco
+  de produção de 27/11, gateways desligados na cópia; `cm-app` 10.213.91.4 = imagem de produção com `app config database
+  resources routes public/js public/css` da branch; fotos de produto da empresa 6 copiadas): modelo aplicado na empresa 6,
+  185 produtos marcados e loja no ar **só na cópia**. `scripts/validar-loja-cellmaster-27nov.browser.mjs`: **33 ✅ / 0 ❌** —
+  modelo, logo, fonte, regra na página, preço de atacado (R$ 42,00 no produto 6018, cadastro R$ 70,00), aviso ao adicionar,
+  sacola e carrinho com o contador, fechamento barrado com 2 peças e liberado com 6 misturando dois produtos, 1366 e 390 px sem
+  rolagem lateral (início, lista, produto, carrinho, fechamento), painel (Configurações e editor), nenhum erro de JavaScript.
+  Capturas da prévia: `scripts/loja-cellmaster-capturas.mjs`.
+- Lint: `php -l` nos 7 arquivos PHP e nas 357 views compiladas, 0 erro.
+- **Não validado:** pagamento real (PIX/cartão desligados na cópia — o caminho é o mesmo das outras lojas), frete do Uber,
+  domínio real, aparelho de verdade.
+
+### Armadilhas desta rodada
+- **124. Ambiente com bind mount + imagem de produção não relê Blade/PHP trocado** (`opcache.validate_timestamps` Off): depois de
+  editar, `php artisan view:clear` + `kill -USR2` no master do php-fpm, senão o navegador testa o código antigo.
+- **125. Barra de categorias estoura a página com nomes longos** (`.lj-nav` é `overflow:visible` por causa do painel "Todas as
+  categorias"). No modelo cellmaster só os 4 primeiros atalhos ficam na barra e encolhem com reticências; os modelos públicos
+  continuam como eram.
+- **126. Captura de página inteira deixa fileira em branco** quando a rolagem do roteiro é rápida: a entrada dos cartões
+  (`movimento=completo`) só dispara com a fileira parada na tela. Rolar de 250 em 250 px com pausa.
+- A imagem `erp-com-app:latest` sobe **fila e agendador** pelo entrypoint: ambiente com cópia do banco de produção só em rede
+  `--internal` e com `MAIL_MAILER=log`.
+
+### Para subir (quando o Dennis mandar)
+Troca a quente dos arquivos da branch (sem migration), `view:cache` + `php -l` + USR2; depois aplicar o modelo na empresa 6
+pelo card do admin. A loja segue fora do ar até ele marcar os produtos e publicar.
+

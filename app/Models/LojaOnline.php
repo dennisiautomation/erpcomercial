@@ -38,6 +38,9 @@ class LojaOnline extends Model
         'cartao' => true,
         'combinar' => true,
         'pedido_minimo' => 0,
+        // atacado (27/11/2026): mínimo de PEÇAS no pedido inteiro (0 = sem mínimo) e vitrine no preço de atacado
+        'pecas_minimo' => 0,
+        'preco_atacado' => false,
         'whatsapp' => '',
         'instagram' => '',
         'email' => '',
