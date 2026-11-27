@@ -11144,4 +11144,4 @@ de outra empresa são descartados ao gravar; excluir a categoria não mexe em pr
 - Nenhuma loja tem categoria montada: todas seguem nas categorias do cadastro até o lojista criar a primeira.
 - **Rollback:** `migrate:rollback --step=1` (com os arquivos novos no lugar) → extrair `arquivos/` do backup por cima de
   `/var/www` → apagar os 4 de `novos.txt` → `route:cache` + `view:cache` + USR2.
-- **Git:** só na branch por enquanto — produção à frente da `main` nestes 12 arquivos.
+- **Git:** branch `loja-categorias-27nov` levada à `main` por avanço rápido e enviada ao GitHub em 27/11 (ordem do Dennis: "Sim, main e GitHub") → `main` = GitHub = produção.
