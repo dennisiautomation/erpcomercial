@@ -807,6 +807,15 @@ Route::middleware(['auth', 'suspensao', 'unidade', \App\Http\Middleware\Restring
         Route::get('/resultados', [App\LojaOnlineGestaoController::class, 'resultados'])->name('resultados');
         Route::get('/resultados/agora', [App\LojaOnlineGestaoController::class, 'resultadosAgora'])->name('resultados.agora');
         Route::get('/dominio', [App\LojaOnlineGestaoController::class, 'dominio'])->name('dominio');
+        // 27/11/2026: categorias da vitrine montadas pelo lojista (nome, ordem, foto e o que vai dentro)
+        Route::get('/categorias', [App\LojaOnlineGestaoController::class, 'categorias'])->name('categorias');
+        Route::middleware('permission:loja_online,editar')->group(function () {
+            Route::post('/categorias', [App\LojaOnlineGestaoController::class, 'salvarCategoria'])->name('categorias.criar');
+            Route::put('/categorias/{categoria}', [App\LojaOnlineGestaoController::class, 'salvarCategoria'])->whereNumber('categoria')->name('categorias.salvar');
+            Route::patch('/categorias/{categoria}', [App\LojaOnlineGestaoController::class, 'alternarCategoria'])->whereNumber('categoria')->name('categorias.alternar');
+            Route::post('/categorias/{categoria}/mover', [App\LojaOnlineGestaoController::class, 'moverCategoria'])->whereNumber('categoria')->name('categorias.mover');
+            Route::delete('/categorias/{categoria}', [App\LojaOnlineGestaoController::class, 'excluirCategoria'])->whereNumber('categoria')->name('categorias.excluir');
+        });
         Route::middleware('permission:loja_online,editar')->group(function () {
             Route::post('/dominio', [App\LojaOnlineGestaoController::class, 'salvarDominio'])->name('dominio.salvar');
             Route::post('/dominio/conferir', [App\LojaOnlineGestaoController::class, 'conferirDominio'])->middleware('throttle:12,1,lj-dominio')->name('dominio.conferir');

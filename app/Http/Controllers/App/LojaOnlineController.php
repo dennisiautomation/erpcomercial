@@ -282,9 +282,22 @@ class LojaOnlineController extends Controller
             'opcoesTema' => ModelosLoja::OPCOES_TEMA,
             'cores' => ModelosLoja::CORES,
             'icones' => ModelosLoja::ICONES,
-            'categorias' => Categoria::withoutGlobalScopes()->where('empresa_id', $loja->empresa_id)->orderBy('nome')->get(['id', 'nome']),
+            'categorias' => $this->categoriasDoEditor($loja),
             'previa' => $loja->enderecoInterno() . '?rascunho=1',
         ]);
+    }
+
+    /**
+     * Categorias que a fileira "De uma categoria" pode usar: as da loja (Loja online →
+     * Categorias, id NEGATIVO) primeiro, depois as do cadastro.
+     */
+    private function categoriasDoEditor(LojaOnline $loja)
+    {
+        $proprias = \App\Models\LojaCategoria::where('empresa_id', $loja->empresa_id)->where('ativa', true)->orderBy('ordem')->orderBy('id')->get(['id', 'nome'])
+            ->map(fn ($c) => (object) ['id' => -$c->id, 'nome' => $c->nome . ' (categoria da loja)']);
+
+        return $proprias->concat(Categoria::withoutGlobalScopes()->where('empresa_id', $loja->empresa_id)->orderBy('nome')->get(['id', 'nome'])
+            ->map(fn ($c) => (object) ['id' => (int) $c->id, 'nome' => $c->nome]))->values();
     }
 
     /** Salva o que o editor está montando (não muda a loja no ar). */
@@ -297,7 +310,7 @@ class LojaOnlineController extends Controller
             'blocos' => ['present', 'array', 'max:30'],
         ]);
 
-        $categorias = Categoria::withoutGlobalScopes()->where('empresa_id', $loja->empresa_id)->pluck('id')->map(fn ($i) => (int) $i)->all();
+        $categorias = $this->categoriasDoEditor($loja)->pluck('id')->map(fn ($i) => (int) $i)->all();
 
         $loja->update(['rascunho' => [
             'modelo' => $dados['modelo'],

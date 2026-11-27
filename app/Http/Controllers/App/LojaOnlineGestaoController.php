@@ -370,4 +370,136 @@ class LojaOnlineGestaoController extends Controller
 
         return redirect()->route('app.loja-online.dominio')->with('success', 'Domínio removido. A loja continua abrindo pelo endereço de sempre.');
     }
+
+    /* ---------------------------------------------------------------- */
+    /*  Categorias da vitrine (27/11/2026) — regra em CategoriasLoja     */
+    /* ---------------------------------------------------------------- */
+
+    /** Produtos que a loja mostra (um por grade), para escolher o que vai em cada categoria. */
+    private function produtosDaVitrine(LojaOnline $loja)
+    {
+        return (new \App\Services\LojaOnline\CatalogoLoja($loja))->vitrine()->orderBy('descricao')
+            ->get(['id', 'descricao', 'codigo_interno', 'categoria_id', 'foto']);
+    }
+
+    public function categorias(Request $request)
+    {
+        $loja = $this->loja();
+        $empresaId = (int) $loja->empresa_id;
+        $produtos = $this->produtosDaVitrine($loja);
+        $porCategoria = $produtos->groupBy('categoria_id')->map->count();
+
+        $lista = \App\Models\LojaCategoria::where('empresa_id', $empresaId)->orderBy('ordem')->orderBy('id')->get();
+        $regra = new \App\Services\LojaOnline\CategoriasLoja($loja);
+        $totais = $lista->mapWithKeys(fn ($c) => [$c->id => $produtos->filter(
+            fn ($p) => in_array((int) $p->id, $c->idsProdutos(), true) || ($p->categoria_id && in_array((int) $p->categoria_id, $c->idsCategorias(), true)))->count()]);
+        $semCategoria = $regra->emUso() ? $produtos->filter(fn ($p) => ! $regra->doProduto((int) $p->id, $p->categoria_id))->count() : 0;
+
+        $editar = $request->query('editar') ? $lista->firstWhere('id', (int) $request->query('editar')) : null;
+
+        return view('app.loja-online.categorias', [
+            'loja' => $loja,
+            'lista' => $lista,
+            'totais' => $totais,
+            'emUso' => $regra->emUso(),
+            'semCategoria' => $semCategoria,
+            'editar' => $editar,
+            'produtos' => $produtos,
+            'cadastro' => \App\Models\Categoria::withoutGlobalScopes()->where('empresa_id', $empresaId)->orderBy('nome')->get(['id', 'nome'])
+                ->map(fn ($c) => ['id' => (int) $c->id, 'nome' => $c->nome, 'total' => (int) ($porCategoria[$c->id] ?? 0)])
+                // primeiro as que têm produto na loja (o cadastro pode ter dezenas sem nenhum), depois o resto, em ordem alfabética
+                ->sortBy(fn ($c) => [$c['total'] > 0 ? 0 : 1, mb_strtolower($c['nome'])])->values(),
+            'nomesCadastro' => \App\Models\Categoria::withoutGlobalScopes()->where('empresa_id', $empresaId)->pluck('nome', 'id'),
+        ]);
+    }
+
+    public function salvarCategoria(Request $request, ?int $categoria = null)
+    {
+        $loja = $this->loja();
+        $empresaId = (int) $loja->empresa_id;
+        $registro = $categoria ? \App\Models\LojaCategoria::where('empresa_id', $empresaId)->findOrFail($categoria) : null;
+
+        $dados = $request->validate([
+            'nome' => ['required', 'string', 'min:2', 'max:60'],
+            'foto' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:8192'],
+            'tirar_foto' => ['nullable', 'boolean'],
+            'categorias_erp' => ['nullable', 'array', 'max:500'],
+            'categorias_erp.*' => ['integer'],
+            'produtos' => ['nullable', 'array', 'max:3000'],
+            'produtos.*' => ['integer'],
+        ], [
+            'nome.required' => 'Dê um nome à categoria.', 'foto.max' => 'A foto pode ter até 8 MB.',
+            'foto.mimes' => 'Envie uma imagem JPG, PNG ou WebP.', 'foto.image' => 'O arquivo não é uma imagem.',
+        ]);
+
+        // Só entra o que é da própria empresa: ids de fora são descartados em silêncio.
+        $cats = \App\Models\Categoria::withoutGlobalScopes()->where('empresa_id', $empresaId)
+            ->whereIn('id', $dados['categorias_erp'] ?? [])->pluck('id')->map(fn ($i) => (int) $i)->values()->all();
+        $prods = Produto::withoutGlobalScope(EmpresaScope::class)->where('empresa_id', $empresaId)
+            ->whereIn('id', $dados['produtos'] ?? [])->pluck('id')->map(fn ($i) => (int) $i)->values()->all();
+        if ($cats === [] && $prods === []) {
+            return back()->withInput()->withErrors(['conteudo' => 'Escolha o que vai dentro: pelo menos uma categoria do cadastro ou um produto.']);
+        }
+
+        $foto = $registro?->foto;
+        if ($request->boolean('tirar_foto')) {
+            $foto = null;
+        }
+        if ($arquivo = $request->file('foto')) {
+            $ext = strtolower($arquivo->guessExtension() ?: 'jpg');
+            $foto = $arquivo->storeAs('loja-online/' . $empresaId, 'cat-' . \Illuminate\Support\Str::lower(\Illuminate\Support\Str::random(20)) . '.' . ($ext === 'jpeg' ? 'jpg' : $ext), 'public');
+        }
+
+        $campos = ['nome' => trim($dados['nome']), 'foto' => $foto, 'categorias_erp' => $cats, 'produtos' => $prods];
+        if ($registro) {
+            $registro->update($campos);
+        } else {
+            $ordem = (int) \App\Models\LojaCategoria::where('empresa_id', $empresaId)->max('ordem') + 1;
+            \App\Models\LojaCategoria::create($campos + ['empresa_id' => $empresaId, 'ordem' => $ordem, 'ativa' => true]);
+        }
+
+        return redirect()->route('app.loja-online.categorias')->with('success', $registro
+            ? 'Categoria "' . $campos['nome'] . '" atualizada. A vitrine já mostra a mudança.'
+            : 'Categoria "' . $campos['nome'] . '" criada. A partir de agora a loja mostra só as categorias desta tela.');
+    }
+
+    private function categoriaDaLoja(int $id): \App\Models\LojaCategoria
+    {
+        return \App\Models\LojaCategoria::where('empresa_id', (int) $this->loja()->empresa_id)->findOrFail($id);
+    }
+
+    public function alternarCategoria(int $categoria)
+    {
+        $c = $this->categoriaDaLoja($categoria);
+        $c->update(['ativa' => ! $c->ativa]);
+
+        return back()->with('success', $c->ativa ? 'Categoria "' . $c->nome . '" ligada.' : 'Categoria "' . $c->nome . '" desligada: não aparece na loja.');
+    }
+
+    /** Sobe ou desce uma posição, renumerando a lista inteira (a ordem nunca fica com buraco nem empate). */
+    public function moverCategoria(Request $request, int $categoria)
+    {
+        $c = $this->categoriaDaLoja($categoria);
+        $dados = $request->validate(['direcao' => ['required', 'in:subir,descer']]);
+        $ids = \App\Models\LojaCategoria::where('empresa_id', $c->empresa_id)->orderBy('ordem')->orderBy('id')->pluck('id')->all();
+        $i = array_search($c->id, $ids, true);
+        $j = $dados['direcao'] === 'subir' ? $i - 1 : $i + 1;
+        if ($i !== false && isset($ids[$j])) {
+            [$ids[$i], $ids[$j]] = [$ids[$j], $ids[$i]];
+        }
+        foreach ($ids as $pos => $id) {
+            \App\Models\LojaCategoria::whereKey($id)->update(['ordem' => $pos + 1]);
+        }
+
+        return back();
+    }
+
+    public function excluirCategoria(int $categoria)
+    {
+        $c = $this->categoriaDaLoja($categoria);
+        $nome = $c->nome;
+        $c->delete();
+
+        return redirect()->route('app.loja-online.categorias')->with('success', 'Categoria "' . $nome . '" excluída. Os produtos continuam na loja.');
+    }
 }

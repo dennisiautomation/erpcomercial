@@ -17,7 +17,7 @@
 <div class="lj-caixa">
     <nav class="lj-trilha" aria-label="Você está em">
         <a href="{{ $ctx->url() }}">Início</a> <span>/</span>
-        @if($model->categoria_id && $p['categoria'])<a href="{{ $ctx->url('produtos?categoria=' . $model->categoria_id) }}">{{ $p['categoria'] }}</a> <span>/</span>@endif
+        @if(($p['categoria_id'] ?? $model->categoria_id) && $p['categoria'])<a href="{{ $ctx->url('produtos?categoria=' . ($p['categoria_id'] ?? $model->categoria_id)) }}">{{ $p['categoria'] }}</a> <span>/</span>@endif
         <span>{{ $p['nome'] }}</span>
     </nav>
 
@@ -58,7 +58,7 @@
         </div>
 
         <div class="lj-produto__info">
-            @if($p['categoria'])<a class="lj-produto__cat" href="{{ $ctx->url('produtos?categoria=' . $model->categoria_id) }}">{{ $p['categoria'] }}</a>@endif
+            @if($p['categoria'])<a class="lj-produto__cat" href="{{ $ctx->url('produtos?categoria=' . ($p['categoria_id'] ?? $model->categoria_id)) }}">{{ $p['categoria'] }}</a>@endif
             <h1>{{ $p['nome'] }}</h1>
             <p class="lj-produto__ref">Cód. {{ $p['codigo'] }}
                 @if(($p['avaliacoes'] ?? 0) > 0) · <a class="lj-nota" href="#avaliacoes"><i class="bi bi-star-fill" aria-hidden="true"></i> {{ number_format((float) $p['nota'], 1, ',', '') }} <small>({{ $p['avaliacoes'] }} {{ $p['avaliacoes'] === 1 ? 'avaliação' : 'avaliações' }})</small></a>@endif

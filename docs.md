@@ -11093,3 +11093,45 @@ O "Pedido mínimo (R$)" que já existia continua e é independente. Sem migratio
 - **Falta:** DNS do domínio (Registro.br, sem registro nenhum em 27/11) e depois o cadeado; o cliente marcar os produtos e publicar;
   apagar o ambiente `cm-*`.
 
+
+---
+
+## Loja online: categorias da vitrine montadas pelo lojista (27/11/2026) — branch `loja-categorias-27nov`, NÃO está em produção
+
+**Pergunta do Dennis (27/11, olhando a loja da Cell Master):** "de onde vêm as categorias da loja? tem isso no editor para
+configurar?" → vinham só do cadastro (nome do cadastro, ordem alfabética, foto de um produto) e não havia tela. Pedido: "isso,
+se possível nas configurações da loja, e quais produtos vão lá dentro".
+
+**Onde cada coisa vive: as categorias da VITRINE moram em `loja_categorias` (nome, ordem, foto, ligada + o que vai dentro);
+o cadastro de categorias do ERP não muda. A regra é uma só, em `App\Services\LojaOnline\CategoriasLoja`: loja com pelo menos
+UMA categoria própria ligada mostra SÓ as próprias; sem nenhuma, continua nas do cadastro.**
+
+| Peça | Onde |
+|---|---|
+| Tabela | `loja_categorias` (migration `2026_11_27_100000`): `empresa_id`, `nome`, `ordem`, `foto`, `ativa`, `categorias_erp` (json: categorias do cadastro que entram INTEIRAS, inclusive produto cadastrado depois), `produtos` (json: produtos escolhidos um a um) |
+| Regra | `CategoriasLoja`: `proprias()`, `emUso()`, `filtrar($q, $categoria)`, `doProduto()`, `paraVitrine()` |
+| Vitrine | `CatalogoLoja::categorias()` (menu, bloco "Categorias", filtro da lista) devolve as próprias quando em uso; `naCategoria()` atende `listar` e `fileira`; o cartão e a página do produto usam o nome da categoria da loja (`categoria` + `categoria_id` em `paraVitrine`) |
+| **Id negativo** | na vitrine a categoria da loja viaja como `?categoria=-5`; id positivo continua sendo o do cadastro — link antigo, banner e fileira já gravados não quebram |
+| Painel | Loja online → **Categorias** (aba nova no grupo Catálogo; `LojaOnlineGestaoController::categorias`, `salvarCategoria`, `alternarCategoria`, `moverCategoria`, `excluirCategoria`; view `app/loja-online/categorias.blade.php`): lista com subir/descer, ligar/desligar, editar, excluir; formulário com nome, foto opcional, lista de categorias do cadastro (as que têm produto na loja primeiro, com filtro) e lista dos produtos marcados para a loja (com filtro) |
+| Editor visual | a fileira "De uma categoria" e os links oferecem as categorias da loja primeiro ("… (categoria da loja)"); `LojaOnlineController::categoriasDoEditor` alimenta o seletor e a higiene (`limparBlocos`) |
+
+Detalhes: a categoria só aparece para o público se tiver produto na loja; produto fora de toda categoria continua em "Todos os
+produtos" e na busca (a tela avisa quantos são); a foto, sem envio, vem de um produto da categoria; ids de categoria/produto
+de outra empresa são descartados ao gravar; excluir a categoria não mexe em produto nenhum.
+
+### Validação (27/11)
+- `tests/Feature/App/LojaCategoriasTest.php` (6 testes): na `main` **6 ❌**, na branch **6 ✅**; com `LojaAtacadoTest`,
+  `LojaModeloExclusivoTest` e `LojaOnlineTest`, 42 ✅. Suíte inteira: 533, só as 2 falhas antigas de sempre.
+- Navegador, ambiente `cm-*` (cópia do banco de produção, loja da empresa 6 com 185 produtos marcados só na cópia):
+  `scripts/validar-loja-categorias-27nov.browser.mjs` **24 ✅ / 0 ❌** — tela vazia, criar duas categorias juntando categorias
+  do cadastro + produto avulso, a loja passa a mostrar só as duas (menu, bloco, lista, etiqueta do cartão), "Todos os produtos"
+  inteiro, subir, desligar, editar o nome, 1366 e 390 px sem rolagem lateral, excluir tudo e a loja volta às 12 categorias do
+  cadastro, nenhum erro de JavaScript.
+- Lint: `php -l` nos PHP tocados e nas 358 views compiladas, 0 erro.
+- **Não validado:** envio de foto pelo navegador (coberto pelo teste automático), aparelho de verdade.
+
+### Para subir (quando o Dennis mandar)
+Tem **migration** (tabela nova, nada alterado nas existentes): backup do banco, troca a quente dos arquivos, `migrate --force`,
+`route:cache` (rotas novas) + `view:cache` + `php -l` + USR2. Rollback: `migrate:rollback --step=1` com os arquivos novos no
+lugar, depois os arquivos antigos de volta.
+

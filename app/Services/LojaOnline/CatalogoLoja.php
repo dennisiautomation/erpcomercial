@@ -34,8 +34,26 @@ class CatalogoLoja
 
     private bool $estoqueResolvido = false;
 
+    private ?CategoriasLoja $categoriasLoja = null;
+
     public function __construct(private readonly LojaOnline $loja)
     {
+    }
+
+    /** Categorias da vitrine montadas pelo lojista (27/11/2026). Regra em CategoriasLoja. */
+    public function categoriasLoja(): CategoriasLoja
+    {
+        return $this->categoriasLoja ??= new CategoriasLoja($this->loja);
+    }
+
+    /** Filtro de categoria da vitrine: id negativo = categoria própria da loja; positivo = do cadastro (com as filhas). */
+    private function naCategoria(Builder $q, ?int $categoriaId): Builder
+    {
+        if ($categoriaId !== null && $categoriaId < 0) {
+            return $this->categoriasLoja()->filtrar($q, $this->categoriasLoja()->achar($categoriaId));
+        }
+
+        return $q->whereIn('categoria_id', $this->categoriaComFilhas($categoriaId));
     }
 
     public function base(): Builder
@@ -149,7 +167,11 @@ class CatalogoLoja
         $diasNovo = (int) $this->loja->opcao('selo_novo_dias');
         $freteGratisAcima = (float) $this->loja->opcao('frete_gratis_acima');
 
-        return $produtos->map(function (Produto $p) use ($saldos, $categorias, $semEstoque, $segundas, $diasNovo, $freteGratisAcima, $irmaos, $notas) {
+        $proprias = $this->categoriasLoja()->emUso();
+
+        return $produtos->map(function (Produto $p) use ($saldos, $categorias, $semEstoque, $segundas, $diasNovo, $freteGratisAcima, $irmaos, $notas, $proprias) {
+            // Etiqueta de categoria do cartão: a da loja (se ela montou as dela) ou a do cadastro.
+            $propria = $proprias ? $this->categoriasLoja()->doProduto((int) $p->id, $p->categoria_id) : null;
             $precos = $this->precos($p);
             $saldo = $saldos[$p->id] ?? 0.0;
             $grupo = $p->grade_id ? ($irmaos[$p->grade_id] ?? collect()) : collect();
@@ -181,7 +203,8 @@ class CatalogoLoja
                 'frete_gratis' => $freteGratisAcima > 0 && $precos['preco'] >= $freteGratisAcima && (bool) $this->loja->opcao('entrega'),
                 'parcelas' => $this->parcelas($precos['preco']),
                 'codigo' => $p->codigo_interno,
-                'categoria' => $categorias[$p->categoria_id] ?? null,
+                'categoria' => $proprias ? $propria?->nome : ($categorias[$p->categoria_id] ?? null),
+                'categoria_id' => $proprias ? ($propria ? -$propria->id : null) : $p->categoria_id,
                 'destaque' => (bool) $p->loja_online_destaque,
                 'saldo' => $saldo,
                 'disponivel' => $semEstoque || $saldo >= 1,
@@ -300,7 +323,7 @@ class CatalogoLoja
         match ($origem) {
             'destaques' => $q->where('loja_online_destaque', true)->orderByDesc('updated_at'),
             'promocoes' => $q->whereIn('id', $this->idsEmPromocao())->orderByDesc('id'),
-            'categoria' => $q->whereIn('categoria_id', $this->categoriaComFilhas($categoriaId))->orderByDesc('id'),
+            'categoria' => $this->naCategoria($q, $categoriaId)->orderByDesc('id'),
             'todos' => $q->orderBy('descricao'),
             default => $q->orderByDesc('id'),
         };
@@ -346,6 +369,11 @@ class CatalogoLoja
      */
     public function categorias(): Collection
     {
+        // Loja com categorias próprias (Loja online → Categorias) mostra só elas, na ordem do lojista.
+        if ($this->categoriasLoja()->emUso()) {
+            return $this->categoriasLoja()->paraVitrine(fn () => $this->vitrine());
+        }
+
         $contagem = $this->vitrine()->whereNotNull('categoria_id')
             ->selectRaw('categoria_id, COUNT(*) as total, MAX(foto) as foto')
             ->groupBy('categoria_id')
@@ -390,7 +418,7 @@ class CatalogoLoja
         }
 
         if ($categoria = (int) ($filtros['categoria'] ?? 0)) {
-            $q->whereIn('categoria_id', $this->categoriaComFilhas($categoria));
+            $this->naCategoria($q, $categoria);
         }
 
         if (! empty($filtros['promocao'])) {

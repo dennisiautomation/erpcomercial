@@ -79,7 +79,7 @@ class ModelosLoja
         'carrossel' => ['Use de 2 a 3 banners: um para a novidade, um para a oferta, um para um benefício (frete grátis, retirada na loja). Mais que isso quase ninguém vê.', 'Imagens deitadas, todas do mesmo tamanho: 1600 × 700 px ou maior.'],
         'banners' => ['Bons para levar a uma categoria ou a uma seleção ("Para presentear", "Até R$ 99"). Título curto, de 2 a 4 palavras.', 'Imagens deitadas, 800 × 600 px ou maior, todas no mesmo formato.'],
         'vitrine' => ['Uma fileira de produtos. Comece pelas ofertas e pelos destaques; para escolher quais são destaque, marque a estrela em Loja online → Produtos.', null],
-        'categorias' => ['Atalhos para o cliente achar o que procura. Só aparecem as categorias que têm produto na loja; a foto vem de um produto da categoria.', null],
+        'categorias' => ['Atalhos para o cliente achar o que procura. Mostra as categorias que você montou em Loja online → Categorias (nome, ordem e foto); se não montou nenhuma, mostra as do cadastro que têm produto na loja.', null],
         'beneficios' => ['Três ou quatro motivos para comprar de você: prazo de entrega, retirada na loja, troca fácil, parcelamento. Frases curtas e verdadeiras.', null],
         'imagem_texto' => ['Conte a história da loja ou explique um diferencial: quem faz, de onde vem, há quanto tempo existe. Gente compra de quem conhece.', 'Foto real da loja, da equipe ou do produto em uso: 1000 × 800 px ou maior.'],
         'texto' => ['Um recado em destaque: horário de atendimento, prazo de produção, aviso de feriado. Até três linhas.', null],

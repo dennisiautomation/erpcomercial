@@ -110,7 +110,10 @@ class VitrineController extends Controller
 
         $categoriaAtual = null;
         if ($id = (int) $filtros['categoria']) {
-            $categoriaAtual = Categoria::withoutGlobalScopes()->where('empresa_id', $this->ctx->loja->empresa_id)->whereKey($id)->first(['id', 'nome']);
+            // id negativo = categoria montada pela loja (Loja online → Categorias)
+            $categoriaAtual = $id < 0
+                ? (($propria = $catalogo->categoriasLoja()->achar($id)) ? (object) ['id' => $id, 'nome' => $propria->nome] : null)
+                : Categoria::withoutGlobalScopes()->where('empresa_id', $this->ctx->loja->empresa_id)->whereKey($id)->first(['id', 'nome']);
         }
 
         $produtos = $catalogo->listar($filtros)->withPath($this->ctx->caminho('produtos'));

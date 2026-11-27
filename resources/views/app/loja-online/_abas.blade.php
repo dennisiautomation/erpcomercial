@@ -11,6 +11,7 @@
         ],
         'Catálogo' => [
             ['app.loja-online.produtos', 'box-seam', 'Produtos', 'Quais produtos aparecem'],
+            ['app.loja-online.categorias', 'collection', 'Categorias', 'As categorias que a loja mostra e o que vai em cada uma'],
             ['app.loja-online.grade', 'grid-3x3', 'Grade', 'Tamanho e cor'],
             ['app.loja-online.promocoes', 'tags', 'Promoções', null],
         ],
