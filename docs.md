@@ -11096,7 +11096,7 @@ O "Pedido mínimo (R$)" que já existia continua e é independente. Sem migratio
 
 ---
 
-## Loja online: categorias da vitrine montadas pelo lojista (27/11/2026) — branch `loja-categorias-27nov`, NÃO está em produção
+## Loja online: categorias da vitrine montadas pelo lojista (27/11/2026) — branch `loja-categorias-27nov`, EM PRODUÇÃO 27/11 08:43 BRT
 
 **Pergunta do Dennis (27/11, olhando a loja da Cell Master):** "de onde vêm as categorias da loja? tem isso no editor para
 configurar?" → vinham só do cadastro (nome do cadastro, ordem alfabética, foto de um produto) e não havia tela. Pedido: "isso,
@@ -11130,8 +11130,18 @@ de outra empresa são descartados ao gravar; excluir a categoria não mexe em pr
 - Lint: `php -l` nos PHP tocados e nas 358 views compiladas, 0 erro.
 - **Não validado:** envio de foto pelo navegador (coberto pelo teste automático), aparelho de verdade.
 
-### Para subir (quando o Dennis mandar)
-Tem **migration** (tabela nova, nada alterado nas existentes): backup do banco, troca a quente dos arquivos, `migrate --force`,
-`route:cache` (rotas novas) + `view:cache` + `php -l` + USR2. Rollback: `migrate:rollback --step=1` com os arquivos novos no
-lugar, depois os arquivos antigos de volta.
-
+### Deploy — EM PRODUÇÃO 27/11/2026 08:43 BRT (ordem do Dennis: "Sim, subir")
+- Antes: os 8 arquivos alterados do container conferidos por md5 = `main` (`6114766`); os 4 novos não existiam. Backup em
+  `/home/ubuntu/erp-backups/pre-loja-categorias-20261127/` (`arquivos/`, `lista.txt`, `novos.txt`, `md5-antes.txt`,
+  `routes-v7.php` = o cache de rotas antigo, `erp_comercial-20261127.sql.gz` = 114 tabelas) + foto
+  `erp-com-app:pre-loja-categorias-20261127` (`docker commit`, sem `-q`: essa opção não existe e foi o que falhou na subida anterior).
+- `git archive HEAD <12 arquivos> | tar -x` no container (commit `14ad0cf`) → md5 dos 12 conferido → `chown www-data` → `php -l`
+  → `migrate --force` (`2026_11_27_100000`, tabela nova) → `route:cache` e `view:cache` como `www-data` → `php -l` nas 318 views
+  e no cache de rotas (0 erro) → `kill -USR2 32`.
+- Conferido em produção, só leitura: **11 ✅ / 0 ❌** — tabela criada e vazia, rotas registradas, tela Categorias da Cell Master
+  (136 categorias do cadastro para escolher) e da MISS MERLINDA (sem nada da outra empresa), editor, prévias e listas das duas
+  lojas, público segue sem ver a loja da Cell Master. `/login` 200, nenhum erro novo no log.
+- Nenhuma loja tem categoria montada: todas seguem nas categorias do cadastro até o lojista criar a primeira.
+- **Rollback:** `migrate:rollback --step=1` (com os arquivos novos no lugar) → extrair `arquivos/` do backup por cima de
+  `/var/www` → apagar os 4 de `novos.txt` → `route:cache` + `view:cache` + USR2.
+- **Git:** só na branch por enquanto — produção à frente da `main` nestes 12 arquivos.
