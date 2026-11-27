@@ -11089,7 +11089,7 @@ O "Pedido mínimo (R$)" que já existia continua e é independente. Sem migratio
   `resources/loja-modelos/cellmaster`, `resources/views/loja/modelos/cellmaster.blade.php` e
   `resources/views/loja/blocos/atacado_passos.blade.php`; `view:cache` + USR2. A linha da loja volta com o JSON do backup
   (modelo `vitrine`, `modelo_exclusivo` nulo, `config` nulo).
-- **Git:** só na branch (`main` e GitHub ainda sem esta entrega) — produção está à frente da `main` nestes 20 arquivos.
+- **Git:** branch `loja-cellmaster-27nov` levada à `main` por avanço rápido e enviada ao GitHub em 27/11 (ordem do Dennis: "Sim, main e GitHub") → `main` = GitHub = produção.
 - **Falta:** DNS do domínio (Registro.br, sem registro nenhum em 27/11) e depois o cadeado; o cliente marcar os produtos e publicar;
   apagar o ambiente `cm-*`.
 
